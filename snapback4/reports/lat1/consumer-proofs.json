@@ -1,0 +1,175 @@
+[
+  {
+    "proof": "security",
+    "status": "fulfilled",
+    "result": {
+      "status": "passed",
+      "guide": "verbatim installed security card",
+      "artifacts": {
+        "clientSha256": "a9b4f10b31535dd2efa2b969942b7139ffd3bc475ef6d7bf07fc0dc705f49b48",
+        "platformSha256": "dcbaa3a999a66fa70be4a0201ca791f2fa44e2e5d1547b3aa3fdf82da8d4d77a",
+        "binarySha256": "155ba9bcdd5890e0d58aeaeaeca66085d2d9675dce75711780da27ef6045bff3"
+      },
+      "guideCases": [
+        {
+          "block": 0,
+          "invariants": 3,
+          "audit": "passed",
+          "finite": {
+            "attempted": 1208,
+            "refused": 0,
+            "violations": 0,
+            "seedSyntheticObservations": 0,
+            "unauthenticatedHttpRefused": 7,
+            "revocationHttpRefused": 0
+          },
+          "broadRead": "refuted",
+          "expectedFailureExits": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "block": 1,
+          "compile": "passed",
+          "invariants": 0
+        }
+      ],
+      "sessions": [
+        {
+          "method": "guests",
+          "status": "passed",
+          "attempted": 1040,
+          "refused": 0,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 7,
+          "revocationHttpRefused": 14,
+          "disconnectedDevice": "not covered"
+        },
+        {
+          "method": "password",
+          "status": "passed",
+          "attempted": 1040,
+          "refused": 0,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 7,
+          "revocationHttpRefused": 14,
+          "disconnectedDevice": "not covered"
+        }
+      ],
+      "starters": [
+        {
+          "id": "todo-backend",
+          "status": "passed",
+          "invariants": 1,
+          "attempted": 1265,
+          "refused": 713,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 11,
+          "revocationHttpRefused": 0
+        },
+        {
+          "id": "todo-online",
+          "status": "passed",
+          "invariants": 1,
+          "attempted": 1265,
+          "refused": 713,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 11,
+          "revocationHttpRefused": 0
+        },
+        {
+          "id": "social",
+          "status": "passed",
+          "invariants": 2,
+          "attempted": 6306,
+          "refused": 3882,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 0,
+          "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+          "revocationHttpRefused": 0
+        },
+        {
+          "id": "todo-web",
+          "status": "passed",
+          "invariants": 1,
+          "attempted": 1347,
+          "refused": 753,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 11,
+          "revocationHttpRefused": 18
+        },
+        {
+          "id": "chat-web",
+          "status": "passed",
+          "invariants": 1,
+          "attempted": 244,
+          "refused": 232,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 0,
+          "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+          "revocationHttpRefused": 0
+        },
+        {
+          "id": "chat-expo",
+          "status": "passed",
+          "invariants": 1,
+          "attempted": 244,
+          "refused": 232,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 25,
+          "revocationHttpRefused": 32
+        },
+        {
+          "id": "production-recipe",
+          "status": "passed",
+          "source": "installed dist/recipes/production/web/schema.q",
+          "invariants": 2,
+          "attempted": 165,
+          "refused": 32,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 13,
+          "revocationHttpRefused": 20
+        }
+      ],
+      "sec6": {
+        "suppliedSession": "passed before side effects",
+        "multiWrite": "refuted by authored add",
+        "mutationResult": "refuted by authored edit"
+      },
+      "scope": "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim",
+      "commandCount": 44
+    }
+  },
+  {
+    "proof": "staging",
+    "status": "fulfilled",
+    "result": {
+      "status": "passed",
+      "guide": "staging",
+      "recipes": "verbatim installed card",
+      "roles": {
+        "admin": 2,
+        "member": 2
+      },
+      "mode": "serve",
+      "realPasswordLogin": "passed",
+      "data": "passed",
+      "selfGrant": "refused",
+      "productionBulkSeed": "refused before mint",
+      "productionRelabel": "refused",
+      "firstAdmin": "passed",
+      "privateCredentials": "0600"
+    }
+  }
+]

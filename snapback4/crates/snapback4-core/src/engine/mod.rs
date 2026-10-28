@@ -117,6 +117,8 @@ pub mod write;
 mod column_writes;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
+mod code;
+use code::Code;
 use write::target as write_target;
 pub(crate) use write_target::row_copy_ceiling;
 #[cfg(test)]
@@ -226,6 +228,8 @@ pub struct Context {
     pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
+    #[cfg(feature = "sqlite")]
+    replay_id_range: Option<std::ops::Range<u128>>,
     entropy: u64,
     minter: crate::ids::Mint,
     /// Every id consumed by this execution, including newly minted ids.
@@ -253,7 +257,7 @@ impl Context {
     }
 
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature="postgres")] revision_cache: false, #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature="postgres")] revision_cache: false, #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), #[cfg(feature = "sqlite")] replay_id_range: None, entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -297,7 +301,30 @@ impl Context {
 
     pub fn with_ids(mut self, ids: impl IntoIterator<Item = String>) -> Self {
         self.new_ids = ids.into_iter().collect();
+        #[cfg(feature = "sqlite")] { self.replay_id_range = None; }
         self
+    }
+
+    /// Private campaign representation of the same ordered supplied IDs.
+    /// Reservation happens at the caller; unused strings need no allocation.
+    #[cfg(feature = "sqlite")]
+    #[doc(hidden)]
+    // @ref LLP 3000.036.004.000.000#lazy-supplied-replay-ids — preserve every reserved ID and encode only consumed values.
+    pub fn with_replay_id_range(mut self, range: std::ops::Range<u128>) -> Self {
+        self.new_ids.clear();
+        self.replay_id_range = Some(range);
+        self
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn supplied_ids(&self) -> impl Iterator<Item = String> + '_ {
+        self.new_ids.iter().cloned().chain(self.replay_id_range.clone().into_iter().flatten().map(crate::ids::encode))
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn replay_ids_from(self, original: &Self, minted: &[String]) -> Self {
+        if minted.is_empty() { return self; }
+        self.with_ids(minted.iter().cloned().chain(original.supplied_ids().skip(minted.len())))
     }
 
     pub fn with_entropy(mut self, entropy: u64) -> Self {
@@ -316,7 +343,10 @@ impl Context {
     }
 
     pub(crate) fn mint(&mut self) -> Result<String, crate::RuntimeError> {
-        let id = if let Some(id) = self.new_ids.pop_front() { id } else {
+        let supplied = self.new_ids.pop_front();
+        #[cfg(feature = "sqlite")]
+        let supplied = supplied.or_else(|| self.replay_id_range.as_mut()?.next().map(crate::ids::encode));
+        let id = if let Some(id) = supplied { id } else {
             crate::ids::mint(self.now.unwrap_or(0), &mut self.minter)?
         };
         self.minted_ids.push(id.clone());
@@ -444,8 +474,8 @@ pub struct Engine {
     timeline_schedule: timeline::Schedule,
     ephemeral: std::sync::Arc<ephemeral::Hub>,
     store: AnyStore,
-    schema: Schema,
-    programs: BTreeMap<String, Program>,
+    schema: Code<Schema>,
+    programs: Code<BTreeMap<String, Program>>,
     ceilings: Ceilings,
     entropy: u64,
     minter: crate::ids::Mint,
@@ -475,6 +505,7 @@ impl Engine {
 
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(store: impl Into<AnyStore>, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
+    let _profile = crate::replay_profile::span("replay.new_engine");
         let mut store = store.into();
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         store.admit(&schema, &programs)?;
@@ -490,7 +521,7 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema: schema.into(), programs: programs.into(), generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
@@ -548,7 +579,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema: schema.into(), programs: programs.into(), generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -671,8 +702,8 @@ impl Engine {
             #[cfg(feature="postgres")]
             {engine.code_native_digest=metadata.native_digest;engine.reset_revision_cache();}
             engine.timeline_schedule = timeline::Schedule::default();
-            engine.schema = schema;
-            engine.programs = programs;
+            engine.schema = schema.into();
+            engine.programs = programs.into();
             engine.generation = generation;
             engine.expiry_after.clear();
             engine.store_id = metadata.store_id.clone();
@@ -782,6 +813,7 @@ impl Engine {
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
     /// card's `denied`; store failures surface as retryable refusals too.
     pub fn query(&mut self, name: &str, context: Context) -> Result<QueryOutcome, Refusal> {
+        let _profile = crate::replay_profile::span("replay.query");
         self.query_at(name, context).0
     }
 

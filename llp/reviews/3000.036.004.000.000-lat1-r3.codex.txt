@@ -1,0 +1,5 @@
+**READY** — reviewed `fc60760054..f7b12190c857` and the governing amendment. No material correctness or claim defects found.
+
+All eight self-test controls and 185 independent mutation checks passed. Identity extraction retains required gates, question/decision IDs and complete witness payloads without value normalization. Changed-field reporting preserves scalar distinctions. Runtime source and the fixed-budget, authority, exact-ID and restoration boundaries remain unchanged.
+
+The 940-schema comparison and paired production measurements remain pending. No performance claim granted. No files edited or agents spawned.

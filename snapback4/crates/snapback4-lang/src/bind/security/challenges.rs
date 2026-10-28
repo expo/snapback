@@ -250,7 +250,7 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
     Ok((true,next))
 }
 mod replay_ids;
-fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
+fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{let _profile=snapback4_core::replay_profile::span("replay.readback");engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
 fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
     if let Some(name)=&inv.operation&&!bound.programs.iter().any(|p|&p.program.name==name){return Err("operation did not bind".into());}

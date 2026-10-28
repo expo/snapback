@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**NOT READY** — one live correctness defect in the retry path, plus two latent gaps from the same root cause. No performance or proof claim is granted; the lane's 940-schema and 54-schema measurements are still pending.
+
+## Material defects
+
+All three share one root cause: the commit adds a second supply channel (`replay_id_range`) and updates the constructor paths, `mint`, and the revision-cache gate, but misses the three sites that manipulate `new_ids` directly as a field.
+
+**D1 — Retry re-mints duplicate IDs (live).** [mutation.rs:126](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/mutation.rs:126) rebuilds supply on commit-abort retry as `minted ++ original.new_ids.skip(minted.len())`. For a range context, `original.new_ids` is empty, so `new_ids` becomes just the replayed prefix — while `original.clone()` restores the range cursor to **full**. Attempt 2 therefore mints `[s0..s(k-1)]` from `new_ids`, then `s0, s1, …` from the range: rows within a single attempt share IDs. Eager code restores the full 1,024 supply and never duplicates. I confirmed `Execution.minted` is the attempt's full `minted_ids` ([mutation.rs:304,319](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/mutation.rs:304)), and the retry fires on `prepare_program_commit` abort ([outcome.rs:75](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/committer/outcome.rs:75)). This is the campaign path itself: `histories.rs`, `paired.rs`, `workflow.rs`, and `executed.rs` all call `engine.mutate` with `replay_ids::context`. It contradicts the amendment's "encodes each consumed value identically" on a live path.
+
+**D2 — Ephemeral clear drops supply but keeps the range (latent for campaigns, live code).** [ephemeral.rs:429](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/ephemeral.rs:429) does `context.new_ids.clear()` without clearing the range. Eager behavior mints host IDs here; lazy mints replay-range IDs. Campaign-unreachable today only because harnesses filter ephemeral ops out (`paired.rs:16`, `histories.rs` filters) — any other caller with a range context diverges.
+
+**D3 — Batch rerun has the D1 pattern (latent).** [program_batch.rs:401](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/program_batch.rs:401) rebuilds `new_ids` by direct field assignment, leaving a stale range alongside. No range flows into batch `Invocation`s today (wire/job contexts only), so latent. Related: the `bind` digest in [program.rs:92](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/program.rs:92) covers `new_ids` but not the range; `bind()` currently has no callers, so also latent.
+
+The commit's own tests cover only the happy path (eager/lazy equality, clone independence, explicit replacement, empty-range fallback). Nothing exercises retry-restore, ephemeral-clear, or post-exhaustion host fallback.
+
+## Verified correct
+
+- **Byte equivalence:** old inline encoder and `ids::encode` use the identical alphabet and loop; reservation (`first=(last+1).max(now<<80)`, `count` = 1,024 from `Ceilings::default()`, `*last=first+count`) and logical clock are untouched.
+- **Cloning/replacement/fallback:** `Range<u128>` clones by value with independent cursors; `with_ids` clears the range and `with_replay_id_range` clears `new_ids`; empty-range exhaustion falls through to the host minter exactly like empty supply.
+- **PostgreSQL cache eligibility:** non-empty ranges are excluded just like non-empty supplies; empty ranges stay eligible. Compiles under `--features postgres` (which implies `sqlite`, so the field exists).
+- **Non-SQLite builds:** field, methods, and mint branch are all `cfg(sqlite)`; the test module sits under the gated `mod fixture`. `cargo check -p snapback4-core --no-default-features` passes, as do the 2 new unit tests on default features.
+- **Tiers/authority/rules:** ceilings, challenge filters, admission, and authority paths are untouched; `Context` has no serde impl so the new field breaks no serialization. The `generated.rs` working-tree change was excluded from review as instructed.

@@ -1,0 +1,9 @@
+READY — correctness/design review of HEAD `765c48dd43`, covering the complete delta from `2921a639cc` and specified subsequent changes. No material findings.
+
+Checked deterministic restoration ordering, unchanged budgets/tiers, exact invocation-local compilation reuse without validation bypass, copy-on-write code ownership, replay-ID retry/ephemeral behavior, and ordinary page-backed SQLite forks with independent state.
+
+Allocator configuration correctly confines C overrides to Linux musl; GNU Linux changes Rust allocation only. The five owned-value test conversions preserve their assertions.
+
+`check --review` extraction retains complete security reports and witnesses. Comparator self-tests passed; in-memory negative controls confirmed scalar, witness, report, and note mismatches reach the failure path and exit nonzero.
+
+No source edits or full suites. This grants no performance or full-corpus identity qualification; those remain pending.

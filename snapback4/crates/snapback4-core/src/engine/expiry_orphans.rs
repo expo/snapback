@@ -104,7 +104,7 @@ mod tests {
         let seq = engine.store.seq().unwrap();
         assert_eq!(engine.expiry_orphans(32).unwrap(), vec![("parents".into(), "p".into())]);
         assert_eq!(engine.store.seq().unwrap(), seq, "doctor is read-only");
-        let schema = engine.schema.clone();
+        let schema = engine.schema().clone();
         engine.adopt_at(schema, [], 20).unwrap();
         engine.sweep_expired(20, 100).unwrap();
         assert_eq!(engine.store.rows("children").unwrap().len(), 1, "absence alone never authorizes repair");

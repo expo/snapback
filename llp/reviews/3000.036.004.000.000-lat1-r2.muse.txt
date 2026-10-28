@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Second fresh review of `2921a639cc..fc60760054` (actual HEAD `fc60760054`), no edits made, no agents spawned.
+
+Scope checked independently against the code: byte/order equivalence, reservation, retry paths, clone behavior, cache eligibility, non-SQLite builds, ephemeral entry, invocation binding, initializer telemetry, and `snapback4/reports/lat1/measure.py`.
+
+Findings:
+
+- Byte/order equivalence holds. The removed inline encoder in `snapback4/crates/snapback4-lang/src/bind/security/challenges/replay_ids.rs` was a line-for-line duplicate of `ids::encode` (same Crockford alphabet, same `&31`/`>>=5` loop, now the single encoder). Reservation is untouched: `first` computation and `*last = first+count` are unchanged, so the global cursor still advances past all 1,024 rows including unused contexts.
+- No remaining direct `new_ids` queue handling. The only `.new_ids` touches in `snapback4-core/src` are the constructor, `mint`'s `pop_front`, the ephemeral clear, the revision-cache check, and the two new shared helpers. Single and batch retries (`engine/mutation.rs:126`, `engine/program_batch.rs:401`) both go through `replay_ids_from`, which reproduces the old `prefix ++ original.skip(minted.len())` exactly, including the empty-prefix fast path that keeps the first attempt lazy and the over-length-skip exhaustion case. The batch rerun path re-derives from the pristine `invocation.context`, same as before.
+- Clone independence holds (`Context` derives `Clone`; the `Range<u128>` cursor is a by-value copy) and is pinned by the fixture test, including the `u128::MAX - 1024` edge.
+- Cache eligibility is parity: `revision_cache.rs:604` excludes non-empty ranges exactly as it excludes non-empty `new_ids`. That file is postgres-gated (which implies sqlite), so the field exists there.
+- Non-SQLite builds are intact. Every use of the new field/methods sits in sqlite-gated modules (`program`, `program_batch`, `mutation`, `ephemeral`, `fixture`) or behind `cfg(feature = "sqlite")`; `mint()` has proper cfg branches. My initial suspicion of unguarded uses dissolved on checking the module gates.
+- Ephemeral entry (`ephemeral.rs:429-430`) clears both supplies before the host mint; the regression test asserts the host clock (`minted_at == 1000`) and non-reuse of the supplied value.
+- Invocation binding (`program.rs:92`) hashes the same logical sequence via `supplied_ids()` for either representation. The per-`bind` full-range materialization is a non-issue in practice: lazy ranges only exist in campaign contexts, which go through `mutate`, not `Invocation::bind`.
+- Initializer telemetry (`generated.rs` `measure` wrapper) is env-gated through `replay_profile::start`, costs one cached bool check when off, and `generated.rs` is hand-maintained source (`mod generated` in `challenges.rs`), so no generator drift. The local `readback` correctly delegates to `super::readback` with no recursion.
+- `measure.py` is sound for its paired purpose: fresh per-binary temp project copies, alternating binary order, cold-then-warm sharing one project, provenance pinning with resume assertion, deterministic identity envelopes (diagnostic notes, not timings). Only nits, none material: `--resume` with a missing manifest raises `FileNotFoundError` rather than a clean error, and `sourceSha256` covers `*.q` only.
+- Test-record claim verified: `replay-r2-tests.log` (17:21:33, after HEAD 17:21:27) passes all three fixture tests including `retry_replays_the_prefix_then_the_unconsumed_supply_without_duplicates` (10 passed), and `ephemeral-r2-tests.log` (17:21:35) passes `ephemeral_mutations_discard_both_eager_and_lazy_supplied_ids` (19 passed).
+
+No material defects. Performance claims remain correctly ungranted pending the full-corpus identity and paired production qualification, as the amendment states.

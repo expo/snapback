@@ -89,7 +89,7 @@ impl Invocation {
                 self.id,
                 self.context.kind,
                 self.context.now,
-                self.context.new_ids,
+                self.context.supplied_ids().collect::<Vec<_>>(),
                 self.context.delivery_fingerprint
             ])),
         );

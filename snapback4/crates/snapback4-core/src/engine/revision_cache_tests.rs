@@ -869,7 +869,7 @@ fn g5_maintains_and_generation_changes_invalidate_the_complete_answer() {
         .query_one("SELECT current_schema()", &[])
         .unwrap()
         .get(0);
-    let mut programs = writer.programs.clone();
+    let mut programs = (*writer.programs).clone();
     programs.get_mut("W1").unwrap().body = vec![crate::ir::Stmt::Return(crate::ir::Expr::Literal(
         Value::Int(7),
     ))];
@@ -1220,7 +1220,7 @@ fn g5_alias_ambiguity_preserves_the_ordinary_authorized_refusal() {
         .query_one("SELECT current_schema()", &[])
         .unwrap()
         .get(0);
-    let mut programs = writer.programs.clone();
+    let mut programs = (*writer.programs).clone();
     programs
         .get_mut("W1")
         .unwrap()
@@ -1319,7 +1319,7 @@ fn g5_deployed_native_marker_and_local_activation_keep_a_working_code_identity()
         );
     }
     let schema = writer.schema().clone();
-    let mut programs = writer.programs.clone();
+    let mut programs = (*writer.programs).clone();
     programs
         .get_mut("W1")
         .unwrap()

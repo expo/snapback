@@ -1,0 +1,18 @@
+{
+  "binaries": {
+    "baseline": {
+      "path": "/home/ccheever/sb4-loop/reports/lat1/baseline-0.4.44",
+      "sha256": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf"
+    },
+    "candidate": {
+      "path": "/home/ccheever/sb4-loop/reports/lat1/candidate-lazy",
+      "sha256": "155ba9bcdd5890e0d58aeaeaeca66085d2d9675dce75711780da27ef6045bff3"
+    }
+  },
+  "keysSha256": "1bb16d3438c876b49dedd7060d99bfc01bfbb82f85c01c3d526c38e388335889",
+  "workers": 4,
+  "identity": false,
+  "latencyTrace": false,
+  "toolSha256": "8267c431a6359ccde1abdb01f76e35757bee09845f7542673d698adb942bdaff",
+  "method": "Independent fresh source/JSONL fixture copies per binary and command. Four paired latency tasks (or declared identity workers), alternating binary order by schema. Cold then warm in one project; no live stores copied or opened. No payload normalization. Shared host; per-command load recorded."
+}

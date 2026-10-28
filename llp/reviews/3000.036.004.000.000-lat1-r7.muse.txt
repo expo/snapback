@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — the flag itself is safe, but the commit silently disables its own compile-option verification.
+
+What I verified (all by reading code, not running suites):
+
+- The three sites carry the identical new string `-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0` ([config.toml](/home/ccheever/projects/sb4-b34-lat1/snapback4/.cargo/config.toml), [build-linux-musl.sh](/home/ccheever/projects/sb4-b34-lat1/snapback4/scripts/build-linux-musl.sh), [publication-artifacts.mjs](/home/ccheever/projects/sb4-b34-lat1/snapback4/scripts/publication-artifacts.mjs)), and the existing `linux-package.test.mjs` pin test keeps them in lockstep.
+- No engine/tool consumption of what `SQLITE_DEFAULT_MEMSTATUS=0` removes. Repo-wide grep finds zero uses of `sqlite3_memory_used` / `memory_highwater` / `sqlite3_status(SQLITE_STATUS_…)` / `SQLITE_CONFIG_MEMSTATUS`, and zero soft/hard heap-limit configuration. The only neighboring uses are unaffected: the `word_heap` test's `SQLITE_CONFIG_GETMALLOC/MALLOC/LOOKASIDE` probe (own thread-local counting), `activation_cache.rs` `release_memory()` (per-connection `sqlite3_db_release_memory`, not global accounting), and `pf_scale_probe.rs` `SQLITE_DBSTATUS_CACHE_HIT/MISS` (per-connection DBSTATUS, not the disabled global MEMORY_USED status).
+- Durability, budgets, and fork are independent of the flag: `HAVE_FDATASYNC=1` retained everywhere; `synchronous=FULL` + WAL are runtime PRAGMAs in `store.rs open_base`; work ceilings are Rust-side (`meter.rs` `Ceilings`, wasmi `StoreLimits`); fork is a page-backed `rusqlite::backup::Backup` copy in `store/fork.rs`.
+- mimalloc/musl interaction is complementary, not conflicting: Linux-only `MiMalloc` global allocator with the `override` feature on musl routes SQLite malloc through mimalloc; MEMSTATUS only removes SQLite's own accounting mutex around `sqlite3_malloc` ([sqlite.org recommended options](https://sqlite.org/compile.html#recommended_compile_time_options) confirms both the listing and the diagnostic-only effect). Thread-safety primitives (`THREADSAFE`, busy timeout, connection locking) are untouched.
+
+Material findings (both introduced by this commit):
+
+1. `snapback4/crates/snapback4-core/src/store.rs:1088` exact-match gate is now stale: `option_env!("LIBSQLITE3_FLAGS") == Some("-USQLITE_ENABLE_MEMORY_MANAGEMENT")`. Under the new qualified flags this is false, so the `THREADSAFE=1`, `!ENABLE_MEMORY_MANAGEMENT`, and `cache_size == -2000` assertions silently skip in exactly the configuration the new RFC section claims retains thread safety. Default `cargo test` inside `snapback4/` (which reads the updated `config.toml`) now skips them.
+2. [snapback4/AGENTS.md](/home/ccheever/projects/sb4-b34-lat1/snapback4/AGENTS.md) still documents the old two-flag string (warm-up command and the "packaged CLI uses …" paragraph), so engineers following it build with different SQLite C input than the new qualified builds.
+
+Fix direction (no edit made): update the `store.rs` gate to the new flag string (or a `contains` check) and update the two `AGENTS.md` flag spellings. With those two small updates this would be READY; the underlying `MEMSTATUS=0` change itself checks out.

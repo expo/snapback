@@ -26,13 +26,15 @@ impl Store {
             adoption_report:Default::default(),
         };
         let prepared = started.map(|t|t.elapsed().as_secs_f64());
+        // @ref LLP 3000.036.004.000.000#lazy-private-asset-directories — snapshots may leave an empty source directory; keep private children lazy.
         if self.assets_dir.exists() {
-            std::fs::create_dir_all(&fork.assets_dir).map_err(io)?;
+            let mut created = false;
             for entry in std::fs::read_dir(&self.assets_dir).map_err(io)? {
                 let entry = entry.map_err(io)?;
                 if !entry.file_type().map_err(io)?.is_file() {
                     return Err(RuntimeError::Store("fixture asset ledger contains a non-file".into()));
                 }
+                if !created { std::fs::create_dir_all(&fork.assets_dir).map_err(io)?; created = true; }
                 std::fs::copy(entry.path(), fork.assets_dir.join(entry.file_name())).map_err(io)?;
             }
         }
@@ -58,13 +60,42 @@ impl Store {
             fresh.record_asset(&asset)?;
         }
         if self.assets_dir.exists(){
-            std::fs::create_dir_all(&fresh.assets_dir).map_err(io)?;
+            let mut created = false;
             for entry in std::fs::read_dir(&self.assets_dir).map_err(io)?{
                 let entry=entry.map_err(io)?;
                 if !entry.file_type().map_err(io)?.is_file(){return Err(RuntimeError::Store("fixture asset is not a regular file".into()));}
+                if !created { std::fs::create_dir_all(&fresh.assets_dir).map_err(io)?; created = true; }
                 std::fs::copy(entry.path(),fresh.assets_dir.join(entry.file_name())).map_err(io)?;
             }
         }
         Ok(fresh)
+    }
+}
+
+#[cfg(test)]
+mod lazy_asset_directory_tests {
+    use super::*;
+    #[test]
+    fn empty_worlds_stay_lazy_and_physical_copies_stay_independent() {
+        let source = Store::memory_for_campaign().unwrap();
+        source.set_meta("lat1", "current").unwrap();
+        std::fs::create_dir_all(&source.assets_dir).unwrap();
+        for world in [source.fork_memory().unwrap(), source.empty_with_asset_ledger().unwrap()] {
+            assert!(!world.assets_dir.exists());
+        }
+        let fork = source.fork_memory().unwrap();
+        assert_eq!(fork.meta("lat1").unwrap().as_deref(), Some("current"));
+        fork.set_meta("lat1", "child").unwrap();
+        assert_eq!(source.meta("lat1").unwrap().as_deref(), Some("current"));
+        std::fs::write(source.assets_dir.join("actual"), b"parent bytes").unwrap();
+        for world in [source.fork_memory().unwrap(), source.empty_with_asset_ledger().unwrap()] {
+            assert_ne!(world.assets_dir, source.assets_dir);
+            assert_eq!(std::fs::read(world.assets_dir.join("actual")).unwrap(), b"parent bytes");
+            std::fs::write(world.assets_dir.join("actual"), b"child bytes").unwrap();
+            assert_eq!(std::fs::read(source.assets_dir.join("actual")).unwrap(), b"parent bytes");
+        }
+        std::fs::create_dir(source.assets_dir.join("not-a-file")).unwrap();
+        assert!(source.fork_memory().is_err());
+        assert!(source.empty_with_asset_ledger().is_err());
     }
 }

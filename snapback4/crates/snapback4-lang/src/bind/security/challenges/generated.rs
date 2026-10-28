@@ -81,7 +81,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
 // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — creator guards/copies are part of generated initialization.
 pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     let _replay_ids = replay_ids::Scope::new();
-    let proposed=proposals(bound,out)?;
+    let proposed=measure("proposals",||proposals(bound,out))?;
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
     // A principal key and a field named role are insufficient: payload tables
@@ -169,7 +169,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 }
             }
             let watched_transition=related_creator||writes.iter().any(|(t,kind)|matches!(*kind,"update"|"upsert"|"delete")&&mutable_authority.contains(t));
-            let implicit=stability::implicit(bound,p);
+            let implicit=measure("implicit",||stability::implicit(bound,p));
             if writes.iter().all(|(t,_)|rosters.contains(t)){continue;}
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
@@ -177,7 +177,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})){out.unsupported.insert(format!("{}: two-row target population cap skips creator Boolean/enum alternatives; combinations remain uncovered",p.name));}
                 continue;
             }
-            let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            let mut cases=measure("cases",||histories::fixture_cases(bound,p,&current,&creator_actors,out));
             let clock_intent=bound.invariants.iter().filter_map(|i|i.syntax.as_ref()).any(|e|{let mut e=e.clone();let mut now=false;crate::bind::intent_walk::expression(&mut e,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name=="now"){now=true;});now});
             if clock_intent {
                 let calendar=out.time_samples.as_ref().and_then(|samples|samples.first()).filter(|value|matches!(value,Value::Int(n) if *n<NOW));
@@ -215,7 +215,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 }
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 let args=match materialize_arguments(&mut candidate,&p.args,&args,actor){Ok(a)=>a,Err(_)=>continue};
-                let result=candidate.mutate(&p.name,None,replay_ids::context(actor,args.clone()).at(NOW));
+                let result=measure("mutate",||candidate.mutate(&p.name,None,replay_ids::context(actor,args.clone()).at(NOW)));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
                     let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256){
@@ -249,6 +249,11 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     for table in created.difference(&rosters){if engine.store().rows(table).map_err(|e|e.to_string())?.is_empty(){out.unsupported.insert(format!("generated fixture {table}: authored creator did not populate this table"));}}
     validate_fixture(bound,&mut engine)?;Ok(engine)
 }
+fn measure<T>(name:&str,run:impl FnOnce()->T)->T {
+ let started=snapback4_core::replay_profile::start(); let result=run();
+ if let Some(started)=started {snapback4_core::replay_profile::record(serde_json::json!({"phase":format!("initializer.{name}"),"seconds":started.elapsed().as_secs_f64()}));}result
+}
+fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{measure("readback",||super::readback(engine))}
 fn clean_row(bound:&Bound,table:&str,row:&Value)->Value{
     let t=&bound.schema.tables[table];
     match row{Value::Row(fields)=>Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect()),_=>row.clone()}

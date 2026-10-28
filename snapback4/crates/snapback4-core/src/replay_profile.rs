@@ -10,3 +10,12 @@ pub fn record(mut event:serde_json::Value){
     if let Ok(mut events)=EVENTS.lock(){if events.len()<131072{events.push(event);}}
 }
 pub fn take()->Vec<serde_json::Value>{EVENTS.lock().map(|mut events|std::mem::take(&mut *events)).unwrap_or_default()}
+
+/// Buffered nested work attribution, including refused construction paths.
+pub struct Span { name: &'static str, started: Option<std::time::Instant> }
+pub fn span(name: &'static str) -> Span { Span { name, started: start() } }
+impl Drop for Span {
+    fn drop(&mut self) {
+        if let Some(started) = self.started { record(serde_json::json!({"phase":self.name,"seconds":started.elapsed().as_secs_f64()})); }
+    }
+}

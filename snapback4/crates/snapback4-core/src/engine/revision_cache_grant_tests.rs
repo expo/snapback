@@ -573,7 +573,7 @@ fn g6_real_maintain_and_code_activation_publish_identity_head() {
     );
     assert_eq!(r.revision_cache_stats().g6_hits, before);
     actual_hit(&mut r, &d, &v, "W1", SessionScope::Full);
-    let mut programs = w.programs.clone();
+    let mut programs = (*w.programs).clone();
     programs.get_mut("W1").unwrap().body = vec![crate::ir::Stmt::Return(crate::ir::Expr::Literal(
         Value::Int(7),
     ))];

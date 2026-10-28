@@ -442,3 +442,23 @@ fn campaign_fork_keeps_per_principal_accounting_independent(){
     fork.mutate_ephemeral("setTyping",ctx("alice",1003,&args("r2"))).unwrap();
     assert_eq!(original.mutate_ephemeral("setTyping",ctx("alice",1003,&args("r2"))).err().unwrap().code(),"E_EPHEMERAL_FULL");
 }
+
+
+#[test]
+fn ephemeral_mutations_discard_both_eager_and_lazy_supplied_ids() {
+    let mut engine = engine(SOURCE);
+    seed(&mut engine);
+    let reserved = 0..1024;
+    let eager = ctx("alice", 1000, &args("r")).with_ids(["supplied-must-not-be-used".into()]);
+    let lazy = ctx("bob", 1000, &args("r")).with_replay_id_range(reserved);
+    engine.mutate_ephemeral("setTyping", eager).unwrap();
+    engine.mutate_ephemeral("setTyping", lazy).unwrap();
+    let rows = page(&mut engine, "alice", 1000).data;
+    let Value::Array(rows) = rows else { panic!("typed ephemeral rows"); };
+    assert_eq!(rows.len(), 2);
+    for row in rows {
+        let Value::Id(id) = row.field("id").unwrap() else { panic!("typed id"); };
+        assert_ne!(id, "supplied-must-not-be-used");
+        assert_eq!(snapback4_core::ids::minted_at(id), Some(1000), "host clock, never the reserved range's zero clock");
+    }
+}

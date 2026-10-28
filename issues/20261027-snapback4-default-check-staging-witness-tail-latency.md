@@ -64,3 +64,22 @@ retained evidence. Candidate follow-up: share immutable fixture initialization,
 or schedule independent replay concurrently with ordered reduction and current
 source/decision guards. Recompare exact verdicts and witness payloads against the
 uncached sequential control. No threshold or security assertion was weakened.
+
+## LAT1 branch qualification
+
+The LAT1 branch meets every requested timing target on the same matched 54-schema
+production sample. See `snapback4/reports/lat1/` for full values and provenance:
+check cold p90 5.655 s, warm median/p90 2.398/4.939 s; staging cold p90 5.584 s,
+warm median/p90 0.077/0.138 s. Review/production are faster in all 54 pairs.
+A supplemental matched window confirms every cold and warm review/production
+pair is faster: warm review median/p90 2.377/4.786 s; warm production
+0.075/0.171 s. Exact values and frozen-binary provenance are retained alongside
+the original default-loop qualification.
+The independent 940-schema / 5,640-pair comparison now qualifies identity modulo
+the separately ticketed upload-ID nondeterminism: 5,610 literal matches, 30
+source-reviewed nonce-only pairs, zero unexplained differences; unchanged-control
+double executions reproduce that drift in all 18 affected schemas. Full data and
+hashes are in `snapback4/reports/lat1/identity-*.json`. Final affected verification
+is recorded in `WORKSTREAM-REPORT.md`. Keep this main-branch ticket open until
+the coordinator integrates the qualified LAT1 commits; this lane is not authorized
+to push or perform publication. No budget, assertion or tier was weakened.

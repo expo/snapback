@@ -18,6 +18,9 @@ pub mod types;
 pub mod release_changes;
 pub mod client_contracts;
 mod result_domains;
+mod compilation_reuse;
+#[doc(hidden)]
+pub use compilation_reuse::CompilationReuse;
 
 pub use bind::{Bound, BoundProgram, bind};
 pub use bind::security;
@@ -26,6 +29,12 @@ pub use parser::parse_document;
 
 /// Parse and bind a set of `(file name, source)` documents.
 pub fn compile(sources: &[(String, String)]) -> Bound {
+    if let Some(bound) = compilation_reuse::get(sources) { return bound; }
+    let bound = compile_uncached(sources);
+    compilation_reuse::put(sources, &bound);
+    bound
+}
+fn compile_uncached(sources: &[(String, String)]) -> Bound {
     let mut documents = Vec::new();
     let mut diagnostics = Vec::new();
     for (file, source) in sources {

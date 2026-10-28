@@ -141,8 +141,8 @@ impl Engine {
             )),
             store_id: metadata.store_id,
             store,
-            schema,
-            programs,
+            schema: schema.into(),
+            programs: programs.into(),
             generation,
             expiry_after: BTreeMap::new(),
             dev_effects: false,
@@ -192,8 +192,8 @@ impl Engine {
             // @ref LLP 3000.009.001.000.002#4.3 — local activation retires the immutable code epoch before exposing new readers.
             #[cfg(feature="postgres")]
             {engine.code_native_digest=metadata.native_digest;engine.reset_revision_cache();}
-            engine.schema = schema;
-            engine.programs = programs;
+            engine.schema = schema.into();
+            engine.programs = programs.into();
             engine.generation = generation;
             engine.expiry_after.clear();
             engine.dev_effects = false;

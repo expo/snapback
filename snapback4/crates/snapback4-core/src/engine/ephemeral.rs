@@ -427,6 +427,7 @@ impl Engine {
         context.generation = self.generation;
         context = context.with_minter(self.minter.clone());
         context.new_ids.clear();
+        context.replay_id_range = None;
         context.minted_ids.clear();
         if context.now.is_none() {
             context.now = Some(crate::now_ms());

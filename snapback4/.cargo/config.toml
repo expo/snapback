@@ -1,6 +1,7 @@
 # @ref LLP 3000.009.001.000.002#sqlite-durable-write-cycle — retain FULL, use the native data durability primitive.
+# @ref LLP 3000.036.004.000.000#sqlite-diagnostic-allocation-statistics — remove unused global diagnostic locks; retain every engine limit.
 [env]
-LIBSQLITE3_FLAGS = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+LIBSQLITE3_FLAGS = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0"
 
 [profile.dev]
 debug = "line-tables-only"

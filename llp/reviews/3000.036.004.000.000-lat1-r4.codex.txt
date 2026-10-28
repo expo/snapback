@@ -1,0 +1,9 @@
+**NOT READY** at `cbec13403c`.
+
+1. **SQLite image forks introduce a different growth limit.** [fork.rs:15](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/store/fork.rs:15) switches eligible stores to SQLite’s contiguous memdb representation. The pinned SQLite caps individual allocations at **2,147,483,391 bytes**, and `memdbEnlarge` doubles growth requests. Raising `SQLITE_MEMDB_DEFAULT_MAXSIZE` therefore still leaves deterministic growth refusals that ordinary page-backed memory stores avoid. The 32 MiB check applies only before deserialization; subsequent growth has no backup promotion. This contradicts the amendment’s unchanged-limits requirement. Added tests cover initially oversized sources, but not growth after deserialization or rollback following growth failure.
+
+2. **Identity mismatches still produce a successful tool exit.** [measure.py:85](/home/ccheever/projects/sb4-b34-lat1/snapback4/reports/lat1/measure.py:85) fails only for tool failures or input mismatches. Changed verdicts, question IDs or witness payloads populate `summary["mismatches"]` but exit zero. Automated acceptance can therefore succeed despite failed identity comparison. Include identity mismatches in the failure condition and exercise that path with a negative control.
+
+I found no additional material defect in ordered restoration, exact compiler keys/current validation, copy-on-write code ownership, replay-ID handling, or Linux allocator targeting.
+
+Read-only review; only the committed comparator self-test was executed and passed. No performance or full-corpus identity qualification is granted.

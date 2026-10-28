@@ -10,6 +10,7 @@ impl Engine {
 
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — isolation includes entropy, assets and ephemeral ownership.
     pub fn fork_fixture(&self) -> Result<Self, RuntimeError> {
+    let _profile = crate::replay_profile::span("replay.engine_fork");
         if self.presence.is_some(){return Err(RuntimeError::Schema("fixture fork needs an isolated external presence snapshot".into()));}
         let store=self.store.fork_memory()?;
         let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
@@ -56,5 +57,70 @@ impl Engine {
         let result=self.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(now));
         self.programs.remove(name);
         result
+    }
+}
+
+#[cfg(test)]
+mod replay_id_tests {
+    use super::*;
+    #[test]
+    fn lazy_replay_ids_match_eager_supply_and_clone_independently() {
+        for first in [0, (1_800_000_000_000u128 << 80) + 1, u128::MAX - 1024] {
+            let range = first..first + 1024;
+            let mut eager = Context::new("viewer", BTreeMap::new()).with_ids(range.clone().map(crate::ids::encode));
+            let mut lazy = Context::new("viewer", BTreeMap::new()).with_replay_id_range(range);
+            assert!(lazy.new_ids.is_empty(), "unused supply allocates no strings");
+            let mut cloned = lazy.clone();
+            for _ in 0..1024 {
+                let expected = eager.mint().unwrap();
+                assert_eq!(lazy.mint().unwrap(), expected);
+                assert_eq!(cloned.mint().unwrap(), expected);
+            }
+            assert_eq!(lazy.minted_ids, eager.minted_ids);
+            assert_eq!(cloned.minted_ids, eager.minted_ids);
+            assert!(lazy.replay_id_range.as_ref().unwrap().is_empty());
+        }
+    }
+    #[test]
+    fn explicit_supply_replaces_range_and_empty_ranges_use_the_host_minter() {
+        let mut context = Context::new("viewer", BTreeMap::new()).with_replay_id_range(0..1024).with_ids(["explicit".into()]);
+        assert_eq!(context.mint().unwrap(), "explicit");
+        assert!(context.replay_id_range.is_none());
+        let minter = crate::ids::Mint::default();
+        let mut eager = Context::new("viewer", BTreeMap::new()).at(1000).with_minter(minter.clone()).with_ids([]);
+        let mut lazy = Context::new("viewer", BTreeMap::new()).at(1000).with_minter(minter).with_replay_id_range(0..0);
+        let first = eager.mint().unwrap();
+        let second = lazy.mint().unwrap();
+        assert_eq!(crate::ids::minted_at(&second), Some(1000));
+        assert!(second > first);
+    }
+}
+
+
+#[cfg(test)]
+mod replay_retry_tests {
+    use super::*;
+    #[test]
+    fn retry_replays_the_prefix_then_the_unconsumed_supply_without_duplicates() {
+        for consumed in [0, 1, 3, 1024, 1025] {
+            let mut eager = Context::new("viewer", BTreeMap::new()).at(1000).with_ids((0..1024).map(crate::ids::encode));
+            let original = Context::new("viewer", BTreeMap::new()).at(1000).with_replay_id_range(0..1024);
+            let mut first = original.clone();
+            let mut minted = Vec::new();
+            for _ in 0..consumed { minted.push(first.mint().unwrap()); }
+            let eager_prefix = minted.clone();
+            // The same captured host-minted tail is replayed after exhaustion.
+            eager = eager.clone().replay_ids_from(&eager, &eager_prefix);
+            let mut retry = original.clone().replay_ids_from(&original, &minted);
+            if consumed == 0 { assert!(retry.new_ids.is_empty(), "first attempt stays lazy"); }
+            let count = 1024.max(consumed);
+            let mut ids = std::collections::BTreeSet::new();
+            for n in 0..count {
+                let actual = retry.mint().unwrap();
+                assert_eq!(actual, eager.mint().unwrap());
+                if n < minted.len() { assert_eq!(actual, minted[n]); }
+                assert!(ids.insert(actual), "no prefix/range overlap on retry");
+            }
+        }
     }
 }

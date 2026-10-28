@@ -109765,6 +109765,28 @@ Exact zero exit, current JSON, stock/edited-source optional-upload assertions an
 no decision-file assertion remain; the existing five-minute command and twenty-minute
 starter guards, fixed security work budgets and measured latency ticket are unchanged.
 
+## 2026-10-27 — LAT1 supplied replay IDs without unused strings
+
+The default check/staging profile exposed eager allocation of 1,024 supplied ID
+strings for each replay context, including queries and refused mutations. Keep
+the exact original reservation and clock advancement, but carry a private numeric
+range and encode each ID at the engine's existing consumption boundary. Explicit
+supplies replace the range; clones advance independently; exhaustion retains the
+same host-mint fallback. This representation adds no result cache and changes no
+campaign work, rule family, tier or restoration authority. LLP
+3000.036.004.000.000 records the mechanism; the lane retains paired production
+latency and full-corpus identity evidence separately.
+
+### LAT1 independent review corrections
+
+The first Muse and fresh Codex reviews found direct supplied-ID queue handling
+at ephemeral entry and in retry reconstruction. Clear the private range at
+an ephemeral mutation's existing host-mint boundary. Retry reconstruction uses
+the complete logical supply and clears the range when replaying a consumed
+prefix, in both single and batched execution. Invocation binding hashes that
+same logical sequence. Empty-prefix attempts keep their lazy representation.
+Regression checks cover prefix/range boundaries, exhaustion and ephemeral
+insertion. The original NOT READY reviews remain verbatim in `llp/reviews/`.
 
 ## 2026-10-27 — OWN: silent ownership refusal after restart
 
@@ -109839,6 +109861,24 @@ MIT fork patches the actual dependency in generated Expo starters, with unchange
 audit assertions/allowlist and refusal on conflicting patch custody. Fresh audit
 and actual Expo config resolution pass; full consumer qualification is repeated.
 
+## 2026-10-27 — LAT1 qualified default-loop latency
+
+Keep exact replay ID reservations but encode on consumption; share immutable
+activated code with copy-on-write edits; overlap independent omitted-question
+restoration and reduce in original order. Deploy reuses only exact invocation-local
+pure compilation, never authority results. Linux uses secure mimalloc (including
+static-musl C allocations), native SQLite omits unused global allocation statistics,
+and private forks create asset directories only when copying an actual file.
+The serialized SQLite image experiment was removed after review exposed a
+different growth limit. No search work, tier or guard was reduced.
+
+The matched 54-schema production run meets every latency target: default check
+cold p90 5.655 s, warm median/p90 2.398/4.939 s; staging cold p90 5.584 s, warm
+median/p90 0.077/0.138 s. Review and production deploy are faster in all 54 pairs.
+Evidence is in `reports/lat1/`; LLP 3000.036.004.000.000 records the mechanisms
+and independent Muse/fresh Codex reviews. Full-corpus identity and the final
+affected receipt are separate workstream qualifications. No version bump, public
+output change or publication is part of this lane.
 
 ## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
 

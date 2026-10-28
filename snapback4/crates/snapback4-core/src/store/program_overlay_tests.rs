@@ -1261,7 +1261,7 @@ fn sqlite_code_activation_generation_uses_a_fenced_clean_layout_overlay() {
         let mut e = fixture(false);
         let mut programs = e.programs.values().cloned().collect::<Vec<_>>();
         let mut alias = e.programs["increment"].clone(); alias.name = "incrementAlias".into(); programs.push(alias);
-        e.adopt_at(e.schema.clone(), programs, 1001).unwrap();
+        e.adopt_at(e.schema().clone(), programs, 1001).unwrap();
         assert!(e.generation() > 1);
         e
     }

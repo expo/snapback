@@ -46,6 +46,7 @@ impl Upload {
     }
     pub fn with_placement(mut self, placement: serde_json::Value) -> Self {self.placement=Some(placement);self}
     pub fn write(mut self, bytes: &[u8]) -> Result<Self, RuntimeError> {
+        let _profile = crate::replay_profile::span("replay.upload_write");
         use std::io::Write;
         if bytes.len() as u64 != self.asset.bytes {
             return Err(RuntimeError::Input("upload length changed".into()));

@@ -1,0 +1,7 @@
+**NOT READY** — reviewed `2921a639cc..fc607600549b6fe6c9e9a67f12acc822e75eb1ad`.
+
+- **Material tooling defect:** [measure.py:59](/home/ccheever/projects/sb4-b34-lat1/snapback4/reports/lat1/measure.py:59) compares parsed JSON using Python equality. This silently equates distinct witness scalars such as `true` and `1`, or `1` and `1.0`. I reproduced an envelope containing witness argument `approved: true` comparing equal to `approved: 1`, despite different canonical JSON bytes. Line 60 repeats this issue when identifying changed fields. Use scalar-type-preserving canonical serialization for both comparisons.
+
+I found no remaining material defect in the ID implementation, caller handling, retry/prefix/exhaustion behavior, clone/replacement behavior, invocation binding, cache exclusion, non-SQLite feature guards, or optional initializer telemetry.
+
+Recorded regression logs pass. Full-corpus identity and paired production qualification remain pending; this review grants no performance claim. No files edited or agents spawned.

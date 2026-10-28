@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-27T16:20:51.645233+00:00",
+  "sourceCommit": "93ba148bb96b4d2a0265628b3d304ac49bf3353e",
+  "reviewers": {
+    "muse": "muse-spark-1.3-contributor, high, muse-exec.sh --yolo --prompt-file",
+    "codex": "fresh codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox"
+  },
+  "exitCodes": {
+    "muse": 0,
+    "codex": 0
+  },
+  "verdicts": {
+    "muse": "NOT READY",
+    "codex": "NOT READY"
+  },
+  "sha256": {
+    "llp/reviews/3000.036.004.000.000-lat1-r1.brief.md": "38b0eaf8482e0497fa01fe5458b80fb873d8773bfdf08600a1e20c5de98644ec",
+    "llp/reviews/3000.036.004.000.000-lat1-r1.codex.txt": "4b06eba4a356df9b4041ea14384e20f5e221ebc3f65a825aa81b32f9a9895f84",
+    "llp/reviews/3000.036.004.000.000-lat1-r1.muse.txt": "1067b3c7e132617ef587f6b716f2733b8545d89f58f727229c185bfe8eed9591"
+  }
+}
