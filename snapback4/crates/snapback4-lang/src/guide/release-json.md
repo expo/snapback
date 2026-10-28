@@ -180,7 +180,7 @@ fail closed until RI integrates W-bound V and two-image fills. With both setting
 on, explicitly configured G6 bypasses RI enrollment entirely: live G6 hits
 schedule zero RI rounds; G6 misses use ordinary G5. Startup prints that combined
 mode; doctor distinguishes persisted grant evidence from unconfirmed owner-local
-batching. See LLP 3000.009.001.000.002 §4.2.
+batching.
 
 Publication mode is shared with the existing HTTP reader pool and its factories;
 changing the owner to a W/Stage R mode also rejects previously saved raw-head
@@ -193,11 +193,11 @@ RI compares the whole immutable fill stamp, including the unified revision, and
 uses fill-time `SessionFacts`; the shared Rust resolver rechecks each caller's
 authority and expiry. Ordinary per-read G5 rereads the digest's session projection.
 Their equivalence relies on **every in-contract authority writer bumping the
-unified revision in the same commit**: Postgres `identity.rs` inserts/updates,
-`authority.rs` session/family invalidation and `session_clock.rs`
-`set_clock_session` require the
-serialized head fence; `opening.rs` enables unified commits, and `store.rs`
-`Tx::commit` supplies the revision bump even for administrative writes. Raw SQL
+unified revision in the same commit**. This covers session/read-session
+creation, principal and service changes, session/family invalidation and session
+clock updates. Every such writer takes the serialized head fence and increments
+the unified revision, including administrative writes without a public sequence
+advance. All supported writers use this protocol. Raw SQL
 edits of `_sessions` (or other authority facts) that bypass those revisions are
 outside this contract, as for the G6/marker supported-binaries boundary. RI does
 not independently reread or version each digest's session rows. Every revision

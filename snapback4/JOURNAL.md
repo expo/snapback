@@ -110171,3 +110171,8 @@ checks. Real backend-termination and authority-callback witnesses cover those
 distinctions. Dispositions and verification are in
 `reports/20261027-g5-readindex/FIXROUND2.md`. No Stage R composition, publication
 or new performance qualification is claimed.
+
+
+### 2026-10-28 — Integration 30 incoming-main guide closure
+
+The incoming Postgres read-index reference introduced a checkout-only LLP citation and private Rust filenames into the published release card. The existing complete guide target correctly refused both. State the same supported-writer session/principal/family/clock contract, serialized head fence and same-commit unified revision in operator prose, including administrative writes without a public sequence. This also keeps the contract visible through the guide renderer instead of dropping the paragraph as implementation references. No authority, assertion or budget changes. Retain the original failed target; rerun the full guide target and prove the actual fixed packed guide against the prior packed counterexample. All other runtime, SDK and consumer inputs remain unchanged from the complete incoming-main consumer chain.
