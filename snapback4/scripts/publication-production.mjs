@@ -89,8 +89,14 @@ export function proveProductionAdaptation(cli, cwd, env, { original } = {}) {
   }
   if (writers.length) assert.match(schema, /require viewer = 'service:ops' else NOT_OPERATOR/);
   capture(cli, ["check"], cwd, env, join(cwd, "production-check.log"));
+  // @ref LLP 3000.011.003.000.000#20 — green check creates schema-bound proof files; apply does not.
+  const checked = privateSnapshot(cwd), priorPaths = new Set(after.map(([path]) => path));
+  const packetPaths = new Set([".generated-hashes.json", "acceptance.mjs", "cases.mjs", "frontend-proof.mjs", "host.mjs", "probe-serve.mjs", "README.md", "schema.json"].map(name => join("scripts", "proof-scaffold", name)));
+  assert.deepEqual(checked.filter(([path]) => priorPaths.has(path)), after, "check preserves every existing private application byte");
+  for (const [path] of checked.filter(([path]) => !priorPaths.has(path)))
+    assert.ok(packetPaths.has(path), `check creates only documented proof packet files: ${path}`);
   capture(cli, ["init", "--adapt", "--production", "--apply"], cwd, env, join(cwd, "production-second-apply.log"));
-  assert.deepEqual(privateSnapshot(cwd), after, "a repeated apply is idempotent");
+  assert.deepEqual(privateSnapshot(cwd), checked, "a repeated apply is idempotent, including the generated proof packet");
   if (original) assert.deepEqual(snapshot(original), originalBefore, "original evidence lane remains byte-identical");
   return { status: "passed", preview: "unchanged", apply: "compiled", frontend: "unchanged", identity: identityAfter, writers,
     idempotent: true, alreadyProvisioned: writers.length === 0, ...(original ? { original, originalSources: originalBefore, originalUnchanged: true } : {}) };
