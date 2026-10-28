@@ -361,7 +361,7 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     let banner_end=types.find('\n').unwrap()+1;
     let prediction_at=types.find(PREDICTION_HEADER).unwrap();
     let operation_index=&types[banner_end..prediction_at];
-    assert!(operation_index.starts_with("// Operation index — guide api generated; signatures: guide api client | auth | proof\n"));
+    assert!(operation_index.starts_with("// Operation index — guide api generated; signatures: guide api react | client | auth | proof\n"));
     assert!(operation_index.ends_with("// Full signatures and result types below. Never edit generated files.\n\n"));
     assert!(operation_index.lines().all(|line|line.is_empty()||line.starts_with("// ")),"only the separately tested TOK1 comment index precedes prediction facts");
     let (mut never, mut eligible) = (0, 0);
