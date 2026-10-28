@@ -20,7 +20,7 @@ query recentTotal(roomId: rooms, start: time, end: time):
 `one` returns a row/null; `must` refuses missing/hidden rows.
 `roster` reads the capped room; `member`/`admin` test membership.
 `newest` pages newest-first; `recentTotal` counts under the meter.
-Repeated `where` combines using ordered `and`.
+Repeated `where` uses ordered `and`.
 
 ## Empty lists
 
