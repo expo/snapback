@@ -1,0 +1,788 @@
+{
+  "qualification": false,
+  "notes": [
+    "Selected diagnostic traces are separate from uninstrumented paired corpus timings.",
+    "Node preload occurs before application imports but after early Node loader work.",
+    "HTTP request sums may overlap; browser context intervals include setup and assertions.",
+    "Store open/create, native bootstrap, deployment materialization and output are not separately timed; they remain in nativeDeploys.unattributedSeconds.",
+    "Baseline deploy child lifetimes include its synchronous JS shim; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.",
+    "Unobserved Node tail is measured after the last traced app event; attribution to uncleared timers also requires inspecting app source."
+  ],
+  "results": [
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "acceptance",
+      "variant": "before",
+      "code": 0,
+      "seconds": 16.802672364050522,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.075518747,
+        "replay.fork": 0.1636902439999999,
+        "campaign.authored creator input probes": 0.15027395899999998,
+        "campaign.empty-start phase": 0.151423192,
+        "campaign.generated initialization": 0.087270837,
+        "deploy.report": 1.421719559,
+        "witness.candidates": 0.322426229,
+        "witness.stages": 0.054495246,
+        "deploy.witnesses": 0.242396819,
+        "deploy.restored_questions": 0.280657354,
+        "deploy.security": 2.287831685
+      },
+      "nodeProcessesByRole": {
+        "npm": 1,
+        "app-or-tool": 9,
+        "proof-command.js": 8,
+        "snapback4.js": 7
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 2.751,
+          "bindSeconds": 0.075518747,
+          "securitySeconds": 2.287831685,
+          "unattributedSeconds": 0.38764956800000006
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 26,
+          "summedSeconds": 0.5220000000000001
+        },
+        "other": {
+          "n": 161,
+          "summedSeconds": 0.42400000000000027
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.104994873046875,
+      "appImportToFirstSpawnSeconds": 0.256,
+      "unobservedNodeTailSeconds": 10.867,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "acceptance",
+      "variant": "after",
+      "code": 0,
+      "seconds": 16.40023986203596,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.07619429,
+        "replay.fork": 0.16092217900000005,
+        "campaign.authored creator input probes": 0.147102273,
+        "campaign.empty-start phase": 0.149937484,
+        "campaign.generated initialization": 0.083056468,
+        "deploy.report": 1.407081223,
+        "witness.candidates": 0.316129919,
+        "witness.stages": 0.054011441,
+        "deploy.witnesses": 0.23736101,
+        "deploy.restored_questions": 0.2752379,
+        "deploy.security": 2.25712562
+      },
+      "nodeProcessesByRole": {
+        "npm": 1,
+        "app-or-tool": 9,
+        "proof-command.js": 8
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 2.688,
+          "bindSeconds": 0.07619429,
+          "securitySeconds": 2.25712562,
+          "unattributedSeconds": 0.35468009
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 26,
+          "summedSeconds": 0.5340000000000001
+        },
+        "other": {
+          "n": 161,
+          "summedSeconds": 0.3610000000000002
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.103748779296875,
+      "appImportToFirstSpawnSeconds": 0.09,
+      "unobservedNodeTailSeconds": 11.017,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "frontend:proof",
+      "variant": "before",
+      "code": 0,
+      "seconds": 6.729306984925643,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.075385848,
+        "replay.fork": 0.160275944,
+        "campaign.authored creator input probes": 0.148284576,
+        "campaign.empty-start phase": 0.150473858,
+        "campaign.generated initialization": 0.0866793,
+        "deploy.report": 1.41309368,
+        "witness.candidates": 0.336680471,
+        "witness.stages": 0.054556947,
+        "deploy.witnesses": 0.241731573,
+        "deploy.restored_questions": 0.294598266,
+        "deploy.security": 2.2925722090000002
+      },
+      "nodeProcessesByRole": {
+        "npm": 2,
+        "app-or-tool": 10,
+        "proof-command.js": 5,
+        "snapback4.js": 3
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 2.752,
+          "bindSeconds": 0.075385848,
+          "securitySeconds": 2.2925722090000002,
+          "unattributedSeconds": 0.3840419429999997
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 11,
+          "summedSeconds": 0.27799999999999997
+        },
+        "other": {
+          "n": 13,
+          "summedSeconds": 0.05
+        }
+      },
+      "browser.launchSeconds": [
+        0.121
+      ],
+      "browser.contextSeconds": [
+        1.531
+      ],
+      "browser.closeSeconds": [
+        0.07
+      ],
+      "npmAndNodeToAppSeconds": 0.09824267578125,
+      "appImportToFirstSpawnSeconds": 0.247,
+      "unobservedNodeTailSeconds": 0.012,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "frontend:proof",
+      "variant": "after",
+      "code": 0,
+      "seconds": 6.679488844936714,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.07564062,
+        "replay.fork": 0.15979798000000006,
+        "campaign.authored creator input probes": 0.17454504799999998,
+        "campaign.empty-start phase": 0.175765729,
+        "campaign.generated initialization": 0.088669695,
+        "deploy.report": 1.441224918,
+        "witness.candidates": 0.31514450299999996,
+        "witness.stages": 0.05429815,
+        "deploy.witnesses": 0.237398196,
+        "deploy.restored_questions": 0.2750112,
+        "deploy.security": 2.292265891
+      },
+      "nodeProcessesByRole": {
+        "npm": 2,
+        "app-or-tool": 10,
+        "proof-command.js": 5
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 2.749,
+          "bindSeconds": 0.07564062,
+          "securitySeconds": 2.292265891,
+          "unattributedSeconds": 0.38109348899999995
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 11,
+          "summedSeconds": 0.294
+        },
+        "other": {
+          "n": 13,
+          "summedSeconds": 0.04800000000000001
+        }
+      },
+      "browser.launchSeconds": [
+        0.126
+      ],
+      "browser.contextSeconds": [
+        1.532
+      ],
+      "browser.closeSeconds": [
+        0.061
+      ],
+      "npmAndNodeToAppSeconds": 0.1004091796875,
+      "appImportToFirstSpawnSeconds": 0.087,
+      "unobservedNodeTailSeconds": 0.003,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "probe:serve/client:calls",
+      "variant": "before",
+      "code": 0,
+      "seconds": 4.073659052839503,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.075788762,
+        "deploy.security": 0.000873389
+      },
+      "nodeProcessesByRole": {
+        "app-or-tool": 13,
+        "proof-command.js": 6,
+        "npm": 3,
+        "snapback4.js": 2
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 1.036,
+          "bindSeconds": 0.075788762,
+          "securitySeconds": 0.000873389,
+          "unattributedSeconds": 0.9593378490000001
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 28,
+          "summedSeconds": 0.554
+        },
+        "other": {
+          "n": 63,
+          "summedSeconds": 0.2250000000000001
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.021333251953125,
+      "appImportToFirstSpawnSeconds": 0.187,
+      "unobservedNodeTailSeconds": 0.02,
+      "storeOpenOrCreateSeconds": null,
+      "readySeconds": 3.037477033,
+      "callsSeconds": 0.7795024050000002,
+      "readyPreflightSeconds": 0.000873389
+    },
+    {
+      "wave": 32,
+      "lane": "002",
+      "script": "probe:serve/client:calls",
+      "variant": "after",
+      "code": 0,
+      "seconds": 3.6723516350612044,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.075949974,
+        "deploy.security": 0.000849874
+      },
+      "nodeProcessesByRole": {
+        "app-or-tool": 13,
+        "proof-command.js": 6,
+        "npm": 3
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 0.995,
+          "bindSeconds": 0.075949974,
+          "securitySeconds": 0.000849874,
+          "unattributedSeconds": 0.9182001519999999
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 28,
+          "summedSeconds": 0.5210000000000001
+        },
+        "other": {
+          "n": 63,
+          "summedSeconds": 0.22900000000000012
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.021073974609375,
+      "appImportToFirstSpawnSeconds": 0.017,
+      "unobservedNodeTailSeconds": 0.01,
+      "storeOpenOrCreateSeconds": null,
+      "readySeconds": 2.80960437,
+      "callsSeconds": 0.7725957499999999,
+      "readyPreflightSeconds": 0.000849874
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "acceptance",
+      "variant": "before",
+      "code": 0,
+      "seconds": 13.295888260006905,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.066583359,
+        "replay.fork": 1.239732805000001,
+        "campaign.empty-start phase": 0.7873287600000001,
+        "campaign.generated initialization": 0.171941386,
+        "deploy.report": 1.285410604,
+        "witness.candidates": 0.40412225,
+        "witness.stages": 0.048119888,
+        "campaign.derived direct probes": 0.23928861,
+        "campaign.derived creator continuations": 0.000137446,
+        "campaign.derived replay": 0.893598171,
+        "witness.derived_report": 4.88217312,
+        "deploy.witnesses": 5.126908958,
+        "witness.question_campaign": 2.592832311,
+        "deploy.restored_questions": 2.95128653,
+        "deploy.security": 9.70168492
+      },
+      "nodeProcessesByRole": {
+        "npm": 1,
+        "app-or-tool": 8,
+        "proof-command.js": 7,
+        "snapback4.js": 6
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 10.125,
+          "bindSeconds": 0.066583359,
+          "securitySeconds": 9.70168492,
+          "unattributedSeconds": 0.35673172100000095
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 27,
+          "summedSeconds": 0.6680000000000003
+        },
+        "other": {
+          "n": 153,
+          "summedSeconds": 0.42700000000000027
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.099911376953125,
+      "appImportToFirstSpawnSeconds": 0.246,
+      "unobservedNodeTailSeconds": 0.003,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "acceptance",
+      "variant": "after",
+      "code": 0,
+      "seconds": 12.942746568936855,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.066681878,
+        "replay.fork": 1.2392545090000007,
+        "campaign.empty-start phase": 0.7905592029999999,
+        "campaign.generated initialization": 0.169673105,
+        "deploy.report": 1.2788459429999999,
+        "witness.candidates": 0.407147104,
+        "witness.stages": 0.048314219,
+        "campaign.derived direct probes": 0.241036872,
+        "campaign.derived creator continuations": 0.000135063,
+        "campaign.derived replay": 0.899727451,
+        "witness.derived_report": 4.890063334,
+        "deploy.witnesses": 5.136694855,
+        "witness.question_campaign": 2.606226676,
+        "deploy.restored_questions": 2.963543701,
+        "deploy.security": 9.732136546
+      },
+      "nodeProcessesByRole": {
+        "npm": 1,
+        "app-or-tool": 8,
+        "proof-command.js": 7
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 10.11,
+          "bindSeconds": 0.066681878,
+          "securitySeconds": 9.732136546,
+          "unattributedSeconds": 0.3111815759999992
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 27,
+          "summedSeconds": 0.6580000000000003
+        },
+        "other": {
+          "n": 153,
+          "summedSeconds": 0.4500000000000003
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.12549853515625,
+      "appImportToFirstSpawnSeconds": 0.089,
+      "unobservedNodeTailSeconds": 0.003,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "frontend:proof",
+      "variant": "before",
+      "code": 0,
+      "seconds": 13.696674603968859,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.066899604,
+        "replay.fork": 1.2528760369999994,
+        "campaign.empty-start phase": 0.802898975,
+        "campaign.generated initialization": 0.168906364,
+        "deploy.report": 1.298387924,
+        "witness.candidates": 0.4048288,
+        "witness.stages": 0.048478184,
+        "campaign.derived direct probes": 0.238877004,
+        "campaign.derived creator continuations": 0.00013239,
+        "campaign.derived replay": 0.8949581230000001,
+        "witness.derived_report": 4.911969534,
+        "deploy.witnesses": 5.156729528,
+        "witness.question_campaign": 2.597123791,
+        "deploy.restored_questions": 2.953372794,
+        "deploy.security": 9.746671669
+      },
+      "nodeProcessesByRole": {
+        "npm": 2,
+        "app-or-tool": 10,
+        "proof-command.js": 5,
+        "snapback4.js": 3
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 10.182,
+          "bindSeconds": 0.066899604,
+          "securitySeconds": 9.746671669,
+          "unattributedSeconds": 0.3684287270000013
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 10,
+          "summedSeconds": 0.21099999999999997
+        },
+        "other": {
+          "n": 9,
+          "summedSeconds": 0.025
+        }
+      },
+      "browser.launchSeconds": [
+        0.126
+      ],
+      "browser.contextSeconds": [
+        1.215
+      ],
+      "browser.closeSeconds": [
+        0.057
+      ],
+      "npmAndNodeToAppSeconds": 0.10121728515625,
+      "appImportToFirstSpawnSeconds": 0.249,
+      "unobservedNodeTailSeconds": 0.01,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "frontend:proof",
+      "variant": "after",
+      "code": 0,
+      "seconds": 13.494851128896698,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.066674307,
+        "replay.fork": 1.238251675999998,
+        "campaign.empty-start phase": 0.785730906,
+        "campaign.generated initialization": 0.168617912,
+        "deploy.report": 1.280055578,
+        "witness.candidates": 0.40504952,
+        "witness.stages": 0.050725703,
+        "campaign.derived direct probes": 0.239441582,
+        "campaign.derived creator continuations": 0.000132467,
+        "campaign.derived replay": 0.89558985,
+        "witness.derived_report": 4.852806334,
+        "deploy.witnesses": 5.0989562920000004,
+        "witness.question_campaign": 2.588521446,
+        "deploy.restored_questions": 2.946190558,
+        "deploy.security": 9.66674313
+      },
+      "nodeProcessesByRole": {
+        "npm": 2,
+        "app-or-tool": 10,
+        "proof-command.js": 5
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 10.043,
+          "bindSeconds": 0.066674307,
+          "securitySeconds": 9.66674313,
+          "unattributedSeconds": 0.3095825629999993
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 10,
+          "summedSeconds": 0.24399999999999997
+        },
+        "other": {
+          "n": 9,
+          "summedSeconds": 0.031000000000000003
+        }
+      },
+      "browser.launchSeconds": [
+        0.12
+      ],
+      "browser.contextSeconds": [
+        1.141
+      ],
+      "browser.closeSeconds": [
+        0.06
+      ],
+      "npmAndNodeToAppSeconds": 0.1020439453125,
+      "appImportToFirstSpawnSeconds": 0.088,
+      "unobservedNodeTailSeconds": 0.002,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "probe:serve/client:calls",
+      "variant": "before",
+      "code": 0,
+      "seconds": 3.8728487519547343,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.065823751,
+        "deploy.security": 0.000784676
+      },
+      "nodeProcessesByRole": {
+        "app-or-tool": 13,
+        "proof-command.js": 6,
+        "npm": 3,
+        "snapback4.js": 2
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 0.904,
+          "bindSeconds": 0.065823751,
+          "securitySeconds": 0.000784676,
+          "unattributedSeconds": 0.837391573
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 34,
+          "summedSeconds": 0.6370000000000002
+        },
+        "other": {
+          "n": 43,
+          "summedSeconds": 0.13500000000000004
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.02067431640625,
+      "appImportToFirstSpawnSeconds": 0.19,
+      "unobservedNodeTailSeconds": 0.021,
+      "storeOpenOrCreateSeconds": null,
+      "readySeconds": 2.736183751,
+      "callsSeconds": 0.8465433739999999,
+      "readyPreflightSeconds": 0.000784676
+    },
+    {
+      "wave": 34,
+      "lane": "028",
+      "script": "probe:serve/client:calls",
+      "variant": "after",
+      "code": 0,
+      "seconds": 3.6722325519658625,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.066006565,
+        "deploy.security": 0.000768001
+      },
+      "nodeProcessesByRole": {
+        "app-or-tool": 13,
+        "proof-command.js": 6,
+        "npm": 3
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 0.864,
+          "bindSeconds": 0.066006565,
+          "securitySeconds": 0.000768001,
+          "unattributedSeconds": 0.797225434
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 34,
+          "summedSeconds": 0.6820000000000003
+        },
+        "other": {
+          "n": 43,
+          "summedSeconds": 0.19900000000000007
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.021456298828125,
+      "appImportToFirstSpawnSeconds": 0.02,
+      "unobservedNodeTailSeconds": 0.011,
+      "storeOpenOrCreateSeconds": null,
+      "readySeconds": 2.63523177,
+      "callsSeconds": 0.9632617030000001,
+      "readyPreflightSeconds": 0.000768001
+    },
+    {
+      "wave": 33,
+      "lane": "025",
+      "script": "day2:proof",
+      "variant": "before",
+      "code": 0,
+      "seconds": 216.57622321601957,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.993748139,
+        "deploy.note_prediction": 4.748259848,
+        "witness.candidates": 23.73440962,
+        "witness.stages": 2.149389711,
+        "replay.fork": 6.982022294000044,
+        "campaign.derived direct probes": 0.5074047650000001,
+        "campaign.derived creator continuations": 0.000568061,
+        "campaign.derived replay": 1.6960784,
+        "campaign.empty-start phase": 3.8150029709999997,
+        "campaign.pre-transition checkpoint": 0.016299178,
+        "campaign.generated initialization": 12.927079026,
+        "witness.question_campaign": 25.669184278000003,
+        "deploy.witnesses": 40.592928514,
+        "deploy.report": 49.338962057,
+        "deploy.restored_questions": 11.50099271,
+        "deploy.security": 69.660047122
+      },
+      "nodeProcessesByRole": {
+        "npm": 3,
+        "app-or-tool": 141,
+        "proof-command.js": 130,
+        "snapback4.js": 123
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 52.106,
+          "bindSeconds": 0.50829373,
+          "securitySeconds": 40.568484987,
+          "unattributedSeconds": 11.029221283000005
+        },
+        {
+          "boundary": "JS shim plus native child",
+          "seconds": 40.842,
+          "bindSeconds": 0.485454409,
+          "securitySeconds": 29.091562135,
+          "unattributedSeconds": 11.264983456
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 92,
+          "summedSeconds": 2.4939999999999984
+        },
+        "other": {
+          "n": 253,
+          "summedSeconds": 1.0250000000000006
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.103499267578125,
+      "appImportToFirstSpawnSeconds": 0.274,
+      "unobservedNodeTailSeconds": 0.01,
+      "storeOpenOrCreateSeconds": null
+    },
+    {
+      "wave": 33,
+      "lane": "025",
+      "script": "day2:proof",
+      "variant": "after",
+      "code": 0,
+      "seconds": 198.5738213879522,
+      "nativePhaseSeconds": {
+        "deploy.bind": 0.956921357,
+        "deploy.note_prediction": 4.77495537,
+        "witness.candidates": 16.050093255,
+        "witness.stages": 1.6746892029999998,
+        "replay.fork": 6.237668797999992,
+        "campaign.derived direct probes": 0.5011075629999999,
+        "campaign.derived creator continuations": 0.000707753,
+        "campaign.derived replay": 2.3429510320000007,
+        "campaign.empty-start phase": 3.1470589389999994,
+        "campaign.pre-transition checkpoint": 0.015436131,
+        "campaign.generated initialization": 12.713894795,
+        "witness.question_campaign": 21.676076919,
+        "deploy.witnesses": 28.549334375,
+        "deploy.report": 37.467843888000004,
+        "deploy.restored_questions": 11.374068848,
+        "deploy.security": 57.705098096
+      },
+      "nodeProcessesByRole": {
+        "npm": 3,
+        "app-or-tool": 141,
+        "proof-command.js": 130
+      },
+      "nativeDeploys": [
+        {
+          "boundary": "native child",
+          "seconds": 47.579,
+          "bindSeconds": 0.483088734,
+          "securitySeconds": 36.019228302,
+          "unattributedSeconds": 11.076682964
+        },
+        {
+          "boundary": "native child",
+          "seconds": 33.358,
+          "bindSeconds": 0.473832623,
+          "securitySeconds": 21.685869794,
+          "unattributedSeconds": 11.198297582999999
+        }
+      ],
+      "nodeHttpRequests": {
+        "auth": {
+          "n": 92,
+          "summedSeconds": 2.463999999999998
+        },
+        "other": {
+          "n": 252,
+          "summedSeconds": 0.9940000000000007
+        }
+      },
+      "browser.launchSeconds": [],
+      "browser.contextSeconds": [],
+      "browser.closeSeconds": [],
+      "npmAndNodeToAppSeconds": 0.099716552734375,
+      "appImportToFirstSpawnSeconds": 0.117,
+      "unobservedNodeTailSeconds": 0.0,
+      "storeOpenOrCreateSeconds": null
+    }
+  ]
+}

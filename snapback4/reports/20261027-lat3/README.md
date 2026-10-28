@@ -31,12 +31,21 @@ Run each worker in a separate `systemd-run --user --scope -q -p MemoryMax=40G
 python3 snapback4/reports/20261027-lat3/replay.py --worker 0 --workers 4
 ```
 
+Outcome reuse through `--resume` is disabled. Fresh explicit revisions execute
+the complete ordered lane; `--cases-file` selects a declared source census.
+The final-input replay manifest refreshes every earlier row missing the final
+installed-package digest. Input/output package hashes are checked for every
+final row; revisions are selected by declared input correction, never speed.
+Known original-range and TMPDIR preconditions are recorded in the workstream
+report, along with initial mismatches and the actual diagnostic repeats.
+
 Raw task-local logs/receipts are under `/tmp/lat3/` while running. The final
 workstream report records actual completed coverage, mismatches, timing
 distributions, excluded setup attempts and deferrals. An unchanged pass/fail
 result is distinguished from a successful app proof. Comparison removes Node
 warnings, the independent copy roots and explicit generated selector/run/log
-identities. It preserves operative errors, assertions, deadlines and app call
+identities, and the authored random Wurlitzer/Proof Contact/Proof Board fixture
+labels. It preserves operative errors, assertions, deadlines and app call
 sites. Raw logs remain private and separate from the normalized comparison.
 
 `verify.mjs` retains the selector's complete plan, then replaces its conservative

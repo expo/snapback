@@ -12,7 +12,7 @@ for line in (root/'results.jsonl').read_text().splitlines():
  nodes=[e for e in events if e['event']=='node'];roles=collections.Counter()
  for e in nodes:
   name=pathlib.Path(e['argv'][1]).name if len(e['argv'])>1 else 'unknown'
-  roles[name if name in ['npm','npm-cli.js','proof-command.js','proof-keeper.js','snapback4.js'] else 'app-or-tool']+=1
+  roles[name if name in ['npm','npm-cli.js','proof-command.js','proof-keeper.js','proof-keeper.cjs','snapback4.js'] else 'app-or-tool']+=1
  wanted={'acceptance':'acceptance.mjs','frontend:proof':'frontend-proof.mjs','day2:proof':'day2-proof.mjs','probe:serve/client:calls':'probe.mjs'}[r['script']]
  main=next((e for e in nodes if len(e['argv'])>1 and pathlib.Path(e['argv'][1]).name==wanted),None)
  pairings=[('browser.launch','browser.launched'),('browser.context','context.close'),('browser.close','browser.closed')]
@@ -24,11 +24,17 @@ for line in (root/'results.jsonl').read_text().splitlines():
    if e['event']==end and e['pid']in opened:values.append((e['at']-opened.pop(e['pid']))/1000)
   durations[start+'Seconds']=values
  spawns=[e for e in events if e['event']=='spawn'];closes={e.get('child'):e for e in events if e['event']=='close'}
- deploys=[]
+ deploys=[];native_deploy_pids=iter(pid for pid,p in by_pid.items() if 'deploy.bind'in p)
  for e in spawns:
-  if pathlib.Path(e['command']).name!='snapback4' or e.get('args',[None])[0]!='deploy' or e.get('child')not in closes:continue
-  p=by_pid[e['child']];total=closes[e['child']]['ms']/1000;bind=p.get('deploy.bind',0);security=p.get('deploy.security',0)
-  deploys.append({'seconds':total,'bindSeconds':bind,'securitySeconds':security,'unattributedSeconds':total-bind-security})
+  args=e.get('args',[])
+  direct=pathlib.Path(e['command']).name=='snapback4' and args[:1]==['deploy']
+  shim=len(args)>1 and pathlib.Path(args[0]).name=='snapback4.js' and args[1]=='deploy'
+  if not(direct or shim) or e.get('child')not in closes:continue
+  # The baseline shim uses spawnSync internally. Its enclosing child lifetime
+  # is observed; sequential native deploy phase PIDs identify the same calls.
+  pid=e['child'] if direct else next(native_deploy_pids)
+  p=by_pid[pid];total=closes[e['child']]['ms']/1000;bind=p.get('deploy.bind',0);security=p.get('deploy.security',0)
+  deploys.append({'boundary':'native child' if direct else 'JS shim plus native child','seconds':total,'bindSeconds':bind,'securitySeconds':security,'unattributedSeconds':total-bind-security})
  fetches=[e for e in events if e['event']=='fetch'];requests=collections.defaultdict(lambda:{'n':0,'summedSeconds':0})
  for e in fetches:
   group='auth' if '/auth/'in e['path'] else 'health' if 'health'in e['path'] else 'other'
@@ -54,6 +60,7 @@ a.out.write_text(json.dumps({'qualification':False,'notes':[
  'Node preload occurs before application imports but after early Node loader work.',
  'HTTP request sums may overlap; browser context intervals include setup and assertions.',
  'Store open/create, native bootstrap, deployment materialization and output are not separately timed; they remain in nativeDeploys.unattributedSeconds.',
+ 'Baseline deploy child lifetimes include its synchronous JS shim; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.',
  'Unobserved Node tail is measured after the last traced app event; attribution to uncleared timers also requires inspecting app source.',
  ],'results':results},indent=2)+'\n')
 print(f'Wrote {len(results)} phase profiles')

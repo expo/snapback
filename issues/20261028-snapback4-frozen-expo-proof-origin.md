@@ -22,7 +22,9 @@ Replaying the complete lane with its original supported 21090–21099 range
 frozen v1 calls, rollback and rollforward: day2 131.758 / 127.029 seconds.
 That corrected measurement supersedes the invalid generic-range observation;
 the original attempt and the diagnostic repeats remain disclosed separately.
-Another frozen Expo UI in wave33/035 is undergoing the same original-range check.
+The original-range replay of wave33/035 also passes both packages (95.229 /
+93.483 seconds); its source has fallback 21350. No failed-request trace was
+captured for that lane, so attributing it to the same mechanism is an inference.
 
 [Diagnostic evidence](../snapback4/reports/20261027-lat3/frozen-ui-diagnostic.json)
 contains only codes, timings and failed-request origins, with no credentials.
