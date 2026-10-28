@@ -129,10 +129,14 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   // Preserve the policy checklist in the cards that own it, rather than
   // requiring the introductory card tour in the short README.
   assert.match(readme, /npx snapback4 guide start/);
-  assert.match(readme, /guide api client/);
-  assert.match(start, /guide security --section Reference/);
+  assert.match(readme, /guide workflow/);
+  assert.match(start, /guide workflow/);
+  const workflow = command(["guide", "workflow", "--repeat"]);
+  assert.match(workflow, /startStaging/, "the routed app recipe must carry real-account setup");
   assert.ok(Buffer.byteLength(start) <= 8001, "the complete installed start remains within the 8000-byte card budget plus newline");
-  for (const text of [guide, start]) {
+  // The dedicated security card owns the policy checklist; the bounded start
+  // routes to the app recipe instead of repeating a tour of reference cards.
+  for (const text of [guide]) {
     assert.match(text, /spec/i); assert.match(text, /role/); assert.match(text, /column/);
     assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
   }
