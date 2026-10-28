@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "wallMs": 8198,
+  "startBytes": 3478,
+  "workflowBytes": 7975,
+  "acceptanceRuns": 2,
+  "signatures": {
+    "app": 1604,
+    "witness": 842,
+    "react": 4610,
+    "client": 3994,
+    "auth": 2054,
+    "proof": 5369,
+    "generated": 867
+  },
+  "qualification": false
+}

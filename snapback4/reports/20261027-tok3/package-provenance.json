@@ -1,0 +1,43 @@
+{
+  "before": {
+    "snapback4-0.4.44.tgz": {
+      "bytes": 1370086,
+      "sha256": "1607ab400f747650f9174fb84cced477804e261fbf87e91c4f7ccbb4936ff4c8"
+    },
+    "snapback4-expo-0.4.44.tgz": {
+      "bytes": 5789772,
+      "sha256": "ae5f77b314e2a5ef852e3d00ec6d5e29903abff6b82a621f60b4dcd59b1156aa"
+    },
+    "snapback4-linux-x64-0.4.44.tgz": {
+      "bytes": 18677992,
+      "sha256": "3a32445efd13470f85252b105b3f105b1f994d813d0978b5709341bef0956bfb"
+    }
+  },
+  "after": {
+    "snapback4-0.4.44.tgz": {
+      "bytes": 1377526,
+      "sha256": "248cedbb7a98789225c82ae69e182a4c6969f9a279f3ca2e2cf7f54fb4637046"
+    },
+    "snapback4-expo-0.4.44.tgz": {
+      "bytes": 24276,
+      "sha256": "077ae35841424fa42452d7789be547f032f90ca9ecec158623b7d601eb5ef5f5"
+    },
+    "snapback4-linux-x64-0.4.44.tgz": {
+      "bytes": 18688544,
+      "sha256": "7cbd30be6cc0f24cba448aed11fed9cab0b76e11a8183137ec3643125bf1f715"
+    }
+  },
+  "sourceCommit": "1846658b08",
+  "afterProfile": "Cargo production: release opt-level=3, fat LTO, codegen-units=1, stripped; host Linux ELF, not publication qualification",
+  "parserSha256": "c2e22de85a163f6532f2bc7ef974f2cb8673991fe2cb1e190fae067989478676",
+  "binaries": {
+    "after": {
+      "sha256": "8ffe58645f67589d9a65595446cd5e118cf247104e6fcf70014e772341ed27f0",
+      "bytes": 44982744
+    },
+    "before": {
+      "sha256": "e4f5d315884ee5c6b06579dc76f4625134ce1614371ccce9f5287c1758a7a8aa",
+      "bytes": 44941848
+    }
+  }
+}
