@@ -56,11 +56,14 @@ def main():
     for variant,binary in ([('before',a.before),('after',a.after)]if index%2==0 else [('after',a.after),('before',a.before)]):
      if app.exists():shutil.rmtree(app)
      lat3.copy_source(base,app)
+     prepared=None
      if scenario=='reactivate':
       prepared=execute(binary,app,['rollback','deploy','--to','1','--json'],case/f'{scenario}-{variant}-rollback',a.clock_control)
-      if prepared['code']!=0:raise RuntimeError('rollback setup refused')
+      row.setdefault('preparation',{})[variant]=prepared
      if scenario=='new-release':(app/'snapback/lat4.q').write_text('query ready():\n  return true\n')
-     result=execute(binary,app,['deploy','deploy','--schema','snapback','--restore-dormant','--json'],case/f'{scenario}-{variant}',a.clock_control);row[variant]=result
+     attempted=prepared is None or prepared['code']==0
+     result=execute(binary,app,['deploy','deploy','--schema','snapback','--restore-dormant','--json'],case/f'{scenario}-{variant}',a.clock_control) if attempted else prepared
+     result['activationAttempted']=attempted;row[variant]=result
      dump=canonical(app/'deploy/store.sqlite');encoded=json.dumps(dump,sort_keys=True,separators=(',',':')).encode();(case/f'{scenario}-{variant}.canonical.json').write_bytes(encoded)
      identities[variant]={'storeSha256':hashlib.sha256(encoded).hexdigest(),'releaseFiles':artifacts(app)}
     row['identities']=identities;row['sameStore']=identities['before']['storeSha256']==identities['after']['storeSha256'];row['sameReleaseFiles']=identities['before']['releaseFiles']==identities['after']['releaseFiles'];row['sameOutput']=all(row['before'][key]==row['after'][key]for key in ['code','stdoutSha256','stderrSha256'])
