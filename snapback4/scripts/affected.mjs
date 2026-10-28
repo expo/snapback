@@ -172,7 +172,7 @@ export function selectAffected(changedFiles, model) {
     // Guide implementation is Rust source: retain the ordinary Cargo closure.
     if (guideInput && path.endsWith('.rs')) docs(path);
     if ((guideInput && !path.endsWith('.rs')) || /^(?:guide|docs|reports)\//.test(p)
-      || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
+      || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/(?:reference\/)?[^/]+\.md$/.test(p)) {
       docs(path); checks.add('ref-check');
       if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {
         if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());

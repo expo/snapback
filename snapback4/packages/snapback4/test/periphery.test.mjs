@@ -77,7 +77,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
     const url = withoutToken().trim();
     assert.ok(/^http:\/\/127\.0\.0\.1:\d+$/.test(url), (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
     assert.ok(withoutToken() === `${url}\n`, (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
-    await until(() => stderr.includes(`snapback4 ${mode}: ${url}`));
+    await until(() => stderr.includes(`SNAPBACK4_READY verb=${mode} `) && stderr.includes(`url=${url}`));
     if (mode === "dev") {
       await until(() => stderr.includes("worker stdout witness") && stderr.includes("worker stderr witness"));
       writeFileSync(schema, read(schema) + "\nquery alive():\n  return true\n");
@@ -447,13 +447,13 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
     assert.equal(table.stdout, "body\n----\nNull\n");
     assert.match(table.stderr, /developer's own store.*read-only, not rule-filtered/);
     assert.match(table.stderr, /1 row\(s\) — more rows exist/);
-    const data = run("data", "messages", "--limit", "1");
-    assert.equal(data.stdout.trim().split("\n").length, 1);
-    assert.equal(typeof JSON.parse(data.stdout).body, "string");
-    assert.match(data.stderr, /… more rows; use `data messages --all` \(or increase --limit\)/);
-    const allData = run("data", "messages", "--limit", "205");
-    assert.equal(allData.stdout.trim().split("\n").map(line => JSON.parse(line)).length, 205);
-    assert.equal(allData.stderr, "");
+    const data = JSON.parse(run("data", "messages", "--limit", "1", "--json").stdout);
+    assert.equal(data.rows.length, 1);
+    assert.equal(typeof data.rows[0].body, "string");
+    assert.equal(data.more, true);
+    const allData = JSON.parse(run("data", "messages", "--limit", "205", "--json").stdout);
+    assert.equal(allData.rows.length, 205);
+    assert.equal(allData.more, false);
     for (const [statement, code] of [
       ["UPDATE messages SET body = 'bad'", "E_SQL_READ_ONLY"],
       ["WITH chosen AS (SELECT 1) UPDATE r SET data = '{}'", "E_SQL_READ_ONLY"],
@@ -586,7 +586,7 @@ test("CLI and Node device share environment, platform-package and repository bin
   const platformDir = join(pkgDir, `node_modules/snapback4-${process.platform}-${process.arch}`);
   for (const path of [join(pkgDir, "dist"), join(pkgDir, "bin"), platformDir, join(dir, "target/release"), join(dir, "target/debug")]) mkdirSync(path, { recursive: true });
   writeFileSync(join(pkgDir, "package.json"), '{"type":"module"}');
-  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/cli-usage.js", "bin/cli-commands.json", "bin/upgrade-warnings.js", "bin/release-changes.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
+  for (const file of ["dist/native.js", "dist/resolve-binary.js", "dist/parent-lifetime.js", "bin/snapback4.js", "bin/cli-usage.js", "bin/cli-commands.json", "bin/upgrade-warnings.js", "bin/release-changes.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
   writeFileSync(join(platformDir, "package.json"), '{"name":"fixture"}');
   const candidates = [join(dir, "override"), join(platformDir, "snapback4"), join(dir, "target/release/snapback4"), join(dir, "target/debug/snapback4")];
   for (const file of candidates) writeFileSync(file, "binary resolution fixture");
