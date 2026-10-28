@@ -73,7 +73,8 @@ def main():
   normalized_same=before==after or len(before)==len(after) and all(x==y or boundary(x)==boundary(y)for x,y in zip(before,after))
   if r['before']['code']!=r['after']['code']or not normalized_same:deltas.append({'wave':r['wave'],'lane':r['lane'],'script':r['script'],'beforeCode':r['before']['code'],'afterCode':r['after']['code'],'sameOperativeMessages':normalized_same})
   for v,lines in [('before',before),('after',after)]:
-   r[v]['normalizedMessageSha256']=hashlib.sha256(json.dumps(lines).encode()).hexdigest()
+   r[v]['normalizedMessageSha256']=hashlib.sha256(json.dumps([boundary(line)for line in lines]).encode()).hexdigest()
+   r[v]['rawMessageSha256']=hashlib.sha256(json.dumps(r[v].get('messages',[])).encode()).hexdigest()
    for done in r[v].get('completions',[]):tails.append({'wave':r['wave'],'lane':r['lane'],'script':r['script'],'variant':v,**done})
    for command in command_summary(a.root,r,v):
     if command['verb']!='serve':commands[v][command['verb']].append(command)
@@ -83,10 +84,32 @@ def main():
    pairs=[r for r in selected if r['script']==script and r['before']['code']==r['after']['code']==0]
    table[script]={key:{v:stats([r[v][key]for r in pairs])for v in ['before','after']}for key in ['seconds','withoutPreflightSeconds']}
   tables[scope]=table
- summary={'qualification':False,'completedPairs':len(rows),'setupErrors':[r for r in raw if 'setupError'in r],'verdictOrMessageDifferences':deltas,'LAT3TargetLanes':sorted(target_lanes),'tables':tables,
+ call_differences=[];call_pairs=0;call_records=0;missing_vectors=[]
+ for r in rows:
+  if r['script']!='probe:serve/client:calls':continue
+  directory=a.root/'logs'/f"w{r['wave']}-{r['lane']}";vectors={}
+  for v in ['before','after']:
+   file=directory/f'probe-serve-client-calls-{v}.calls.stdout';found=[]
+   if file.exists():
+    for line in file.read_text(errors='replace').splitlines():
+     try:value=json.loads(line)
+     except ValueError:continue
+     if isinstance(value,dict)and'op'in value and'ok'in value:found.append({key:value[key]for key in ['op','role','ok','expected','error']if key in value})
+    vectors[v]=found
+  if len(vectors)==2:
+   call_pairs+=1;call_records+=len(vectors['before'])
+   if vectors['before']!=vectors['after']:call_differences.append({'wave':r['wave'],'lane':r['lane'],'beforeRecords':len(vectors['before']),'afterRecords':len(vectors['after'])})
+  if r['before']['code']==r['after']['code']==0 and (len(vectors)!=2 or any(not x for x in vectors.values())):missing_vectors.append({'wave':r['wave'],'lane':r['lane']})
+ summary={'qualification':False,'completedPairs':len(rows),'setupErrors':[r for r in raw if 'setupError'in r],'verdictOrMessageDifferences':deltas,'LAT3TargetLanes':sorted(target_lanes),'tables':tables,'clientCallPairs':call_pairs,'clientCallRecords':call_records,'clientCallDifferences':call_differences,'missingClientCallVectors':missing_vectors,
  'tails':{'completedSuites':len(tails),'overOneSecond':{v:sum(t['variant']==v and t['postCompletionSeconds']>1 for t in tails)for v in ['before','after']},'postCompletionSeconds':{v:stats([t['postCompletionSeconds']for t in tails if t['variant']==v])for v in ['before','after']}},
  'commands':{v:{verb:{'wallSeconds':stats([c['seconds']for c in values]),'outsideSecuritySeconds':stats([c['outsideSecuritySeconds']for c in values]),'count':len(values)}for verb,values in groups.items()}for v,groups in commands.items()}}
  a.out.mkdir(parents=True,exist_ok=True)
+ sanitized=[]
+ for r in rows:
+  value={key:r[key]for key in ['wave','lane','script','beforeBinarySha256','afterBinarySha256']if key in r}
+  for v in ['before','after']:value[v]={key:r[v][key]for key in ['code','seconds','startedAt','load','preflightSeconds','withoutPreflightSeconds','normalizedMessageSha256','rawMessageSha256','clientInputDigest','clientOutputDigest']if key in r[v]}
+  sanitized.append(value)
+ (a.out/'measurements.json').write_text(json.dumps(sanitized,indent=2)+'\n')
  (a.out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');(a.out/'tails.json').write_text(json.dumps(tails,indent=2)+'\n')
  print(json.dumps({k:summary[k]for k in ['completedPairs','setupErrors','verdictOrMessageDifferences']}))
 if __name__=='__main__':main()
