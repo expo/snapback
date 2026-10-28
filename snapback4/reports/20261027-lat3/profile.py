@@ -1,7 +1,7 @@
 """One paired production-native phase profile per requested command category."""
 import sys
 sys.dont_write_bytecode=True
-from replay import copy_source,install,ROOT,HERE,SCRATCH
+from replay import copy_source,install,overlay_candidate,ROOT,HERE,SCRATCH
 import pathlib,shutil,subprocess,os,time,json,signal
 out=SCRATCH/'phase-profiles';out.mkdir(exist_ok=True)
 for wave,lane,scripts in [(32,'002',['acceptance','frontend:proof','probe:serve/client:calls']),
@@ -10,7 +10,7 @@ for wave,lane,scripts in [(32,'002',['acceptance','frontend:proof','probe:serve/
  src=next(pathlib.Path(f'/home/ccheever/sb4-loop/wave{wave}/apps').glob(f'{lane}-snapback-*'))
  case=out/f'w{wave}-{lane}';case.mkdir(exist_ok=True)
  before=case/'before';after=case/'after';copy_source(src,before);install(before);shutil.copytree(before,after,symlinks=True)
- for name in ['dist','bin']:shutil.copytree(ROOT/'snapback4/packages/snapback4'/name,after/'node_modules/snapback4'/name,dirs_exist_ok=True)
+ overlay_candidate(after)
  for script in scripts:
   key=script.replace(':','-').replace('/','-')
   for variant,cwd in [('before',before),('after',after)]:

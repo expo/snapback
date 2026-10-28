@@ -1,7 +1,7 @@
 """Paired original-lane copies; never opens an original store. Private artifacts in /tmp/lat3.
 Run as a bounded systemd scope. Each worker executes one command at a time.
 """
-import argparse,collections,hashlib,json,os,pathlib,re,shutil,signal,subprocess,time
+import argparse,collections,hashlib,json,os,pathlib,re,shutil,signal,subprocess,time,tarfile
 ROOT=pathlib.Path(__file__).resolve().parents[3]
 HERE=pathlib.Path(__file__).resolve().parent
 SCRATCH=pathlib.Path('/tmp/lat3')
@@ -99,6 +99,24 @@ def client_digest(dst):
   h.update(len(name).to_bytes(8,'little'));h.update(name);h.update(len(data).to_bytes(8,'little'));h.update(data)
  return h.hexdigest()
 
+def overlay_candidate(dst):
+ # This is the frozen 0.4.44 experiment, not a benchmark of whatever main later
+ # builds. Refuse any archive outside its complete recorded content identity.
+ archive=pathlib.Path(os.environ.get('LAT3_FROZEN_CLIENT_TARBALL',str(SCRATCH/'packs/snapback4-0.4.44.tgz')))
+ summary=json.loads((HERE/'summary.json').read_text())
+ expected=next(x['sha256'] for x in summary['artifacts'] if x['role']=='consumer-candidate' and x['name']=='snapback4-0.4.44.tgz')
+ if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest()!=expected:
+  raise RuntimeError('frozen LAT3 client tarball missing/mismatched; provide LAT3_FROZEN_CLIENT_TARBALL with the recorded SHA256')
+ base=dst/'node_modules/snapback4'
+ with tarfile.open(archive) as tar:
+  for member in tar.getmembers():
+   if not member.isfile() or not member.name.startswith(('package/dist/','package/bin/')):continue
+   relative=pathlib.PurePosixPath(member.name.removeprefix('package/'))
+   target=base/relative
+   if '..'in relative.parts or not target.resolve().is_relative_to(base.resolve()):raise RuntimeError('unsafe frozen archive member')
+   target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(tar.extractfile(member).read());target.chmod(member.mode&0o777)
+ if client_digest(dst)!=summary['installedClientDigests']['after']:raise RuntimeError('frozen installed client identity mismatch')
+
 def messages(path):
  text=path.read_text(errors='replace')
  text=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',text)
@@ -132,8 +150,7 @@ def main():
    # Independent store bytes and dependencies; no state from the before command
    # enters the after copy. All stores and owner-sidecars are task-local.
    shutil.copytree(before,after,symlinks=True)
-   for name in ['dist','bin']:
-    shutil.copytree(ROOT/'snapback4/packages/snapback4'/name,after/'node_modules/snapback4'/name,dirs_exist_ok=True)
+   overlay_candidate(after)
    scripts=json.loads((before/'package.json').read_text()).get('scripts',{})
    for script in a.scripts.split(','):
     if script=='probe:serve/client:calls':

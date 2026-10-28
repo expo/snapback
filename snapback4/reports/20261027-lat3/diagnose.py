@@ -3,7 +3,7 @@ Diagnostic runs never supersede the original paired performance observation.
 """
 import sys
 sys.dont_write_bytecode = True
-from replay import copy_source, install, ROOT, HERE, SCRATCH
+from replay import copy_source, install, overlay_candidate, ROOT, HERE, SCRATCH
 import pathlib, shutil, subprocess, os, time, json, signal
 
 src = next(pathlib.Path('/home/ccheever/sb4-loop/wave33/apps').glob('009-snapback-*'))
@@ -16,8 +16,7 @@ for index, variant in enumerate(['before', 'after', 'after', 'before']):
     copy_source(src, cwd)
     install(cwd)
     if variant == 'after':
-        for name in ['dist', 'bin']:
-            shutil.copytree(ROOT/'snapback4/packages/snapback4'/name, cwd/'node_modules/snapback4'/name, dirs_exist_ok=True)
+        overlay_candidate(cwd)
     env = {**os.environ, 'NODE_OPTIONS':'--import='+str(HERE/'trace.mjs'),
            'LAT3_TRACE':str(case/'node.jsonl'), 'SNAPBACK4_LATENCY_TRACE':str(case/'native.jsonl'),
            'SNAPBACK4_BIN':str(cwd/'node_modules/snapback4-linux-x64/snapback4'),

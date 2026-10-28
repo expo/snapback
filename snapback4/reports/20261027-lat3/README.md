@@ -18,7 +18,10 @@ changes remain outside this workstream.
 `/tmp/lat3/`, excluding every store owner/token sidecar and dependency tree.
 Original stores are never opened. Dependencies are installed only in copies;
 baseline platform/client/Expo inputs are the retained Integration28 0.4.44
-tarballs. The candidate overlays this worktree's built client JS. Each lane's
+tarballs. The candidate overlays the frozen measured client archive (the
+recorded SHA256 is enforced). `LAT3_FROZEN_CLIENT_TARBALL` can locate that
+archive elsewhere; a later build of main cannot silently replace its bytes.
+Each lane's
 before/after copies begin with independent identical copied bytes. Pair order
 alternates across lanes; the same worker executes each pair in one window.
 The readiness/calls driver keeps credentials in private scratch files. There
