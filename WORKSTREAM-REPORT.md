@@ -179,3 +179,10 @@ business assertion and exact refusal, empty/unfilled negatives, unchanged bytes;
 full exhaustive positives/negatives and Chromium proof also passed. Full
 consumer-only qualification is running on these client/expo bytes. Six compact
 whole-session after draws started only after this direct packed control passed.
+
+First compact consumer-only qualification stopped at production-adaptation's
+private-output inventory: it recognized only the old exhaustive packet. Added
+exact three compact output paths while retaining byte-preservation and repeated
+apply assertions. This is a test-only change; frozen replay bytes are unchanged.
+The failed attempt remains in /tmp/muse1-evidence/consumer-compact.log; a fresh
+complete consumer-only run follows, without claiming partial qualification.
