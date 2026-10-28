@@ -45,10 +45,14 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
     // An explicitly selected fixture remains the initial-state assumption.
     // Static generation runs only on the fixture-free path; both share this
     // one bounded campaign with all subsequent concrete exploration.
+    // @ref LLP 3000.036.004.000.000#canonical-source-notes — immutable declaration/source facts are computed once, independently of campaign verdicts.
+    let mut canonical=phase::measure("report.declarations",||security::analyze_rules(bound));
+    phase::measure("report.source_notes",||security::add_source_notes(&mut canonical,sources,bound));
     let mut report=if selection.flags.contains_key("fixture")||known_failure||options.flags.contains_key("security-deploy"){
-        security::analyze_rules(bound)
+        canonical.clone()
     }else{security::analyze_with_campaign(bound,&mut campaign)};
-    security::add_source_notes(&mut report,sources,bound);
+    report.notes=canonical.notes.clone();
+    report.campaign_coverage.extend(canonical.campaign_coverage.iter().cloned());
     if !replay.invariants.is_empty()&&!known_failure{
         if selection.flags.contains_key("fixture"){
             match super::test_fixture::engine_at(project,replay,&selection,1_800_000_000_000){
@@ -58,7 +62,8 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
                     // before empty-start mutation permutations spend the cap.
                     let explored=security::analyze_with_campaign(replay,&mut campaign);
                     if reviewed.is_empty(){report=explored;}
-                    security::add_source_notes(&mut report,sources,bound);
+                    report.notes=canonical.notes.clone();
+                    report.campaign_coverage.extend(canonical.campaign_coverage.iter().cloned());
                     security::challenges::generated_campaign(replay,&mut campaign,false)
                 },
                 Err(why)=>{campaign.unsupported.insert(format!("fixture reachability not covered: {why}"));}
@@ -70,8 +75,6 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
     security::challenges::apply(&mut report,&campaign);
     report.notes.extend(presence::notes(project,bound,None,sources).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING",why,"repair the unreadable generated presence baseline").guide("security")]));
     if let Some(record)=cached {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
-    let mut canonical=security::analyze_rules(bound);
-    security::add_source_notes(&mut canonical,sources,bound);
     canonical.notes.extend(report.notes.iter().filter(|n|n.code=="N_PRESENCE_LOOSENING").cloned());
     canonical.notes.extend(release_create::notes(project,bound,sources,None).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_RELEASE_CREATE_COVERAGE",why,"restore the last successful write baseline").guide("security")]));
     report.notes=canonical.notes;
