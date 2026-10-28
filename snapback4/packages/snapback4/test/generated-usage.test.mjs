@@ -89,6 +89,8 @@ query scalar(c: cursor ?):
   return 1
 query values(c: int):
   return [c]
+query assetText(value: enum('{ id: string; bytes?: number; type?: string; name?: string | null }')):
+  return value
 query dangerous(value: enum('*/', 'End client usage. */')):
   return value
 action invite(peers: [principal] 1..49) returns { peers: [principal] 1..49 } <- viewer = 'service:billing'
@@ -107,12 +109,16 @@ test('wide literal domains use complete generated type references within each op
  const dir=mkdtempSync(join(root,'target/gen1-'));
  try {
   mkdirSync(join(dir,'snapback'));symlinkSync(join(root,'node_modules'),join(dir,'node_modules'),'dir');
-  const variants=Array.from({length:150},(_,i)=>`'variant_${i}'`).join(',');
-  writeFileSync(join(dir,'snapback/schema.q'),`query wide(value: enum(${variants})):\n  return value\n`);
+  const schema=Array.from({length:151},(_,n)=>{
+   const count=n||150, prefix=n===0?'variant_':'v';
+   const variants=Array.from({length:count},(_,i)=>`'${prefix}${i}_x${i}'`).join(',');
+   return `query wide${n}(value: enum(${variants})):\n  return value\n`;
+  }).join('\n');
+  writeFileSync(join(dir,'snapback/schema.q'),schema);
   run(dir,['types']);const api=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8');
-  const text=compileSnippets(dir,api),block=text.split('\n## ')[1];
-  assert.ok(encoding.encode(block).length<=480,`wide: ${encoding.encode(block).length}`);
+  const text=compileSnippets(dir,api),blocks=text.split('\n## ').slice(1),block=blocks[0];
+  for(const b of blocks)assert.ok(encoding.encode(b).length<=480,`${b.split('\n')[0]}: ${encoding.encode(b).length}/480`);
   assert.match(block,/full shape: Ops below/);assert.match(block,/full fields: Ops\/Rows below/);
-  assert.match(api,/variant_149/);
+  assert.match(api,/variant_149_x149/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });

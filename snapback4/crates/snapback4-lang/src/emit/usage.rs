@@ -3,7 +3,7 @@
 use super::{args_ts_with_aliases, property, string_literal, ty_ts};
 use crate::{Bound, types::Ty};
 use snapback4_core::ir::{BinaryOp, Expr, Input, ProgramKind, Stmt, UnaryOp};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const START: &str = "/* Client usage — generated from this app's checked schema.\n";
 pub const END: &str = "End client usage. */";
@@ -136,7 +136,21 @@ pub fn markdown(bound: &Bound, spanning: bool) -> String {
         } else {
             guards.join("; ")
         };
-        let args = compact_args(&args_ts_with_aliases(&p.args, &p.program.arg_aliases));
+        let arg_shapes = p
+            .args
+            .iter()
+            .map(|(name, ty)| (name.clone(), compact_shape(ty)))
+            .collect::<Vec<_>>();
+        let args = args_ts_with_aliases(&arg_shapes, &p.program.arg_aliases);
+        // Literal/identifier-heavy signatures can be token-dense well below a
+        // byte threshold. Count their structural lexical payload separately.
+        let dense = p
+            .args
+            .iter()
+            .map(|(name, ty)| name.len() + detail_cost(ty))
+            .sum::<usize>()
+            + detail_cost(&p.result)
+            > 180;
         let result = compact_ty(&p.result);
         let codes = if fact.requires.is_empty() {
             "none".into()
@@ -173,18 +187,19 @@ pub fn markdown(bound: &Bound, spanning: bool) -> String {
         // Avoid repeating huge literal domains/records/guard text in the reading
         // block. The full generated Ops types/JSDoc below retain every detail.
         // This is presentation only; never cap or drop operations/schema types.
-        if header.len() + calls.len() > 1500
+        if dense
+            || header.len() + calls.len() > 1500
             || args.len() > 600
             || result.len() > 400
             || session.len() > 400
             || codes.len() > 240
         {
-            let args = if args.len() <= 400 {
+            let args = if !dense && args.len() <= 400 {
                 args
             } else {
                 "ArgsOf<typeof operation> (full shape: Ops below)".into()
             };
-            let result = if result.len() <= 250 {
+            let result = if !dense && result.len() <= 250 {
                 result
             } else {
                 "ResultOf<typeof operation> (full fields: Ops/Rows below)".into()
@@ -221,12 +236,41 @@ pub(super) fn emit(bound: &Bound, spanning: bool, out: &mut String) {
     out.push_str(END);
     out.push_str("\n\n");
 }
-fn compact_args(text: &str) -> String {
-    text.replace(&ty_ts(&Ty::Image), "{ id: string }")
-        .replace(&ty_ts(&Ty::File), "{ id: string }")
+// Compact type nodes before printing. Text/enum contents are opaque values,
+// even if they happen to contain the printed spelling of an asset type.
+fn compact_shape(ty: &Ty) -> Ty {
+    let fields = |values: &BTreeMap<String, Ty>| {
+        values
+            .iter()
+            .map(|(name, ty)| (name.clone(), compact_shape(ty)))
+            .collect()
+    };
+    match ty {
+        Ty::Image | Ty::Video | Ty::File => Ty::Object(BTreeMap::from([("id".into(), Ty::Id)])),
+        Ty::Optional(t) => Ty::Optional(Box::new(compact_shape(t))),
+        Ty::Omittable(t) => Ty::Omittable(Box::new(compact_shape(t))),
+        Ty::List(t, n) => Ty::List(Box::new(compact_shape(t)), *n),
+        Ty::Collection(t, n) => Ty::Collection(Box::new(compact_shape(t)), *n),
+        Ty::Object(f) => Ty::Object(fields(f)),
+        Ty::RowShape(f) => Ty::RowShape(fields(f)),
+        Ty::RowObject(f) => Ty::RowObject(fields(f)),
+        _ => ty.clone(),
+    }
 }
 fn compact_ty(ty: &Ty) -> String {
-    compact_args(&ty_ts(ty))
+    ty_ts(&compact_shape(ty))
+}
+fn detail_cost(ty: &Ty) -> usize {
+    match ty {
+        Ty::Enum(values) => values.iter().map(|v| v.len() + 4).sum(),
+        Ty::Object(f) | Ty::RowShape(f) | Ty::RowObject(f) => {
+            f.iter().map(|(n, t)| n.len() + 4 + detail_cost(t)).sum()
+        }
+        Ty::List(t, _) | Ty::Collection(t, _) | Ty::Optional(t) | Ty::Omittable(t) => {
+            4 + detail_cost(t)
+        }
+        _ => 1,
+    }
 }
 fn result_rows(ty: &Ty, rows: &mut BTreeSet<String>) {
     match ty {
