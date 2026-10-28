@@ -13,12 +13,13 @@ Browser/React: use your existing app under AppProvider and its app.client (it ow
 
 ```ts
 import { api, type Rows } from './api';
-import type { ArgsOf, ResultOf, Session, Cursor, UploadOptions } from 'snapback4/contract';
-import { createClient } from 'snapback4/client';
+import type { ArgsOf, ResultOf, Session, Cursor, UploadOptions, Write } from 'snapback4/contract';
+import { createClient, refusalOf } from 'snapback4/client';
 import type { App } from 'snapback4/app';
 declare const app: App; // import your existing app from src/client; render under AppProvider
 const client = app.client;
 function serverClient(url: string, session: Session) { return createClient({ url, session }); }
+function refusalCode(write: Write<unknown>) { return refusalOf(write)?.code; }
 import { useQuery, usePage, useFollowing, useMutation, useAction } from 'snapback4/react';
 async function uploadArgument(bytes: Blob, options?: UploadOptions) {
   const uploaded = await client.upload(bytes, options);
@@ -29,7 +30,7 @@ async function uploadArgument(bytes: Blob, options?: UploadOptions) {
 
 Uploads: use uploadArgument(bytes) for image/video, or uploadArgument(bytes, {file: {type, name}}) for documents; pass its returned object to the asset argument. Upload separately per column. Service-only caller guards need a server-side client with its minted service token: createClient({url, token}); never expose it in a browser.
 
-Read: isReady(read) from snapback4/contract exposes data; denied reads have denied.code. Page hooks expose items/read/loadMore; plain query exposes next (pass unchanged to the cursor argument until null). Writes: failed has why.code; sent has result (replay can omit it); pending is not committed. Actions/signals have their own state; inspect the returned union. Infrastructure/auth/input/rule/meter/upload refusals can also occur; the per-operation codes below are declared guards, not an exhaustive runtime list.
+Read: isReady(read) from snapback4/contract exposes data; denied reads have denied.code. Page hooks expose items/read/loadMore; plain query exposes next (pass unchanged to the cursor argument until null). Writes: refusalOf(write) returns the failure; why is undefined unless failed. Sent has result (replay can omit it); pending is not committed. Actions/signals have their own state; inspect the returned union. Infrastructure/auth/input/rule/meter/upload refusals can also occur; the per-operation codes below are declared guards, not an exhaustive runtime list.
 
 ## mutation createGroup
 

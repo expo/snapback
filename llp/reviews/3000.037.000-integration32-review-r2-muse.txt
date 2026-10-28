@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Verified the attached repair only; no files edited.
+
+- TOK5 §15 restored: [3000.037.000 rfc §15]( /home/ccheever/projects/snapback-sb4loop/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md) lines 719–752 present, byte-identical role to parent `18889a3f5a` (journal diff `18889a3f5a..618b59468b` adds only GEN1 + Integration32; TOK5 entries already in parent).
+- Journal prefix retained: `fbc147990c..618b59468b` inserts the two TOK5 entries before the existing GEN1 entry in [JOURNAL.md](/home/ccheever/projects/snapback-sb4loop/snapback4/JOURNAL.md:110270); GEN1 and Integration32 entries retained/appended.
+- Changelog suffix byte-for-byte: `0.4.47`-onward suffix hash identical between `18889a3f5a` and `618b59468b` (`a7e72b01…`); `fbc..618b` diff only re-adds dropped `0.4.47`–`0.4.26` history plus the GEN1 bullet under unified `0.4.48` in [CHANGELOG.md](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/reference/CHANGELOG.md:1).
+- Unified `0.4.48` entry describes all three: reference moves, `Write.why`/`refusalOf`, generated usage (lines 7–10).
+- Code refs match: `refusalOf` exported from `contract.ts`, re-exported by `client.ts:24` and `react.tsx:29`; five proof helpers (`uniqueName`, `freshUser`, `proofFailure`, `reportProofFailure`, `printProofReport`) re-exported from `src/proof.ts`; `runProofSuite` ships as `bin/proof-runner.js`; [api.md](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/guide/api.md:24) lists `refusalOf` under contract/client, five helpers + `proof-runner` row (lines 45–46) with the `bin/` ship note (line 49).
+- Generator emits the asserted strings (`usage.rs:18,22`; `api_client.md:4`); [generated-usage.test.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/generated-usage.test.mjs:54) asserts `refusalOf(write)` + `why is undefined unless failed`, enforces 2400/480 (lines 65, 69).
+- API-index: [api-index.test.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/api-index.test.mjs:17) handles string-valued manifest exports at path, `allowJs: true` (line 27), retains full value-coverage loop (lines 53–55).
+- Tests observed passing: `api-index` 2/2; `generated-usage` 7/7 (cpap 2344/2400, trailer 2385/2400, talent 2366/2400; max op 223/480).
+- Out-of-attachment files in `fbc..618b` are routine release plumbing (0.4.47→0.4.48 version bumps, research §20.17, closed api-index ticket). No publication targets/worktrees or wave stores opened.
+
+No material concerns.

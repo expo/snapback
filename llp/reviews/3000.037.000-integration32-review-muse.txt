@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — authored seam drops TOK5 instead of retaining both lanes.
+
+Material concerns (read-only, scoped to attached delta):
+
+- [llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md:720](/home/ccheever/projects/snapback-sb4loop/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md): only `## 16. Schema-specific client usage (GEN1)` remains; `## 14` jumps to `## 16`. The TOK5 `## 15. Package entry and write refusals` block from the `18889a3f5a` side of the remerge was deleted, not renumbered alongside GEN1. Violates "keep both LLP records with unique section numbers".
+- [snapback4/packages/snapback4/src/contract.ts:139](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/contract.ts): `@ref LLP 3000.037.000#15-package-entry-and-write-refusals-tok5` now dangles — no `§15` exists to match it. `usage.rs:2` / `generated-usage.test.mjs:1` correctly point at `#16`, but the TOK5 ref has no target; `ref-check` cannot pass.
+- [snapback4/JOURNAL.md:110269](/home/ccheever/projects/snapback-sb4loop/snapback4/JOURNAL.md): only `### 2026-10-28 — GEN1` retained. Both TOK5 entries from the remerge baseline (`TOK5 package entry and write refusal ergonomics`, `TOK5 qualification and affected repair closure`) were deleted. Violates "keep both journal records".
+- [snapback4/packages/snapback4/reference/CHANGELOG.md:7](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/reference/CHANGELOG.md): `0.4.48 Guide changes` has only the GEN1 bullet. The two TOK5 existing-app bullets (README sole root + `Write.why`/`refusalOf` compatibility, no source migration) were deleted. No coherent `0.4.48` entry describes TOK5 existing-app behavior.
+- [llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md:750](/home/ccheever/projects/snapback-sb4loop/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md) vs `generated-usage.test.mjs:69`: LLP still says `4,000 per fixture packet`; test tightens to `tokens<=2400`. Integration intent is 2400 with the added `refusalOf` example, so LLP is stale and doc/test disagree.
+
+Verified intact (no concern):
+
+- Package layout keeps README sole root `.md`; `reference/` holds moved docs.
+- `Write` arms carry `why?: undefined` on nonfailed arms plus `refusalOf(write)` in `contract`/`client`/`react`; `usage.rs:18,22` example imports and prose compile against that shape.
+- `api-index.test.mjs:14-22,28` correctly censuses manifest string export (`proof-runner` → `bin/proof-runner.js`) with `allowJs`; `guide/api.md:24-25,45-46,49` keeps `refusalOf`, `proof`, `proof-runner` rows complete.
+- No token/wall performance claim made.
+
+Restore TOK5 `§15` + journal entries, merge both bullets into one `0.4.48` entry, and update LLP budget to 2400.
+
+NOT READY

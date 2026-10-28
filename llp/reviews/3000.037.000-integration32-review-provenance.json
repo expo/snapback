@@ -1,0 +1,13 @@
+{
+  "patchSha256": "5fab63d3e3b9192218fcc58bd985e5acd5418cdb47a357948e9aae0b07c5b7d4",
+  "source": "fbc147990c plus attached uncommitted authored followups",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "fresh": true
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "effort": "high"
+  }
+}

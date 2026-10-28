@@ -1,0 +1,7 @@
+{
+  "base": "fbc147990c",
+  "head": "618b59468b",
+  "patchSha256": "1cffc2173081d046ea6116b26656cc3eda0ce40e75c9633dba8fef1969bfd044",
+  "muse": "muse-spark-1.3-contributor high",
+  "codex": "fresh gpt-6.1-sol high"
+}

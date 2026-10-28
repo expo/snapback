@@ -1,0 +1,7 @@
+- **P1 — Release history was deleted.** [reference/CHANGELOG.md:7](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/reference/CHANGELOG.md:7) now ends after GEN1’s bullet, removing versions 0.4.26–0.4.47 and TOK5’s 0.4.48 guidance. Upgrade reporting reads this file, so existing apps lose intervening migration/rebuild instructions. Restore the history and combine TOK5/GEN1 into one 0.4.48 entry covering existing-app behavior.
+
+- **P2 — TOK5’s governing and journal records were dropped.** [LLP:720](/home/ccheever/projects/snapback-sb4loop/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md:720) retains GEN1 §16 but deletes TOK5 §15, leaving the `contract.ts:139` reference unresolved. [JOURNAL.md:110269](/home/ccheever/projects/snapback-sb4loop/snapback4/JOURNAL.md:110269) also replaces both TOK5 entries with GEN1. Restore both lanes’ records, preserving §15/§16 and matching references.
+
+The API-index repair passes both tests. Generated-usage tests were inspected but not executed because they write fixtures. No files were edited.
+
+NOT READY
