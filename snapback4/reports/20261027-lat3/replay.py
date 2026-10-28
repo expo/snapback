@@ -107,7 +107,7 @@ def messages(path):
  lines=[]
  for line in text.splitlines():
   line=re.sub(r'\s*node:internal/modules/run_main:\d+(?::\d+)?\s*$','',line).rstrip()
-  if re.search(r'Error|Assertion|expected|actual|E_[A-Z_]+|"ok":false|"expected":|(?:locator|page|browser|browserType|frame|elementHandle)\.[^:]+:\s',line) or re.search(r'^\s+at .*?/scripts/[^\s]+:\d+:\d+',line):lines.append(line)
+  if re.search(r'Error|Assertion|expected|actual|E_[A-Z_]+|"ok":false|"expected":|(?:locator|page|browser|browserType|frame|elementHandle)\.[^:]+:\s|(?:fix question|decision|advisory|note) [A-Z][A-Z0-9_]+|^deploy verdict:|^\s*[+-] ',line) or re.search(r'^\s+at .*?/scripts/[^\s]+:\d+:\d+',line):lines.append(line)
  return lines
 
 def main():
