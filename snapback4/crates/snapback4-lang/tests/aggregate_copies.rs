@@ -164,10 +164,10 @@ fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
 
 #[test]
 fn aggregate_copy_claim_is_reached_from_the_orientation() {
-    // Wave 14 (W14b) moved every reference section out of the README into the cards;
-    // the orientation's reference map must still lead a reader to the feeds card, and
-    // the claim lives there in full (its wording is pinned by the card test above).
-    assert!(README.contains("./CLIENT-AND-OPERATIONS.md"));
+    // TOK3 routes optional reference questions through a guide pointer. The
+    // complete path must still reach feeds and its pinned aggregate-copy claim.
+    assert!(README.contains("guide package-reference"));
+    assert!(guide::card("package-reference").unwrap().contains("CLIENT-AND-OPERATIONS.md"));
     assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("guide feeds"), "the linked reference reaches the aggregate card");
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
     let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
