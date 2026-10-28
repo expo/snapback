@@ -37,6 +37,8 @@ const APP_FILES: &[&str] = &[
     // Exact application source and mounted adapter entry for static device discovery.
     "app.ts", "snapback.ts",
     // The testing card's fixture cases file and acceptance script.
+    // Exact generated packet path executed by the packed scaffold consumer.
+    "scripts/proof-scaffold/cases.mjs",
     "test.cases.jsonl", "scripts/acceptance.mjs", "scripts/wire-proof.mjs", "scripts/day2-accounts.mjs",
     "scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs", "scripts/install.mjs",
     "versions/v1.q", "versions/v2.q", "versions/v1/schema.q", "versions/v1/generated/api.ts", "versions/v1/generated/package.json", "versions/v2/schema.q", "versions/bridge/schema.q", "file.q",
