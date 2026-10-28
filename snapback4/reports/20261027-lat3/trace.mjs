@@ -26,7 +26,11 @@ Module._load=function(...args){
    const close=browser.close,newContext=browser.newContext;
    browser.close=async function(...options){record({event:'browser.close'});try{return await close.apply(this,options)}finally{record({event:'browser.closed'})}};
    browser.newContext=async function(...options){const context=await newContext.apply(this,options);record({event:'browser.context'});const close=context.close;
-    context.on('page',page=>page.on('response',response=>{const url=new URL(response.url());if(url.protocol==='http:'||url.protocol==='https:')record({event:'browser.response',path:url.pathname,status:response.status()})}));
+    context.on('page',page=>{
+     page.on('response',response=>{const url=new URL(response.url());if(url.protocol==='http:'||url.protocol==='https:')record({event:'browser.response',origin:url.origin,path:url.pathname,status:response.status()})});
+     page.on('requestfailed',request=>{const url=new URL(request.url());record({event:'browser.requestFailed',origin:url.origin,path:url.pathname,error:request.failure()?.errorText})});
+     page.on('pageerror',error=>record({event:'browser.pageError',name:error.name}));
+    });
     context.close=async function(...options){record({event:'context.close'});try{return await close.apply(this,options)}finally{record({event:'context.closed'})}};return context;};
    return browser;
   };
