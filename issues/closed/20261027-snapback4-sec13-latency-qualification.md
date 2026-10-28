@@ -1,6 +1,6 @@
-# SEC13 / SEC11b integrated latency remains unqualified
+# SEC13 / SEC11b integrated latency qualification
 
-Status: Open
+Status: Closed
 Date: 2026-10-27
 Updated: 2026-10-28
 Scope: Snapback 4 Integration 29, SEC11L, SEC11b and SEC13
@@ -60,10 +60,44 @@ campaign execution while preserving current gate freshness, all question
 families, literal decision/witness identities and full raw payloads. Do not
 increase work limits, omit questions/gates, relax targets or normalize identities.
 
-Retained evidence: [paired summary](../snapback4/reports/integration29/latency-summary.json),
-[paired profiles and confidence intervals](../snapback4/reports/integration29/latency-profile.json),
-[baseline provenance](../snapback4/reports/integration29/latency-baseline-provenance.json).
+Retained evidence: [paired summary](../../snapback4/reports/integration29/latency-summary.json),
+[paired profiles and confidence intervals](../../snapback4/reports/integration29/latency-profile.json),
+[baseline provenance](../../snapback4/reports/integration29/latency-baseline-provenance.json).
 Full raw rows, phase traces and executable snapshots remain under
 `~/sb4-loop/reports/integration29/`. The earlier SEC13 loaded-host launch/main
 comparison remains in `snapback4/reports/sec13/latency.json`; it is superseded
 by this matched integrated profile for diagnosing the regression, not by a pass.
+
+## Integration 30 resolution — 0.4.46
+
+Resolved on native source `7aef642aa38471d70eca0128d0a5ddd3b4cf518a`,
+production SHA-256 `e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778`.
+LAT1 shared fixtures/campaign scheduling now includes the SEC11b/SEC13 context;
+strict production SECP restoration joins concurrently with its original note
+vector and current-source guards. Immutable declaration/source facts are
+computed once per report. Work budgets, tiers and authority replay stay intact.
+
+The complete paired production window uses the actual packaged dist 0.4.44,
+retained Integration 29 0.4.45 and merged 0.4.46, four workers, 63 cases / 1,890 commands.
+On the deterministic 54, default check cold p90 is 5.834 s and warm median 2.104 s;
+cold staging p90 is 5.866 s. On the nine exact day-two cases, cold check p90 is
+5.588 s, warm median 1.988 s, staging cold p90 5.487 s and `deploy --check` cold/warm
+p90 is 7.602 / 6.407 s. Every reported median, p90 and maximum is faster than 0.4.44.
+The previous complete candidate missed warm check 2.5 s (2.590462 s); its data is
+retained separately, and the full final matrix reran after the real engine fix.
+No limit or assertion was raised.
+
+The full 1,020-schema current-source comparison validates 6,120 paired security
+envelopes / 12,240 invocations: 6,091 literal matches, 29 host-upload-ID-only pairs,
+zero unexplained differences/tool/input failures. Two independent executions
+of the unchanged sequential control reproduce the same nonce class in all 17
+affected schemas. The raw comparator retains exit 1; identity is qualified
+modulo the already open upload-ID presentation ticket, not literal byte identity.
+All decision/witness IDs, verdicts, gates, tiers and other payload fields remain unchanged.
+Original stores were never opened.
+
+Evidence: [paired summaries](../../snapback4/reports/integration30/latency-summary.json),
+[acceptance bars and hashes](../../snapback4/reports/integration30/latency-verdict.json),
+[identity qualification](../../snapback4/reports/integration30/identity-summary.json),
+[verbatim metrology](../../snapback4/reports/integration30/metrology/README.md).
+Raw captures and frozen binaries remain under `~/sb4-loop/reports/integration30/`.

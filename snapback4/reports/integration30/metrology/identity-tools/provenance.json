@@ -1,0 +1,11 @@
+{
+  "source": "/home/ccheever/sb4-loop/reports/lat1",
+  "sha256": {
+    "direct-upload-audit.py": "2f69f210db56503f58359d264508f66749b851068638aa599ea2eb79d2492440",
+    "copied-upload-audit.py": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+    "reviewed-upload-origins.json": "2926866e24b6dd625294e53c3d34b508ab41080cdfbd1feaacadd331b769dec2",
+    "additional-upload-origins.json": "c579294377408863077b1fa9f242a84d9e171599c9c893826bb7369383f5ad0b",
+    "reviewed-copied-upload-origin.json": "fa5bb3a05454ba443b9a2eaa677f0d41e2339edc8309c9ceaff71a013cde3da3"
+  },
+  "scope": "Unmodified audit functions and explicit source-field manifests from LAT1. Historical review approvals are not reused as approval of these new captures; the full current census and unchanged-control self-replays are independently bound."
+}

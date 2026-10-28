@@ -1,0 +1,15 @@
+{
+  "testedProductSource": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "docsSource": "7c1e781076d5ec7efea1329f181aba7149770411",
+  "snapback4Tree": "89e625603dd822b1f85b1dcf3b33f202bef5e9b9",
+  "entireSnapback4TreeUnchanged": true,
+  "changedPaths": [
+    "AGENTS.md",
+    "guide/conventions.md",
+    "guide/guide-flat.generated.md",
+    "guide/guide-flat.meta.generated.md",
+    "guide/guide-manifest.generated.json",
+    "guide/reference/diagnostics-registry.json"
+  ],
+  "binarySha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778"
+}

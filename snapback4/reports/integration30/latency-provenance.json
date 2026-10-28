@@ -1,8 +1,10 @@
 {
+  "toolSha256": "54bab31d9db332e9d5a22611115e9c66db72f04cecab624a3652bf569be1f116",
+  "startedEpoch": 1793169398.0642924,
   "binaries": {
     "0.4.44": {
-      "path": "/home/ccheever/sb4-loop/reports/lat1/baseline-0.4.44",
-      "sha256": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf"
+      "path": "/home/ccheever/sb4-loop/reports/integration30/snapback4-packed-0.4.44",
+      "sha256": "e4f5d315884ee5c6b06579dc76f4625134ce1614371ccce9f5287c1758a7a8aa"
     },
     "0.4.45": {
       "path": "/home/ccheever/sb4-loop/reports/integration29/candidate-release-0.4.45",
@@ -10,7 +12,7 @@
     },
     "0.4.46": {
       "path": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46",
-      "sha256": "f93da0d0e0fbb23337e986646d68393362133458f1e4d0af07ff991dc386e393"
+      "sha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778"
     }
   },
   "workers": 4,
@@ -394,5 +396,5 @@
       "variant": ""
     }
   ],
-  "method": "Paired adjacent binaries with rotating order per schema/mode; same four workers and window; cold then warm on the same independent source/JSONL copy. No phase tracing. Preview starts from a fresh matching-binary deployment of the predecessor; setup time is retained separately. No original stores opened."
+  "method": "Paired adjacent binaries with rotating order per schema/mode; same four workers and window; cold then warm on the same independent source/JSONL copy. No phase tracing. Preview starts from a fresh matching-binary deployment of the predecessor; setup time is retained separately. Sample54 retains authored JSONL as Integration28; day2-nine uses only Quarry source as wave33-repro/rel/replay.sh. No original stores opened."
 }

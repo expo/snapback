@@ -1,0 +1,13 @@
+{
+  "23/008-snapback-arborist-removal-quotes": {
+    "sourceSha256": "63bfeee99ad4c3778b0b556d3404d163c31ac94f4a7d0dfa8edf8ef83ed4c820",
+    "requiredSourceText": [
+      "mutation openQuote(tree: trees, price: int 100..100000000, treePhoto: image <=5000000, linesPhoto: image <=5000000, buildingsPhoto: image <=5000000):",
+      "insert siteSurveys { quote: q.id, homeowner: t.homeowner, initial: true, initialKey: q.id, visitedAt: now, treePhoto: treePhoto.id, linesPhoto: linesPhoto.id, buildingsPhoto: buildingsPhoto.id }",
+      "treePhoto: id ?",
+      "linesPhoto: id ?",
+      "buildingsPhoto: id ?"
+    ],
+    "basis": "Ticket explicitly names this source and N_ARGUMENT_GRANT copied upload-ID witness. Source-bound, fixed witness-ID audit only; no general nominal ID normalization. Control self-reproduction is a separate pending qualification condition."
+  }
+}

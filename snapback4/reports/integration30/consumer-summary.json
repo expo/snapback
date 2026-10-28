@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "version": "0.4.46",
+  "route": "proot",
+  "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q==",
+  "expoIntegrity": "sha512-30T+pTHtf4dguSRi7yhXfbVxmZ3sLmJH+3TUgMQRXsd1IqaHD0mQ0YR+FfqUM+5XMrhBU8ACWU79zwicg0xxXw==",
+  "binarySha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778",
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "completeConsumerChainExit": 0,
+  "receiptSha256": "49cf583a462139719b00cc59c8ab8528bcaafe19a39048f4e016fcc0f0af181f",
+  "retainedReceipt": "/home/ccheever/sb4-loop/reports/integration30/consumer-r3/consumer.json",
+  "proofStatuses": {
+    "elf": "passed",
+    "day2Proof": "passed",
+    "dx8Proof": "passed",
+    "dx5Proof": "passed",
+    "day4Proof": "passed",
+    "day5Proof": "passed",
+    "productionProofs": "passed",
+    "proofKit": "passed",
+    "clientRecipes": "passed",
+    "ruleRecipes": "passed",
+    "stagingProof": "passed",
+    "migrationProof": "passed",
+    "securityProof": "passed",
+    "suite": "not-run"
+  },
+  "dependencyTreePruning": "31disposable consumer node_modules trees removed only after success; receipts/audits/source/packs/platform tar retained"
+}

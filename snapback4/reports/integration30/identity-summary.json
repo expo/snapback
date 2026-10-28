@@ -1,0 +1,684 @@
+{
+  "schemas": 1020,
+  "pairedComparisons": 6120,
+  "invocations": 12240,
+  "workers": 4,
+  "literalExact": 6091,
+  "literalNonmatches": 29,
+  "allowedUploadIdExceptions": 29,
+  "unexplained": [],
+  "toolFailures": [],
+  "inputMismatches": [],
+  "uniqueDecisionIds": true,
+  "tiers": {
+    "advisory": 13451,
+    "question": 1455,
+    "gate": 7
+  },
+  "strictComparatorExit": 1,
+  "unchangedControlReproductionsComplete": true,
+  "identityModuloTicketedUploadIds": true,
+  "censusBinding": {
+    "summarySha256": "330b677c226cb1d307a273d337a8370d62b0378bcee2ef60532bb83f971ef6fb",
+    "provenanceSha256": "3a9de321378cf5d644596071eb23d94701c454a400b42fad3507445b2f975eb3",
+    "keysSha256": "ad26d2fa29703aacb69f72cf7017f884075d986bef13ad44296498fcf10e0987",
+    "toolSha256": "8267c431a6359ccde1abdb01f76e35757bee09845f7542673d698adb942bdaff",
+    "captureManifestSha256": "ec5bce49274e0b06426c2f1f7b66bf8b5f722bef677cbb82974e4fa8a8cb472f",
+    "inputHashesSha256": "653b4a45d0b3bb94348018129882cf5125ac7f99621d8cf63248339f92e2fc18"
+  },
+  "censusBindingSha256": "729158608c62f9368197065dbfac2542de925641e5a4beb5d236eb876d8aab83",
+  "censusProvenance": {
+    "binaries": {
+      "baseline": {
+        "path": "/home/ccheever/sb4-loop/reports/integration30/sequential-control-0.4.46",
+        "sha256": "0c1bab788d27d51df03ccefdd758ee05f10a968b6f6cb54d87fc997c57dd3562"
+      },
+      "candidate": {
+        "path": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46",
+        "sha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778"
+      }
+    },
+    "keysSha256": "ad26d2fa29703aacb69f72cf7017f884075d986bef13ad44296498fcf10e0987",
+    "workers": 4,
+    "identity": true,
+    "latencyTrace": false,
+    "toolSha256": "8267c431a6359ccde1abdb01f76e35757bee09845f7542673d698adb942bdaff",
+    "method": "Independent fresh source/JSONL fixture copies per binary and command. Four paired latency tasks (or declared identity workers), alternating binary order by schema. Cold then warm in one project; no live stores copied or opened. No payload normalization. Shared host; per-command load recorded."
+  },
+  "exceptions": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "check",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "check",
+      "temperature": "warm",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "staging",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "review",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 8,
+      "graphs": 1,
+      "idPairs": 4,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "check",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "check",
+      "temperature": "warm",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "staging",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "review",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 6,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 8,
+      "graphs": 1,
+      "idPairs": 4,
+      "unexplained": []
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "check",
+      "temperature": "cold",
+      "accepted": true,
+      "witnesses": [
+        {
+          "accepted": true,
+          "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+          "idPairs": 6,
+          "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+        },
+        {
+          "accepted": true,
+          "idPairs": 6,
+          "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "check",
+      "temperature": "warm",
+      "accepted": true,
+      "witnesses": [
+        {
+          "accepted": true,
+          "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+          "idPairs": 6,
+          "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+        },
+        {
+          "accepted": true,
+          "idPairs": 6,
+          "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "staging",
+      "temperature": "cold",
+      "accepted": true,
+      "witnesses": [
+        {
+          "accepted": true,
+          "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+          "idPairs": 6,
+          "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+        },
+        {
+          "accepted": true,
+          "idPairs": 6,
+          "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "review",
+      "temperature": "cold",
+      "accepted": true,
+      "witnesses": [
+        {
+          "accepted": true,
+          "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+          "idPairs": 6,
+          "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+        },
+        {
+          "accepted": true,
+          "idPairs": 6,
+          "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "witnesses": [
+        {
+          "accepted": true,
+          "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+          "idPairs": 6,
+          "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+        },
+        {
+          "accepted": true,
+          "idPairs": 6,
+          "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 4,
+      "graphs": 2,
+      "idPairs": 4,
+      "unexplained": []
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 22,
+      "graphs": 2,
+      "idPairs": 8,
+      "unexplained": []
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 4,
+      "graphs": 2,
+      "idPairs": 4,
+      "unexplained": []
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 5,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 22,
+      "graphs": 2,
+      "idPairs": 8,
+      "unexplained": []
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 2,
+      "graphs": 1,
+      "idPairs": 2,
+      "unexplained": []
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "production",
+      "temperature": "cold",
+      "accepted": true,
+      "differences": 14,
+      "graphs": 2,
+      "idPairs": 6,
+      "unexplained": []
+    }
+  ],
+  "unchangedControlSelfReproductions": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "b66b5f233473ce1c249b2c42c3006f4d808aec3bcdd9ad1de1121a93ec7c1604",
+      "audit": {
+        "accepted": true,
+        "differences": 6,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "dcbf0edc03723a8bf3af861c2ae16c9311e9d3a662cc002c374d3c114d1b27fc",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "fc7b6c2e6911e2d8d3c9777daa5fd675dbf59464f630b1812686ea8ca906be49",
+      "audit": {
+        "accepted": true,
+        "differences": 8,
+        "graphs": 1,
+        "idPairs": 4,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "dad22e3beadc84a604cdb02de6a9797dfe444d5a19e10ff8f94d444721157f77",
+      "audit": {
+        "accepted": true,
+        "differences": 6,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "8e292305b2def86348d226550bc92b3933d0d505ec8cc6f27ce371b409b00b47",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "6a0cdd3e80777c92dc7da58be72b0823c0e00d38aaa982daef55e6507b5ad213",
+      "audit": {
+        "accepted": true,
+        "differences": 8,
+        "graphs": 1,
+        "idPairs": 4,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "b1a15f7e2d09e1e7fc1dd3e46578b91fe0b473278c8af79be089a364ebc54e2d",
+      "audit": {
+        "accepted": true,
+        "witnesses": [
+          {
+            "accepted": true,
+            "witnessId": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+            "idPairs": 6,
+            "origin": "two initial siteSurveys rows copied from openQuote image arguments"
+          },
+          {
+            "accepted": true,
+            "idPairs": 6,
+            "witnessId": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "5250f97de522f2662db3d71ddbcb96e532319c366c7ab417a08538bf05ccffe1",
+      "audit": {
+        "accepted": true,
+        "differences": 4,
+        "graphs": 2,
+        "idPairs": 4,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "0a49f322d0dfb0d9e65790f4e7833a183336425b7d159977df0c41cc2102d4f5",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "35a4a7a6826df183003d0540fab12b6b4767e9b263903981dc830d4b7f6eca90",
+      "audit": {
+        "accepted": true,
+        "differences": 22,
+        "graphs": 2,
+        "idPairs": 8,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "97b03ad373980da6a370b3bcce6db90e3305d4b3ac2db5db96ba8f97b5ee2f81",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "06884c29d0db6a5c121bb21671984ec2ec0746b243685c39d3089c78088f923b",
+      "audit": {
+        "accepted": true,
+        "differences": 4,
+        "graphs": 2,
+        "idPairs": 4,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "0661c40dd158356ee69fdf6a58cf259a893625f57376e0d8ee46b871d9ba14cd",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "33af7bbec2b8f86da415091ba0d7474a93803654d5cc84619469edf4846b2302",
+      "audit": {
+        "accepted": true,
+        "differences": 5,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "bfbb060a63e9d0c4b0d64e9b87351592a97d1494ba9bda67d6c4b9b18015e7ae",
+      "audit": {
+        "accepted": true,
+        "differences": 22,
+        "graphs": 2,
+        "idPairs": 8,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "db30fd734d1eb4286ec2615d6574ab952918c78b426a5dd54bdebc6f64529707",
+      "audit": {
+        "accepted": true,
+        "differences": 2,
+        "graphs": 1,
+        "idPairs": 2,
+        "unexplained": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "production",
+      "temperature": "cold",
+      "sha256": "1a6cc1e13d6f5cb2e96c5674f865f9945b32754d8ac9d6c444de79b06ee36bc9",
+      "audit": {
+        "accepted": true,
+        "differences": 14,
+        "graphs": 2,
+        "idPairs": 6,
+        "unexplained": []
+      }
+    }
+  ],
+  "method": "Complete scalar-exact census remains unchanged. Allow only explicitly source-bound typed media metadata IDs with all other fields exact, bijective graph aliases, valid ULIDs and identical logical timestamps; copied-ID presentation only in the two fixed source-bound witnesses of the same ticket case. Every differing schema independently reproduces the same class of drift in two unchanged-control runs. No arbitrary ID/text/array normalization or reuse of historical capture approvals.",
+  "toolHashes": {
+    "identity_validation.py": "dccc0f96e7d536345b2e52dc5be821312d2af5ff5882516b65c0152aa8c14b2b",
+    "qualify-identity.py": "e58fff135ac3314deb6c1c2aa671264752d066c05f396e10ef2ffaa175a8dbc4",
+    "reproduce-control-upload.py": "9ee9a1d4f902b762b0e388aa656d32eb90cb0e0acc3dac244ce4d13c74fc30c9",
+    "measure.py": "8267c431a6359ccde1abdb01f76e35757bee09845f7542673d698adb942bdaff",
+    "direct-upload-audit.py": "2f69f210db56503f58359d264508f66749b851068638aa599ea2eb79d2492440",
+    "copied-upload-audit.py": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+    "provenance.json": "744d146174b8f99c282c6e42c4f2e2bebb03922a76c8163e698919707a7fb639",
+    "reviewed-upload-origins.json": "2926866e24b6dd625294e53c3d34b508ab41080cdfbd1feaacadd331b769dec2",
+    "additional-upload-origins.json": "c579294377408863077b1fa9f242a84d9e171599c9c893826bb7369383f5ad0b",
+    "reviewed-copied-upload-origin.json": "fa5bb3a05454ba443b9a2eaa677f0d41e2339edc8309c9ceaff71a013cde3da3",
+    "identity-validator-provenance.json": "be3f931af508dc853d12cd308fe432e4dee9b0b1b7573f1e39624bd8493857db",
+    "copied-upload-v046-audit.py": "694f4c16e6196acb3f0d669d5550db6923330afac603e30ccbf16be4090c8e13",
+    "copied-upload-v046-origin.json": "b400d932f2fccaeadba10043b4255ba7e095f4c6d184ab05119160d1a59c611c",
+    "copied-upload-v046-controls.py": "70438d71f011c2c6611263eb3cfcc8b2e91a328a031ecb76740f9de7b551c620",
+    "copied-upload-v046-controls.json": "8cd312c298081c35d52ef1257f7d197de9da42e9dd82f3d887c376a4c5a04be6",
+    "warm-administration-controls.py": "d90fcbd00e62144fa3cb02e40f8dde30969be9548ce677e81393dad5fab16c87",
+    "warm-administration-controls.json": "a56a7fcafbaa173d05749a17b23dc476df3d84741eaf14ce2445c810d3f42d31",
+    "sequential-payload-difference.json": "7858464394419c5745576fa49c1057a0d6b535423159edc54aaa463edfb8c54a"
+  }
+}

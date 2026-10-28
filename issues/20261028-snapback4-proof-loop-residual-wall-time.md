@@ -12,8 +12,10 @@ waves32/34 total acceptance median/p90 remains 9.684/31.127 seconds (targets
 seconds meets its target. The wave33 successful day2 median is 97.204 → 96.354
 seconds, far short of a 40% reduction.
 
-The existing [witness-tail issue](20261027-snapback4-default-check-staging-witness-tail-latency.md)
-covers the engine share. Subtracting the measured enclosing security preflight
+The existing [witness-tail issue](closed/20261027-snapback4-default-check-staging-witness-tail-latency.md)
+records the engine share, now qualified for 0.4.46 by Integration 30. The total
+proof-loop figures below retain LAT3's earlier snapshot; post-integration caller
+timer/inspection measurement remains open. Subtracting the measured enclosing security preflight
 gives acceptance 3.700/7.083 → 3.364/6.636 seconds and frontend median
 6.609 → 6.518 seconds. These are wall-time complements of the full preflight,
 not exact witness CPU: report/witness stages can overlap and must not be added.

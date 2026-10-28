@@ -1,0 +1,34 @@
+{
+  "source": "99755c7750a09be2fe21e3cdb74346edd3dea1c8",
+  "originalSha256": {
+    "crates/snapback4/src/verbs/phase.rs": "5c4a5106e868402cc6b340f4bcb27e604b33bc2271f3791603e9814ac80511e9",
+    "crates/snapback4/src/verbs/security.rs": "ec0b16c9b7317bbe21b8cd45223c7928e61725025f91b4005dbbb2f6f0a8ebd1",
+    "crates/snapback4/src/verbs/security/witnesses.rs": "37946e49192fa71fd83ca48a35b98708f555f0aa772e2b5b4b1b10f19485a63a",
+    "crates/snapback4/src/verbs/security/witnesses/candidate_batch.rs": "9c2fbbdf62fdffc704edc197cfe6b97940c792d25908a43b0abc716c49e3388d",
+    "crates/snapback4-core/src/store/campaign_assets.rs": "7763d637e1ca93f33e4c46b1a754aa7aff6788a25b0983a0be484ca0b2e964fe",
+    "crates/snapback4-core/src/engine/fixture.rs": "cacd6c7d10ebf204026cadad64734276066efc969ef43770cf87aae956af14d6",
+    "crates/snapback4-lang/src/lib.rs": "3576cbefc78c17defd123f4b66eec796c8f198de4916e17814faf3e78a2429ef"
+  },
+  "patchSha256": "7704c75629cd389c4a29a6e73bf4e11ea028fea29505b84ca1e598b7583c1302",
+  "method": "Independent clean source archive. Sequential scoped work, independent question compilation, no pure compiler memoization, no advice/report reuse and no immutable asset-byte cache. Search budgets, replay-ID reservation, rules, tiers and candidate selection remain identical. Native optimized release control is for exact identity, never latency claims; all three latency executables use production profiles.",
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "--release",
+    "-j",
+    "16",
+    "-p",
+    "snapback4"
+  ],
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_RELEASE_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "16",
+    "LIBSQLITE3_FLAGS": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0"
+  },
+  "buildExit": 0,
+  "binarySha256": "0c1bab788d27d51df03ccefdd758ee05f10a968b6f6cb54d87fc997c57dd3562"
+}

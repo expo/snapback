@@ -1,0 +1,25 @@
+{
+  "sourceKey": "33/020-snapback-horseback-trail-rides",
+  "sourceSha256": "e69de2ec1ec06bbcfc8e4505c9785edf6afc54146ed9d2f6fdd9b29b3e14eff4",
+  "captureSha256": "1b1a2e3d151d0aae2f056e3debb5c89951b6f209aca1fea1af1982b88ecab788",
+  "validatorSha256": "dccc0f96e7d536345b2e52dc5be821312d2af5ff5882516b65c0152aa8c14b2b",
+  "positiveSourceBoundAdministrationPair": true,
+  "securityEnvelopesLiterallyEqual": true,
+  "negativeControlsRejected": 13,
+  "controls": [
+    "typed release cannot become boolean",
+    "live target mismatch",
+    "carried items cannot disappear",
+    "source release changes",
+    "unknown root field",
+    "schema columns remain ordered/exact",
+    "event generation remains exact",
+    "phase text outside measured duration remains exact",
+    "physical event timestamp must be positive integer",
+    "event array chronology",
+    "event row retention summary remains exact",
+    "cold security cannot be omitted",
+    "exact source hash required"
+  ],
+  "claim": "Additional NON-security administration validation only. Security extraction/comparison unchanged. Full body remains exact except original explicitly typed physical deployment-event timestamps and measured duration tokens on three fixed source hashes."
+}

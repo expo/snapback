@@ -1,0 +1,21 @@
+{
+  "originalFiles": {
+    "identity_validation.py": "fea2e61278bbe78d90a8b3b05274dad1dbace2b5f8068ec8fd4e4e6c3db8d703",
+    "reproduce-control-upload.py": "bd1d4874a236aa8dd9363653b9acd1ab1fcd5ecbfccbebd287116396b5e13448"
+  },
+  "adaptedFiles": {
+    "identity_validation.py": "dccc0f96e7d536345b2e52dc5be821312d2af5ff5882516b65c0152aa8c14b2b",
+    "reproduce-control-upload.py": "9ee9a1d4f902b762b0e388aa656d32eb90cb0e0acc3dac244ce4d13c74fc30c9",
+    "copied-upload-v046-audit.py": "694f4c16e6196acb3f0d669d5550db6923330afac603e30ccbf16be4090c8e13"
+  },
+  "changes": [
+    "Current repository and1020-key corpus paths",
+    "Current uncached-control and shipping-candidate SHA256 pins",
+    "1020/12240 cardinality",
+    "Remove historical-capture review checks; do not claim old reviews cover new captures",
+    "Strengthen uniqueness: reject duplicate disposition IDs in every check/review/deploy envelope, not only the cold-check summary.",
+    "Preserve original copied-upload checker unchanged; source-bound extension for the same six image.id origins in fixed SEC11b child-evidence witness of wave23/008, with scalar/metadata/history/row-order/alias/set guards and independent self reproduction.",
+    "Additional fixed source-hash-bound warm staging administration case wave33/020 uses the unchanged full projection/type checks of the original two cases. Security envelopes remain scalar-exact and empty; only non-security physical deployment-event timestamps and measured durations differ."
+  ],
+  "retained": "Exact source/fixture/binary/tool and complete raw census binding, scalar types and array order, strict report/review shapes, independent working copies, unchanged-control self-reproduction and completion manifests."
+}

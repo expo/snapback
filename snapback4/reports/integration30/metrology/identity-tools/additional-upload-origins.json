@@ -1,0 +1,134 @@
+{
+  "26/008-snapback-stucco-repair-jobs": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "1c0e5831d89248aba6a2f5a6eccf32dae65dd278f02bb29ef5b12bd50b6650a8",
+    "declarations": [
+      "  photo: image <=5000000",
+      "mutation openJob(homeowner: principal, address: text 1..200, quotedPrice: money USD, photo: image <=5000000, wallLabel: text 1..80, notes: text <=1000 ?):",
+      "mutation addPhoto(job: jobs, photo: image <=5000000, caption: text <=200 ?):"
+    ],
+    "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+  },
+  "26/018-snapback-livestock-ultrasound-scans": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "643134a9c082d4ad701ae84a3c635d3c3af80b94b28758e971dae1a63a88acc7",
+    "declarations": [
+      "  photo: image <=8000000",
+      "mutation openVisit(herd: herds, photo: image <=8000000, feeCents: int 1..1000000, visitDate: time):"
+    ],
+    "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+  },
+  "26/025-snapback-lifeguard-certification-exams": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "9aa973c5f9c29e098472bbd72f8ba2f20fec5101b06e7854274cb2a072f25a65",
+    "declarations": [
+      "  photo: image <=5000000",
+      "mutation logExam(candidate: principal, feeCents: int 0..20000, photo: image <=5000000):",
+      "mutation retest(priorExam: exams, feeCents: int 0..20000, photo: image <=5000000):"
+    ],
+    "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+  },
+  "26/033-snapback-asphalt-sealcoating-jobs": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "fcc2220e8f7e5c450d2132f3e08a5bbfaa059ce9593fed7be003b8404acb8ffe",
+    "declarations": [
+      "  photo: image <=10000000",
+      "  photo: image <=10000000 ?",
+      "mutation addPhoto(job: jobs, caption: text 1..120, photo: image <=10000000):",
+      "mutation reportMissed(job: jobs, description: text 1..500, photo: image <=10000000 ?):"
+    ],
+    "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+  },
+  "27/008-snapback-stucco-repair-jobs": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "572f9f8d90412e9f756d79e08dd06271813228928ab5862faec3b6ed5fa6659e",
+    "declarations": [
+      "  photo: image <=5000000",
+      "mutation openRepairOrder(homeowner: principal, address: text 1..200, quotedPrice: money USD, photo: image <=5000000, wallLabel: text 1..80, notes: text <=1000 ?):",
+      "mutation addPhoto(repairOrder: repairOrders alias job, photo: image <=5000000, caption: text <=200 ?):"
+    ],
+    "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+  },
+  "27/018-snapback-livestock-ultrasound-scans": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "f52740a0d407f86cc978fe894b94fc826be1375fec8e18d7a557fd47ff8cce76",
+    "declarations": [
+      "  photo: image <=8000000",
+      "mutation openVisit(herd: herds, photo: image <=8000000, feeCents: int 1..1000000, visitDate: time):"
+    ],
+    "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+  },
+  "27/020-snapback-llama-trekking-trips": {
+    "assetFields": [
+      "permitPhoto"
+    ],
+    "sourceSha256": "b2a4f042ea9ad07fd8740db7a41760bb30d3ac309afc17bfc54dd41fd738df67",
+    "declarations": [
+      "  permitPhoto: image <=5000000 write <- exists roles[principal = viewer, role = 'office'] or exists roles[principal = viewer, role = 'owner']",
+      "mutation addOutingHiker(outing: outings alias trek, hiker: principal, permitPhoto: image <=5000000, permitValidUntil: time):",
+      "mutation replaceOutingPhoto(entry: outingHikers, permitPhoto: image <=5000000, permitValidUntil: time):"
+    ],
+    "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+  },
+  "27/025-snapback-lifeguard-certification-exams": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "4f10877176aed99fd20e2ab30e5fe8ee63d34fc66eaabc7ec6f6db8799be49d5",
+    "declarations": [
+      "  photo: image <=5000000",
+      "mutation logExam(candidate: principal, feeCents: int 0..20000, photo: image <=5000000, feeCategory: enum('charged', 'waived', 'credited') default 'charged'):",
+      "mutation retest(priorExam: exams, feeCents: int 0..20000, photo: image <=5000000, feeCategory: enum('charged', 'waived', 'credited') default 'charged'):"
+    ],
+    "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+  },
+  "27/033-snapback-asphalt-sealcoating-jobs": {
+    "assetFields": [
+      "photo"
+    ],
+    "sourceSha256": "020b712c08d4952219ecb530791bd99b38c569a7a7af2c2c42dc0f8b702a62f6",
+    "declarations": [
+      "  photo: image <=10000000",
+      "  photo: image <=10000000 ?",
+      "mutation addPhoto(job: jobs, caption: text 1..120, photo: image <=10000000):",
+      "mutation reportMissed(job: jobs, description: text 1..500, photo: image <=10000000 ?):"
+    ],
+    "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+  },
+  "28/036-snapback-wax-figure-commissions": {
+    "assetFields": [
+      "likenessScan"
+    ],
+    "sourceSha256": "a466da58177ab69507527481662a1b979692b278dab5d64bd0797bd0d1cbdfdd",
+    "declarations": [
+      "  likenessScan: image <=10000000",
+      "mutation createFigure(client: principal, title: text 3..120, likenessScan: image <=10000000, quotedPrice: money USD, unveilingAt: time):",
+      "mutation changeLikeness(figure: figures, likenessScan: image <=10000000):",
+      "mutation approveLikenessChange(figure: figures, likenessScan: image <=10000000, extraCost: money USD):"
+    ],
+    "basis": "Explicit image argument/column declarations inspected. Candidate origin for independent review; raw differences only typed media ID leaves, all other metadata and graph fields exact. Control self-reproduction remains required."
+  },
+  "31/036-snapback-mascot-costume-commissions": {
+    "assetFields": [
+      "artwork"
+    ],
+    "sourceSha256": "e3c8ab9a5419c98e23847490c31a715429a75e9524a06ab52ca87cb3a63cca45",
+    "declarations": [
+      "  artwork: file <=10000000 ('application/pdf', 'image/png', 'image/jpeg')",
+      "mutation openCommission(client: principal, name: text 1..100, artwork: file <=10000000 ('application/pdf', 'image/png', 'image/jpeg'), quoteCents: int 100..100000000, depositCents: int 1..100000000, debutAt: time):"
+    ],
+    "basis": "Explicit file argument/column with approved PDF/PNG/JPEG MIME declarations inspected. Only typed metadata ID leaves differ in raw counterexample history/results/old/row/supporting rows. Source SHA includes exact wave31 predecessor vector. Independent review/control reproduction required."
+  }
+}

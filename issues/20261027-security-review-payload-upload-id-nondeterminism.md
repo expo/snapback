@@ -66,3 +66,28 @@ in `snapback4/reports/lat1/identity-{summary,provenance}.json`; raw captures and
 historical audit tools remain under `~/sb4-loop/reports/lat1/`. This verifies the
 LAT1 exception boundary and does not implement deterministic presentation. The
 ticket stays open for that separate follow-up.
+
+## Integration 30 full-corpus evidence
+
+The merged 0.4.46 full 1,020-schema/6120-pair comparison has 6,091 literal matches
+and 29 nonce-only pairs across 17 schemas. Raw comparison still exits1. Two fresh
+unchanged-control executions independently reproduce the drift in every affected
+schema; source/fixture/binary/tool/capture hashes bind the complete census.
+There are zero unexplained differences or changed decision/witness IDs, verdicts,
+gates, tiers, callers or non-upload payload values.
+
+The copied-ID case has exactly the same 29differing paths already retained by
+Integration 29. SEC11b also renders those six openQuote image.id origins in the
+supporting initial rows of fixed child-evidence witness
+`6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99`.
+The old LAT1 checker is preserved unchanged; a source-hash-bound adapter covers
+that one additional fixed witness alongside the original fixed argument-grant
+witness. Sixteen negative controls reject altered callers, decision/witness IDs,
+tiers, ordinary IDs, row/history ordering, alias loss, logical timestamps, opaque
+values and unrelated verdicts. The original nine controls also pass. Historical
+review approval is not claimed for new captures or the adapter.
+
+[Complete qualification](../snapback4/reports/integration30/identity-summary.json)
+and [verbatim tools/provenance](../snapback4/reports/integration30/metrology/README.md)
+retain the literal mismatch and narrowly scoped exception boundary. This does
+not implement deterministic upload-ID presentation; the ticket remains Open.

@@ -1,0 +1,223 @@
+{
+  "format": "integration30-scoped-verification.v1",
+  "source": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "inputDigest": "24b726328dc0ab79ac42330f09fb6fae765b80b063f715b0e053c07a38d6471b",
+  "canonicalComplete": false,
+  "scope": "Integration30 commissioned lean integration, matching Integration29: complete affected CLI/core/language Rust crates; all changed client tests and relevant proof/lifecycle/security/release consumers. The prohibited full reverse-dependency Rust/client/model pool is omitted explicitly. Short Lean and ordinary differential campaigns run separately with their literal results retained. Full original selector plan and every omitted command are retained. This is a scoped affected run, not full canonical selector qualification.",
+  "original": {
+    "path": "/home/ccheever/projects/snapback-sb4loop/target/affected/7aef642aa384-1793171388407.json",
+    "sha256": "8619ce66fe378ced8b93cbbcc7cd4d0ec3faf8ec42c1341d20586e1f92e37c5d",
+    "ok": false,
+    "complete": true,
+    "unchanged": true
+  },
+  "preconditionRepair": {
+    "command": "node scripts/ensure-workspace-hoist.mjs",
+    "toolSha256": "c99501386bbfeaa0b2df3bf8a784c14c7d7f36a5a6293617ed78ec89262f31f7",
+    "reason": "Bun links workspaces only into dependents; symbol-registry runtime imports require the repository root workspace aliases. No source, registry, manifest or assertion changes."
+  },
+  "retry": {
+    "path": "/home/ccheever/projects/snapback-sb4loop/target/affected/7aef642aa384-1793176446783.json",
+    "sha256": "d6651cbc6b553afcdb261de13662093ecdfad9a62fd90facd6330241adb7c8b0",
+    "ok": true,
+    "complete": true,
+    "unchanged": true
+  },
+  "results": [
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 28
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 14807
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 36603
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 7204
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2930
+    },
+    {
+      "id": "rust:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1821782
+    },
+    {
+      "id": "rust:snapback4-core",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 716362
+    },
+    {
+      "id": "rust:snapback4-lang",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1011233
+    },
+    {
+      "id": "fixture-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 11175
+    },
+    {
+      "id": "client-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 341745
+    },
+    {
+      "id": "chat-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 494
+    },
+    {
+      "id": "chat-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1176
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 194862
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 230
+    },
+    {
+      "id": "expo-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1116
+    },
+    {
+      "id": "generated",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 240704
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "attempts": [
+        {
+          "id": "guide",
+          "status": 1,
+          "signal": null,
+          "elapsedMs": 212238
+        },
+        {
+          "id": "guide",
+          "status": 0,
+          "signal": null,
+          "elapsedMs": 211778
+        }
+      ]
+    },
+    {
+      "id": "inventories",
+      "status": 0,
+      "attempts": [
+        {
+          "id": "inventories",
+          "status": 1,
+          "signal": null,
+          "elapsedMs": 196164
+        },
+        {
+          "id": "inventories",
+          "status": 0,
+          "signal": null,
+          "elapsedMs": 196744
+        }
+      ]
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 40
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5215
+    },
+    {
+      "id": "release-guard",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 48701
+    },
+    {
+      "id": "selector-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 17213
+    },
+    {
+      "id": "wasm-measurement",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 41586
+    }
+  ],
+  "ok": true,
+  "clientCounts": {
+    "files": 40,
+    "tests": 510,
+    "passCount": 502,
+    "skipped": 8,
+    "failed": 0
+  },
+  "retainedVerdict": "/home/ccheever/sb4-loop/reports/integration30/affected-final-verdict.json",
+  "retainedVerdictSha256": "d5b6b91445ee525793644dcf2a048faa6e12a62b315f9a35398b2c7e385ce512",
+  "docsFollowup": [
+    {
+      "name": "affected",
+      "exit": 0,
+      "seconds": 223.19064474105835,
+      "command": [
+        "node",
+        "snapback4/scripts/affected.mjs",
+        "--base",
+        "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+        "--run"
+      ]
+    },
+    {
+      "name": "inventories",
+      "exit": 0,
+      "seconds": 196.74413180351257,
+      "command": [
+        "node",
+        "scripts/check-inventories.mjs"
+      ]
+    }
+  ]
+}

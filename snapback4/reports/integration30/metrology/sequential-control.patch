@@ -1,0 +1,153 @@
+--- crates/snapback4/src/verbs/phase.rs
++++ crates/snapback4/src/verbs/phase.rs
+@@ -21,3 +21,7 @@
+         }
+     }
+ }
++
++pub struct Inline<T>(T);
++impl<T> Inline<T>{pub fn join(self)->Result<T,std::convert::Infallible>{Ok(self.0)}}
++pub fn inline<T>(work:impl FnOnce()->T)->Inline<T>{Inline(work())}
+--- crates/snapback4/src/verbs/security.rs
++++ crates/snapback4/src/verbs/security.rs
+@@ -153,8 +153,8 @@
+             select_release_notes(&mut predicted.notes)?;Ok::<_,String>(predicted.notes)
+         })?;
+         std::thread::scope(|scope|{
+-            let worker=scope.spawn(||phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default())));
+-            let restoration=scope.spawn(||phase::measure("deploy.restored_questions",||witnesses::restoration(project,bound,sources,&predicted,options)));
++            let worker=phase::inline(||phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default())));
++            let restoration=phase::inline(||phase::measure("deploy.restored_questions",||witnesses::restoration(project,bound,sources,&predicted,options)));
+             let pending=phase::measure("deploy.witnesses",||witnesses::collect_for_report(project,bound,sources,&predicted,options));
+             let mut report=worker.join().expect("production campaign panicked");report.notes.extend(presence::notes(project,bound,prior,sources)?);select_release_notes(&mut report.notes)?;
+             let evidence=pending.finish(project,options,&report).unwrap_or_else(||phase::measure("deploy.note_fallback",||witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,Some(&report))));
+--- crates/snapback4/src/verbs/security/witnesses.rs
++++ crates/snapback4/src/verbs/security/witnesses.rs
+@@ -501,23 +501,16 @@
+     collect_with_report(project,bound,sources,notes,expanded,options,None)
+ }
+ pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
+-    collect_inner(project,bound,sources,notes,expanded,options,current,false,true)
++    collect_inner(project,bound,sources,notes,expanded,options,None,false,false)
+ }
+ /// Independent restoration has its own work and reads no ordinary advice cache.
+ // @ref LLP 3000.036.004.000.000#parallel-question-restoration — join before the original ordered reduction and current-source guards.
+ pub(in crate::verbs) fn collect_and_restore(project:&Project,bound:&Bound,sources:&[(String,String)],report:&mut security::Report,options:&Options,prefix:&str)->Vec<Option<serde_json::Value>> {
+-    let original=&*report;
+-    let (mut evidence,(notes,values))=std::thread::scope(|scope|{
+-        let restoration=scope.spawn(||phase::measure(&format!("{prefix}.restored_questions"),||{
+-            let mut copy=original.clone();let count=copy.notes.len();let mut values=vec![None;count];
+-            restore_questions(project,bound,sources,&mut copy,&mut values,options);
+-            (copy.notes.split_off(count),values.split_off(count))
+-        }));
+-        let evidence=phase::measure(&format!("{prefix}.witnesses"),||collect(project,bound,sources,&original.notes,true,options));
+-        (evidence,restoration.join().expect("restoration campaign panicked"))
+-    });
+-    report.notes.extend(notes);evidence.extend(values);evidence
+-}
++    let mut evidence=phase::measure(&format!("{prefix}.witnesses"),||collect(project,bound,sources,&report.notes,true,options));
++    phase::measure(&format!("{prefix}.restored_questions"),||restore_questions(project,bound,sources,report,&mut evidence,options));
++    evidence
++}
++
+ /// Only the exact joined note vector may consume this independent replay.
+ // @ref LLP 3000.036.004.000.000#parallel-question-restoration — speculative work supplies no verdict until the current report matches.
+ pub(in crate::verbs) struct PendingRestoration {
+@@ -545,13 +538,13 @@
+     }
+ }
+ pub(in crate::verbs) fn collect_for_report<'a>(project:&Project,bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],options:&Options)->PendingEvidence<'a>{
+-    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true,true)}
++    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,false,false)}
+ }
+ fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool,advice_cache:bool)->Vec<Option<serde_json::Value>> {
+     let key=hash(&serde_json::to_vec(&("integration29-witness-1",sources,notes,record::capture(sources,None).ok())).unwrap());
+     let path=project.schema_dir().join("generated/security-witnesses.json");
+     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
+-    let cached=advice_cache.then(||std::fs::read(&path).ok()).flatten().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
++    let cached=None::<Vec<u8>>.and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
+     let mut result=vec![None;notes.len()];
+     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
+     let selected=phase::measure("witness.candidates", || candidates(bound,sources,notes));
+@@ -564,7 +557,7 @@
+     // Run independent searches concurrently, then reduce in the original order.
+     let need_derived=expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/"));
+     let (campaigns,derived_report)=std::thread::scope(|scope|{
+-        let derived=if need_derived&&current.is_none()&&!defer_derived{Some(scope.spawn(||{
++        let derived=if need_derived&&current.is_none()&&!defer_derived{Some(phase::inline(||{
+             let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
+             phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy))
+         }))}else{None};
+@@ -574,7 +567,7 @@
+             let selection=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
+             if selection.is_empty(){continue;}
+             let times=&times;
+-            handles.push(scope.spawn(move||{
++            handles.push(phase::inline(move||{
+                 let mut questions=bound.clone();questions.invariants=selection.iter().map(|(_,inv)|inv.clone()).collect();
+                 let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
+                 if !enforcement{security::time_anchors::configure_campaign(&questions,times,&mut campaign);}
+--- crates/snapback4/src/verbs/security/witnesses/candidate_batch.rs
++++ crates/snapback4/src/verbs/security/witnesses/candidate_batch.rs
+@@ -12,21 +12,13 @@
+ // This preserves nested expression sites as well as the hashed invariant site.
+ // A failed batch falls back to the original independent compiler for each line.
+ pub(super) fn resolve(sources:&[(String,String)],proposals:Vec<(usize,Candidate)>)->Vec<(usize,security::Invariant)> {
+-    let lines=proposals.iter().filter_map(|(_,p)|match p{Candidate::Source(line,_)|Candidate::Time(line,_,_)=>Some(line),_=>None}).collect::<std::collections::BTreeSet<_>>();
+-    let mut selected=sources.to_vec();
+-    selected.extend(lines.iter().map(|line|("$dx11-question.q".into(),format!("{line}\n"))));
+-    let compiled=if lines.is_empty(){None}else{Some(snapback4_lang::compile(&selected))};
+-    let batch=compiled.as_ref().filter(|b|b.diagnostics.is_empty()).map(|b|b.invariants.iter().filter(|i|i.site.file=="$dx11-question.q").cloned().collect::<Vec<_>>()).filter(|v|v.len()==lines.len());
+-    let bound=if let Some(batch)=batch{
+-        lines.iter().zip(batch).map(|(line,mut inv)|{inv.site.file=format!("$derived/dx11/{}",hash(line.as_bytes()));((*line).clone(),Some(inv))}).collect::<BTreeMap<_,_>>()
+-    }else{lines.iter().map(|line|((*line).clone(),candidate(sources,line))).collect()};
+     proposals.into_iter().filter_map(|(index,p)|match p{
+         Candidate::Bound(inv)=>Some((index,inv)),
+-        Candidate::Time(line,column,movable)=>bound.get(&line).cloned().flatten().map(|mut inv|{
++        Candidate::Time(line,column,movable)=>candidate(sources,&line).map(|mut inv|{
+             inv.site.file=inv.site.file.replace("/dx11/",if movable{"/sec13-anchor/"}else{"/sec13-event/"});
+             inv.column=Some(column);(index,inv)
+         }),
+-        Candidate::Source(line,absence)=>bound.get(&line).cloned().flatten().map(|mut inv|{
++        Candidate::Source(line,absence)=>candidate(sources,&line).map(|mut inv|{
+             if absence{inv.site.file=inv.site.file.replace("/dx11/","/sec11-absence/");}(index,inv)
+         }),
+     }).collect()
+--- crates/snapback4-core/src/store/campaign_assets.rs
++++ crates/snapback4-core/src/store/campaign_assets.rs
+@@ -35,7 +35,6 @@
+     #[doc(hidden)]
+     pub fn memory_for_campaign() -> Result<Self, RuntimeError> {
+         let store = Self::memory()?;
+-        store.campaign_assets.replace(Some(Snapshot::empty()));
+         Ok(store)
+     }
+     pub(crate) fn campaign_assets_enabled(&self) -> bool {
+--- crates/snapback4-core/src/engine/fixture.rs
++++ crates/snapback4-core/src/engine/fixture.rs
+@@ -4,8 +4,7 @@
+     /// Private replay snapshot; failure falls back to ordinary fixture copies.
+     #[doc(hidden)]
+     pub fn campaign_snapshot(&self)->Result<Option<Self>,RuntimeError>{
+-        if self.store.campaign_assets_enabled(){return Ok(None);}
+-        let snapshot=self.fork_fixture()?;snapshot.store.capture_campaign_assets()?;Ok(Some(snapshot))
++        Ok(None)
+     }
+ 
+     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — isolation includes entropy, assets and ephemeral ownership.
+--- crates/snapback4-lang/src/lib.rs
++++ crates/snapback4-lang/src/lib.rs
+@@ -29,11 +29,9 @@
+ 
+ /// Parse and bind a set of `(file name, source)` documents.
+ pub fn compile(sources: &[(String, String)]) -> Bound {
+-    if let Some(bound) = compilation_reuse::get(sources) { return bound; }
+-    let bound = compile_uncached(sources);
+-    compilation_reuse::put(sources, &bound);
+-    bound
++    compile_uncached(sources)
+ }
++
+ fn compile_uncached(sources: &[(String, String)]) -> Bound {
+     let mut documents = Vec::new();
+     let mut diagnostics = Vec::new();

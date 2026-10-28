@@ -1,0 +1,56 @@
+{
+  "key": "23/008-snapback-arborist-removal-quotes",
+  "sourceSha256": "63bfeee99ad4c3778b0b556d3404d163c31ac94f4a7d0dfa8edf8ef83ed4c820",
+  "capturedCaseSha256": "5c27c182b3ceece9b1e844e37b717a9bf1e06e3c0629f9ecbf7f9acc8f1a1fda",
+  "originalCheckerSha256": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+  "adapterSha256": "694f4c16e6196acb3f0d669d5550db6923330afac603e30ccbf16be4090c8e13",
+  "originalWitness": "60880cab49cccc6e4c7388db71671006157b1443846ceaf4cfc840958a1dc2ce",
+  "additionalWitness": {
+    "code": "N_CHILD_EVIDENCE_PRESENCE",
+    "decision": "229aa2ac3acc7f97e512a2e6835e624e996177d7cb57aea51c57b2373cd695ce",
+    "witness": "6d0fc50b02b03f14d78eebd7fa8dccace04f176ab870f42ddf7110f5b8482c99",
+    "site": "schema.q:38:10",
+    "operation": "createTree",
+    "candidate": "invariant trees.createTree only (count(quotes[tree = .id]) > 0)",
+    "allowedDiffs": [
+      "Exactly three copied image-ID fields in each of two fixed-order initial siteSurveys supporting rows",
+      "Their sorted unique generatedIds rendering, mapped bijectively with all other IDs retained"
+    ]
+  },
+  "requiredSourceText": [
+    "mutation openQuote(tree: trees, price: int 100..100000000, treePhoto: image <=5000000, linesPhoto: image <=5000000, buildingsPhoto: image <=5000000):",
+    "insert siteSurveys { quote: q.id, homeowner: t.homeowner, initial: true, initialKey: q.id, visitedAt: now, treePhoto: treePhoto.id, linesPhoto: linesPhoto.id, buildingsPhoto: buildingsPhoto.id }",
+    "treePhoto: id ?",
+    "linesPhoto: id ?",
+    "buildingsPhoto: id ?"
+  ],
+  "assessment": "Both binaries have identical question families, decision/witness IDs, tiers and every non-upload field. SEC11b includes the same source-declared openQuote image.id copies in the supporting initial rows of one additional fixed child-evidence witness. Original historical checker rejects that new family; keep it unchanged and use this narrow source-bound extension. No new general nominal-ID or string/array normalization. The29differing paths exactly match Integration29 historical capture in all5nonmatching current command pairs; this is the already documented ticket boundary.",
+  "reviewScope": "No historical review approval is claimed for the new adapter. User commissioned no additional reviewer rounds; fixed source/witness scope is assessed and negative-controlled here. Independent unchanged-control self reproduction remains mandatory before qualification.",
+  "integration29HistoricalPattern": {
+    "path": "snapback4/reports/integration29/sequential-payload-difference.json",
+    "sha256": "7858464394419c5745576fa49c1057a0d6b535423159edc54aaa463edfb8c54a",
+    "scalarPaths": 29,
+    "exactSameDifferingPathsInAllCurrentPairs": [
+      [
+        "check",
+        "cold"
+      ],
+      [
+        "check",
+        "warm"
+      ],
+      [
+        "staging",
+        "cold"
+      ],
+      [
+        "review",
+        "cold"
+      ],
+      [
+        "production",
+        "cold"
+      ]
+    ]
+  }
+}

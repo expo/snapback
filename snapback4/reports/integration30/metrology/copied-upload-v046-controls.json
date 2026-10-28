@@ -1,0 +1,29 @@
+{
+  "actualNoncePairsAccepted": 5,
+  "negativeControlsRejected": 16,
+  "controls": [
+    "different question family",
+    "different fixed witness ID",
+    "changed decision ID",
+    "changed gate tier",
+    "changed caller",
+    "changed ordinary row ID",
+    "changed history caller",
+    "supporting row order",
+    "logical upload timestamp",
+    "upload alias merger",
+    "unsorted generated ID set rendering",
+    "lost generated identity",
+    "opaque alias recoloring",
+    "summary outside old fixed property tokens",
+    "unrelated report verdict",
+    "scalar boolean versus integer"
+  ],
+  "sourceSha256": "63bfeee99ad4c3778b0b556d3404d163c31ac94f4a7d0dfa8edf8ef83ed4c820",
+  "captureSha256": "5c27c182b3ceece9b1e844e37b717a9bf1e06e3c0629f9ecbf7f9acc8f1a1fda",
+  "adapterSha256": "694f4c16e6196acb3f0d669d5550db6923330afac603e30ccbf16be4090c8e13",
+  "originalCheckerUnchanged": true,
+  "originalCheckerSha256": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+  "completeCensusQualified": false,
+  "unchangedControlSelfReproduction": "still mandatory after full census"
+}

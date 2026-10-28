@@ -1,0 +1,63 @@
+{
+  "18/010-snapback-cobbler-repair-tickets": {
+    "assetFields": [
+      "solePhoto",
+      "upperPhoto"
+    ],
+    "basis": "Explicit image argument/column declarations; raw differences are their media metadata IDs."
+  },
+  "18/025-snapback-wheelchair-repair-loaners": {
+    "assetFields": [
+      "handoverPhoto"
+    ],
+    "basis": "Explicit image argument/column declaration; raw supporting-row media metadata ID only."
+  },
+  "19/010-snapback-cobbler-repair-tickets": {
+    "assetFields": [
+      "solePhoto",
+      "upperPhoto"
+    ],
+    "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+    "declarations": [
+      "  solePhoto: image <=10000000",
+      "  upperPhoto: image <=10000000",
+      "mutation createTicket(customer: principal, shoe: text 1..120, plan: text 1..500 ?, repair: text 1..500, solePhoto: image <=10000000, upperPhoto: image <=10000000, price: money USD):"
+    ]
+  },
+  "19/025-snapback-wheelchair-repair-loaners": {
+    "assetFields": [
+      "handoverPhoto"
+    ],
+    "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+    "declarations": [
+      "  handoverPhoto: image <=5000000 ?",
+      "mutation lendLoaner(repair: repairs, loanerLabel: text 1..80, handoverPhoto: image <=5000000):"
+    ]
+  },
+  "18/045-snapback-honor-guard-details": {
+    "assetFields": [
+      "discharge",
+      "requestDoc"
+    ],
+    "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+    "declarations": [
+      "  requestDoc: file <=10000000",
+      "  discharge: file <=10000000",
+      "mutation requestDetail(veteran: text 1..120, serviceAt: time, location: text 1..300, needed: int 1..50, requestDoc: file <=10000000, discharge: file <=10000000):",
+      "mutation updatePapers(detailId: details, requestDoc: file <=10000000, discharge: file <=10000000):"
+    ]
+  },
+  "19/045-snapback-honor-guard-details": {
+    "assetFields": [
+      "discharge",
+      "requestDoc"
+    ],
+    "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+    "declarations": [
+      "  requestDoc: file <=10000000",
+      "  discharge: file <=10000000",
+      "mutation requestDetail(veteran: text 1..120, serviceAt: time, location: text 1..300, needed: int 1..50, requestDoc: file <=10000000, discharge: file <=10000000):",
+      "mutation updatePapers(detailId: details, requestDoc: file <=10000000, discharge: file <=10000000):"
+    ]
+  }
+}

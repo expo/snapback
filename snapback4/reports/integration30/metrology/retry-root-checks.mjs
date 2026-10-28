@@ -1,0 +1,15 @@
+import{readFileSync,writeFileSync}from'node:fs';import{createHash}from'node:crypto';
+import{planAffected,runPlan}from'/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/affected.mjs';
+const root='/home/ccheever/projects/snapback-sb4loop',out=import.meta.dirname;
+const load=p=>JSON.parse(readFileSync(p,'utf8')),sha=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+const first=load(out+'/final-affected/affected-result.json');
+if(!first.receipt.complete||!first.receipt.unchanged)throw Error('First complete source-bound receipt required');
+const failed=first.receipt.results.filter(r=>r.status!==0).map(r=>r.id).sort();
+if(JSON.stringify(failed)!==JSON.stringify(['guide','inventories']))throw Error('Unexpected first-run failures: '+JSON.stringify(failed));
+const current=planAffected({root,base:first.receipt.base});
+if(current.head!==first.receipt.head||current.inputDigest!==first.receipt.inputDigest)throw Error('Source changed before precondition retry');
+const plan={...current,steps:current.steps.filter(s=>failed.includes(s.id)),rustPackages:[],clientFiles:[],canonicalComplete:false,scopeNote:'Only the two failed root targets replay after the existing ensure-workspace-hoist helper restored ignored workspace aliases. Full original selected Rust/client results remain in the first unmodified failed receipt. Source/input digest must match exactly.'};
+writeFileSync(out+'/root-retry-plan.json',JSON.stringify(plan,null,2)+'\n');const retry=await runPlan(plan,{root});writeFileSync(out+'/root-retry-result.json',JSON.stringify(retry,null,2)+'\n');
+const combined=first.receipt.results.map(s=>{const r=retry.receipt.results.find(t=>t.id===s.id);return r?{id:s.id,status:r.status,attempts:[s,r]}:s;});
+const result={format:'integration30-scoped-verification.v1',source:current.head,inputDigest:current.inputDigest,canonicalComplete:false,scope:first.receipt.scopeNote,original:{path:first.receiptPath,sha256:sha(first.receiptPath),ok:first.receipt.ok,complete:first.receipt.complete,unchanged:first.receipt.unchanged},preconditionRepair:{command:'node scripts/ensure-workspace-hoist.mjs',toolSha256:sha(root+'/scripts/ensure-workspace-hoist.mjs'),reason:'Bun links workspaces only into dependents; symbol-registry runtime imports require the repository root workspace aliases. No source, registry, manifest or assertion changes.'},retry:{path:retry.receiptPath,sha256:sha(retry.receiptPath),ok:retry.receipt.ok,complete:retry.receipt.complete,unchanged:retry.receipt.unchanged},results:combined,ok:first.receipt.unchanged&&retry.receipt.ok&&combined.every(s=>s.status===0)};
+writeFileSync(out+'/affected-final-verdict.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({source:result.source,ok:result.ok,originalLiteralPass:result.original.ok,rootRetryPass:result.retry.ok,results:combined.map(s=>({id:s.id,status:s.status}))},null,2));if(!result.ok)process.exitCode=1;

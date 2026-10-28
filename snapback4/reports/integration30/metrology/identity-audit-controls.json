@@ -1,0 +1,14 @@
+{
+  "passed": 9,
+  "controls": [
+    "typed media nonce accepted",
+    "ordinary owner ID remains exact",
+    "witness identity remains exact",
+    "array order remains exact",
+    "typed scalar remains exact",
+    "MIME remains exact",
+    "logical timestamp remains exact",
+    "valid ULID pair accepted",
+    "unchanged graph aliases cannot be lost"
+  ]
+}

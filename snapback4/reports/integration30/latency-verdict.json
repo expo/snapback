@@ -1,0 +1,91 @@
+{
+  "schemas": 63,
+  "invocations": 1890,
+  "workers": 4,
+  "bars": [
+    {
+      "cohort": "sample54",
+      "mode": "check",
+      "temperature": "cold",
+      "metric": "p90",
+      "limit": 10,
+      "value": 5.8340704860165715,
+      "passed": true
+    },
+    {
+      "cohort": "sample54",
+      "mode": "check",
+      "temperature": "warm",
+      "metric": "median",
+      "limit": 2.5,
+      "value": 2.1039832279784605,
+      "passed": true
+    },
+    {
+      "cohort": "sample54",
+      "mode": "staging",
+      "temperature": "cold",
+      "metric": "p90",
+      "limit": 15,
+      "value": 5.8655459098517895,
+      "passed": true
+    },
+    {
+      "cohort": "day2-nine",
+      "mode": "check",
+      "temperature": "cold",
+      "metric": "p90",
+      "limit": 10,
+      "value": 5.58793478901498,
+      "passed": true
+    },
+    {
+      "cohort": "day2-nine",
+      "mode": "check",
+      "temperature": "warm",
+      "metric": "median",
+      "limit": 2.5,
+      "value": 1.9876265439670533,
+      "passed": true
+    },
+    {
+      "cohort": "day2-nine",
+      "mode": "staging",
+      "temperature": "cold",
+      "metric": "p90",
+      "limit": 15,
+      "value": 5.487396938959137,
+      "passed": true
+    },
+    {
+      "cohort": "day2-nine",
+      "mode": "preview",
+      "temperature": "cold",
+      "metric": "p90",
+      "limit": 10,
+      "value": 7.6018233669456095,
+      "passed": true
+    },
+    {
+      "cohort": "day2-nine",
+      "mode": "preview",
+      "temperature": "warm",
+      "metric": "p90",
+      "limit": 10,
+      "value": 6.40663065505214,
+      "passed": true
+    }
+  ],
+  "regressionsVs044": [],
+  "toolFailures": [],
+  "allBarsPass": true,
+  "noMedianOrP90RegressionVs044": true,
+  "source": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "sha256": {
+    "latency-summary.json": "5fdc4dd78b2e6207b977a8ef6b7d35035841dd6fbfefbf20e5d2be4cecf37197",
+    "latency-rows.json": "59ff764a8bc2f11702d958523d07845d77acb337b454a0b285bf73e3c137740a",
+    "latency-capture-manifest.json": "22682444cb15150afeabdfb546a5c1e7d72b9fc32fd4b1f8424b2873e6db496c",
+    "latency-provenance.json": "8b9374940c94f2917bfa4253c9c91966e8235618d7784d425519b428ee16adc2",
+    "latency.py": "54bab31d9db332e9d5a22611115e9c66db72f04cecab624a3652bf569be1f116"
+  }
+}

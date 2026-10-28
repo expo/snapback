@@ -1,0 +1,42 @@
+{
+  "controlSource": "99755c7750",
+  "candidateSource": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "unchangedSecurityInputs": [
+    {
+      "path": "snapback4/crates/snapback4-core",
+      "object": "62452ce80a269dc8c2983cde5470322e30612af8",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind",
+      "object": "7fb411de68f70d0d90107f11be9c9465b7897745",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/emit",
+      "object": "af3882d40b91599502c9eab00f607f0289a951c9",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/lib.rs",
+      "object": "b42a18b9303cec8348c019381adfab194f2ffe1d",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/security",
+      "object": "f0f3eaae13dce2fd94f64cc774347fd514801688",
+      "unchanged": true
+    }
+  ],
+  "intentionalDifference": "CLI security.rs reuses the same pure canonical declaration/source facts once per immutable report input. The old control retains repeated analysis; all concrete campaigns, work, IDs and reductions remain the reference.",
+  "differenceFile": "canonical-note-reuse-control.diff",
+  "differenceSha256": "c9efe664fb0b65f722877414a077cf5c3adb6fbe9a20f127ee2cef01a6c0cc81",
+  "miniComparison": {
+    "schemas": 3,
+    "comparisons": 18,
+    "mismatches": 0,
+    "inputMismatches": 0,
+    "toolFailures": 0
+  },
+  "requiredQualification": "Full1020-schema scalar-exact control/candidate matrix with only separately audited ticketed host-upload nonce exceptions."
+}
