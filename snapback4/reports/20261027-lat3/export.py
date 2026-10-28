@@ -49,10 +49,13 @@ keys = ['code', 'seconds', 'load', 'readySeconds', 'callsSeconds', 'callsCode',
         'readyWithoutPreflightSeconds', 'callsWithoutPreflightSeconds', 'suppliedTmpdir', 'suppliedPortRange']
 safe = []
 mutated = []; trace_errors = []
+expected_client_digests=json.loads((HERE/'built-inputs.json').read_text())['installedClientDigests']
 for key, r in sorted(rows.items()):
     x = {k:r[k] for k in ['wave', 'lane', 'script', 'measurementRevision'] if k in r}
     for variant in ['before', 'after']:
         result = r[variant]
+        if result.get('clientInputDigest')!=expected_client_digests[variant]:
+            raise SystemExit(f'Final installed input identity not measured: {key}/{variant}')
         x[variant] = {k:result[k] for k in keys if k in result}
         name = r['script'].replace(':', '-').replace('/', '-')
         path = SCRATCH/'corpus-logs'/f"w{r['wave']}-{r['lane']}"/f'{name}-{variant}.log'
@@ -74,6 +77,7 @@ summary['coverage'] = {'expectedPairs':len(expected), 'complete':True,
                        'pairsWithClientDigests':sum(all('clientInputDigest' in r[v] for v in ['before','after']) for r in rows.values()),
                        'pairsWithNativeTraces':sum(all(r[v].get('nativeTraceEnabled') for v in ['before','after']) for r in rows.values()),
                        'qualification':False}
+summary['installedClientDigests']=expected_client_digests
 artifacts = []
 for path in [*sorted(PACK.glob('*.tgz')), *sorted((SCRATCH/'packs').glob('*.tgz'))]:
     artifacts.append({'role':'baseline' if path.parent == PACK else 'consumer-candidate',
@@ -93,7 +97,7 @@ excluded = []
 for r in all_attempts:
     key = (r['wave'], r['lane'], r['script'])
     if r.get('measurementRevision', 1) < rows[key].get('measurementRevision', 1):
-        excluded.append((r, 'explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed'))
+        excluded.append((r, 'final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed'))
 for p in sorted(SCRATCH.glob('corpus-*.superseded.jsonl')):
     excluded.extend((json.loads(line), 'incomplete-lane restart or empty artifact-directory copy precondition repair') for line in p.read_text().splitlines())
 retained = []

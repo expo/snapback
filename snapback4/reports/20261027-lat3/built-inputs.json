@@ -41,5 +41,9 @@
   "publicProofDeclarationIdentical": true,
   "publicProofDeclarationSha256": "4ac020233f7f81870ac70d6e4680b5ff49c6434461769dd697e1ac06592647a6",
   "pairedNativeIdentical": true,
-  "pairedNativeSha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c"
+  "pairedNativeSha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c",
+  "installedClientDigests": {
+    "before": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+    "after": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66"
+  }
 }

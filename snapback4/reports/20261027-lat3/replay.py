@@ -124,8 +124,6 @@ def main():
  results=SCRATCH/f'corpus-{slot}.jsonl'
  for index,(wave,src) in enumerate(cases):
   if index%a.workers!=a.worker:continue
-  authored=json.loads((src/'package.json').read_text()).get('scripts',{})
-  expected=[s for s in a.scripts.split(',') if (s in authored or s=='probe:serve/client:calls' and 'probe:serve'in authored and 'client:calls'in authored)]
   key=f'w{wave}-{src.name}';out=directory/key;logdir=SCRATCH/'corpus-logs'/key;logdir.mkdir(parents=True,exist_ok=True)
   if out.exists():shutil.rmtree(out)
   before=out/'before';after=out/'after'
