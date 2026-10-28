@@ -1,0 +1,15 @@
+{
+  "commit": "83cbe699c0fc88740434eddb2b8e9e23dd66508c",
+  "briefSha256": "edc35eb528935346b93a3bcb25b750a9d7a7e6903486d8199d98ce76a5517d1f",
+  "paths": {
+    "snapback4/packages/snapback4/bin/proof-runner.js": "7fd86edfb265c1abf4ce262985639168009e5012e24b740309ba97fe22371207",
+    "snapback4/packages/snapback4/bin/proof-runner.d.ts": "5623e0528eca25131da19040bedcbcafb46aa83f6eef32dd84c4933ea40651ec",
+    "snapback4/packages/snapback4/test/proof-runner.test.mjs": "765621ddc2b864303ca09fa1b92c9b99322e1e5a4321a731995feab2f162e9c3",
+    "snapback4/crates/snapback4/src/verbs/phase.rs": "94677a82a9991e6c7b28415eef529701135a1ee8b71d85b5f74ab1807d67f475"
+  },
+  "reviewers": {
+    "codex": "fresh gpt-6.1-sol high, exact user exec command",
+    "muse": "muse-spark-1.3-contributor high, user muse-exec helper"
+  },
+  "disposition": "Both READY for the immutable corrected failure-completion implementation and observation-only timer delta. Both executed self-contained Node probes. No author acceptance or publication qualification."
+}

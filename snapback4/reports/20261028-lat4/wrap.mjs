@@ -8,8 +8,9 @@ const imports=ast.statements.filter(ts.isImportDeclaration);
 const body=ast.statements.filter(s=>!ts.isImportDeclaration(s));
 if(body.some(s=>s.modifiers?.some(m=>m.kind===ts.SyntaxKind.ExportKeyword))) {
  const entry=body.at(-1);
- const declarations=body.slice(0,-1).every(s=>ts.isFunctionDeclaration(s) || ts.isVariableStatement(s) && s.declarationList.declarations.every(d=>d.initializer && (ts.isArrayLiteralExpression(d.initializer) && d.initializer.elements.length===0 || /^new TextEncoder\(\)\.encode\(/.test(d.initializer.getText(ast)))));
- if(!declarations || !ts.isIfStatement(entry) || !ts.isBlock(entry.thenStatement) || !/process\.argv\[1\]\?\.endsWith\(['"]client-calls\.mjs['"]\)/.test(entry.expression.getText(ast)))throw Error('exported module needs an explicit finite entry guard');
+ const directGuard=ts.isIfStatement(entry) && (/process\.argv\[1\]\?\.endsWith\(['"]client-calls\.mjs['"]\)/.test(entry.expression.getText(ast)) || entry.expression.getText(ast).replace(/\s/g,'')==='process.argv[1]===newURL(import.meta.url).pathname');
+ const declarations=body.slice(0,-1).every(s=>ts.isFunctionDeclaration(s) || ts.isVariableStatement(s) && s.declarationList.declarations.every(d=>d.initializer && (ts.isArrayLiteralExpression(d.initializer) && d.initializer.elements.length===0 || (/^(?:new TextEncoder\(\)\.encode|Buffer\.from|Uint8Array\.from)\(/.test(d.initializer.getText(ast))))));
+ if(!declarations || !ts.isIfStatement(entry) || !ts.isBlock(entry.thenStatement) || !directGuard)throw Error('exported module needs an explicit finite entry guard');
  // Keep exported helpers at module scope. Importing this helper from a day-two
  // test must never invoke a runner or exit its still-running parent suite.
  const block=entry.thenStatement,edits=[
