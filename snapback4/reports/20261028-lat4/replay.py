@@ -29,9 +29,10 @@ def wrap_entries(dst,scripts,variant):
   # guessed or partially wrapped. Imported helpers remain unmodified.
   import shlex
   parts=shlex.split(name)
-  if len(parts)<2 or parts[0]!='node' or parts[1].startswith('-'):continue
+  if parts[:5]==['npm','run','typecheck','&&','node']:parts=parts[4:]
+  if len(parts)<2 or parts[0]not in ['node','tsx'] or parts[1].startswith('-'):continue
   target=dst/parts[1]
-  if not target.is_file() or target.suffix!='.mjs':continue
+  if not target.is_file() or target.suffix not in ['.mjs','.ts']:continue
   result=subprocess.run(['node',str(HERE/'wrap.mjs'),str(target),'file:///tmp/lat4/observe-runner.mjs' if variant=='before' else 'snapback4/proof-runner'],capture_output=True,text=True)
   if result.returncode:raise RuntimeError('entry completion requires explicit adaptation: '+str(target.relative_to(dst))+': '+result.stderr[-300:])
   wrapped.append(json.loads(result.stdout))

@@ -3,7 +3,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 import {readFileSync,writeFileSync} from 'node:fs';
 const file=process.argv[2],runner=process.argv[3];
 const source=readFileSync(file,'utf8');
-const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,file.endsWith('.ts')?ts.ScriptKind.TS:ts.ScriptKind.JS);
 const imports=ast.statements.filter(ts.isImportDeclaration);
 const body=ast.statements.filter(s=>!ts.isImportDeclaration(s));
 if(body.some(s=>s.modifiers?.some(m=>m.kind===ts.SyntaxKind.ExportKeyword))) {
