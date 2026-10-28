@@ -427,6 +427,14 @@ pub fn check(options: &Options) -> i32 {
     check_surface::report(&project, &bound, options.json, Some((&security, &dispositions)));
     check_surface::remember(&project, &bound, Some((&security, &dispositions)));
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
+    let proof_scaffold = if !security_failed {
+        match crate::proof_scaffold::generate(&project, &bound) {
+            Ok(notice) => notice,
+            Err(error) => { failed_check(&bound, options.json, "E_STORE", format!("cannot write proof scaffold: {error}")); return 2; }
+        }
+    } else { None };
+    if let Some(notice) = &proof_scaffold { if options.json { eprintln!("{notice}"); } else { println!("{notice}"); } }
+
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
     let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().filter(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review).map(|n|(*n).clone()).collect::<Vec<_>>());
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));

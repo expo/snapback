@@ -109989,3 +109989,14 @@ Foreground init exposed publication fixtures that scaffolded before pinning unpu
 ## 2026-10-28 — Integration 30: 0.4.46
 
 Merge LAT1, REL4, SRV1, DX16, TOK3, TOK2, CALLS1 and LAT3 in order, keeping SEC14 paused. Consolidate guide changes and preserve 0.4.45 security tiers/current campaigns. Conflict-resolution-only Muse and fresh Codex reviews both return READY; provenance is under llp/reviews/3000.037.000-integration30-*. Linux web device measures 2,416,593 B raw / 738,507 B gzip / 555,739 B Brotli; set 739,007 B = measurement + 500 B, tightening by 258 B. This is whole-artifact attribution, with no runtime ceiling increase. Root generated/inventory/guide/ref/docs and strict wasm measurements pass; reading replays remain under 10k day-one and 12k day-two. Affected, packed consumer, full survey, release replay and paired production latency evidence is recorded under reports/integration30; publication owns the complete platform battery.
+
+### 2026-10-28 — SCAF1: schema-derived proof packet
+
+Wave-34 fix #3 moves proof setup off the guide lookup path. A green check emits
+scripts/proof-scaffold with real password signups/sign-ins, ordinary role grants,
+operation/role/guard cases, uploads, clock steps, approval attribution helpers,
+and separate frontend/probe runners. Null business assertions refuse before
+setup. Per-file content hashes preserve edits; no npm script is changed. The
+proof-kit amendment is LLP 3000.011.003.000.000 §19. Before/after whole-session
+measurements and packed controls are recorded in the workstream report; targets
+remain measurements rather than guarantees of generated security coverage.

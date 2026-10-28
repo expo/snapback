@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.47
+
+### Guide changes
+
+- A green `check` writes `scripts/proof-scaffold/`: schema-derived acceptance, frontend and probe recipes with real role accounts, upload options and staging clocks. Edit `cases.mjs`; missing business assertions refuse. Content hashes preserve edited files across checks. Run `node scripts/proof-scaffold/acceptance.mjs`; existing npm scripts remain application-owned.
+
 ## 0.4.46
 
 ### Guide changes
