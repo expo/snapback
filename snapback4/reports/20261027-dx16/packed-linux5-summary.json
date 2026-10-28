@@ -1,0 +1,153 @@
+{
+  "source": "882daf8917b795444663e3d57b73dba8c485cd85",
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "hostProofs": [
+    {
+      "file": "client-recipes.json",
+      "sha256": "27d8ddc596f759283f3b0fbfef9ff12ff8957838845f0adda9ef32701f12e86b",
+      "bytes": 324,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day2-proof.json",
+      "sha256": "6895f07a787cabcb2c941bf26f8df1278bd0ced5fb57e074430d0a3c760cbed9",
+      "bytes": 304,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day4-proof.json",
+      "sha256": "d97db2d4414d9f316beaaf8b0a7aeaad0efaac29438657d474eabc1d7cc35686",
+      "bytes": 355,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day5-proof.json",
+      "sha256": "fbad73787a99108061bba6c93b4ceced27f75f0db544f897f324f3faca8047a4",
+      "bytes": 230,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dormant.json",
+      "sha256": "b7b33f6352cd6e646a66eacc19d6a7b90043d47657057f1a711e6f05ddfd0e3d",
+      "bytes": 624,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx16-proof.json",
+      "sha256": "b94632f9f94f476737628d88c0bc742e06d164813bc8264b4910c06115e7d7af",
+      "bytes": 163,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx4-proof.json",
+      "sha256": "e97ae40896e55aca6991526d3c35e00dfe44c8ce3819f15f9b29098f887b4ce1",
+      "bytes": 582,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx5-proof.json",
+      "sha256": "96158f5ff55c61285744653b67b7aec270b6181716333db57a2d3caf0584c8f8",
+      "bytes": 4740,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx6-proof.json",
+      "sha256": "16cd1b784d993b0eec42479af4fe069ea2cbbd44ab15cefe6840fc5e707ec317",
+      "bytes": 522,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx7-proof.json",
+      "sha256": "b87976c9f33bda5e04a876db8cb5d1e8c14b1381e76db6900b7e448e4cd765ca",
+      "bytes": 1352,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx8-proof.json",
+      "sha256": "01f3ceb442eaadca1351ac0fafb4357a173f5c5f31bb84a00482d364e5b8bf95",
+      "bytes": 1544,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "frontend-proofs.json",
+      "sha256": "2ccc11c4ecb7886ebceed1ffb8eb2944de71fb643ca8e21c9dcf847b28700e20",
+      "bytes": 12280,
+      "status": "passed",
+      "items": 12
+    },
+    {
+      "file": "migrations.json",
+      "sha256": "a1a00aba518bc88a18142570bb4dbfc24a9e69322a584167cc15c1e34d5086b3",
+      "bytes": 632,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "production-proofs.json",
+      "sha256": "2242c11cafa073151fa5f1ea2103d32f152a6b63e2a960d30d174e090f5b55bc",
+      "bytes": 1985,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "regressions.json",
+      "sha256": "4b2cee5a30cae04782d3e7b1bc56e00d675f8bd8816ef0e8a208d7191f4b6298",
+      "bytes": 483,
+      "status": "passed",
+      "items": 3
+    },
+    {
+      "file": "release-transitions.json",
+      "sha256": "318097a6728762a06b77b3cc06b1818391e526103698076d204c138ef75a4ce0",
+      "bytes": 174,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "rule-recipes.json",
+      "sha256": "91210c9c1632d47ad24cf8087823347c4e7d3b5626a87948f0cc298b6735db64",
+      "bytes": 309,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "security.json",
+      "sha256": "32bdd20b60c8f76804ba80bd127ee5ca01e7c8af8a5320b987b38e6b7dc10fbd",
+      "bytes": 11396,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "staging.json",
+      "sha256": "8aed7cc86038dcef7899b1dbbe7193b398b2added5f08077227f4531201acd92",
+      "bytes": 374,
+      "status": "passed",
+      "items": null
+    }
+  ],
+  "proofKit": {
+    "status": "passed",
+    "evidence": "Sequential qualifier awaited proveProofKit successfully before writing client-recipes.json"
+  },
+  "failure": {
+    "stage": "host Expo starter audit",
+    "assertion": "@expo/cli: a fix is available; update the starter toolchain",
+    "ticket": "issues/20261028-snapback4-clean-userspace-deepmerge-audit.md"
+  },
+  "logSha256": "9af13b83425ac143598fbc20b48ae2db375701c412b1ea47355bb9f62ea0a8b9",
+  "cleanUserspaceStatus": "not reached in this run; prior run reached and failed the same audit chain",
+  "priorAllSixStarters": "packed-linux4-summary.json",
+  "hostStarterProofs": "stopped in Expo audit; no starter-proofs.json emitted"
+}

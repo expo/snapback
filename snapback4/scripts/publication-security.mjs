@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // @ref LLP 3000.036.004#4-counterexamples-and-generated-tests — qualify the installed policy surface and its finite campaigns.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -77,7 +78,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
       revocationHttpRefused: Number(/security live-session revocation HTTP: (\d+) attempts refused/.exec(output)?.[1] ?? 0) };
   }
 
-  const guide = command(["guide", "security", "--full"]);
+  const guide = guideReference(cli,"security",{cwd,env});
   const blocks = [...guide.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]);
   assert.ok(blocks.length > 0, "installed security guide contains executable Quarry");
   const guideCases = [];

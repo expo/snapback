@@ -151,6 +151,7 @@ mod tests {
             ("0.4.30",include_str!("previous/frontend-proof-0.4.30.mjs"),include_str!("previous/day2-proof-0.4.30.mjs")),
             ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
             ("0.4.32",include_str!("previous/frontend-proof-0.4.32.mjs"),include_str!("previous/day2-proof-0.4.32.mjs")),
+            ("0.4.44",include_str!("previous/frontend-proof-dx13.mjs"),include_str!("previous/day2-proof-0.4.44.mjs")),
             ("0.4.33",include_str!("previous/frontend-proof-dx13.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
         ] {
             for web in [false,true] { for template in [None,Some("chat"),Some("social")] {

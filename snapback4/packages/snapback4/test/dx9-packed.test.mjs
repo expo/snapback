@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // @ref LLP 3000.000.000.001#13-wave-26-developer-loop-repairs-dx9 — changed snippets and password proof scaffolds execute from installed packs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,7 +25,7 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
     writeFileSync(join(dir,'package.json'),JSON.stringify({private:true,type:'module',dependencies:{snapback4:`file:${client}`},optionalDependencies:{[platformName]:`file:${platform}`}}));
     run('npm',['install','--ignore-scripts','--no-audit','--no-fund']);
     const cli=join(dir,'node_modules/.bin/snapback4');
-    const guide=(name)=>run(cli,['guide',name,'--full']);
+    const guide=(name)=>guideReference(cli,name,{cwd:dir});
     mkdirSync(join(dir,'snapback'));
     const staging=guide('staging');writeFileSync(join(dir,'snapback/schema.q'),fence(staging,'quarry')[0]);
     run(cli,['check']);

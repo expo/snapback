@@ -242,7 +242,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   let durableHash;
   const hash=()=>createHash('sha256').update(readFileSync('.snapback4/store.sqlite')).digest('hex');
   if(testPersistent){
-    const opening=execFileSync(cli,['guide','testing','--full'],{encoding:'utf8',timeout:10000});
+    const opening=execFileSync(cli,['guide','testing','--section','1','--repeat'],{encoding:'utf8',timeout:10000});
     writeFileSync('guide-host-opening.mjs',opening.split(fence+'js')[1].split(fence)[0].trim());
     await import(pathToFileURL(process.cwd()+'/guide-host-opening.mjs').href);
     const durable=await startDev({args:['--unsafe-dev-doors']});
@@ -315,7 +315,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     }
     // Read the recipe from the installed binary, then execute its fence unchanged.
     const surfaceCard = join(cwd, "surface-card.md");
-    await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(surfaceCard)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','release-json','--full'],{encoding:'utf8',timeout:30000}));`], cwd);
+    await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(surfaceCard)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','release-json','--section','opening','--repeat'],{encoding:'utf8',timeout:30000}));`], cwd);
     const recipe = readFileSync(surfaceCard, "utf8").match(/```js\n([\s\S]*?)\n```/);
     assert.ok(recipe, "packed release-json card carries its executable recipe");
     const surfaceProof = join(cwd, "surface-proof.mjs");

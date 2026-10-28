@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Frozen-source hazard coverage uses --exact; roll_views and dormant-visibility cover the registered default.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -117,9 +118,9 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   const restored = (await old.post('/q/readNote', { note: ids[0] })).data;
   assert.equal(restored.status, 'archived'); assert.equal(restored.color, 'none');
   await old.stop();
-  const deployGuide = run('guide', 'deploy', '--full').stdout;
+  const deployGuide = guideReference(binary,'deploy');
   assert.match(deployGuide, /guide release-json/);
-  const guide = deployGuide + run('guide', 'release-json', '--full').stdout;
+  const guide = deployGuide + guideReference(binary,'release-json');
   for (const text of ['1 row, 2 cells, 0 index entries dormant', 'cells notes.color [B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'capability, not authorization']) assert.ok(guide.includes(text), text);
 });
 

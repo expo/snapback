@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "freshStarterCapture": true,
+  "runs": 2,
+  "frozenApi": true,
+  "inlineUsers": true,
+  "freshUsers": true,
+  "retainedSnapshot": true
+}

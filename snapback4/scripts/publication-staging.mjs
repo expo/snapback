@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // Execute the packed staging guide verbatim; production refuses bulk setup.
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -13,7 +14,7 @@ export async function proveStaging(client, platform, directory) {
   writeFileSync(join(cwd, "package.json"), '{"private":true,"type":"module"}');
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", resolve(client), resolve(platform)]);
   const cli = join(cwd, "node_modules/snapback4/bin/snapback4.js");
-  const guide = spawnSync(process.execPath, [cli, "guide", "staging", "--full"], { cwd, env, encoding: "utf8", timeout: 30000 });
+  const guide = ({status:0,stderr:"",stdout:guideReference(cli,"staging",{cwd,env})});
   // The source of every executed recipe is the
   // installed binary's card, never this checkout's authoring text.
   assert.equal(guide.status, 0, guide.stderr);

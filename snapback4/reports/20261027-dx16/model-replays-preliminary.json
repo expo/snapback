@@ -1,0 +1,844 @@
+{
+  "method": "Paired real native-model discovery sessions on copies of original wave-32 apps, using the exact wave-33 day-two briefs/backend instructions, ending at an implementation/proof plan. No app implementation, deploy, production accounts, frontend build or full day-two score. Same model CLIs/flags as run-bakeoff.mjs. Docs are o200k_base tokens from actual tool-visible package/guide/init outputs; batched surrounding output is conservatively included. Raw CLI stdout is an independent cross-check, not substituted for tool-visible bytes. Native total/cached/uncached input, calls and wall include provider waits and concurrent host load.",
+  "baseline": "Retained original 0.4.44 client/platform tarballs from ~/sb4-loop/dist/0.4.44; after uses installed candidate tarballs. README/card/digest bytes and artifact hashes are recorded. Whole-wave input means are contextual and not paired full-app comparisons.",
+  "wave33Means": {
+    "codexInput": 5090000,
+    "museInput": 21900000
+  },
+  "targets": {
+    "docsPerLane": 12000,
+    "codexInputReductionAgainstWaveMean": 800000,
+    "museInputReductionAgainstWaveMean": 3000000,
+    "fullAppInputTargetEstablished": false
+  },
+  "results": [
+    {
+      "phase": "before",
+      "id": "001",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 5.13325,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 17,
+      "inputTokens": 916783,
+      "cachedInputTokens": 835712,
+      "uncachedInputTokens": 81071,
+      "docsTokens": 40659,
+      "cliGuideAndInitTokens": 33088,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
+          "tokens": 251
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide day2'",
+          "tokens": 31
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md; cat README.md; cat snapback/schema.q'",
+          "tokens": 2856
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 init --help; npx snapback4 guide --list; npx snapback4 guide start --sections; npx snapback4 guide deploy --sections'",
+          "tokens": 1807
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide start; npx snapback4 guide deploy --full'",
+          "tokens": 9839
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide production --sections; npx snapback4 guide evolution --sections; npx snapback4 guide tasks --find 'release|day2|frozen|rollback'; npx snapback4 guide api proof\"",
+          "tokens": 1451
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Capture a saved version' --repeat; npx snapback4 guide deploy --section 'Keep v1 clients working' --repeat; npx snapback4 guide deploy --section 'Persistent production' --repeat\"",
+          "tokens": 3499
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide production --sections; npx snapback4 guide evolution --sections; npx snapback4 guide api proof; npx snapback4 guide rules --section 'Column read rules'; npx snapback4 guide deploy --section 'Visible rollback by default' --repeat; npx snapback4 guide deploy --section 'What the old release sees' --repeat\"",
+          "tokens": 1754
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'; npx snapback4 guide api proof --repeat; npx snapback4 guide evolution --section Opening; npx snapback4 guide release-json --sections\"",
+          "tokens": 2031
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide release-json --section 'Fields and automatic workers'; npx snapback4 guide release-json --section 'Clients across rollback'; npx snapback4 guide rule-recipes --section 'Column-level privacy'; npx snapback4 guide production --section 'Real-account and rollback acceptance'; node -e \\\"const fs=require('fs');const l=JSON.parse(fs.readFileSync('package-lock.json','utf8'));for(const n of ['snapback4','snapback4-expo'])console.log('lock',n,l.packages?.['node_modules/'+n]?.version??'absent')\\\"; cat scripts/acceptance.mjs scripts/frontend-proof.mjs\"",
+          "tokens": 5683
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide evolution --section 'Release rollback and hot activation'; npx snapback4 guide language --find backfill; npx snapback4 guide testing --sections; npx snapback4 guide api auth; npx snapback4 data --help; npx snapback4 sql --help\"",
+          "tokens": 2701
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide testing --section 'Day-two proofs with immutable sources'; npx snapback4 guide testing --section 'Production moves in a stage script'; npx snapback4 guide testing --section 'Day-two proof with production accounts'\"",
+          "tokens": 4110
+        },
+        {
+          "command": "/bin/bash -lc \"node -e \\\"const fs=require('fs');for(const p of ['data/release/store.sqlite','data/release/assets','data/release/proof-accounts/workshop.json','deploy/store.sqlite','fixtures','versions/v1','snapback/client-compatibility.json','.harness-env.json'])console.log(p,fs.existsSync(p)?'present':'absent')\\\"; rg -n --glob '*.md' '(\"'^|[''^[:alpha:]])(--store|SNAPBACK4_STORE|alias.*store|store.*alias|backfill|digest)'\"' node_modules/snapback4/SERVER.md | head -n 55; npx snapback4 guide testing --section 'Check an npm serve script'; npx snapback4 guide testing --section 'Proof signatures on demand'\"",
+          "tokens": 1246
+        },
+        {
+          "command": "/bin/bash -lc \"date -u +%FT%TZ; npx snapback4 guide production --section 'Admin inspection'; npx snapback4 guide security --find 'column|invariant' \"",
+          "tokens": 2048
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide testing --section 'Fixtures and cases' --repeat\"",
+          "tokens": 1352
+        }
+      ],
+      "native": {
+        "threadId": "01a17f0e-df00-7e52-9381-6b264d24db8e",
+        "usage": {
+          "input_tokens": 916783,
+          "cached_input_tokens": 835712,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 13564,
+          "reasoning_output_tokens": 3692
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "022",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 4.952716666666666,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 14,
+      "inputTokens": 764766,
+      "cachedInputTokens": 700672,
+      "uncachedInputTokens": 64094,
+      "docsTokens": 34960,
+      "cliGuideAndInitTokens": 33563,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
+          "tokens": 234
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide --list && npx snapback4 init --help'",
+          "tokens": 1492
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide start && npx snapback4 guide tasks --sections'",
+          "tokens": 1885
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide production --sections && npx snapback4 guide deploy --sections && npx snapback4 guide evolution --sections && npx snapback4 guide rename --sections'",
+          "tokens": 502
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide api proof && npx snapback4 guide release-json --sections'",
+          "tokens": 1208
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide rename --full && npx snapback4 guide production --section 1 && npx snapback4 guide production --section 4 && npx snapback4 guide production --section 10'",
+          "tokens": 2676
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide deploy --section 0 && npx snapback4 guide deploy --section 5 && npx snapback4 guide deploy --section 10 && npx snapback4 guide deploy --section 11 && npx snapback4 guide deploy --section 12'",
+          "tokens": 4537
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rules --section 'Column write' && npx snapback4 guide shapes --sections && npx snapback4 guide language --find 'alias|spread|write <-|renamed|return {' && npx snapback4 guide deploy --section 7 && npx snapback4 guide deploy --section 9 && npx snapback4 guide release-json --section 1 && npx snapback4 guide release-json --section 4\"",
+          "tokens": 4478
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide shapes --section 2 && npx snapback4 guide rule-recipes --section 'Column write audience and approval' && npx snapback4 guide language --section 'Helpers, shapes and spreads'\"",
+          "tokens": 1425
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 deploy --help && npx snapback4 rollback --help && npx snapback4 guide testing --sections && npx snapback4 guide staging --sections && npx snapback4 --version'",
+          "tokens": 1281
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rules --find 'old|next|update (' && npx snapback4 guide shapes --section 1 && npx snapback4 guide deploy --section 4 && date -u +%FT%TZ\"",
+          "tokens": 3788
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide testing --section 6 && npx snapback4 guide testing --section 10 && npx snapback4 guide testing --section 12'",
+          "tokens": 4110
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide staging --section 3 && npx snapback4 guide staging --section 9 && npx snapback4 guide staging --section 10 && npx snapback4 guide evolution --section 0 && npx snapback4 guide language --find 'renamed from'\"",
+          "tokens": 1638
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide security --find 'update only|.update|changed' && npx snapback4 guide tasks --full && npx snapback4 guide api auth\"",
+          "tokens": 2543
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide changes --find '0.4.44|0.4.43' && npx snapback4 sql --help && npx snapback4 data --help\"",
+          "tokens": 991
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide changes --section 1 && npx snapback4 guide changes --section 2'",
+          "tokens": 2172
+        }
+      ],
+      "native": {
+        "threadId": "01a17f13-92bc-7822-aac1-a4781b51c133",
+        "usage": {
+          "input_tokens": 764766,
+          "cached_input_tokens": 700672,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 10710,
+          "reasoning_output_tokens": 2894
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "011",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 1.6494833333333334,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 19,
+      "inputTokens": 1228611,
+      "cachedInputTokens": 1138674,
+      "uncachedInputTokens": 89937,
+      "docsTokens": 23592,
+      "cliGuideAndInitTokens": 32865,
+      "reads": [
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 120",
+          "tool": "bash",
+          "tokens": 263
+        },
+        {
+          "command": "npx snapback4 guide --list 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 364
+        },
+        {
+          "command": "npx snapback4 guide tasks 2>&1 | head -n 150; echo ===PROD===; npx snapback4 guide production --sections 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 569
+        },
+        {
+          "command": "npx snapback4 guide deploy --full 2>&1 | head -n 400",
+          "tool": "bash",
+          "tokens": 7984
+        },
+        {
+          "command": "npx snapback4 guide evolution --full 2>&1 | head -n 250; echo ===RENAME===; npx snapback4 guide rename --full 2>&1 | head -n 150",
+          "tool": "bash",
+          "tokens": 2745
+        },
+        {
+          "command": "npx snapback4 guide staging --full 2>&1 | head -n 300",
+          "tool": "bash",
+          "tokens": 3625
+        },
+        {
+          "command": "npx snapback4 guide assets --sections 2>&1 | head -n 40; echo ===; npx snapback4 guide release-json --sections 2>&1 | head -n 40; echo ===; npx snapback4 guide changes --full 2>&1 | head -n 120",
+          "tool": "bash",
+          "tokens": 6488
+        },
+        {
+          "command": "npx snapback4 guide assets --section \"Files\" 2>&1 | head -n 80; echo ===PLACEMENT===; npx snapback4 guide assets --section \"Placement replay\" 2>&1 | head -n 100",
+          "tool": "bash",
+          "tokens": 1554
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793133737172,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 30
+          },
+          "window": {
+            "resets_at_ms": 1793146920000,
+            "used_percent": 14
+          }
+        },
+        "calls": 19,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17f18-1cc6-7861-9299-c86008e14d86",
+        "completed_calls": 19,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 1138674,
+            "calls": 19,
+            "input_tokens": 1228611,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 9552,
+            "reasoning_tokens": 3310
+          }
+        ],
+        "run_stream": {
+          "id": "01a17f18-1cc6-7861-9299-c86008e14d86",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "021",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 2.2531166666666667,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 13,
+      "inputTokens": 756853,
+      "cachedInputTokens": 671692,
+      "uncachedInputTokens": 85161,
+      "docsTokens": 14110,
+      "cliGuideAndInitTokens": 11215,
+      "reads": [
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 150; echo \"===EXIT:$?\"",
+          "tool": "bash",
+          "tokens": 257
+        },
+        {
+          "command": "npx snapback4 --help 2>&1 | head -n 80; echo \"===GUIDE===\"; npx snapback4 guide --help 2>&1 | head -n 60; echo \"===GUIDES===\"; npx snapback4 guide 2>&1 | head -n 100",
+          "tool": "bash",
+          "tokens": 2367
+        },
+        {
+          "command": "npx snapback4 guide tasks 2>&1 | head -n 120; echo \"===CHANGES-SECTIONS===\"; npx snapback4 guide changes --sections 2>&1 | head -n 60; echo \"===EVOLUTION-SECTIONS===\"; npx snapback4 guide evolution --sections 2>&1 | head -n 60; echo \"===PRODUCTION-SECTIONS===\"; npx snapback4 guide production --sections 2>&1 | head -n 60; echo \"===DEPLOY-SECTIONS===\"; npx snapback4 guide deploy --sections 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 1189
+        },
+        {
+          "command": "npx snapback4 guide deploy --section \"Persistent production\" 2>&1 | head -n 200; echo \"===KEEP-V1===\"; npx snapback4 guide deploy --section \"Keep v1 clients\" 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 3084
+        },
+        {
+          "command": "npx snapback4 guide deploy --section \"Upgrade\" 2>&1 | head -n 40; echo \"===DEPLOY-PW===\"; npx snapback4 guide deploy --section \"Deploy and password\" 2>&1 | head -n 60; echo \"===MIGRATIONS===\"; npx snapback4 guide deploy --section \"Migrations and adoption\" 2>&1 | head -n 60; echo \"===WHICH-SHAPE===\"; npx snapback4 guide deploy --section \"Which migration shape\" 2>&1 | head -n 60; echo \"===OLD-RELEASE===\"; npx snapback4 guide deploy --section \"What the old release sees\" 2>&1 | head -n 60; echo \"===SAVED-VERSION===\"; npx snapback4 guide deploy --section \"Capture a saved version\" 2>&1 | head -n 60; echo \"===ROLLBACK-WIDENING===\"; npx snapback4 guide deploy --section \"Rollback after widening\" 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 3398
+        },
+        {
+          "command": "npx snapback4 guide evolution --section \"Release rollback\" 2>&1 | head -n 140; echo \"===PROD-TRANSITION===\"; npx snapback4 guide production --section \"Real-account and rollback acceptance\" 2>&1 | head -n 60; echo \"===PROD-SERVE===\"; npx snapback4 guide production --section \"Serve script\" 2>&1 | head -n 90",
+          "tool": "bash",
+          "tokens": 2280
+        },
+        {
+          "command": "npx snapback4 guide release-json --sections 2>&1 | head -n 40; echo \"===\"; npx snapback4 --version 2>&1 | head -n 5; echo \"===\"; npx snapback4 check 2>&1 | tail -n 15",
+          "tool": "bash",
+          "tokens": 999
+        },
+        {
+          "command": "npx snapback4 guide release-json --section \"Clients across rollback\" 2>&1 | head -n 60; echo \"===RENAME-CHECK===\"; npx snapback4 guide rename --sections 2>&1 | head -n 30; echo \"===HARNESS-ENV===\"; ls -la .harness-env.json 2>&1; echo \"===\"; ls .checkpoint/ 2>&1; echo \"===PORTS===\"; echo \"PORT_LO=$PORT_LO PORT_HI=$PORT_HI CHROME=$CHROME TMPDIR=$TMPDIR\"; echo \"===PKG-SNAPBACK===\"; node -e \"console.log(require('./node_modules/snapback4/package.json').version)\" 2>&1; node -e \"console.log(require('./package-lock.json').packages['node_modules/snapback4'].version)\" 2>&1",
+          "tool": "bash",
+          "tokens": 536
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793133882851,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 30
+          },
+          "window": {
+            "resets_at_ms": 1793146920000,
+            "used_percent": 15
+          }
+        },
+        "calls": 13,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17f19-9ff5-7690-9beb-6c4f56edc524",
+        "completed_calls": 13,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 671692,
+            "calls": 13,
+            "input_tokens": 756853,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 9802,
+            "reasoning_tokens": 3423
+          }
+        ],
+        "run_stream": {
+          "id": "01a17f19-9ff5-7690-9beb-6c4f56edc524",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "001",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 4.952133333333333,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 13,
+      "inputTokens": 664083,
+      "cachedInputTokens": 602752,
+      "uncachedInputTokens": 61331,
+      "docsTokens": 17250,
+      "cliGuideAndInitTokens": 17226,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
+          "tokens": 1841
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Which migration shape'\"",
+          "tokens": 377
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Migrations and adoption'\"",
+          "tokens": 200
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide api proof'",
+          "tokens": 1363
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'\"",
+          "tokens": 643
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide security'",
+          "tokens": 1742
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Keep v1 clients working'\"",
+          "tokens": 351
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide deploy'",
+          "tokens": 950
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide schema'",
+          "tokens": 515
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'What the old release sees'\"",
+          "tokens": 900
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide language --section 'Tables and rules'\"",
+          "tokens": 714
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Capture a saved version'\"",
+          "tokens": 460
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide evolution --find backfill'",
+          "tokens": 87
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide language --section 'Field authority'\"",
+          "tokens": 151
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide security --section 'Structural column protection'\"",
+          "tokens": 48
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Persistent production: SQLite v1 → v2 → rollback → forward'\"",
+          "tokens": 556
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide rule-recipes --find column'",
+          "tokens": 1131
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide security --section 'N_COLUMN_RESULT_EXPOSURE'\"",
+          "tokens": 146
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide evolution --section 'Release rollback and hot activation'\"",
+          "tokens": 1282
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide language --section 'Queries: rows, pages, walks'\"",
+          "tokens": 333
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rule-recipes --section 'Column-level privacy: public identity, private fields'\"",
+          "tokens": 519
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 guide language --find backfill'",
+          "tokens": 238
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Persistent production: SQLite v1 → v2 → rollback → forward (continued 2)'\"",
+          "tokens": 1879
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide release-json --find '--store'\"",
+          "tokens": 32
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide testing --find 'startStatic'\"",
+          "tokens": 275
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide release-json --find 'port'\"",
+          "tokens": 32
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Visible rollback by default'\"",
+          "tokens": 461
+        },
+        {
+          "command": "/bin/bash -lc \"cat > DAY2-PLAN.md <<'EOF'\n# Day-two discovery and implementation plan\n\nDiscovery timestamp: 2026-10-27T20:48:00Z. Workspace: \"'`/tmp/dx16-replay/after-001`.\n\nThis session stops at this document. No backend/UI implementation, package installation, deployment, account creation, frontend build or full proof was performed. Commands below are the intended implementation sequence, not claims of successful execution. No end-to-end score is claimed.\n\n## Observed baseline\n\n- Began with `npx snapback4 init --adapt --day2`, without `--apply`. It reported preview only and no file changes. Its proposed changes freeze `v1/`, capture `versions/v1` and `versions/v2`, and add a day-two proof. Application-owned files remain untouched. Do not assume its generated proof satisfies this harness: the handover says its default uses a fresh temporary store and storage-only business hook.\n- Read `PREVIOUS-DIARY.md`, `PREVIOUS-REPORT.md` and `PREVIOUS-friction.jsonl`. Day one reported two successful runs each of acceptance (139 assertions) and browser proof, 78 client replay outcomes, real password identity, and production-classified persistent serving. Those are inherited claims, not results obtained today.\n- `package.json` pins both backend packages to exactly `0.4.43`. Actual local `node_modules/snapback4/package.json` says **0.4.44**. `node_modules/snapback4-expo/package.json`, Expo and TypeScript are absent. The exact-version upgrade step is therefore not already satisfied by the installation. No install was attempted during discovery.\n- `snapback/schema.q` has two application tables (`profiles`, `restorations`), four roles (`owner`, `foreman`, `technician`, `master`), password identity, private operator provisioning and no development personas. All fourteen operation names can remain unchanged.\n- `npx snapback4 releases ./data/release --json` reports current/latest release **1**, generation 1, exact source, no rollback view or dormant items. The current schema bytes equal `data/release/releases/1/snapback/schema.q`.\n- `./deploy` is absent. Existing persistent production is `data/release/`, including `store.sqlite`, assets, immutable releases, authentication material and `proof-accounts/workshop.json`. The database and roster have mode 0600. No credentials were read or printed.\n- Existing `backend-choice.json` and `scripts/snapshot.mjs` point at `data/release/store.sqlite`. Existing `scripts/staging.mjs` deploys before starting even its persistent branch. This is unsuitable for `prod:serve`, which must attach without activating anything.\n- `board(c)` returns a paginated array with `*`; `restoration(job)` returns `{job: r, stage, storageCents, storageDailyCents}`. Technicians currently receive raw consent text/timestamps through both. `App.tsx` uses the shared generated SDK and renders a consent/no-consent fallback for all staff. Merely hiding a new label in React would not enforce the request.\n- Existing browser scripts use `$CHROME` and `--no-sandbox`. Existing port helper reads `$PORT_LO`/`$PORT_HI`, but only checks a port then closes the socket; new server drivers must bind/retry within the assigned range rather than assume this removes the allocation race.\n- Existing `acceptance` uses a disposable **staging serve**, not a live **development** backend. The original harness explicitly requests development acceptance; adjust its host lifecycle while retaining private accelerated time and real signup/login.\n\n## Documentation path and decisions\n\nFollowed the installed CLI card'\"'s required-field route:\n\n\"'```sh\nnpx snapback4 guide deploy --section '\"'Migrations and adoption'\nnpx snapback4 guide deploy --section 'Which migration shape'\nnpx snapback4 guide api proof\nnpx snapback4 guide production --section 'Serve script and reusable accounts'\n\"'```\n\nOn demand, resolved compatibility, saving, rollback, backfill spelling and field privacy with:\n\n```sh\nnpx snapback4 guide deploy --section '\"'Capture a saved version'\nnpx snapback4 guide deploy --section 'Keep v1 clients working'\nnpx snapback4 guide deploy --section 'What the old release sees'\nnpx snapback4 guide deploy --section 'Visible rollback by default'\nnpx snapback4 guide deploy --section 'Persistent production: SQLite v1 → v2 → rollback → forward'\nnpx snapback4 guide deploy --section 'Persistent production: SQLite v1 → v2 → rollback → forward (continued 2)'\nnpx snapback4 guide evolution --section 'Release rollback and hot activation'\nnpx snapback4 guide language --find backfill\nnpx snapback4 guide rule-recipes --section 'Column-level privacy: public identity, private fields'\nnpx snapback4 guide security --section 'N_COLUMN_RESULT_EXPOSURE'\nnpx snapback4 deploy --help\nnpx snapback4 rollback --help\nnpx snapback4 serve --help\nnpx snapback4 releases --help\nnpx snapback4 data --help\n\"'```\n\nThe API signature digest is sufficient; no runtime implementation or complete declaration file was inspected. Documentation here comes from installed 0.4.44 and must be revalidated against the requested 0.4.43 before implementation.\n\nDecisions: use SQLite release rollback, not the alternate frozen-client-only compatibility mode. Add a scalar required field with a named historical backfill; no table split, asset extraction, rename or scalar `down` is needed. Preserve original operation names, arguments and wrappers. Keep frozen generated handles separate from v2'\"'s generated API.\n\n## Exact implementation sequence (deferred)\n\nRun only in this workspace, with dependencies from the configured npm mirror. Never change registries. First satisfy and verify the requested package pins, then repeat the handover against that actual version:\n\n\"'```sh\nnpm install --save-exact snapback4@0.4.43 snapback4-expo@0.4.43\nnpm ls snapback4 snapback4-expo --depth=0\nnpx snapback4 init --adapt --day2\nnpx snapback4 init --adapt --day2 --apply\nnpm run check\n```\n\nSave the v1 source/client before any v2 edit. Inspect the generated `v1/` import closure to ensure it contains generated v1 handles, `shared/sdk.ts`, the inherited business replay and its `test-data.mjs` dependency, with ESM package metadata. It must not contain `.harness-env.json`, deployment data, private logs or credential rosters. Record hashes of frozen source/API files and never regenerate them using v2.\n\nPreserve the inherited deployment while satisfying the required `./deploy` location. Choose a **one-time whole-directory rename**, not a new empty production or a database-only copy. Before this step, use `serve --wait-stopped` to confirm the inherited store has no server owner; do not stop any process not launched and recorded by this work. Read all application rows with the inherited read-only snapshot adapter and retain the baseline privately. Check resource-path assumptions before moving; there are no captured application workers in the inspected release.\n\n```sh\nnpx snapback4 serve ./data/release --wait-stopped\nnode --input-type=module -e '\"'import {existsSync,renameSync} from \\\"node:fs\\\"; if (\"'!existsSync(\"deploy\")) { if (!existsSync(\"data/release/store.sqlite\")) throw Error(\"inherited production missing\"); renameSync(\"data/release\",\"deploy\"); } else if (existsSync(\"data/release/store.sqlite\")) { throw Error(\"two production locations: inspect before proceeding\"); }'\"'\nnpx snapback4 releases ./deploy --json\nnpx snapback4 deploy ./deploy --schema versions/v1 --save-version versions/v1\n\"'```\n\nThe last command should be an identical-source activation/no-op and add the saved version'\"'s API/release label; verify its receipt. Read the actual ID from \"'`versions/v1/release.json`, not a hard-coded `1`. Compare the full row baseline, assets and release history after relocation. If relocation exposes any unsupported path assumption, stop this route without creating replacement production; document and resolve the path issue first.\n\nUpdate all application-owned persistent paths to `deploy/`, including `backend-choice.json` (`databaseFiles: [\"deploy/store.sqlite\"]`) and `harness:snapshot`. Keep `deploy/proof-accounts/workshop.json` with this store. Do not let the old persistent staging helper recreate `data/release`.\n\nServe and exercise v1 production through the new `prod:serve` lifecycle below. Save a v1 web artifact inside the workspace before editing if a visual baseline is desired; it is not the frozen client proof. The frozen source/generated API replay is mandatory.\n\n## V2 source shape\n\nEdit `snapback/schema.q`, then maintain an identical complete saved candidate in `versions/v2/schema.q`. Keep fixtures contemporaneous with each version. Add the migration inline to these files; planned `migrationFiles` is `[\"snapback/schema.q\", \"versions/v2/schema.q\"]`.\n\nCompact Quarry sketch (compile against the pinned version before accepting):\n\n```quarry\n-- Inside restorations; required, no misleading unconditional historical default:\nselectorConsentSummary: enum('\"'written consent held', 'no written consent recorded')\nread (selectorConsentSummary, consentText, consentAt, selectorApprovedAt, selectorApprovedBy) <- .ownerId = viewer or exists profiles[viewer, role = 'foreman'] or exists profiles[viewer, role = 'master']\n\n-- Independent product intent, separate from enforcement:\ninvariant restorations.selectorConsentSummary read only .ownerId = viewer or exists profiles[viewer, role = 'foreman'] or exists profiles[viewer, role = 'master']\n-- Repeat the same independently justified column intent for protected evidence/status fields.\n\nbackfill restorations selectorConsentSummaryFromWrittenV1(consentText: text 20..4000 ?):\n  {selectorConsentSummary: 'written consent held' if consentText \"'!= null else '\"'no written consent recorded'}\n\"'```\n\nUse the stored written document as the historical evidence, rather than approval status or an invented timestamp. Valid existing non-null `consentText` counts as held even if a historical timestamp is absent. Retain the named declaration unchanged while this meaning holds. A changed historical algorithm would require a new name and reviewed migration.\n\n- `openRestoration`: explicitly insert `selectorConsentSummary: '\"'no written consent recorded'\"'` with all existing intake fields.\n- `giveConsent`: retain owner, stage and already-recorded guards; atomically write the existing text/time and `selectorConsentSummary: '\"'written consent held'\"'`. No client-supplied summary parameter or arbitrary setter.\n- `approveSelector`: preserve the existing master-only role, allowed stages, BOTH original text/time prerequisites and duplicate-approval refusal. Do not substitute the summary for actual evidence.\n- Preserve all other stored fields, IDs, media homes, quote terms, stages, scheduling and authorization. Add column intent for evidence/status to prevent raw text or approval metadata from bypassing summary privacy. Normal technicians retain shop-board rows and workflow operations; they lose protected consent/status payloads.\n- Whole-row returns omit protected fields, explicit selections return null, and generated properties are optional according to the docs. Verify this on `board`, nested `restoration.job`, mutation returns and raw HTTP. Do not compute a summary fallback from a projected null for an unauthorized viewer.\n- Keep shared row audiences, endpoint names, optional `c`, arguments and `{job, ...}` detail wrapper intact. Do not replace v1 responses with a differently nested v2 DTO.\n- `shared/model.ts`: add the exact summary union as an optional projected property; make protected existing fields optional/null-aware. Preserve remaining v1 properties.\n- `App.tsx`: authorized owner/foreman/master cards show the exact server-provided summary. Technicians see no consent section, fallback, approval badge or summary data. Existing owner consent entry and master approval stay wired to the original operations. Use ordinary Snapback live bindings to observe updates.\n\nBackfill is historical adoption, not continuous maintenance. Audit all mutation paths affecting consent; today only `giveConsent` changes it. Prove migration catch-up for older-client writes during rollback rather than assuming a retained dormant summary recomputes correctly.\n\n## Preview, deploy, rollback and forward commands\n\nAfter v2 source and proofs are authored:\n\n```sh\nnpm run check\nnpx snapback4 test --source versions/v2\nnpx snapback4 deploy ./deploy --schema versions/v2 --check\nnpx snapback4 deploy ./deploy --schema versions/v2\nnpx snapback4 releases ./deploy --json\n```\n\nIn scripts, load `V1_ID` from saved release metadata and use argument arrays with `cli`; these are the equivalent shell commands:\n\n```sh\nnpx snapback4 rollback ./deploy --to \"$V1_ID\" --check\nnpx snapback4 rollback ./deploy --to \"$V1_ID\"\nnpx snapback4 releases ./deploy --json\nnpx snapback4 rollback ./deploy --to latest --check\nnpx snapback4 rollback ./deploy --to latest\nnpx snapback4 releases ./deploy --json\n```\n\nCapture pre-preview/post-preview release identity AND full application snapshots; preview must change neither. Await command completion/activation, not a sleep. Deploy/rollback support hot activation with a compatible serving runtime; cold stage scripts need no host.\n\nUse default rollback first, inspect `live.source`, `live.target`, `live.view` and `rowShape`. A registered view can keep v2 privacy/programs while selecting the historical target. Report that accurately instead of calling it exact historical source. The newly protected evidence must not become public to technicians just because rollback succeeds. Do **not** blindly add `--exact`: that would deliberately restore the old broader evidence policy. If preview requests a bridge, generate a new workspace-local bridge with `rollback ./deploy --to \"$V1_ID\" --check --bridge .scratch/selector-rollback-bridge`, inspect its checklist, and re-preview the authored repair. Any resulting extra ordinary release changes what `latest` means; pin/verify the intended v2 forward release rather than accidentally forwarding to a repair release. If no safe old workflow is available, record a blocked rollback, not a false pass or an unapproved exact-policy weakening.\n\nNo reset, prune, destructive flag or database recreation. Dormant v2 cells and assets count as preserved storage; whether they remain client-visible is a separate assertion. Required-field additions should keep v1 rows active and retain the new cells on rollback, but this must be measured after both v2-native and old-client writes.\n\n## Production account roster and process ownership\n\nCreate `scripts/production.mjs` for shared configuration and bounded host startup. Load `.harness-env.json` only server-side without printing it. Do not pass private configuration wholesale to the Expo build or frozen runner.\n\nUse the inherited enrollment plan unchanged, including argument construction and roster name:\n\n```js\nconst plan = {\n  roles: {owner: 2, foreman: 2, technician: 2, master: 2},\n  provision: api.provision,\n  args: a => ({\n    name: `${a.role[0].toUpperCase() + a.role.slice(1)} ${a.email.split('\"'@')[0].slice(-6)}\"'`,\n    email: a.email\n  }),\n  roster: '\"'workshop'\n};\nconst host = await startServe('./deploy', {\n  env: serverEnv, logsDir: 'logs', timeoutMs: 300000,\n  args: ['--port', \"'`${serverEnv.PORT_LO}-${serverEnv.PORT_HI}`],\n  provisionUsers: plan\n});\n// host.sessions: role -> [{kind,role,email,password,principal,token,expiresAt}, ...]\n```\n\nValidate the port environment is present and within 21010–21019. Backend binds within the range and readiness must identify this host. For static assets, either verify a documented bounded-port option for `startStatic`, or implement a small owned Node static/SPA server that binds/retries EADDRINUSE within this range, serves correct MIME types and retains its server handle. Do not assume `ProofOptions.args` controls `startStatic`'\"'s port; its exact bounded-port mechanism was not resolved in this reading session.\n\nRoster provisioning logs in existing entries and finishes incomplete setup using real signup plus the original private operator mutation. Signup alone grants no staff role. Keep mode 0600, stable provision IDs/args and partial completion; do not delete a roster or resolve plan/lock conflicts by creating another account batch. Reuse sessions within each run to respect production auth budgets. Use \"'`freshUser` only for genuinely isolated proof identities when necessary; unique business row names do not require new accounts every run.\n\nAll servers have recorded child handles/PIDs, log files under this directory and `finally` cleanup. Use `serveUntilSignal` for persistent drivers; readiness plus returning is insufficient. No discovery/termination of unrelated processes. SIGTERM/SIGINT must stop owned children and release the store lock. Production never uses seedUsers, personas, clock overrides or public role-setting shortcuts.\n\n## Script contracts to implement\n\n| npm script | Planned entrypoint and behavior |\n|---|---|\n| `day2:proof` | `node scripts/day2-production-proof.mjs`; persistent orchestration below, replacing the generated temporary-store proof for this contract |\n| `prod:serve` | `node scripts/prod-serve.mjs`; serve deployment as it stands, provision/reuse workshop roster, emit exactly `{backendUrl,users:host.sessions}`, hold until signal; no deploy/build/migration |\n| `prod:rollback` | `node scripts/prod-stage.mjs rollback`; preview then select saved v1 ID through the reviewed safe path; assert stored rows and release/view identity; no host left running |\n| `prod:forward` | `node scripts/prod-stage.mjs forward`; activate saved v2 source on first transition, then select verified v2 release idempotently; preserve data and do not require a server |\n| `client:calls` | inherited `node scripts/client-calls.mjs` extended for v2 summary reads/privacy, old operation coverage and failures that continue |\n| `probe:serve` | production v2 stage, bounded backend, typecheck/export configured for production URL, bounded static server, real roster, exactly `{backendUrl,frontendUrl,sessions,apiNotes}`, hold/cleanup |\n| `harness:snapshot` | read-only complete application snapshot over `deploy/`, stable IDs, no identity/credential tables; include retained cells/rows |\n\nDo not use `startStaging({persistent:true})` in these drivers. `prod:serve` must never activate a release; `probe:serve` explicitly ensures v2 first. Build with only public `EXPO_PUBLIC_SNAPBACK_URL=host.url` and serve the result. Explain password login, roles, API operation names, summary projection behavior and ordinary upload access in `apiNotes`; include no operator key. Keep stdout to the one readiness JSON line, with operational logs redirected to stderr/files.\n\nThe existing SQL audit adapter selects only active `r` storage and will miss dormant cells. Prefer `snapshotAll('\"'profiles',{release:'./deploy'})\"'` and `snapshotAll('\"'restorations',{release:'./deploy'})\"'` from `snapback4/proof`, which the handover says merge retained values once per ID. Alternatively use `data TABLE --release ./deploy --all --json`. Validate both on the target package; all snapshots must fail on inspection errors rather than return an empty success. Read while serve is live without silently accepting E_STORE_BUSY. Do not expose this administrator inspection as a public API.\n\n## Persistent proof pseudocode\n\n```text\nload server-only env; validate port range; acquire app-owned proof serialization lock\nload immutable v1 metadata and reviewed v2 release/source metadata\ntry:\n  initial = snapshotAllAppTables()                     # ALL rows, including outsiders'\"' rows\n  activate reviewed v1 target (idempotently); assert initial IDs/values retained\n  start production serve + persistent workshop roster; real login for all eight users\n  replay frozen v1 client; collect each outcome separately from transport/setup failures\n  write fresh v1 rows through app operations:\n    one with no consent, one accepted with real owner consent\n  historical = snapshotAllAppTables()\n  preview v2; assert snapshot AND live identity equal historical pre-preview state\n  activate v2; verify source/view identity and every historical ID/old field\n  assert each historical restoration summary == summaryFrom(historical.consentText)\n  assert current full database population is covered, not a first page\n  authenticated cross-user matrix: owner1/owner2, foremen1/2, masters1/2, techs1/2\n  assert allowed exact labels; disallowed columns omitted/null in list/detail/raw results\n  assert other owner cannot obtain row, evidence or private photo\n  assert no-consent approval refuses CONSENT_REQUIRED; only master can approve after consent\n  write native v2 rows; mutate consent through owner operation; assert live summary changes\n  replay frozen v1 client on v2, preserving its generated handles and all recorded outcomes\n  beforeRollback = snapshotAllAppTables()               # includes frozen client's new rows\n  preview+activate reviewed v1 target; compare full stored population, including v2 cells\n  test current rollback audience and inspect selected source/view\n  replay frozen v1 client; read v2-native IDs through frozen API, not only replay-created IDs\n  make an explicit old-client consent edit to a preexisting/native row where allowed\n  afterOldWrites = snapshotAllAppTables()\n  preview+forward to verified v2; compare all stored IDs/old values again\n  assert summaries reflect all old-client consent changes and v1-created rows\n  replay frozen client on forward; inspect full population after its writes\n  assert v2 source/policy live; write honest day2-proof.json\nfinally:\n  close each client; stop every host/static server owned by this run; release proof lock\n\"'```\n\nUse fresh UUID/`uniqueName` business labels for each run. Preserve rows from earlier proof runs, frozen client replays, and independent reviewers. Do not require a production count to equal only this run'\"'s data. Never clean up production business rows to satisfy a cap or rerun.\n\nCompare stable IDs and every existing field/media reference, not merely row counts. For each release-only move, take the before snapshot after intentional business writes and compare immediately afterward. For real-clock maintenance, retain all IDs and immutable evidence; recognize only schema-authored quote expiry (\"'`quoted` to `returned` after its actual deadline) and storage charge accrual as permitted time changes, validating their formulas. Never exclude arbitrary changed fields wholesale or wait for a real-clock window. Session time, quote deadlines and storage boundaries are exercised on fresh production data or with read-time expectations; accelerated time belongs only to development acceptance.\n\nThe frozen runner command is:\n\n```sh\nBACKEND_URL=\"$BACKEND_URL\" CALLS_USERS=\"$PRIVATE_USERS_FILE\" npm --prefix v1 run client:calls\n```\n\nCreate the private input file under the workspace with mode 0600; unlink it in `finally`. The adapter preview promises support for inline JSON too, but a file matches the inherited replay'\"'s \"'`readFileSync(CALLS_USERS)`. Never send server-only environment to this child. Keep `v1/` package/API unchanged across every transition. Hash-check this after proofs. The frozen replay creates records: resnapshot afterward. Classify `works`/`degraded`/`broken` from actual per-call results; expected guard refusals must have the expected code, and transport failure is not an expected security refusal.\n\nExtend v2 `client:calls` to accept both inline JSON and file inputs, sign in each supplied user, exercise both summary values and protected read paths, emit one structured line per call and continue after failures. An unexpected success on a forbidden call fails the script. Projection privacy tests are successful assertions of omission/null, not invented refusal codes for otherwise authorized technician board reads.\n\nWrite every requested `day2-proof.json` field. `recordsBeforeV2` and `recordsCheckedAfterV2` count all historical restorations and must agree. `migrationPreservesV1Rows` reflects real per-row assertions. With release rollback mode, record `v1ClientAfterChange: null`; rollback/forward and post-v2/post-rollback client fields hold measured results. Include migration paths, selected rollback source/view and any response-shape degradation in notes. Leave v2 selected on disk and stop serving processes on success; stage/probe scripts can start it later. On failure, write truthful partial/failure evidence and clean up, without pretending all flags passed.\n\n## Verification to run after implementation, never during this reading replay\n\n```sh\nnpm run check\nnpm run acceptance\nnpm run acceptance\nnpm run frontend:proof\nnpm run frontend:proof\nnpm run day2:proof\nnpm run day2:proof\nnpm run prod:rollback\nnpm run prod:forward\nnpm run prod:rollback\nnpm run prod:forward\nnpm run --silent harness:snapshot\nnpm run probe:check\n```\n\nDevelopment acceptance must retain all original operations/refusals, two real users per role and accelerated quote/storage boundaries; add summary migration/maintenance, both technician denials, other-owner isolation and master approval invariants. Use `startDev` plus private `devAccounts` with the existing operator plan, and the host'\"'s private advance/drain methods; no public test-time endpoint. Check the host API against pinned 0.4.43 before replacing staging.\n\nBrowser proof must rebuild from source each run after deletion of dist, sign in, create a restoration, observe its no-consent summary, sign in as its owner, accept and submit written consent, then observe held summary after refresh/reload. Also check the technician UI lacks the section. Browser uses \"'`$CHROME --no-sandbox`; all serving stays within assigned ports. No simulator/native proof is implied.\n\nTest the actual `prod:serve` and `probe:serve` readiness lines, all four role pairs, frozen/v2 client replays and liveness beyond 30 seconds under a driver that stops only its recorded process group. The stage loop above also needs before/after complete snapshots around EVERY move, including repeat/idempotent calls from either state; commands alone do not prove conservation. Probe verification must target production v2 and rebuild its frontend, not reuse a day-one dist.\n\n## Unresolved limits and friction to carry forward\n\n1. Installed 0.4.44 documentation may describe API/column privacy/adoption behavior absent or different in requested 0.4.43. Installing the pinned packages and re-reading only relevant differences is the first implementation gate. The missing frontend dependencies prevent a present green-check claim; this session intentionally did not install or run check/build.\n2. No runtime evidence yet for the proposed backfill plus protected columns, required-field re-entry after older consent edits, or v2-native row survival. Forward recomputation/conflicts require explicit proof; do not paper over a refusal with a false summary default.\n3. The safe default rollback view for this exact privacy tightening is not yet established. Verify its receipt and real technician reads. Exact original-source rollback restores broader evidence access; this plan does not silently authorize that weakening or claim frozen clients preserve every returned field.\n4. Whole-directory deployment relocation must preserve private identity configuration, assets and immutable history. It has not been performed. Keep both app paths and audit metadata synchronized, and never initialize a competing empty deployment.\n5. The exact bounded port control for `startStatic` remains unresolved. Use a verified helper option or an owned bounded Node server; do not start a default-port host to discover it.\n6. Complete snapshot behavior and simultaneous scheduled maintenance need target-version checks. Administrative retained-row inspection is storage evidence, not a substitute for authenticated v1/v2 reads or asset download checks.\n7. The inherited persistent roster'\"'s pinned plan/partial state was not opened because it contains credentials. Reuse the existing helper plan and \"'`workshop` roster; allow the provisioning helper to validate it and report precise conflicts without logging secrets.\n8. Day-one acceptance host classification differs from the harness'\"'s development requirement. Its test intent is reusable, but host behavior still needs confirmation after the proposed switch.\n\nDiscovery observations for the eventual diary/report: focused guide sections provide concrete save/preview/roster commands; the CLI preview explicitly separates scaffold preservation from application-owned proof work. The temporary default day-two proof is insufficient for this persistent-production harness and must be replaced. Day one's roster classification and advisory-noise observations remain useful context. Expo build/native behavior was not exercised today. Keep \"'`PREVIOUS-*` untouched; implementation should append timestamped DIARY/friction entries as incidents actually occur and write REPORT with honest measured results. This document is the completed reading-phase milestone.\nEOF'",
+          "tokens": 0
+        },
+        {
+          "command": "/bin/bash -lc \"node --input-type=module -e 'import {readFileSync} from \\\"node:fs\\\"; const p=readFileSync(\\\"DAY2-PLAN.md\\\",\\\"utf8\\\"); const required=[\\\"npx snapback4 init --adapt --day2\\\",\\\"--save-version versions/v1\\\",\\\"--check\\\",\\\"selectorConsentSummaryFromWrittenV1\\\",\\\"npm --prefix v1 run client:calls\\\",\\\"proof-accounts/workshop.json\\\",\\\"snapshotAll\\\",\\\"Unresolved limits\\\",\\\"No end-to-end score\\\"]; for(const s of required) if(\"'!p.includes(s)) throw Error(\"Missing plan element: \"+s); const fences=p.split(\"'\"\\\\n\\\").filter(l=>l.startsWith(\\\"\"'```\")).length; if(fences%2) throw Error(\"Unbalanced code fences\"); console.log(JSON.stringify({file:\"DAY2-PLAN.md\",lines:p.split(\"'\"\\\\n\\\").length,requiredElements:\\\"present\\\",codeFences:\\\"balanced\\\"}));'\"",
+          "tokens": 24
+        }
+      ],
+      "native": {
+        "threadId": "01a17f1e-227a-73b1-b87f-5a270488a839",
+        "usage": {
+          "input_tokens": 664083,
+          "cached_input_tokens": 602752,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 11803,
+          "reasoning_output_tokens": 3148
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "022",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 5.2538833333333335,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 16,
+      "inputTokens": 957480,
+      "cachedInputTokens": 886912,
+      "uncachedInputTokens": 70568,
+      "docsTokens": 32903,
+      "cliGuideAndInitTokens": 25409,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
+          "tokens": 1824
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rename --section opening && npx snapback4 guide deploy --section 'Keep v1 clients working'\"",
+          "tokens": 1533
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide api proof && npx snapback4 guide production --section 'Serve script and reusable accounts'\"",
+          "tokens": 2006
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 deploy --help && npx snapback4 rollback --help && npx snapback4 releases --help && npx snapback4 guide deploy && npx snapback4 guide production && npx snapback4 guide evolution'",
+          "tokens": 4107
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Visible rollback by default' && npx snapback4 guide deploy --section 'Bridge a safety gate' && npx snapback4 guide deploy --section 'What the old release sees' && npx snapback4 guide deploy --section 'Capture a saved version' && npx snapback4 guide deploy --section 'Rollback after widening'\"",
+          "tokens": 3055
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '1,170p' scripts/acceptance.mjs && cat scripts/frontend-proof.mjs scripts/probe-serve.mjs && npx snapback4 guide --help && npx snapback4 serve --help && npx snapback4 data --help\"",
+          "tokens": 5043
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide --list && npx snapback4 guide rename --find 'result|wrapper|select|map' && npx snapback4 guide language --find 'projection|spread|map|select' && npx snapback4 guide security --find 'write|insert'\"",
+          "tokens": 2924
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rule-recipes --find 'update|write' && npx snapback4 guide language --section 'Helpers, shapes and spreads' && npx snapback4 guide shapes --sections && npx snapback4 guide security --section Reference\"",
+          "tokens": 3002
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rule-recipes --find 'immutable' && npx snapback4 guide rules --find 'immutable|update|write' && npx snapback4 guide shapes --section Details && npx snapback4 guide deploy --section Upgrade && npx snapback4 guide staging --sections\"",
+          "tokens": 2287
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rules --sections && npx snapback4 guide rule-recipes --sections && npx snapback4 guide staging --section 'Development acceptance accounts' && npx snapback4 guide staging --section 'Time and reused stores' && npx snapback4 guide release-json --find 'source|view|exact'\"",
+          "tokens": 1580
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rules --section 'Column write and freeze capabilities' && npx snapback4 guide rule-recipes --section 'Column write audience and approval' && npx snapback4 guide rule-recipes --section 'Update images and the two authorization layers' && npx snapback4 guide testing --find 'startDev|portRange|PORT_LO' && npx snapback4 dev --help && cat tsconfig.json .npmrc && date -u +%FT%TZ\"",
+          "tokens": 3322
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide rules --section 'Row rules, probes and rule spelling' && npx snapback4 guide language --find 'immutable' && npx snapback4 guide testing --section 'Production moves in a stage script' && npx snapback4 guide production --section 'Admin inspection'\"",
+          "tokens": 2186
+        },
+        {
+          "command": "/bin/bash -lc \"node -e 'const fs=require(\\\"node:fs\\\"); for (const f of [\\\"data/studio/store.sqlite\\\",\\\".snapback4/store.sqlite\\\",\\\".scratch\\\"]) console.log(f+\\\": \\\"+(fs.existsSync(f)?\\\"present\\\":\\\"absent\\\"));' && npx snapback4 guide api generated --find 'check|generate' && npx snapback4 check --help && npx snapback4 test --help\"",
+          "tokens": 34
+        },
+        {
+          "command": "/bin/bash -lc \"cat > DAY2-PLAN.md <<'EOF'\n# Day-two discovery plan — Custom Corset Fittings\n\nDiscovery timestamp: 2026-10-27T20:53:33Z. Workspace: \"'`/tmp/dx16-replay/after-022`.\n\nThis is a reading-phase deliverable, not an implementation or proof report. Only this plan is being written. No application sources, generated API, dependencies, accounts, deployment or inherited databases were changed. No servers, builds, acceptance runs or end-to-end proofs were started. Commands below are instructions for a later implementation session unless explicitly identified as discovery commands.\n\n## Evidence and documentation path\n\nStarted with the installed CLI'\"'s preview, exactly:\n\n\"'```sh\nnpx snapback4 init --adapt --day2\n```\n\nIt reported **preview only; no files changed**, proposed `v1/`, `versions/v1`, `versions/v2`, `scripts/day2-proof.mjs` and package-script additions, and left application-owned files alone. Followed its rename route:\n\n```sh\nnpx snapback4 guide rename --section opening\nnpx snapback4 guide deploy --section '\"'Keep v1 clients working'\nnpx snapback4 guide api proof\nnpx snapback4 guide production --section 'Serve script and reusable accounts'\n\"'```\n\nRead the three `PREVIOUS-*` files. Inspected only this app'\"'s relevant schema, React/client modules, proof/lifecycle scripts and package metadata. On-demand sections resolved the remaining design choices:\n\n\"'```sh\nnpx snapback4 guide deploy --section '\"'Capture a saved version'\nnpx snapback4 guide deploy --section 'Rollback after widening'\nnpx snapback4 guide deploy --section 'Visible rollback by default'\nnpx snapback4 guide deploy --section 'What the old release sees'\nnpx snapback4 guide deploy --section 'Bridge a safety gate'\nnpx snapback4 guide production --section 'Admin inspection'\nnpx snapback4 guide testing --section 'Production moves in a stage script'\nnpx snapback4 guide staging --section 'Development acceptance accounts'\nnpx snapback4 guide staging --section 'Time and reused stores'\nnpx snapback4 guide security --section Reference\nnpx snapback4 guide rules --section 'Column write and freeze capabilities'\nnpx snapback4 guide rule-recipes --section 'Column write audience and approval'\nnpx snapback4 guide shapes --section Details\nnpx snapback4 guide language --section 'Helpers, shapes and spreads'\n\"'```\n\nAlso used bounded guide indexes/searches and CLI help for deploy, rollback, releases, serve, dev, data, check and test. Did not inspect package implementation, other workspaces, transcripts or session logs. `check --help` confirms that check writes the generated API, so no actual check was run in this phase.\n\n## What is inherited\n\n- `package.json` and `package-lock.json` pin `snapback4` to **0.4.43**, but `node_modules/snapback4/package.json` reports **0.4.44**. The documentation read above is from the installed 0.4.44 CLI. Resolve and revalidate this discrepancy before implementation claims.\n- `deploy/`, `versions/` and `v1/` do not exist. `data/studio/store.sqlite` exists; `.snapback4/store.sqlite` does not. Leave the inherited persistent staging store intact. A new `./deploy` is the production store required by the task, not a reset or replacement of `data/studio`.\n- Schema: password identity, `roles` and `fittings`, four queries and eight mutations including private operator provisioning. Monetary values are integer euro cents. `price` and the `openFitting` argument currently require `1..1000000`; deposit is `0..1000000`, and opening requires `deposit <= price`.\n- Assistants/owners can open a fitting. Existing operations do not edit price after opening. Workroom updates enumerate only measurements/notes/stage; cancellation, pickup, adjustment and retention have their own guards. Cutters and clients cannot read commercial fields. Clients can read only their own rows/photos. Preserve these arrangements.\n- React uses `snapback4/react`, generated handles and the shared `src/backend-client.ts`. `src/App.tsx` contains the price labels, creation argument/input and detail display. `src/client.ts` accepts a runtime `?api=` URL or `VITE_SNAPBACK_URL`, with a hard-coded fallback that should not drive proofs.\n- `scripts/staging.mjs` always deploys with `--staging` and uses `startServe`. Inherited acceptance therefore tests a classified staging serve, **not the development backend required by this brief**. Existing frontend/probe proofs likewise use staging. `probe:serve` currently targets `data/studio`.\n- `scripts/client-calls.mjs` expects `CALLS_USERS` to be a private JSON **file path**. It imports `domain.mjs`, which imports `src/backend-client.ts`, which imports the generated API. It signs in all accounts, reads boards/roles, creates uniquely named fittings, uploads/downloads photos, saves work, advances/picks up/requests adjustment, cancels/approves retention, tests `OWNER_ONLY`, and logs out. It has no price-edit call.\n- Snapshot currently reads only `data/studio`, uses a finite limit and does not check `more`. Replace this with complete inspection. `backend-choice.json` also names only that staging database.\n- Existing `DIARY.md`, `REPORT.md` and `friction.jsonl` contain inherited day-one material too. Do not mistake these for day-two evidence or alter `PREVIOUS-*`. Establish new day-two logs during implementation; preserve inherited material before replacing the non-PREVIOUS duplicates.\n- `PORT_LO`, `PORT_HI` and `CHROME` were unset during discovery. Do not use an OS-assigned port outside the task'\"'s range. No browser path has been verified.\n\n## Source shape to implement\n\nUse a scalar cell rename, not a copy/recompute migration, new money table or deposit adjustment. Keep the same fitting IDs and all other data.\n\nCanonical v2 declaration and independent intent (Quarry sketch):\n\n\"'```quarry\ncharge: int 0..1000000 renamed from price\n# Replace price with charge in the existing grouped commercial read rule.\ninvariant fittings.charge read only exists roles[viewer, role = '\"'assistant'] or exists roles[viewer, role = 'owner']\ninvariant fittings.charge update only exists roles[viewer, role = 'owner']\n\nmutation setCharge(fitting: fittings, charge: int 0..1000000):\n  require exists roles[viewer, role = 'owner'] else OWNER_ONLY\n  row = fittings[fitting] \"'! else NOT_FOUND\n  update fittings[fitting] { charge }\n  return fittings[fitting]\n```\n\nUse `--` rather than the explanatory `#` line when writing actual Quarry. Keep all existing column privacy/invariants, renaming only the price reference. The update-only intent deliberately permits assistant creation. **Do not add `write <- owner` or a write-only-owner invariant on charge**: those also restrict nonzero creation and would break the assistant'\"'s opening workflow. Backend enforcement is the owner guard on the only charge-edit mutation, shared guarded write helpers, and an audit of every insert/update/upsert path; the invariant checks intent and does not itself grant permission. No generic ordinary-client table writer is to be added.\n\n\"'`setCharge` changes only charge. It does not change deposit or recompute anything, and has no new stage restriction. Retain `deposit <= charge` on opening as the renamed existing rule; do not introduce that restriction on later owner edits, where it would unnecessarily prevent an independent reduction to zero.\n\nOpening continues to require assistant or owner, a real client, and the same photo/measurement checks. Widen the lower bound to zero explicitly, including UI validation and arguments. No historical backfill/default/down computation is needed for a scalar rename. Keep `renamed from price` in subsequent v2 source; never use `value || fallback`, which would lose zero.\n\n### Preserve frozen v1 wire calls and returned fields\n\nAn argument alias or operation alias does **not** rename result fields. Choose explicit compatibility wrappers with common write helpers:\n\n- Canonical `boardV2`, `fittingV2`, `openFittingV2` return canonical rows with `charge`; the v2 UI uses these plus `setCharge`.\n- Keep `board`, `fitting`, `openFitting` and all other existing operation names for frozen v1 callers. Keep identical argument names except the opening amount may be declared `charge: int 0..1000000 alias price`, mapping the old wire spelling to the same input. `openFittingV2` can use the same alias. Never deprecate/discard the old amount input.\n- Move opening validation/insertion into a common helper and existing mutation bodies into helpers only as necessary to wrap results. Every old mutation returning a fitting must return a legacy-shaped fitting after the shared write, not just legacy queries. New canonical opening returns the canonical fitting after the same helper. Existing workroom UI handlers only consume settlement state, so their legacy result shape is acceptable.\n- Define an explicit shared public/core shape containing `id, client, openedBy, name, photo, bust, waist, hip, boning, seams, stage, pickedUpAt, adjustmentAt, adjustmentNote, openedAt`. A staff legacy shape spreads that shape and adds `phone, price: .charge, deposit, retainedBy, retainedAt, retentionReason`. An old point-read helper selects the staff shape only for assistant/owner, otherwise the core shape. Apply the same branch/shape to old board pages. Nullable point reads stay null.\n- Native column read rules remain authoritative. Never synthesize `price: 0` for a redacted charge or send `price` to cutters/clients. Query shapes are not a replacement for privacy rules. Verify all legacy mutation responses as well as queries.\n\nCompact pseudocode (helper calls/shape placement to be compiled later):\n\n```text\nopenRow(args with charge): existing STAFF_ONLY/NOT_CLIENT/BAD_DEPOSIT checks;\n                          insert exactly original fields with price renamed charge\nopenFitting(charge alias price, other unchanged args):\n    row = openRow(args); return legacyFitting(row.id)\nopenFittingV2(charge alias price, other unchanged args):\n    row = openRow(args); return canonicalFitting(row.id)\nlegacyFitting(id): staff ? fittings[id] legacyStaff : fittings[id] core\nboard(c): original row filter/order/page size, with staff/core legacy shapes\nboardV2(c), fittingV2(id): original filters, canonical row results\nsaveWork/advanceStage/pickup/requestAdjustment/cancel/approveRetention:\n    unchanged guards and patches; return legacyFitting(affectedId)\nsetCharge: owner guard; lookup; patch charge only; return canonical row\n```\n\nIn `src/App.tsx`, rename visible price text, state/input names, cents conversion and reads to charge; allow zero. Assistants still enter it during creation and see it thereafter. Add an owner-only charge editor in detail using `setCharge`; assistants see a read-only amount and cutters/clients see no commercial section. Keep React bindings and live queries. Update `domain.mjs`, v2 replay, browser labels and privacy assertions. Leave all `v1/` files frozen.\n\nMigration declarations will live in `snapback/schema.q` and its deployed saved copy `versions/v2/schema.q`; list both in `day2-proof.json.migrationFiles`. Assertions: no deleted/rekeyed rows, same amount under the new name including zero, unchanged deposit and every unrelated field, and continued preservation of v1-born and v2-born rows through repeated moves.\n\n## Later command sequence: freeze, pin, validate, save v1\n\nRun from this workspace only. All commands in this and following sections are **not executed in discovery**.\n\n```sh\nexport PORT_LO=\"${PORT_LO:-21220}\"\nexport PORT_HI=\"${PORT_HI:-21229}\"\nnpx snapback4 init --adapt --day2 --apply\nnpm install --save-exact snapback4@0.4.43\nnode -e '\"'const fs=require(\\\"node:fs\\\"); for(const f of [\\\"package.json\\\",\\\"node_modules/snapback4/package.json\\\"]) { const p=JSON.parse(fs.readFileSync(f,\\\"utf8\\\")); console.log(f, p.dependencies?.snapback4 ?? p.version); }'\nnpx snapback4 init --adapt --day2\nnpx snapback4 guide api proof\nnpx snapback4 guide rename --section opening\nnpx snapback4 guide deploy --section 'Visible rollback by default'\n\"'```\n\nApply adaptation before any schema/UI edits or API regeneration. Verify the frozen dependency closure includes `scripts/client-calls.mjs`, `scripts/domain.mjs`, `src/backend-client.ts`, the original generated API and package markers, plus any imported local modules. If adaptation misses custom files, copy those original files into `v1/` before editing. Save byte hashes in a nonsecret manifest and verify them before every replay. The frozen package may resolve the same exactly pinned runtime, but must never resolve the root v2 generated API. Preserve complete original backend sources/fixtures in `versions/v1`.\n\nVerify all package metadata/lock/runtime versions agree at 0.4.43. Re-read the narrow signature/rename/rollback sections under that version: do not assume the discovered 0.4.44 APIs are present. Record actual install/upgrade breaks, rather than calling the pin discrepancy a tested backend defect.\n\nBefore baseline proofs, implement only the authorized harness/process corrections described here: acceptance uses `startDev({args:['\"'--memory']})\"'` and `await host.devAccounts(plan)` with actual signup and private provisioning; isolated memory dev avoids the inherited database. Retain real sign-in/negative auth tests. Reauthenticate after large dev clock jumps if dev sessions expire; do not relax expiry. Add development-appropriate public-door assertions separately from production assertions; do not retain the staging-only `development:false` assertion for dev.\n\n```sh\nnpm run check\nnpm run acceptance\nnpm run frontend:proof\nnpx snapback4 deploy ./deploy --schema versions/v1 --save-version versions/v1\nnpx snapback4 releases ./deploy --json\n```\n\nThe first production deploy uses no `--staging`. Read the actual v1 immutable release ID from `versions/v1/release.json`, validate its identity against release inspection and persist it for stage scripts. Never assume ID 1. Production data is then written using real users/app operations, with the saved v1 API. `prod:serve`/the production helper starts native **serve**, not dev.\n\n## Preview v2, activate, roll back and forward\n\nAfter implementing the chosen v2 schema/UI/proofs, update only `versions/v2` to the complete v2 sources and contemporary fixtures. Keep v1 immutable.\n\n```sh\nnpm run check\nnpx snapback4 test --source versions/v2\nnpx snapback4 deploy ./deploy --schema versions/v2 --check\nnpx snapback4 deploy ./deploy --schema versions/v2 --save-version versions/v2\nnpx snapback4 releases ./deploy --json\n```\n\nLater production scripts resolve `V1_RELEASE` internally from saved metadata. The concrete activation commands they invoke are:\n\n```sh\nnpx snapback4 rollback ./deploy --to \"$V1_RELEASE\" --check\nnpx snapback4 rollback ./deploy --to \"$V1_RELEASE\"\nnpx snapback4 deploy ./deploy --schema versions/v2 --check\nnpx snapback4 deploy ./deploy --schema versions/v2\n```\n\n`V1_RELEASE` must be set by the driver, not supplied by the harness. These commands work with a stopped store or the owned live serve via its local activation path. Await completion; no sleep after activation. Read `releases` after each move and inspect `live.source`, `live.view`, `live.exact` and saved identity. A registered compatible rollback view may be the intended logical v1. Report that distinction explicitly.\n\nDefault rollback is the choice: v1'\"'s minimum amount 1 cannot represent a v2 zero, whereas a compatible view can retain widened domains and current owner guards. Do not use \"'`--exact` to hide zero rows or weaken policy. Preview both directions with actual zero/native-v2 rows and assert their authorized visibility. A green deploy or a raw retained-row count is insufficient.\n\nIf the runtime refuses or no safe compatible view exists, request a checklist/source **locally**, not user approval:\n\n```sh\nnpx snapback4 rollback ./deploy --to \"$V1_RELEASE\" --check --bridge versions/bridge\n```\n\nReview that new directory, retaining charge'\"'s zero-capable domain, commercial privacy, legacy wrappers and owner guard; preview the repaired source before any activation. Only add \"'`--restore-dormant` if the concrete diagnostic requires it and the retained declarations match. An authored bridge is a separate release and must be described truthfully, not called exact v1. Do not silently substitute it if the required rollback contract cannot be met. `prod:forward` deploys the saved v2 source rather than trusting `latest`, which could name a later bridge. Never prune, reset, delete or recreate production.\n\n## Production roster, lifecycle and scripts to add\n\nUse `snapback4/proof` exports from the verified pinned API. Shared private helper:\n\n```js\nconst plan = { roles: { assistant:2, owner:2, cutter:2, client:2 }, provision: api.provision };\nconst host = await startServe('\"'./deploy', {\n  provisionUsers: plan,\n  // Explicit port range and local logs through verified ProofOptions.\n  args: ['--port', \"'`${process.env.PORT_LO}-${process.env.PORT_HI}`]\n});\nconst users = host.sessions;\n```\n\nSignup creates ordinary users; the existing `service:operator`-guarded `provision` assigns roles. The operator credential stays local. Reuse `./deploy/proof-accounts/default.json` (0600) with its store, including stable provision intent IDs and partial progress. Reruns login to the pinned roster and finish only incomplete provisioning. Do not delete roster/locks, switch batch names automatically, retry ambiguous signup blindly or reseed production. Use fresh isolated users only for deliberately isolated proof batches, not instead of the persistent production roster. Freeze the role/count/provision/service plan so it cannot mismatch later.\n\nEvery driver validates the numeric range is within 21220–21229, fails clearly for unavailable ports, consumes the URL from its own helper'\"'s readiness, and holds/stops only child handles/PIDs it created. Use local logs and \"'`try/finally`; call `serveUntilSignal` for long-running serve scripts. No process discovery/kill by port or name. Startup failures must clean partial hosts too. Load `.harness-env.json` privately if supplied later; it is absent now. Never print its values, operator tokens or credential files in logs/reports.\n\nPlanned npm script mapping:\n\n| Script | Implementation and behavior |\n|---|---|\n| `prod:serve` | `node scripts/prod-serve.mjs`: start `./deploy` as it stands, provision/reuse roster, print exactly `{backendUrl,users}`, await signals and cleanup. No deploy/build/release selection. |\n| `prod:rollback` | `node scripts/prod-stage.mjs rollback`: inspect/preview/select saved v1'\"'s compatible view, verify live identity, exit without a server. |\n| \"'`prod:forward` | `node scripts/prod-stage.mjs forward`: preview/select saved v2, verify identity, exit without a server. Identical-source deploy is idempotent. |\n| `day2:proof` | `node scripts/day2-proof.mjs`: custom persistent driver below; do not use adaptation'\"'s disposable-store proof unchanged. |\n| \"'`probe:serve` | update existing script: ensure saved v2 is live without reset; start production serve/roster; build with actual backend URL; start static server; print exactly `{backendUrl,frontendUrl,sessions,apiNotes}`; hold until signal. |\n| `client:calls` | update existing replay to canonical handles/charge, alias/zero tests and owner-edit success/refusals; keep one JSON line per call and continue after failures. |\n| `harness:snapshot` | update existing adapter: read every app row from persistent stores, omit identity/session bookkeeping, emit exactly `{tables:{...}}`. |\n\n`probe:serve` must build what it serves with `VITE_SNAPBACK_URL=host.url`; keep the supported runtime `?api=` URL if useful. Send build/helper logs to local files/stderr. `sessions`/`users` contain only ordinary account credentials/session material on the contract'\"'s private readiness channel. \"'`apiNotes` describes password login, bearer token, operation/asset protocol, units and new endpoints; no public API key is needed by this app. Use real signup/login for both accounts in every role, never personas, public seeding or role setters. Do not put credentials into frontend source or build constants.\n\nKeep `data/studio/store.sqlite` in `backend-choice.json.databaseFiles` and add `deploy/store.sqlite`; both are persistent app stores. The audit adapter exports `roles` and `fittings` for production and, while the inherited database is retained, distinct keys such as `legacy.roles` and `legacy.fittings` for its app rows. Use `snapshotAll(table,{release:dir})` or `data TABLE --release DIR --all --json`; never treat a finite page as complete. Discovery'\"'s CLI card says these include dormant cells/retained rows, merged by stable ID, with deleted rows absent. Prove application visibility separately. Exclude throwaway proof stores and auth tables.\n\n## Custom persistent proof: compact pseudocode\n\n\"'```text\nrequire deploy exists after one-time bootstrap; never rm/reinitialize it\nvalidate env/paths; verify frozen manifest; resolve saved release IDs\nsnapshot both persistent stores; preserve inherited legacy snapshot unchanged\ntry:\n  snapshot all production roles+fittings (including earlier runs/reviewer writes)\n  select saved v1/default compatible view; assert conservation and live identity\n  host = startServe(deploy, persistent roster); ordinary login for needed sessions\n  assert production auth/config has development=false; test public shortcuts closed\n  run frozen v1 replay against v1; record individual calls and new rows\n  create extra positive-amount v1 rows with saved v1 API, uniqueName and fresh uploads\n  B = all production rows immediately before v2; count all fittings, not first page\n  preview and deploy saved v2; await activation; inspect releases\n  A = all production rows\n  assert every B ID still exists; charge equals B'\"'s charge-or-price, including 0\n  assert all unrelated columns/deposit/reference/photo IDs unchanged\n  authenticate/read with existing roster; exhaust canonical boards for every role\n  assert complete authorized fitting population and private field omission\n  assistant0 creates charge=0/deposit=0; assistant1 creates another ordinary fitting\n  owner0 and owner1 change charges on rows opened by different assistants/clients\n  assert deposit and unrelated fields unchanged and second session sees live result\n  assistant0/1, cutter0/1, client0/1 cannot setCharge (OWNER_ONLY); anon gets E_AUTH\n  assert refusals leave all data unchanged; test negative/too-large amounts E_INPUT\n  exercise original pickup/adjustment/cancellation/retention on fresh rows only\n  run frozen v1 replay against live v2; retain call-level outcomes and returned shapes\n  verify all earlier rows unchanged by replay; include replay's new rows in baseline\n  for two cycles:\n    B = snapshot all current rows, including v2-zero/native and frozen-client additions\n    preview/select saved v1 (default); inspect actual source/view\n    assert every B row/value survives; canonicalize price/charge names only\n    query known zero/native rows as authorized users; assert visibility and amount\n    replay frozen v1; record outcomes, collect additions, check preexisting rows\n    B = snapshot all rows after that replay\n    preview/select saved v2; inspect ordinary v2 identity\n    assert complete conservation, amounts and unrelated columns; rerun rule checks\n  write day2-proof.json from actual evidence; leave durable active release v2\nfinally:\n  close clients, stop static/browser/serve handles started here, await store unlock\n\"'```\n\nCanonical comparison must use presence checks, not truthiness: if `charge` exists use it, otherwise `price`; missing both is an error for administrative fitting snapshots. If both exist, require equal amounts and understand why. Compare IDs and every business field, not just counts/sums. Role additions and fitting creations are expected insertions, not permission to lose old rows. Before intentional owner edits, record exact allowed `{id,field,before,after}` changes; subsequent migration baselines include those values. The inherited frozen replay writes its own uniquely named rows; inventory them and compare subsequent cycles too. No intentional deletions are needed. Serialize proof activity; external simultaneous edits to the same row need conflict evidence rather than a false migration claim.\n\nFor app-level paginated reads, use `exhaustPages(c => client.query(handle,{c}))` from the verified digest, including all client-principal pages when resolving users. Administrative `snapshotAll` is the conservation source, not proof that clients can read a row. Assert role-based visible ID sets and known rows through authenticated calls. Upload a new image for each fitting; placed photos cannot be reused.\n\nProduction uses wall time throughout: pick up a fresh fitting and request its adjustment immediately. Never advance a production clock or wait for the 30-day boundary. Development acceptance separately exercises before/at/after the deadline without waiting, with session renewal after clock jumps as needed.\n\nFrozen runner invocation inside the driver (credential file created 0600 under `.scratch/`, removed in finally; values never echoed):\n\n```sh\nBACKEND_URL=\"$BACKEND_URL\" CALLS_USERS=\"$PRIVATE_USERS_FILE\" npm --prefix v1 run client:calls\n```\n\nThe adapted frozen wrapper accepts inline JSON or a file path and normalizes for the inherited path-only script. Verify that contract before relying on it. Keep its old handles and code unchanged after freeze. Record successful calls, expected refusals, transport failures and return-field decoding separately at v1, v2, rollback and forward. Do not assert compatibility must be perfect: report `works`, `degraded` or `broken` from observed calls, with exact codes/fields. Preservation and required v2 rules remain hard assertions. For our v2 replay, expected refusals use `ok:false`, `expected:CODE`, and `error` beginning `CODE:`; unexpected success is a failure.\n\n`day2-proof.json`: write actual counts of all touched fitting rows and all requested fields: `ok`, `recordsBeforeV2`, `recordsCheckedAfterV2`, `dataPreservedAfterV2`, `migratedValuesCorrect`, `v2FeatureWorks`, `v2RuleEnforced`, `rollback`, `dataPreservedAfterRollback`, `rollforward`, `dataPreservedAfterRollforward`, `v1ClientAfterV2`, `v1ClientAfterRollback`, `migrationFiles`, `v1ClientAfterChange`, `migrationPreservesV1Rows`, `v1ClientNotes`, `notes`. This is release-rollback mode, since the backend offers releases; set `v1ClientAfterChange:null`. Do not select the alternate frozen-client-only mode merely to bypass rollback failures. Notes identify actual rollback view/source and all compatibility limits.\n\n## Later verification commands and acceptance criteria\n\nAfter implementation, with `CHROME` configured to an existing supplied Chromium executable (no browser installation), run sequentially:\n\n```sh\nnpm run check\nnpm run acceptance\nnpm run acceptance\nnpm run frontend:proof\nnpm run frontend:proof\nnpm run day2:proof\nnpm run day2:proof\nnpm run prod:rollback\nnpm run prod:forward\nnpm run prod:rollback\nnpm run prod:forward\nnpm run harness:snapshot\nnpx snapback4 serve-check --deployment ./deploy --script prod:serve --up-ms 30000\nnpx snapback4 serve-check --deployment ./deploy --script probe:serve --up-ms 30000\n```\n\nThe production driver/serve-check callback must also run frozen v1 calls at each state and the v2 replay twice after forward; stage commands alone do not establish compatibility. Browser proof builds from scratch, signs an assistant in to create a zero/positive charge fitting, sees it, signs an owner in to change charge and sees the persisted/live result, then verifies no assistant editor. Backend tests cover direct lower-role attempts. All original authorization/privacy/time rules remain tested. Runtime/browser helpers read the assigned range and supplied browser path; no downloads or frontend replacement.\n\nOnly after measured success write new timestamped day-two diary/friction/report entries, include evidence as work proceeds, compare with the previous builder, rank actual friction and give a rating grounded in implementation. This reading plan makes no pass, compatibility or experience-rating claim.\n\n## Unresolved limits / implementation gates\n\n1. **Pinned-version mismatch:** installed 0.4.44 docs may describe features absent or different in required 0.4.43. Installation and narrow API/docs revalidation are future work. No installation was attempted here.\n2. **Compilation is untested:** proposed helper signatures, alias placement, named privacy-safe shapes and update-only intent must compile under the pinned package. No source changes or checks were made. Use specific diagnostics/docs rather than package internals.\n3. **Rollback is not yet proven:** zero is outside exact v1'\"'s domain. Default view registration, owner guard retention, old result wrappers and visibility of every v2 row require real preview and authenticated tests. If a safe rollback cannot be represented, record the concrete refusal; never hide rows or weaken access to obtain green.\n4. **Frozen-client result decoding:** old generated types say price is positive. A zero returned from a compatible view may still fail an old decoder even if storage and query wrappers preserve it. Measure and report this; never round zero upward. No existing v1 replay result has been measured in this phase.\n5. **Snapshot/freeze helper fidelity:** confirm adaptation captures the complete custom import closure, saved release metadata shape, and complete retained-row inspection under 0.4.43. No snapshots or production rows were inspected here; inherited zero amounts therefore remain unknown.\n6. **Environment:** ports/browser variables were absent. Safe range defaults are known, but an existing Chromium path and availability are unverified. There is no \"'`.harness-env.json` now. Do not install/download a browser or bind outside range to work around this.\n7. **Reruns and concurrency:** persistent roster semantics are documented, not exercised. Partial setup, auth budgets, store ownership and concurrent business edits require careful error handling. Never delete data/rosters to retry. The generated temporary-store proof does not meet this harness.\n\nStop here for this session. The only new deliverable is this discovery plan.\nEOF'",
+          "tokens": 0
+        }
+      ],
+      "native": {
+        "threadId": "01a17f22-aba7-76c2-8c44-4d6003cdafea",
+        "usage": {
+          "input_tokens": 957480,
+          "cached_input_tokens": 886912,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 13859,
+          "reasoning_output_tokens": 4363
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "011",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 1.9779666666666667,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 28,
+      "inputTokens": 1817351,
+      "cachedInputTokens": 1733867,
+      "uncachedInputTokens": 83484,
+      "docsTokens": 15371,
+      "cliGuideAndInitTokens": 16178,
+      "reads": [
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 120; echo \"===EXIT:$?\"",
+          "tool": "bash",
+          "tokens": 1458
+        },
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | tail -n 60; echo ===; npx snapback4 --help 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 2610
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'Bridge a safety gate' 2>&1 | head -n 100; echo \"=====SEC2=====\"; npx snapback4 guide security --section 'N_PRESENCE_LOOSENING' 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 414
+        },
+        {
+          "command": "npx snapback4 guide --list 2>&1 | head -n 40; echo =====; npx snapback4 guide production --sections 2>&1 | head -n 40; echo =====; npx snapback4 guide deploy --sections 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 821
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'What the old release sees' 2>&1 | head -n 60; echo \"=====S12=====\"; npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 1255
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'Persistent production: SQLite v1' 2>&1 | head -n 150",
+          "tool": "bash",
+          "tokens": 103
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 13 2>&1 | head -n 60; echo \"=====14=====\"; npx snapback4 guide deploy --section 14 2>&1 | head -n 200",
+          "tool": "bash",
+          "tokens": 2438
+        },
+        {
+          "command": "npx snapback4 guide production --section 2 2>&1 | head -n 80; echo \"=====DEPLOY5-7=====\"; npx snapback4 guide deploy --section 5 2>&1 | head -n 30; npx snapback4 guide deploy --section 6 2>&1 | head -n 40; npx snapback4 guide deploy --section 7 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 2143
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 11 2>&1 | head -n 50; echo \"=====15=====\"; npx snapback4 guide deploy --section 15 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 876
+        },
+        {
+          "command": "npx snapback4 guide presence --sections 2>&1 | head -n 30; echo =====; npx snapback4 guide api --sections 2>&1 | head -n 30; echo =====; npx snapback4 guide security --sections 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 656
+        },
+        {
+          "command": "npx snapback4 guide presence --section 0 2>&1 | head -n 60; echo \"=====OPT-UPLOAD=====\"; npx snapback4 guide security --section 26 2>&1 | head -n 30; echo \"=====PRES-LOOSEN2=====\"; npx snapback4 guide security --find 'presence loosen optional' 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 1081
+        },
+        {
+          "command": "npx snapback4 guide security --section 51 2>&1 | head -n 60; echo \"=====API3=====\"; npx snapback4 guide api --section 3 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 698
+        },
+        {
+          "command": "npx snapback4 guide security --section 51 --repeat 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 92
+        },
+        {
+          "command": "npx snapback4 guide security --find 'evidence always' 2>&1 | head -n 40; echo =====; npx snapback4 guide language --find 'optional file' 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 554
+        },
+        {
+          "command": "echo \"PORT_LO=$PORT_LO PORT_HI=$PORT_HI CHROME=$CHROME TMPDIR=$TMPDIR\"; ls .harness-env.json 2>&1; ls versions v1 deploy production 2>&1; ls fixtures; npx snapback4 guide day2 --sections 2>&1 | head -n 20",
+          "tool": "bash",
+          "tokens": 172
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793134774734,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 30
+          },
+          "window": {
+            "resets_at_ms": 1793146920000,
+            "used_percent": 15
+          }
+        },
+        "calls": 28,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17f27-7c38-7f62-b6a9-2b39e11b2a61",
+        "completed_calls": 28,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 1733867,
+            "calls": 28,
+            "input_tokens": 1817351,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 11291,
+            "reasoning_tokens": 4620
+          }
+        ],
+        "run_stream": {
+          "id": "01a17f27-7c38-7f62-b6a9-2b39e11b2a61",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "021",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 2.4092,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 19,
+      "inputTokens": 1061519,
+      "cachedInputTokens": 987634,
+      "uncachedInputTokens": 73885,
+      "docsTokens": 16918,
+      "cliGuideAndInitTokens": 13580,
+      "reads": [
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 100; echo \"===EXIT:$?===\"",
+          "tool": "bash",
+          "tokens": 1242
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'Migrations and adoption' 2>&1 | head -n 150; echo \"=====2=====\"; npx snapback4 guide deploy --section 'Which migration shape' 2>&1 | head -n 150",
+          "tool": "bash",
+          "tokens": 580
+        },
+        {
+          "command": "npx snapback4 guide api proof 2>&1 | head -n 200; echo \"=====HELP=====\"; npx snapback4 --help 2>&1 | head -n 80; echo \"=====DEPLOY-HELP=====\"; npx snapback4 deploy --help 2>&1 | head -n 60; echo \"=====ROLLBACK-HELP=====\"; npx snapback4 rollback --help 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 4124
+        },
+        {
+          "command": "npx snapback4 guide deploy --sections 2>&1 | head -n 40; echo \"=====PROD-SECTIONS=====\"; npx snapback4 guide production --sections 2>&1 | head -n 40; echo \"=====GEN=====\"; ls snapback/generated/; echo \"=====CALLS-HEAD=====\"; head -n 80 scripts/client-calls.mjs",
+          "tool": "bash",
+          "tokens": 1373
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -n 60; echo \"=====PERSIST=====\"; npx snapback4 guide deploy --section 'Persistent production: SQLite v1' 2>&1 | head -n 140",
+          "tool": "bash",
+          "tokens": 458
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 13 2>&1 | head -n 60; echo \"=====14=====\"; npx snapback4 guide deploy --section 14 2>&1 | head -n 200",
+          "tool": "bash",
+          "tokens": 2438
+        },
+        {
+          "command": "npx snapback4 guide production --section 2 2>&1 | head -n 80; echo \"=====DEPLOY10=====\"; npx snapback4 guide deploy --section 10 2>&1 | head -n 60; echo \"=====DEPLOY7-8=====\"; npx snapback4 guide deploy --section 7 2>&1 | head -n 40; npx snapback4 guide deploy --section 8 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 2912
+        },
+        {
+          "command": "npx snapback4 guide --list 2>&1 | head -n 40; echo \"=====CHECK-HELP=====\"; npx snapback4 check --help 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 837
+        },
+        {
+          "command": "npx snapback4 guide writes --sections 2>&1 | head -n 30; echo \"=====RULES-SEC=====\"; npx snapback4 guide rules --sections 2>&1 | head -n 40; echo \"=====EVOL-SEC=====\"; npx snapback4 guide evolution --sections 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 471
+        },
+        {
+          "command": "npx snapback4 guide rules --section 'Field authority' 2>&1 | head -n 40; echo \"=====COLWRITE=====\"; npx snapback4 guide rules --section 'Column write' 2>&1 | head -n 40; echo \"=====ECOL=====\"; npx snapback4 guide rules --section 'E_COLUMN_WRITE' 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 468
+        },
+        {
+          "command": "npx snapback4 guide rule-recipes --sections 2>&1 | head -n 30; echo \"=====\"; npx snapback4 guide rule-recipes --section 'Column write audience and approval' 2>&1 | head -n 120",
+          "tool": "bash",
+          "tokens": 755
+        },
+        {
+          "command": "npx snapback4 guide deploy --find 'backfill' 2>&1 | head -n 60; echo \"=====RENAME-BACKFILL=====\"; npx snapback4 guide rename --sections 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 58
+        },
+        {
+          "command": "npx snapback4 guide rename --full 2>&1 | head -n 120",
+          "tool": "bash",
+          "tokens": 1202
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793134919392,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 30
+          },
+          "window": {
+            "resets_at_ms": 1793146920000,
+            "used_percent": 15
+          }
+        },
+        "calls": 19,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17f29-4cdb-7123-824d-89b53d5474ad",
+        "completed_calls": 19,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 987634,
+            "calls": 19,
+            "input_tokens": 1061519,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 9487,
+            "reasoning_tokens": 2907
+          }
+        ],
+        "run_stream": {
+          "id": "01a17f29-4cdb-7123-824d-89b53d5474ad",
+          "kind": "run"
+        }
+      }
+    }
+  ]
+}

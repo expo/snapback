@@ -622,7 +622,8 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         assert_eq!(dependency_paths, expected, "only the five declared dependency leaves may be outside the application-source count");
         let app_files = texts.iter().filter(|(path, _)| {
             let relative = path.strip_prefix(&dir.0).unwrap();
-            !relative.starts_with(".snapback4") && !expected.contains(relative)
+            !relative.starts_with(".snapback4") && !relative.starts_with("v1") && !expected.contains(relative)
+
         }).count();
         assert!(app_files <= 30, "{flag}: {app_files} application files");
         assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");

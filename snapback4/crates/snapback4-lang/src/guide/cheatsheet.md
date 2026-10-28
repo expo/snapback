@@ -74,7 +74,7 @@ mutation removeItem(item: items):
 Probe brackets use commas: `exists members[room, viewer, role = 'admin']`.
 Use `and` between Boolean expressions. Branches accept `elif condition:` or
 `else if condition:`; initialize nested accumulators with `seen = [] of text <=80`.
-`guide tasks` routes by task.
+`guide tasks` routes by task. Shared previews: `npx snapback4 deploy staging --staging`, then `npx snapback4 serve staging`. Read `guide staging` for real password users, operator-provisioned roles and replayable first-admin setup.
 
 ## Quarry
 

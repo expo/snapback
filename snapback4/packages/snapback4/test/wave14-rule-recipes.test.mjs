@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Execute exact guide sources through packed client/native packages, with no checkout binary fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,7 +52,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     : await pack(nativeSource, join(nodeModules,nativeName));
   await invoke('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund',clientTarball,nativeTarball],dir,env);
   const cliPath = join(nodeModules, 'snapback4/bin/snapback4.js');
-  const guide = name => invoke(process.execPath, [cliPath, 'guide', name, '--full'], dir, env);
+  const guide = name => guideReference(cliPath,name,{cwd:dir,env});
   const blocks = async name => [...(await guide(name)).matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);
   const recipes = await blocks('rule-recipes'), rules = await blocks('rules');
   const {startDev} = await import(pathToFileURL(join(nodeModules,'snapback4/dist/proof.js')));

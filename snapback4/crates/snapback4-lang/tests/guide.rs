@@ -1021,7 +1021,7 @@ fn terminal_and_compatibility_overviews_carry_the_first_nonempty_section() {
         let heading = text.lines().nth(first.2).unwrap();
         assert!(piped.contains(&format!("\n\n{heading}\n")), "{name}: section {number} ({heading}) is printed");
         let (opening, index) = piped.split_once("\n\nSections of guide ").unwrap();
-        assert!(opening.contains(heading) && index.ends_with(&format!("--full prints all {} lines", text.lines().count())), "{name}");
+        assert!(opening.contains(heading) && index.ends_with("--full lists all sections"), "{name}");
         assert!(short.starts_with(text.lines().next().unwrap()) && piped.starts_with(text.lines().next().unwrap()));
         if first.3 - first.2 > 80 { assert!(piped.contains(&format!("… section {number} ({}) continues for ", first.1)) && piped.contains(&format!("snapback4 guide {name} --section {number}")), "{name}: a long first section says how to read the rest"); }
     }
@@ -1490,3 +1490,27 @@ fn bounded_discovery_never_prints_a_partial_quarry_fence() {
 }
 
 #[path = "guide/wave30_dx14.rs"] mod wave30_dx14;
+
+#[test]
+fn wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget() {
+    assert!(guide::card("day2").unwrap().len() <= guide::FULL_BYTES);
+    for name in guide::KEYWORDS {
+        let raw=guide::card(name).unwrap();
+        let card=guide::reader_card(name,raw);
+        for n in 0..=guide::sections(&card).len() {
+            let text=guide::section(name,&card,&n.to_string()).unwrap();
+            assert!(text.len() <= guide::FULL_BYTES,"{name} section {n}: {}",text.len());
+            assert_eq!(text.lines().filter(|l|l.starts_with("```")).count()%2,0,"{name} section {n}: complete fences");
+        }
+    }
+    for name in ["start","cheatsheet","personas"] {
+        let card=guide::reader_card(name,guide::card(name).unwrap());
+        let shown=guide::piped(name,&card);
+        assert!(shown.len()<=guide::FULL_BYTES);
+        assert!(shown.contains("guide staging"),"{name}: preserve staging in the actual bounded opening");
+    }
+    for (name,words) in [("rename","opening"),("deploy","Keep v1 clients working"),("deploy","Bridge a safety gate"),("security","N_PRESENCE_LOOSENING"),("deploy","Migrations and adoption"),("deploy","Which migration shape"),("evolution","Move media"),("production","Serve script and reusable accounts")] {
+        let card=guide::reader_card(name,guide::card(name).unwrap());
+        assert!(guide::section(name,&card,words).is_ok(),"{name} {words}");
+    }
+}

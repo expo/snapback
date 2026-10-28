@@ -1,0 +1,218 @@
+{
+  "qualification": false,
+  "source": "442f463fce installed native artifact, same dependency constraints as c9c3a35461",
+  "distribution": "ubuntu:24.04 diagnostic repetition after the full run stopped on Alpine",
+  "node": "24.13.1",
+  "rootDependencies": {
+    "expo": "57.0.30",
+    "expo-dev-client": "~57.0.19",
+    "expo-image-picker": "57.0.20",
+    "expo-secure-store": "~57.0.4",
+    "expo-sqlite": "57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-web": "~0.21.0",
+    "snapback4": "file:/proof/client.tgz",
+    "snapback4-expo": "file:/proof/expo.tgz"
+  },
+  "rootDevDependencies": {
+    "@expo/fingerprint": "0.20.14",
+    "@types/node": "24.19.2",
+    "@types/react": "~19.2.4",
+    "babel-preset-expo": "57.0.16",
+    "playwright-core": "1.55.1",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "decode-uri-component": "0.5.1",
+    "node-forge": "1.4.1",
+    "xcode": {
+      "uuid": "11.1.1"
+    },
+    "zod": "4.6.7"
+  },
+  "installedHashes": {
+    "node_modules/snapback4/package.json": "ae33fcd5b500a2f081dfc64f1111bf33ee0d335d9d9595fd43bf0d06627772c1",
+    "node_modules/snapback4/bin/snapback4.js": "28b532e3d71054846e631726a4eaf615be60292b2dc75d2e9f157ec398155ab1",
+    "node_modules/snapback4-linux-x64/snapback4": "2e7757abcb8410ce1086b53657c3b599d64ca9327aaa09ce14a05d80cab9ee43"
+  },
+  "hostNativeSha256": "2e7757abcb8410ce1086b53657c3b599d64ca9327aaa09ce14a05d80cab9ee43",
+  "versions": {
+    "node_modules/@expo/config": "57.0.10",
+    "node_modules/deepmerge": "4.3.1",
+    "node_modules/expo": "57.0.30",
+    "node_modules/expo/node_modules/@expo/cli": "57.0.32"
+  },
+  "audit": {
+    "report": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {
+        "@expo/cli": {
+          "name": "@expo/cli",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            "@expo/config",
+            "@expo/metro-config",
+            "@expo/prebuild-config"
+          ],
+          "effects": [],
+          "range": ">=0.19.0-canary-20240625-2333e70",
+          "nodes": [
+            "node_modules/expo/node_modules/@expo/cli"
+          ],
+          "fixAvailable": true
+        },
+        "@expo/config": {
+          "name": "@expo/config",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            "deepmerge"
+          ],
+          "effects": [
+            "@expo/cli",
+            "@expo/local-build-cache-provider",
+            "@expo/metro-config",
+            "@expo/prebuild-config",
+            "expo"
+          ],
+          "range": ">=9.1.0-canary-20240628-1ba8152",
+          "nodes": [
+            "node_modules/@expo/config"
+          ],
+          "fixAvailable": false
+        },
+        "@expo/local-build-cache-provider": {
+          "name": "@expo/local-build-cache-provider",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            "@expo/config"
+          ],
+          "effects": [
+            "expo"
+          ],
+          "range": "*",
+          "nodes": [
+            "node_modules/@expo/local-build-cache-provider"
+          ],
+          "fixAvailable": false
+        },
+        "@expo/metro-config": {
+          "name": "@expo/metro-config",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            "@expo/config"
+          ],
+          "effects": [],
+          "range": ">=0.19.0-canary-20240625-2333e70",
+          "nodes": [
+            "node_modules/@expo/metro-config"
+          ],
+          "fixAvailable": true
+        },
+        "@expo/prebuild-config": {
+          "name": "@expo/prebuild-config",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            "@expo/config"
+          ],
+          "effects": [],
+          "range": ">=7.1.0-canary-20240904-69100c1",
+          "nodes": [
+            "node_modules/@expo/prebuild-config"
+          ],
+          "fixAvailable": true
+        },
+        "deepmerge": {
+          "name": "deepmerge",
+          "severity": "low",
+          "isDirect": false,
+          "via": [
+            {
+              "source": 1243505,
+              "name": "deepmerge",
+              "dependency": "deepmerge",
+              "title": "deepmerge mergeObject() allows prototype poisoning of returned objects",
+              "url": "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+              "severity": "low",
+              "cwe": [
+                "CWE-1321"
+              ],
+              "cvss": {
+                "score": 5.3,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
+              },
+              "range": ">=4.2.0 <=4.3.1"
+            }
+          ],
+          "effects": [
+            "@expo/config"
+          ],
+          "range": ">=4.2.0",
+          "nodes": [
+            "node_modules/deepmerge"
+          ],
+          "fixAvailable": false
+        },
+        "expo": {
+          "name": "expo",
+          "severity": "low",
+          "isDirect": true,
+          "via": [
+            "@expo/cli",
+            "@expo/config",
+            "@expo/local-build-cache-provider",
+            "@expo/metro-config"
+          ],
+          "effects": [
+            "snapback4-expo"
+          ],
+          "range": ">=52.0.0-canary-20240625-2333e70",
+          "nodes": [
+            "node_modules/expo"
+          ],
+          "fixAvailable": false
+        },
+        "snapback4-expo": {
+          "name": "snapback4-expo",
+          "severity": "low",
+          "isDirect": true,
+          "via": [
+            "expo"
+          ],
+          "effects": [],
+          "range": ">=0.4.30",
+          "nodes": [
+            "node_modules/snapback4-expo"
+          ],
+          "fixAvailable": false
+        }
+      },
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 8,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 8
+        },
+        "dependencies": {
+          "prod": 512,
+          "dev": 0,
+          "optional": 13,
+          "peer": 1,
+          "peerOptional": 0,
+          "total": 525
+        }
+      }
+    },
+    "latest": {}
+  }
+}

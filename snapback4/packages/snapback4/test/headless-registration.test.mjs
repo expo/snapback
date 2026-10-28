@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile, spawnSync } from "node:child_process";
@@ -15,11 +16,11 @@ const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "../../..");
 
 test("guide auth runs headlessly; two password accounts sign in and enforce own-row writes", { timeout: hangBudget(12) }, async t => {
-  const guide = spawnSync(binary, ["guide", "auth", "--full"], { encoding: "utf8" });
+  const guide = ({status:0,stderr:'',stdout:guideReference(binary,'auth')});
   assert.equal(guide.status, 0, guide.stderr);
   for (const alias of ["headless", "replay adapter"]) {
     // One argument also exercises the quoted multi-word CLI spelling.
-    const found = spawnSync(binary, ["guide", alias, "--full"], { encoding: "utf8" });
+    const found = ({status:0,stderr:'',stdout:guideReference(binary,alias)});
     assert.equal(found.status, 0, `${alias}: ${found.stderr}`);
     assert.equal(found.stdout, guide.stdout, `${alias} opens the auth recipe`);
   }

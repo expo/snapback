@@ -23,7 +23,7 @@ use `npm run probe:serve -- --hold` only when you intend to keep it serving.
 
 Exact signatures on demand: `npx snapback4 guide api client`, `guide api auth`,
 `guide api proof`, `guide api generated`. Repeated project reads show only new
-content; `--repeat` forces that read and `--full` requests the entire reference.
+content; `--repeat` forces that read and `--full` lists bounded reference sections.
 
 Further reading when the task needs it:
 

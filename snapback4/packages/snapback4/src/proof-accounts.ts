@@ -1,3 +1,4 @@
+import { capacityAdvice } from "./proof-fresh.ts";
 import { rosterLock } from "./proof-roster-lock.ts";
 import { identityRequest } from "./identity-request.ts";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -155,7 +156,7 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
             if (!scalars.has(value) || schemaSite) return token;
             return quoted ? `${token[0]}<redacted>${token[0]}` : "<redacted>";
           });
-        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
+        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}${capacityAdvice(explanation ?? "") ? "; " + capacityAdvice(explanation ?? "") : ""}`);
       }
       entry.done = true; save();
       }
@@ -246,4 +247,32 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
  * @throws invalid plan, non-development host, signup/provision refusal or bounded timeout. */
 export function devAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<StagingSessions> {
   return accounts(host, options, "development");
+}
+
+export interface FreshUserOptions {
+  /** Omit for a roleless password account. */
+  role?: string;
+  provision?: { readonly name: string };
+  service?: string;
+  args?: (account: StagingAccount) => Record<string, unknown>;
+  timeoutMs?: number;
+}
+/** Real signup and ordinary role provisioning, with fresh credentials on each call.
+ * Reuse the returned session within one proof's release cycles. No persistent roster.
+ * @throws the same auth/provision/environment refusals as account setup; partial accounts may exist. */
+export async function freshUser(host: Pick<ServeHost, "url" | "operatorToken">, options: FreshUserOptions = {}): Promise<StagingAccount> {
+  if (options.role !== undefined && !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(options.role)) throw Error("E_STAGING_INPUT: freshUser role must name a role");
+  validatePlan({...options,...(options.role ? {roles:{[options.role]:1}} : {users:1})});
+  const response = await fetch(host.url + "/auth/config", {signal:AbortSignal.timeout(options.timeoutMs ?? 30_000)});
+  const config = await response.json() as {environment?: string};
+  const environment = config.environment;
+  if (!response.ok || !["development","staging","production"].includes(environment ?? "")) throw Error("E_STAGING_INPUT: freshUser requires a password proof host");
+  const sessions = await accounts(host, {
+    ...(options.role ? {roles:{[options.role]:1}} : {users:1}),
+    ...(options.provision ? {provision:options.provision} : {}),
+    ...(options.service ? {service:options.service} : {}),
+    ...(options.args ? {args:options.args} : {}),
+    ...(options.timeoutMs === undefined ? {} : {timeoutMs:options.timeoutMs}),
+  }, environment as "development" | "staging" | "production");
+  return sessions[options.role ?? "users"]![0]!;
 }

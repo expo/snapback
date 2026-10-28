@@ -1,0 +1,97 @@
+{
+  "qualification": false,
+  "source": "96599fa405 installed production CLI; latest consumer readers. New cheatsheet/persona opening pointers are the only subsequent guide changes and are not claimed qualified here.",
+  "steps": [
+    {
+      "name": "dx8",
+      "ok": true,
+      "seconds": 32.09
+    },
+    {
+      "name": "dx6",
+      "ok": true,
+      "seconds": 13.007
+    },
+    {
+      "name": "dx7",
+      "ok": false,
+      "seconds": 0.408,
+      "error": "Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1"
+    },
+    {
+      "name": "dx5",
+      "ok": true,
+      "seconds": 119.295
+    },
+    {
+      "name": "regressions",
+      "ok": true,
+      "seconds": 73.329
+    },
+    {
+      "name": "day4",
+      "ok": true,
+      "seconds": 22.13
+    },
+    {
+      "name": "release-transitions",
+      "ok": true,
+      "seconds": 17.857
+    },
+    {
+      "name": "dormant",
+      "ok": true,
+      "seconds": 22.212
+    },
+    {
+      "name": "day5",
+      "ok": true,
+      "seconds": 11.586
+    },
+    {
+      "name": "production",
+      "ok": true,
+      "seconds": 45.562
+    },
+    {
+      "name": "proof-kit",
+      "ok": true,
+      "seconds": 18.033
+    },
+    {
+      "name": "client-recipes",
+      "ok": true,
+      "seconds": 11.835
+    },
+    {
+      "name": "security",
+      "ok": true,
+      "seconds": 82.272
+    },
+    {
+      "name": "migrations",
+      "ok": true,
+      "seconds": 61.109
+    },
+    {
+      "name": "staging",
+      "ok": true,
+      "seconds": 8.849
+    },
+    {
+      "name": "rules",
+      "ok": true,
+      "seconds": 31.849
+    },
+    {
+      "name": "frontend-proofs",
+      "ok": true,
+      "seconds": 205.017
+    },
+    {
+      "name": "starters",
+      "ok": true,
+      "seconds": 337.733
+    }
+  ]
+}

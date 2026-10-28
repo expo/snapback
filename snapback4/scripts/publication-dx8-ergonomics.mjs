@@ -11,6 +11,7 @@ export async function proveDX8Ergonomics(directory, client, platform) {
   const env = { ...process.env, CHROME: chromiumExecutable() };
   delete env.SNAPBACK4_BIN; delete env.PORT_LO; delete env.PORT_HI;
   try {
+    writeFileSync(join(scratch,"publication-guide.mjs"),readFileSync(join(root,"scripts/publication-guide.mjs")));
     writeFileSync(join(scratch, "consumer.mjs"), readFileSync(join(root, "scripts/dx8-ergonomics-consumer.mjs")));
     await runToolchainCommand(process.execPath, ["consumer.mjs"], { cwd: scratch, env, timeout: 300_000 });
     return {

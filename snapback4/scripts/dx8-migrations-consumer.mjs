@@ -1,3 +1,6 @@
+import {guideReference} from "./publication-guide.mjs";
+import {resolveBinary} from "snapback4/bin-path";
+import {fileURLToPath} from "node:url";
 // Runs with the installed tarball's CLI and SDK; the wrapper owns/removes scratch.
 import assert from "node:assert/strict";
 import {mkdirSync,writeFileSync} from "node:fs";
@@ -5,7 +8,7 @@ import {resolve} from "node:path";
 import {cli,deploy,rollback,startServe} from "snapback4/proof";
 const checked=async(args,options={})=>{const r=await cli(args,options);assert.equal(r.code,0,r.stderr+r.stdout);return r;};
 const save=(path,text)=>{mkdirSync(path.slice(0,path.lastIndexOf("/")),{recursive:true});writeFileSync(path,text);};
-const evolution=await checked(["guide","evolution","--section","One record per photo in a list"]);
+const evolution=await checked(["guide","evolution","--section","One record per photo in a list","--repeat"]);
 const each=evolution.stdout.match(/```quarry\n([\s\S]*?)```/)?.[1];assert.ok(each,"installed complete each recipe");
 const before=`use identity password
 table albums:
@@ -44,7 +47,7 @@ for(let cycle=0;cycle<3;cycle++){
  await rollback("deployment","latest");
 }
 // Run the corrected language snippet unchanged against real pre-patch input names.
-const language=await checked(["guide","language","--full"]);
+const language={stdout:guideReference(resolveBinary(),"language",{packageRoot:fileURLToPath(new URL("../",import.meta.resolve("snapback4/proof")))})};
 const example=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)```/g)].map(m=>m[1]).find(s=>s.includes("backfill parcels quantities"));
 assert.ok(example?.includes("quantities(legacyManifest:"));
 const oldLanguage=`use identity password

@@ -8,7 +8,7 @@ const root = new URL('../', import.meta.url), dist = new URL('dist/', root);
 const out = new URL('../../crates/snapback4-lang/src/guide/', root);
 const encoding = getEncoding('o200k_base');
 const modules = {
-  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','serveUntilSignal','probeServeGuard','deploy','cli','command','startStatic','withBrowser','renderedText','labelledControl','waitForFresh','exhaustPages','snapshotAll','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingSessions','DevHost','ServeHost','CliResult','ProvisionedSessions'],
+  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','serveUntilSignal','probeServeGuard','deploy','cli','command','startStatic','withBrowser','renderedText','labelledControl','waitForFresh','exhaustPages','snapshotAll','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingSessions','DevHost','ServeHost','CliResult','ProvisionedSessions','StagingAccount','uniqueName','freshUser','FreshUserOptions'],
   client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Write','Signal','Cursor','AssetRead','Uploaded','settleMutation','Session','SignIn','Query','Mutation','MutateOptions','mintId','idFrom','Ready','SettledRead','Refusal','MutationPromise','UploadOptions'],
   auth: ['signup','login','SignIn','Session','SignInOptions','guest','SessionStore','memorySessionStore','restoreSession','keepSession','forgetSession','logout','logoutAll','refreshSession','narrowSession'],
 };
@@ -44,6 +44,7 @@ function digest(module, names) {
   const pieces = names.map(name => ({ name, text: declarations(name) }));
   let title = `# API ${module}: exact signature digest\n\nImport from "snapback4/${module}". Generated from dist declarations; types named below retain their declaration meaning.\n`;
   if (module === 'client') title += 'observe returns getSnapshot/subscribe/close; query returns Read, mutate returns Write; asset returns a URL handle or denied. Upload each image column separately. sentResult is from snapback4/react or contract.\n';
+  if (module === 'proof') title += 'Production: startServe(dir,{provisionUsers:{roles:{member:2,admin:2},provision:api.provision}}) returns host.sessions, shaped {member:[account,account],admin:[account,account]}. Account = {kind,role,email,password,principal,token,expiresAt}. Signup grants no role. The private persistent roster is production/proof-accounts/default.json (0600): {version:1,plan,entries:[{role,index,email,password,id,done,principal?,args?}]}; keep it with its store. provisionAccounts reuses this roster; freshUser creates an isolated proof identity instead. Read guide production --section "Serve script and reusable accounts" for partial-setup recovery; never read dist/proof.js.\n';
   if (module === 'proof') title += 'Use probe:check for verification; probe:serve stays up until SIGTERM (deliberate harness run: --hold).\n';
   const render = entries => `${title}\n\`\`\`ts\n${entries.map(p => p.text).join('\n')}\n\`\`\`\n\nOther exports/options: dist/${module}.d.ts; follow its named imports only on demand.\n`;
   const selected = [];

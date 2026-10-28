@@ -1,0 +1,152 @@
+{
+  "source": "442f463fce",
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "hostProofs": [
+    {
+      "file": "client-recipes.json",
+      "sha256": "27d8ddc596f759283f3b0fbfef9ff12ff8957838845f0adda9ef32701f12e86b",
+      "bytes": 324,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day2-proof.json",
+      "sha256": "7516fd63fbb93ccdd671c568a001b560287c90baa9af2360ae006266837972e4",
+      "bytes": 304,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day4-proof.json",
+      "sha256": "d97db2d4414d9f316beaaf8b0a7aeaad0efaac29438657d474eabc1d7cc35686",
+      "bytes": 355,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "day5-proof.json",
+      "sha256": "5f137510b8483e853cecb120faf1dd4cab99befc974b2a31c6448fc893cd9167",
+      "bytes": 230,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dormant.json",
+      "sha256": "b7b33f6352cd6e646a66eacc19d6a7b90043d47657057f1a711e6f05ddfd0e3d",
+      "bytes": 624,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx16-proof.json",
+      "sha256": "ae4130c5f90510b6eb987b9af109eb8ad6df14984b0f6331ff4caa22dea4c5c1",
+      "bytes": 132,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx4-proof.json",
+      "sha256": "e97ae40896e55aca6991526d3c35e00dfe44c8ce3819f15f9b29098f887b4ce1",
+      "bytes": 582,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx5-proof.json",
+      "sha256": "96158f5ff55c61285744653b67b7aec270b6181716333db57a2d3caf0584c8f8",
+      "bytes": 4740,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx6-proof.json",
+      "sha256": "16cd1b784d993b0eec42479af4fe069ea2cbbd44ab15cefe6840fc5e707ec317",
+      "bytes": 522,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx7-proof.json",
+      "sha256": "b87976c9f33bda5e04a876db8cb5d1e8c14b1381e76db6900b7e448e4cd765ca",
+      "bytes": 1352,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "dx8-proof.json",
+      "sha256": "63374f214cc715712d9b29de6f2ccda79c19824f2f35997fd7a123353787e76d",
+      "bytes": 1544,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "frontend-proofs.json",
+      "sha256": "9663a0e99e036be67f0d0a84e0e16ed917409832d2a879bed62e8a6273157c00",
+      "bytes": 11783,
+      "status": "completed",
+      "items": 12
+    },
+    {
+      "file": "migrations.json",
+      "sha256": "a1a00aba518bc88a18142570bb4dbfc24a9e69322a584167cc15c1e34d5086b3",
+      "bytes": 632,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "production-proofs.json",
+      "sha256": "583dc12694ff6b17067dd68b7f8a175e7de48803f75da2f67d39c350180661eb",
+      "bytes": 1985,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "regressions.json",
+      "sha256": "4b2cee5a30cae04782d3e7b1bc56e00d675f8bd8816ef0e8a208d7191f4b6298",
+      "bytes": 483,
+      "status": "completed",
+      "items": 3
+    },
+    {
+      "file": "release-transitions.json",
+      "sha256": "318097a6728762a06b77b3cc06b1818391e526103698076d204c138ef75a4ce0",
+      "bytes": 174,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "rule-recipes.json",
+      "sha256": "8b5af0f6536d65a45ff47bc47293c6fe4b6aadaf6455637c5c49fecec14f451f",
+      "bytes": 309,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "security.json",
+      "sha256": "55cffeeb33701df2c6fa146f90cfa6cf82ca92333c9f166caefe16f8e86df0e1",
+      "bytes": 11396,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "staging.json",
+      "sha256": "8aed7cc86038dcef7899b1dbbe7193b398b2added5f08077227f4531201acd92",
+      "bytes": 374,
+      "status": "passed",
+      "items": null
+    },
+    {
+      "file": "starter-proofs.json",
+      "sha256": "ed2e1b1140be95afecb1e82729662053ef1c5f8426848f303bc722b2562e0767",
+      "bytes": 22678,
+      "status": "completed",
+      "items": 6
+    }
+  ],
+  "failure": {
+    "stage": "clean-userspace Expo starter audit",
+    "assertion": "@expo/cli: a fix is available; update the starter toolchain",
+    "investigation": "Retaining dependency/audit details in an isolated reproduction; do not infer a patched version solely from this generic assertion."
+  }
+}

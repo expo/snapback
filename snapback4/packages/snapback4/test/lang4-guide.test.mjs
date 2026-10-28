@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Also run with SNAPBACK4_LANG4_PACKAGE_ROOT pointing at a tarball installation.
 // The installed CLI supplies every snippet; no source rewrite or stub is used.
 import test from 'node:test';
@@ -17,7 +18,7 @@ function cli(args, cwd, expected = 0) {
   assert.equal(result.status, expected, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
   return result.stdout;
 }
-const card = cli(['guide', 'cleanup', '--full']);
+const card = guideReference(command.at(-1),'cleanup',{packageRoot:installed});
 const blocks = [...card.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m => m[1]);
 assert.equal(blocks.length, 2, 'both complete guide recipes are exercised');
 

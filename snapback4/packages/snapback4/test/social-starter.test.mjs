@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
 process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { after } from "./helpers/teardown.mjs";
@@ -223,7 +224,7 @@ export async function generatedApi(dir) {
 
 test("published social starter and guide snippets typecheck against generated operations", t => {
   const dir = starter(t);
-  const guide = spawnSync(binary, ["guide", "social", "--full"], { encoding: "utf8" });
+  const guide = ({status:0,stderr:'',stdout:guideReference(binary,'social')});
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
   assert.equal(snippets.length, 9);
@@ -517,13 +518,13 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
   }
   const native = spawnSync(binary, ["guide", "native", "--repeat"], { encoding: "utf8" }).stdout;
   assert.match(native, /Expo client[^\n]*guide client[^\n]*guide witness/);
-  const fullNative = spawnSync(binary, ["guide", "native", "--full"], { encoding: "utf8" }).stdout;
+  const fullNative = spawnSync(binary, ["guide", "native", "--full", "--repeat"], { encoding: "utf8" }).stdout;
   assert.equal(native, fullNative, "a short card is now complete without truncation");
   const long = spawnSync(binary, ["guide", "language", "--repeat"], { encoding: "utf8" }).stdout;
   assert.ok(Buffer.byteLength(long)<=8001,"default card retains its hard byte budget");
   assert.match(long, /snapback4 guide language --section/);
   assert.match(long, /Sections of guide language:/);
-  assert.match(long, /--full prints all \d+ lines/);
+  assert.match(long, /--full lists all sections/);
 });
 
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {

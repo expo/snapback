@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
@@ -56,7 +57,7 @@ test('first check recovers older versions from locks/generated metadata and matc
     assert.match(expected, /0\.4\.27/);
     const again = run('check'); assert.doesNotMatch(again.stdout + again.stderr, /runtime changes|baseline unavailable/);
   }
-  const { run } = fixture(t); const guide = run('guide', 'changes', '--full').stdout;
+  const { run } = fixture(t); const guide = guideReference(binary,'changes');
   assert.ok(guide.includes(`Changes in ${installed}`)); assert.match(guide, /waitSeconds: 0/);
   if (installed === '0.4.27') assert.doesNotMatch(guide, /## 0\.4\.28/);
   assert.equal(lockedVersion('snapback4@0.4.25\nsnapback4@0.4.26'), undefined);

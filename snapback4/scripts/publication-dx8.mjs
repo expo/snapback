@@ -13,6 +13,7 @@ export async function proveDX8(directory,client,platform){
  const scratch=mkdtempSync(join(resolve(directory),"dx8-migrations-")),root=fileURLToPath(new URL("../",import.meta.url));
  const env={...process.env};delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
  try{
+  writeFileSync(join(scratch,"publication-guide.mjs"),readFileSync(join(root,"scripts/publication-guide.mjs")));
   writeFileSync(join(scratch,"consumer.mjs"),readFileSync(join(root,"scripts/dx8-migrations-consumer.mjs")));
   await runToolchainCommand(process.execPath,["consumer.mjs"],{cwd:scratch,env,timeout:300000});
  }finally{rmSync(scratch,{recursive:true,force:true});}

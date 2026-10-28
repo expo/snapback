@@ -12,7 +12,7 @@ query whoAmI():
 ```
 
 /auth/config includes development true on dev, false on serve; hide persona controls unless devDoors is true. An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions.
-`use identity guests` admits only guests; without `use identity`, both methods are disabled.
+`use identity guests` admits only guests; without `use identity`, both methods are disabled. Shared real-user previews: `guide staging`; persistent production accounts: `guide production`.
 
 ## Seed accounts headlessly
 Real-user setup has one complete recipe: `guide production`. For staging-only

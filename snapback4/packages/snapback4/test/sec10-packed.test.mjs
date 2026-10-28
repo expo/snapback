@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // SEC10's documented repairs through installed client and native tarballs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +19,7 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  const platform=pack(native);writeFileSync(join(dir,'package.json'),'{}');run('npm',['install','--ignore-scripts','--no-audit','--no-fund',client,platform]);
  assert.match(readFileSync(join(dir,'node_modules/snapback4/THIRD-PARTY-NOTICES'),'utf8'),/UNICODE LICENSE V3/);
  const cli=join(dir,'node_modules/snapback4/bin/snapback4.js');mkdirSync(join(dir,'snapback'));
- const card=run(process.execPath,[cli,'guide','security','--full']);assert.match(card,/N_BLANK_TEXT_GUARD/);assert.match(card,/trim\(value\) != ''/);
+ const card=guideReference(cli,'security',{cwd:dir});assert.match(card,/N_BLANK_TEXT_GUARD/);assert.match(card,/trim\(value\) != ''/);
  for(const code of ['N_APPROVAL_NOT_ENFORCED','N_BLANK_TEXT_GUARD','N_TEXT_EVIDENCE','N_MEDIA_PRIVATE_FIELDS'])assert.match(run(process.execPath,[cli,'why',code]),new RegExp(code));
  const recipe=[...card.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes("query required(value: text 1..30)"));assert.ok(recipe,'complete installed recipe');
  let source=recipe.replace("trim(value) != ''","value != ''").replace("  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n",'')+'\n';

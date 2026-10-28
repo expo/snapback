@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,symlinkSync,rmSync} from 'node:fs';
@@ -11,7 +12,7 @@ const block=(text,name,language)=>text.match(new RegExp(`<!-- WIRE FIRST ${name}
 test('KIT4 literal first wire page runs unchanged and its trace is generated from real requests',{timeout:60000},t=>{
   let guide;
   if(process.env.KIT4_UPDATE_WIRE==='1') guide=readFileSync(source,'utf8');
-  else {const result=spawnSync(binary,['guide','wire','--full'],{encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);guide=result.stdout;}
+  else guide=guideReference(binary,'wire',{packageRoot:installed});
   const cwd=mkdtempSync(join(root,'target/kit4-wire-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
   mkdirSync(join(cwd,'snapback'));mkdirSync(join(cwd,'node_modules'));
   symlinkSync(installed,join(cwd,'node_modules/snapback4'),'dir');

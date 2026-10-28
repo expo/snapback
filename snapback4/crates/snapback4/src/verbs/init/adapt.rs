@@ -403,6 +403,7 @@ pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
 
 /// `snapback4 init --adapt [dir]`.
 pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
+    if day2 { println!("{}", if dry_run || !apply { snapback4_lang::guide::card("day2").unwrap().to_owned() } else { crate::guide_seen::render_in(dir, "day2", snapback4_lang::guide::card("day2").unwrap(), false) }); }
     let own = match own_schema(dir) {
         Ok(Some(own)) => own,
         Ok(None) => { eprintln!("init --adapt: no snapback/*.q in {}; nothing to adapt to (run `snapback4 init --web` or `--expo` first)", dir.display()); return 1; }
@@ -410,16 +411,26 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
     };
     let (found, mut advice, modified) = plan(dir);
     advice.extend(super::proof_advice::report(dir));
-    let proof = match super::proof::plan(dir, &own, day2, default_frontend_ready(dir, &found, &modified)) {
+    let mut proof = match super::proof::plan(dir, &own, day2, default_frontend_ready(dir, &found, &modified)) {
         Ok(proof) => proof,
         Err(error) => { eprintln!("init --adapt proof: {error}"); return 2; }
     };
+    if day2 {
+        let sources = own.files.iter().map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).map(|text|(name.clone(),text))).collect::<std::io::Result<Vec<_>>>();
+        match sources.and_then(|sources|super::frozen::files(dir,&sources)) {
+            Ok(files) => proof.extend(files.into_iter().filter(|(name,_)| !proof.iter().any(|(existing,_)|existing==name)).collect::<Vec<_>>()),
+            Err(error) => { eprintln!("init --adapt frozen client: {error}"); return 2; }
+        }
+    }
     if !found.is_empty() || !proof.is_empty() {
         println!("init --adapt: planned changes (only unmodified starter files):");
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
     for line in super::proof_advice::legacy_differences(dir, &proof) { println!("init --adapt: {line}"); }
+    let frozen_count=proof.iter().filter(|(path,_)|path.starts_with("v1/")).count();
+    if frozen_count>0 { println!("  add v1/ — {frozen_count} frozen source/API/package files; ESM client:calls accepts inline or file CALLS_USERS"); }
     for (path, body) in &proof {
+        if path.starts_with("v1/") {continue;}
         if path.starts_with("versions/") {
             println!("  add {path} — capture current snapback/*.q and contemporary fixtures; legacy flat sources stay unchanged");
             continue;

@@ -1,4 +1,8 @@
 import { watchParent } from "./parent-lifetime.ts";
+export { uniqueName } from "./proof-fresh.ts";
+export { freshUser, type FreshUserOptions } from "./proof-accounts.ts";
+import { capacityAdvice } from "./proof-fresh.ts";
+
 import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
 export { probeServeGuard } from "./proof-probe.ts";
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
@@ -230,7 +234,9 @@ export async function command(binary: string, args: readonly string[], options: 
   try {
     await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
     if (run.error()) throw run.error();
-    return { code: run.code(), signal: run.signal(), stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
+    const stdout=run.stdout(), stderr=logText(run.logs.stderr);
+    const advice=run.code() === 0 ? "" : capacityAdvice(stdout + stderr);
+    return { code: run.code(), signal: run.signal(), stdout, stderr: stderr + (advice ? "\n" + advice + "\n" : ""), logs: run.logs };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
   finally { run.child.stdout?.destroy(); } // Secret capture must not pin the driver after a deadline.
 }
@@ -442,7 +448,7 @@ export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Pro
   }
   throw new Error(`E_PROOF_PAGE: ${label}: exceeded maxPages ${maxPages}`);
 }
-/** Administrative snapshot of every active row; bypasses application read rules.
+/** Administrative snapshot of active and retained rows, merged once per id; bypasses application read rules.
  * The CLI reads adopted schema and rows in one transaction; ephemeral tables refuse.
  * @throws E_PROOF_SNAPSHOT for CLI refusal or malformed/incomplete inspection output. */
 export async function snapshotAll<Row = Record<string, unknown>>(table: string, options: ProofOptions & { release?: string } = {}): Promise<Row[]> {

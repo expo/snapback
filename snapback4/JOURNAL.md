@@ -109879,6 +109879,30 @@ Evidence is in `reports/lat1/`; LLP 3000.036.004.000.000 records the mechanisms
 and independent Muse/fresh Codex reviews. Full-corpus identity and the final
 affected receipt are separate workstream qualifications. No version bump, public
 output change or publication is part of this lane.
+## 2026-10-27 — DX16: day-two reading and repeat proofs
+
+`guide day2` now joins saved v1, routed change forms, preview/deploy/rollback/
+forward, frozen callers, reruns and production accounts within 8,000 bytes.
+Large `--full` reads list bounded sections; references keep complete fences,
+with oversized executable/social examples behind their own packed file pointers.
+The existing project-local content hashes apply to selected reference rereads.
+Failed searches are bounded too. The first real-model pass still over-read;
+concrete privacy/backfill/alias forms and creation-versus-edit rules were folded
+into the card before the final reading pass. Measurements remain scoped to the
+reading milestone, not an end-to-end app score.
+
+Day-two adaptation freezes checked API handles with an ESM package and a private
+inline-account compatibility runner. Literal script closures use the existing
+OXC parser and Node resolver, including CommonJS directory/package-main imports;
+new captures stage before activation and existing historical source is preserved.
+The proof kit exports freshUser/uniqueName and capacity setup advice without
+retrying writes. Its generated digest carries production helper/account/roster
+shapes. Administrative complete inspection merges canonical active/retained
+images once per id, preserving historical scalar kinds and explicit nulls;
+missing release-history tables on dev stores remain readable. This changes
+inspection, not release or write semantics. LLP 3000.037.000 §9 governs the work.
+No version bump, push, Mac or publication qualification is claimed here.
+
 
 ## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
 

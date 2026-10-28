@@ -1,0 +1,31 @@
+{
+  "before": "retained ~/sb4-loop/dist/0.4.44 tarballs; deploy --full 38116 bytes",
+  "after": "07dd7d258e guide/CLI docs; before ceb35d8526 frozen hook-only correction (no reading-path change)",
+  "artifacts": [
+    {
+      "name": "baseline-packs/snapback4-0.4.44.tgz",
+      "bytes": 1370086,
+      "sha256": "1607ab400f747650f9174fb84cced477804e261fbf87e91c4f7ccbb4936ff4c8"
+    },
+    {
+      "name": "baseline-packs/snapback4-linux-x64-0.4.44.tgz",
+      "bytes": 18677992,
+      "sha256": "3a32445efd13470f85252b105b3f105b1f994d813d0978b5709341bef0956bfb"
+    },
+    {
+      "name": "final-packs/snapback4-0.4.44.tgz",
+      "bytes": 1391955,
+      "sha256": "378d6dc794de1c6c0cad286d63774470e61fdc44da8b1921c370fbfec04d38ba"
+    },
+    {
+      "name": "final-packs/snapback4-linux-x64-0.4.44.tgz",
+      "bytes": 26037863,
+      "sha256": "f1b1e2beb81edc82ed16cac7c61d5c72067f27c8e823091f4eba99f7321184f7"
+    },
+    {
+      "name": "final-packs/snapback4-expo-0.4.44.tgz",
+      "bytes": 24276,
+      "sha256": "077ae35841424fa42452d7789be547f032f90ca9ecec158623b7d601eb5ef5f5"
+    }
+  ]
+}

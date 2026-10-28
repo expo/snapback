@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // Packed guide recipes and pre-wave controls. Every example executes unchanged.
 import assert from 'node:assert/strict';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -27,8 +28,8 @@ export async function proveProofKit(client,platform,directory) {
   await run('npm',['install','--prefer-offline','--no-audit','--no-fund']);
   env.PATH=join(cwd,'node_modules/.bin')+':'+env.PATH;
   const guide=capture(['guide','testing','--full']);writeFileSync(join(cwd,'testing-guide.md'),guide);
-  const recipe=guide.match(/<!-- DAY TWO ACCOUNTS BEGIN -->\n```js\n([\s\S]*?)\n```\n<!-- DAY TWO ACCOUNTS END -->/)?.[1];
-  assert.ok(recipe,'packed guide has the complete day-two proof');
+  const recipe=readFileSync(join(cwd,'node_modules/snapback4/dist/recipes/day2-accounts.mjs'),'utf8');
+  assert.ok(recipe.includes('startServe'),'packed day-two reference');
   writeFileSync(join(cwd,'day2-accounts.mjs'),recipe);
   await run(process.execPath,['day2-accounts.mjs']);
   writeFileSync(join(cwd,'clock-controls.mjs'),clockControls);

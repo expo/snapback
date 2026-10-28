@@ -3,12 +3,12 @@ use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 // @ref LLP 3000.007#20.1 — the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nBy task: snapback4 guide tasks (exact commands for sign-in, roles, uploads, deadlines and proofs).\nStart here: snapback4 guide start (one compiling schema; read feature sections on demand).\nExact signatures: guide api proof | client | auth | generated. Do not read the cheatsheet before start.\nCards over {FULL_LINES} lines or {FULL_BYTES} bytes print content (opening and first section) plus a truncation hint and section index. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+    format!("cards: {}\nwith use server: {}\nBy task: snapback4 guide tasks (exact commands for sign-in, roles, uploads, deadlines and proofs).\nStart here: snapback4 guide start (one compiling schema; read feature sections on demand).\nExact signatures: guide api proof | client | auth | generated. Do not read the cheatsheet before start.\nCards over {FULL_LINES} lines or {FULL_BYTES} bytes print content (opening and first section) plus a truncation hint and section index. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full lists bounded sections.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
 pub fn aliases() -> String {
-    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` prints the whole card):\n", ALIASES.len());
+    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` lists bounded sections for large cards):\n", ALIASES.len());
     for (word, target) in ALIASES {
         match super::alias_section(word) {
             Some((_, heading)) => out.push_str(&format!("{word} -> {target} --section {heading:?}\n")),
@@ -35,7 +35,7 @@ pub fn alias_landing(word: &str, name: &str, card: &str) -> Option<String> {
     let (_, _, start, end) = sections(card).into_iter().nth(n - 1)?;
     let lines: Vec<&str> = card.lines().collect();
     let title = lines.first().filter(|line| line.starts_with("# ")).copied().unwrap_or_default();
-    Some(format!("{title}\n({} -> guide {name}, section {n}. {heading}; the whole card: snapback4 guide {name} --full · its sections: --sections)\n\n{}",
+    Some(format!("{title}\n({} -> guide {name}, section {n}. {heading}; the section list: snapback4 guide {name} --full · its sections: --sections)\n\n{}",
         word.trim(), lines[start..end].join("\n").trim_end()))
 }
 
@@ -253,7 +253,7 @@ pub fn sections(card: &str) -> Vec<(usize, String, usize, usize)> {
     found
 }
 
-// @ref LLP 3000.007#20.1 — a card longer than a tool window prints its opening and a numbered index; --full prints it whole.
+// @ref LLP 3000.007#20.1 — a card longer than a tool window prints its opening and a numbered index; --full lists bounded reading sections.
 /// Cards up to this many lines print whole. Above it, `guide <card>` prints
 /// the card's opening and a numbered section index: agents batch several
 /// cards per command and their tools truncate long output (the start card,
@@ -352,7 +352,7 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }
     // The title line, then the hint in the same paragraph, then the rest of the opening.
     let shown = if first_section { "opening, first section and section index" } else { "opening and section index" };
-    let hint = format!("(Truncated: this is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
+    let hint = format!("(Truncated: this is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full lists all sections.)");
     let mut out = match lines.first().filter(|line| line.starts_with("# ")) {
         Some(title) => format!("{title}\n{hint}\n{}", lines[1..cut].join("\n")),
         None => format!("{hint}\n\n{}", lines[..cut].join("\n")),
@@ -380,7 +380,7 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }
     out.push_str(&format!("\n\nSections of guide {name}:\n"));
     out.push_str(&index_lines(card, &found));
-    out.push_str(&format!("More: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all {total} lines"));
+    out.push_str(&format!("More: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full lists all sections"));
     Some(out)
 }
 
@@ -456,6 +456,9 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     let print = |start: usize, end: usize| format!("{title}{}", lines[start..end].join("\n").trim_end());
     let opening = opening_end(card, &found);
     if matches!(wanted.as_str(), "0" | "opening" | "intro" | "introduction") {
+        if let Some((_,heading,start,end))=found.first() {
+            if heading == "Opening" {return Ok(print(*start,*end));}
+        }
         return Ok(lines[..opening].join("\n").trim_end().to_owned());
     }
     if let Ok(n) = wanted.parse::<usize>() {
@@ -606,11 +609,11 @@ pub fn reading_blocks(text: &str) -> Vec<String> {
 
 /// Conservative byte-token ceiling: any UTF-8 byte needs at most one byte token.
 pub fn bounded_default(name: &str, text: &str) -> String {
-    if text.len() <= FULL_BYTES { return text.to_owned(); }
-    let hint = format!("\nTruncated: default budget is {FULL_BYTES} bytes. New question: snapback4 guide {name} --section <words>; full reference: --full.\n");
+    if text.len() < FULL_BYTES { return text.to_owned(); }
+    let hint = format!("\nTruncated: default budget is {FULL_BYTES} bytes. New question: snapback4 guide {name} --section <words>; section list: --full.\n");
     let mut out = String::new();
     for block in reading_blocks(text) {
-        if out.len() + block.len() + hint.len() + 1 > FULL_BYTES { break; }
+        if out.len() + block.len() + hint.len() + 1 >= FULL_BYTES { break; }
         out.push_str(&block); out.push('\n');
     }
     out.push_str(&hint); out

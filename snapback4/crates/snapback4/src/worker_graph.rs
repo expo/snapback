@@ -5,7 +5,7 @@ use std::{collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, process::{Co
 use oxc_ast::ast::{Argument, CallExpression, ExportAllDeclaration, ExportFromDeclaration, Expression, ImportDeclaration, ImportExpression, ImportOrExportKind, TSType};
 use oxc_ast_visit::{Visit, walk};
 
-fn imports(source: &str, path: &Path) -> Result<Vec<(String, &'static str)>, String> {
+pub(crate) fn imports(source: &str, path: &Path) -> Result<Vec<(String, &'static str)>, String> {
     struct Imports(Vec<(String, &'static str)>);
     impl<'a> Visit<'a> for Imports {
         fn visit_ts_type(&mut self, _: &TSType<'a>) {}

@@ -51,7 +51,14 @@ async function measure(recipe,where=cwd){
  const r=await command('sh',['-eu','-c',line],{cwd:where,env:measurementEnv});assert.equal(r.code,0,line+'\n'+r.stdout+r.stderr);measurements.push(line);
 }
 for(const page of ['feeds','maintains','offline-interactions','testing','sync','EMPTY_READ']){
- const text=await run(page==='EMPTY_READ'?['why',page]:['guide',page,'--full']);
+ let text;
+ if(page==='EMPTY_READ') text=await run(['why',page]);
+ else {
+  const index=await run(['guide',page,'--sections']);
+  const numbers=[...index.matchAll(/^\s*(\d+)\. /gm)].map(m=>m[1]);
+  text=await run(['guide',page,'--section','opening','--repeat']);
+  for(const number of numbers) text+='\n'+await run(['guide',page,'--section',number,'--repeat']);
+ }
  const snippets=[...text.matchAll(/\x60((?:snapback4 )?test [^\x60\n]*--fixture-only[^\x60\n]*)\x60/g)].map(m=>m[1]);
  assert.ok(snippets.length,page+' missing measurement recipe');
  for(const recipe of snippets)await measure(recipe);
