@@ -228,7 +228,7 @@ impl Owner {
     }
 
     pub(crate) fn open_store(&self, timeout: Duration) -> Result<AnyStore, RuntimeError> {
-        let mut store = AnyStore::open_with_busy_timeout(self.path()?, timeout)?;
+        let mut store = crate::verbs::phase::measure("store.open", || AnyStore::open_with_busy_timeout(self.path()?, timeout))?;
         #[cfg(unix)]
         if self.record.is_some() { store.retain_exclusive_ownership(self._sidecar.clone(), self.identity)?; }
         else { store.retain_ownership(self._sidecar.clone())?; }
