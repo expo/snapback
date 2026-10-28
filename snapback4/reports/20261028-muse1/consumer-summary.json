@@ -5,938 +5,114 @@
   "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
   "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
   "expoIntegrity": "sha512-aYD1G0pQ8V3SIQgDXATTG+To5dJM8Lp0jGDNorppnaqB7hOLFvnqWsnRct/XCSi9682VKynPKzl7QmuIiZBUHA==",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
   "suite": {
     "status": "not-run"
   },
   "publicationQualified": false,
+  "consumerChainCompleted": true,
   "consumerReceiptSha256": "3e04df78721e18a42183530ea0c17ce71a1696d754d42285863c4feaffb96454",
-  "proofKit": {
-    "scaffolds": {
-      "status": "passed",
-      "syntax": 5,
-      "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
-      "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
-      "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
-      "negative": [
-        "unfilled acceptance",
-        "unfilled frontend",
-        "UI click without a durable write",
-        "wrong refusal code",
-        "missing excluded role",
-        "new operation with preserved edits",
-        "edited stale schema facts",
-        "empty acceptance"
-      ],
-      "qualification": false
-    },
-    "status": "passed",
-    "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
-    "wire": "literal first section, actual packed CLI trace",
-    "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
-    "aliases": "array index path through packed test"
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.48",
+    "filename": "snapback4-linux-x64-0.4.48.tgz",
+    "integrity": "sha512-gkkNstkdVPnysUQbJPPFYfbHtRWS0zM4nFykGtExL9CJ0eDfGZJcw6r4A6cvJ+p4+aq9DuAfsdz0QEtZSgBJqg==",
+    "bytes": 18783102
   },
-  "starterProofs": [
+  "platformMatchesReplayTarball": true,
+  "proofKitStatus": "passed",
+  "scaffold": {
+    "status": "passed",
+    "syntax": 5,
+    "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
+    "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
+    "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+    "negative": [
+      "unfilled acceptance",
+      "unfilled frontend",
+      "UI click without a durable write",
+      "wrong refusal code",
+      "missing excluded role",
+      "new operation with preserved edits",
+      "edited stale schema facts",
+      "empty acceptance"
+    ],
+    "qualification": false
+  },
+  "starters": [
     {
       "starter": "web",
       "kind": "web",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
-      "adapted": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "web",
-          "kind": "web",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 6448,
-          "range": [
-            41965,
-            41985
-          ],
-          "occupied": 41965,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            9.27,
-            8.4,
-            8.27
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2062961,
-                "port": 41966
-              },
-              {
-                "pid": 2062961,
-                "port": 41966
-              },
-              {
-                "pid": 2063008,
-                "port": 41967
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              41965,
-              41985
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web/proof-logs-1"
-        },
-        {
-          "starter": "web",
-          "kind": "web",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 7466,
-          "range": [
-            45175,
-            45195
-          ],
-          "occupied": 45175,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            9.47,
-            8.47,
-            8.29
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2064217,
-                "port": 45176
-              },
-              {
-                "pid": 2064217,
-                "port": 45176
-              },
-              {
-                "pid": 2064240,
-                "port": 45177
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              45175,
-              45195
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web/proof-logs-2"
-        }
-      ],
-      "adaptedProofs": [
-        {
-          "starter": "web",
-          "kind": "web",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 5874,
-          "range": [
-            36899,
-            36919
-          ],
-          "occupied": 36899,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.98,
-            8.41,
-            8.28
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2068163,
-                "port": 36900
-              },
-              {
-                "pid": 2068163,
-                "port": 36900
-              },
-              {
-                "pid": 2068198,
-                "port": 36901
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2068150,
-                "state": "absent",
-                "record": "???(2068231 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              36899,
-              36919
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web/proof-logs-1"
-        },
-        {
-          "starter": "web",
-          "kind": "web",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 5546,
-          "range": [
-            40089,
-            40109
-          ],
-          "occupied": 40089,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.6,
-            8.35,
-            8.26
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2068927,
-                "port": 40090
-              },
-              {
-                "pid": 2068927,
-                "port": 40090
-              },
-              {
-                "pid": 2068943,
-                "port": 40091
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              40089,
-              40109
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web/proof-logs-2"
-        }
-      ],
-      "negativeProof": {
-        "status": "passed",
-        "expected": "E_FRONTEND_SCENARIO: frontend rendered",
-        "listenerAudit": {
-          "status": "passed",
-          "method": "strace-listen",
-          "samples": 4,
-          "listeners": [
-            {
-              "pid": 2066818,
-              "port": 30000
-            },
-            {
-              "pid": 2066818,
-              "port": 30000
-            },
-            {
-              "pid": 2066843,
-              "port": 30001
-            }
-          ],
-          "nonReturned": [],
-          "range": [
-            30000,
-            30020
-          ],
-          "tracerVersion": "strace -- version 6.8"
-        }
-      },
-      "formSubmit": "passed"
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 2
     },
     {
       "starter": "web-online",
       "kind": "web",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "web-online",
-          "kind": "web",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 5383,
-          "range": [
-            42333,
-            42353
-          ],
-          "occupied": 42333,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.44,
-            8.32,
-            8.25
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2070954,
-                "port": 42334
-              },
-              {
-                "pid": 2070954,
-                "port": 42334
-              },
-              {
-                "pid": 2071030,
-                "port": 42335
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2071253,
-                "state": "absent",
-                "record": "???( <unfinished ...>"
-              },
-              {
-                "pid": 2071038,
-                "state": "absent",
-                "record": "???(2070977 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              42333,
-              42353
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web-online/proof-logs-1"
-        },
-        {
-          "starter": "web-online",
-          "kind": "web",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 5230,
-          "range": [
-            33429,
-            33449
-          ],
-          "occupied": 33429,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.78,
-            8.39,
-            8.27
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2071770,
-                "port": 33430
-              },
-              {
-                "pid": 2071770,
-                "port": 33430
-              },
-              {
-                "pid": 2071788,
-                "port": 33431
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2071761,
-                "state": "absent",
-                "record": "???(2071848 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              33429,
-              33449
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web-online/proof-logs-2"
-        }
-      ]
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
     },
     {
       "starter": "expo",
       "kind": "expo",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
-      "adapted": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "expo",
-          "kind": "expo",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 11685,
-          "range": [
-            36839,
-            36859
-          ],
-          "occupied": 36839,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.21,
-            8.29,
-            8.24
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2075458,
-                "port": 36840
-              },
-              {
-                "pid": 2075458,
-                "port": 36840
-              },
-              {
-                "pid": 2075506,
-                "port": 36841
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              36839,
-              36859
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo/proof-logs-1"
-        },
-        {
-          "starter": "expo",
-          "kind": "expo",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 12112,
-          "range": [
-            34561,
-            34581
-          ],
-          "occupied": 34561,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.19,
-            8.29,
-            8.24
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2077146,
-                "port": 34562
-              },
-              {
-                "pid": 2077146,
-                "port": 34562
-              },
-              {
-                "pid": 2077164,
-                "port": 34563
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              34561,
-              34581
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo/proof-logs-2"
-        }
-      ],
-      "adaptedProofs": [
-        {
-          "starter": "expo",
-          "kind": "expo",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 10571,
-          "range": [
-            44079,
-            44099
-          ],
-          "occupied": 44079,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.34,
-            8.34,
-            8.26
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2081868,
-                "port": 44080
-              },
-              {
-                "pid": 2081868,
-                "port": 44080
-              },
-              {
-                "pid": 2081889,
-                "port": 44081
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2081891,
-                "state": "absent",
-                "record": "???(2081879 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              44079,
-              44099
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo/proof-logs-1"
-        },
-        {
-          "starter": "expo",
-          "kind": "expo",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 10378,
-          "range": [
-            42757,
-            42777
-          ],
-          "occupied": 42757,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            8.93,
-            8.46,
-            8.3
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2082952,
-                "port": 42758
-              },
-              {
-                "pid": 2082952,
-                "port": 42758
-              },
-              {
-                "pid": 2082968,
-                "port": 42759
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              42757,
-              42777
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo/proof-logs-2"
-        }
-      ],
-      "negativeProof": {
-        "status": "passed",
-        "expected": "E_FRONTEND_SCENARIO: frontend rendered",
-        "listenerAudit": {
-          "status": "passed",
-          "method": "strace-listen",
-          "samples": 3,
-          "listeners": [
-            {
-              "pid": 2079782,
-              "port": 30000
-            },
-            {
-              "pid": 2079801,
-              "port": 30001
-            }
-          ],
-          "nonReturned": [],
-          "range": [
-            30000,
-            30020
-          ],
-          "tracerVersion": "strace -- version 6.8"
-        }
-      },
-      "formSubmit": "not-applicable"
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 2
     },
     {
       "starter": "web-chat",
       "kind": "web",
       "template": "chat",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "web-chat",
-          "kind": "web",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 8127,
-          "range": [
-            42491,
-            42511
-          ],
-          "occupied": 42491,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            10.04,
-            8.74,
-            8.4
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2086419,
-                "port": 42492
-              },
-              {
-                "pid": 2086419,
-                "port": 42492
-              },
-              {
-                "pid": 2086460,
-                "port": 42493
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2086409,
-                "state": "absent",
-                "record": "???(2086534 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              42491,
-              42511
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web-chat/proof-logs-1"
-        },
-        {
-          "starter": "web-chat",
-          "kind": "web",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 6745,
-          "range": [
-            33829,
-            33849
-          ],
-          "occupied": 33829,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            9.5,
-            8.66,
-            8.38
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2087400,
-                "port": 33831
-              },
-              {
-                "pid": 2087400,
-                "port": 33831
-              },
-              {
-                "pid": 2087428,
-                "port": 33832
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2087751,
-                "state": "absent",
-                "record": "???( <unfinished ...>"
-              }
-            ],
-            "range": [
-              33829,
-              33849
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-web-chat/proof-logs-2"
-        }
-      ]
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
     },
     {
       "starter": "expo-chat",
       "kind": "expo",
       "template": "chat",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "expo-chat",
-          "kind": "expo",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 6337,
-          "range": [
-            44321,
-            44341
-          ],
-          "occupied": 44321,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            9.36,
-            8.69,
-            8.39
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 3,
-            "listeners": [
-              {
-                "pid": 2090942,
-                "port": 44322
-              },
-              {
-                "pid": 2090960,
-                "port": 44323
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2090965,
-                "state": "absent",
-                "record": "???(2090950 +++ exited with 0 +++"
-              }
-            ],
-            "range": [
-              44321,
-              44341
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo-chat/proof-logs-1"
-        },
-        {
-          "starter": "expo-chat",
-          "kind": "expo",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 6917,
-          "range": [
-            40295,
-            40315
-          ],
-          "occupied": 40295,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            9.02,
-            8.63,
-            8.37
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2091616,
-                "port": 40296
-              },
-              {
-                "pid": 2091616,
-                "port": 40296
-              },
-              {
-                "pid": 2091634,
-                "port": 40297
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              40295,
-              40315
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo-chat/proof-logs-2"
-        }
-      ]
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
     },
     {
       "starter": "expo-social",
       "kind": "expo",
       "template": "social",
-      "audit": {
-        "status": "passed",
-        "warnings": []
-      },
-      "fixtureGuide": "passed",
       "status": "passed",
+      "fixtureGuide": "passed",
       "typecheck": "passed",
       "build": "passed",
-      "frontendProofs": [
-        {
-          "starter": "expo-social",
-          "kind": "expo",
-          "attempt": 1,
-          "status": "passed",
-          "elapsedMs": 8073,
-          "range": [
-            45519,
-            45539
-          ],
-          "occupied": 45519,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            7.72,
-            8.35,
-            8.29
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2097088,
-                "port": 45520
-              },
-              {
-                "pid": 2097088,
-                "port": 45520
-              },
-              {
-                "pid": 2097151,
-                "port": 45521
-              }
-            ],
-            "nonReturned": [
-              {
-                "pid": 2097240,
-                "state": "absent",
-                "record": "???( <unfinished ...>"
-              }
-            ],
-            "range": [
-              45519,
-              45539
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo-social/proof-logs-1"
-        },
-        {
-          "starter": "expo-social",
-          "kind": "expo",
-          "attempt": 2,
-          "status": "passed",
-          "elapsedMs": 8282,
-          "range": [
-            32933,
-            32953
-          ],
-          "occupied": 32933,
-          "cpuLoadWorkers": 2,
-          "loadavg": [
-            7.07,
-            8.19,
-            8.24
-          ],
-          "listenerAudit": {
-            "status": "passed",
-            "method": "strace-listen",
-            "samples": 4,
-            "listeners": [
-              {
-                "pid": 2098245,
-                "port": 32934
-              },
-              {
-                "pid": 2098245,
-                "port": 32934
-              },
-              {
-                "pid": 2098339,
-                "port": 32935
-              }
-            ],
-            "nonReturned": [],
-            "range": [
-              32933,
-              32953
-            ],
-            "tracerVersion": "strace -- version 6.8"
-          },
-          "logs": "/tmp/muse1-evidence/consumer-final/starter-expo-social/proof-logs-2"
-        }
-      ]
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
     }
   ]
 }
