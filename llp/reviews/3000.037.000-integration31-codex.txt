@@ -1,0 +1,7 @@
+- **P2 — Fresh starter guidance points assertions at an inactive script.** [proof.rs:6](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init/proof.rs:6) now directs builders to wire the scaffold runners, then tells them to edit `scripts/frontend-proof.mjs`. The scaffold runner instead reads `frontend.assert` from `scripts/proof-scaffold/cases.mjs`. Following both instructions leaves the active assertion unfilled and verification refusing. Update the README and first-read starter map to identify the active scaffold callbacks.
+
+- **P2 — Authored init guidance contradicts VER1’s probe lifetime.** [init.rs:417](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init.rs:417) says `probe:serve` stays up until SIGTERM. An unheld probe with no requests actually exits with `E_PROBE_IDLE` after ten seconds, and another empty attempt refuses before deployment. State that bound and require `--hold` for deliberate service; align [start.md:56](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/guide/start.md:56).
+
+Provenance: Codex static review of `resolution.diff`, SHA256 `3ab2d78041677d01ab36915ea818fb13a3affcb87ce53545579469574384cb27`, against current source at HEAD `3a81d3f193336340a94ca56c5e68f14538516098`. No edits, builds, or tests performed.
+
+VERDICT: NOT READY

@@ -1,0 +1,580 @@
+commit 61182f46e4bd9d73f0e628b1e1dad109c9cb708a
+Merge: 67740e5975 8af058e18d
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 15:41:18 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 15:41:18 2026 +0100
+
+    Merge LAT4: production materialization and finite proof runners
+    
+    # Conflicts:
+    #       snapback4/JOURNAL.md
+    #       snapback4/crates/snapback4-lang/src/release_bridge.rs
+    #       snapback4/crates/snapback4/src/main.rs
+    #       snapback4/crates/snapback4/src/verbs.rs
+    #       snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs
+    #       snapback4/crates/snapback4/src/verbs/releases.rs
+    #       snapback4/packages/snapback4/CHANGELOG.md
+
+diff --git a/snapback4/crates/snapback4-lang/src/release_bridge.rs b/snapback4/crates/snapback4-lang/src/release_bridge.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4-lang/src/release_bridge.rs
+index 115fa3fe19..5cb27c5fef 100644
+--- a/snapback4/crates/snapback4-lang/src/release_bridge.rs
++++ b/snapback4/crates/snapback4-lang/src/release_bridge.rs
+@@ -345,14 +345,9 @@ fn canonical_table(mut table:snapback4_core::schema::Table)->snapback4_core::sch
+ }
+ 
+ fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+-    let current_bound=crate::compile(current);
++    let current_bound=crate::release_compile::compile(current);
+     // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — explicit hiding retains the current write closure even when presence allowance alone is not independent policy.
+     if !current_bound.rollback_hides.is_empty()||current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
+-=======
+-    let current_bound=crate::release_compile::compile(current);
+-    if current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+         let mut allow_guarded=false;
+         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
+         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
+diff --git a/snapback4/crates/snapback4/src/main.rs b/snapback4/crates/snapback4/src/main.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/main.rs
+index 6e646e6509..d755fb36f6 100644
+--- a/snapback4/crates/snapback4/src/main.rs
++++ b/snapback4/crates/snapback4/src/main.rs
+@@ -80,14 +80,10 @@ fn main() -> ExitCode {
+     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
+     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
+     quiet_broken_pipe(verb);
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+     let mut options = verbs::parse(&args);
+     if options.flags.contains_key("explain") && !(verb=="test" && options.flags.contains_key("residency")) && matches!(verb,"deploy"|"rollback"|"releases"|"data"|"test"|"serve") { options.flags.insert("verbose".into(),String::new()); }
+     if verb == "test" && options.flags.contains_key("verbose") { options.flags.insert("all".into(),String::new()); }
+-=======
+-    let options = verbs::parse(&args);
+     startup.step("cli.startup");
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+     if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
+         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
+         println!("{}", verb_help::page(verb).unwrap_or_else(cli_flags::top_help));
+diff --git a/snapback4/crates/snapback4/src/verbs.rs b/snapback4/crates/snapback4/src/verbs.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs.rs
+index e30015dcbd..059eec64af 100644
+--- a/snapback4/crates/snapback4/src/verbs.rs
++++ b/snapback4/crates/snapback4/src/verbs.rs
+@@ -1360,11 +1360,8 @@ fn arg_word(kind: &ir::ArgType) -> String {
+ 
+ 
+ mod releases;
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+ pub(crate) mod promote;
+-=======
+ mod release_compile;
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+ mod configured_release;
+ mod release_safeguards;
+ mod release_preview;
+diff --git a/snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs b/snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs
+index 8bafbabebd..ea8039a016 100644
+--- a/snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs
++++ b/snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs
+@@ -6,13 +6,9 @@ import assert from "node:assert/strict";
+ import { mkdtemp, rm, readFile, readdir, stat } from "node:fs/promises";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+ import { deploy, rollback, startServe, testSource, cli, cleanup, uniqueName } from "snapback4/proof";
+-=======
+-import { deploy, rollback, startServe, testSource, cli, cleanup } from "snapback4/proof";
+ import { runProofSuite } from "snapback4/proof-runner";
+ await runProofSuite(async () => {
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+ const args = process.argv.slice(2);
+ // npm appends caller arguments after the script's default pair.
+ const supplied = args.length > 3 && args[0] === "versions/v1" && args[1] === "versions/v2" ? args.slice(2) : args;
+diff --git a/snapback4/crates/snapback4/src/verbs/releases.rs b/snapback4/crates/snapback4/src/verbs/releases.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs/releases.rs
+index ed578cc015..fdc786273d 100644
+--- a/snapback4/crates/snapback4/src/verbs/releases.rs
++++ b/snapback4/crates/snapback4/src/verbs/releases.rs
+@@ -394,12 +394,9 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
+ }
+ 
+ pub fn deploy(options: &Options) -> i32 {
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+     let _compilation_reuse = snapback4_lang::CompilationReuse::new();
+-=======
+     let _compile_scope=super::release_compile::Scope::new();
+     let mut timing=phase::Sequence::new();
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+     match crate::store_config::StoreConfig::resolve(options) {
+         Ok(Some(config)) => return report("deploy", super::configured_release::deploy(options, config)),
+         Err(error) => return report("deploy", Err(error)),
+@@ -417,11 +414,8 @@ pub fn deploy(options: &Options) -> i32 {
+             let existed = dir.join("store.sqlite").exists();
+             let checking=options.flags.contains_key("check");
+             let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+-=======
+             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
+             timing.step("deploy.owner_store_status");
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+             let project = super::proof_source::project(options, "schema")?;
+             let sources = super::proof_source::sources(&project, options, "schema")?;
+             security_sources=Some((project.root.clone(),sources.clone()));
+@@ -455,11 +449,7 @@ pub fn deploy(options: &Options) -> i32 {
+                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
+                 phase::measure("deploy.security", || super::security::release_loop(&project,&bound,&sources,prior.as_ref(),previous.map(|n|Project{root:dir.join("releases").join(n.to_string())}.sources()).transpose().map_err(|e|e.to_string())?.as_deref(),options))?
+             };
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+-=======
+             timing.step("deploy.security_envelope");
+-            super::security::enforce_release(security_summary.as_ref(),options)?;
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+             let baseline=crate::client_compatibility::report(&project,&bound).map_err(|e|e.to_string())?.1;
+             let mut options=options.clone();
+             options.flags.insert("client-baseline-advice".into(),serde_json::to_string(&baseline).unwrap());
+@@ -579,11 +569,8 @@ pub fn deploy(options: &Options) -> i32 {
+             validation.flags.insert("deploy-direction".into(),String::new());
+             validation.flags.insert("validation-only".into(),String::new());
+             let details=super::release_preview::plan(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation,_deployment.as_ref())?;
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+             activation_qualified=true;
+-=======
+             timing.step("deploy.preview");
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+             let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
+             if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
+             n=n.checked_add(1).ok_or("release identity exhausted")?;
+@@ -645,14 +632,11 @@ pub fn deploy(options: &Options) -> i32 {
+             if let Some(notice)=clock_notice {crate::command_output::fact("clock",&notice);eprintln!("{notice}");}
+             Ok(())
+         })();
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+     let result=result.map_err(|error:String|if error.contains("E_SECURITY_"){error}
+         else if activation_qualified {format!("{error}; first failure: activation; adoption preflight and security gate passed")}
+         else if failure_problems.is_some(){format!("{error}; first failure: compilation; adoption and security gate not run")}
+         else{format!("{error}; first failure: adoption preflight; security gate not enforced")});
+-=======
+     timing.step("deploy.selection_completion");
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+     if result.is_ok()&&!options.flags.contains_key("check"){if let Some((root,sources))=&security_sources{super::security::remember_write_release(&Project{root:root.clone()},sources);}}
+     timing.step("deploy.security_bookkeeping");
+     if !options.json {
+diff --git a/snapback4/packages/snapback4/CHANGELOG.md b/snapback4/packages/snapback4/CHANGELOG.md
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/CHANGELOG.md
+index 2c1b8e051f..9674350b30 100644
+--- a/snapback4/packages/snapback4/CHANGELOG.md
++++ b/snapback4/packages/snapback4/CHANGELOG.md
+@@ -1,10 +1,15 @@
+ # Changelog
+ 
++## 0.4.47
++
++### Guide changes
++
++- Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
++
+ ## 0.4.46
+ 
+ ### Guide changes
+ 
+-<<<<<<< 67740e5975 (snapback4: retain Integration 30 qualification and final report)
+ - Existing app rows, accounts, releases and frozen v1 clients remain. Restart serving hosts after upgrading. Shared campaign fixtures, lazy replay IDs and ordered concurrent searches reduce check/deploy work while retaining security gates, witnessed questions, payloads and search budgets. No store migration beyond 0.4.45's fence is needed.
+ - Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores details and `--json` keeps complete evidence. Proof failures lead with operation, role, code, field and repair, retaining original assertions and exits.
+ - `guide start` routes to one `guide workflow` app recipe; README is a pointer. `guide api` digests replace declaration tours; starter scripts mark business edit regions. Nullable conditions/arithmetic and required inserts have compiling examples. App-owned scripts stay owned by the app.
+@@ -14,11 +19,6 @@
+ - Required-to-optional rollback views retain independent invariants. Intentional null hiding refuses null writes with `ROLLBACK_NULL`; unavailable hiding views no longer veto safe forward activation. `deploy --check` reports adoption before security. Extraction defaults and missing reverse values refuse at check/preview with column repairs; bare global `cap N` survives generated views.
+ - `check --fix` applies context-compiled `E_QUARRY_*` edits with exact diffs; defaults, arbitrary bounds and security intent stay manual. Image-only backends accept `client.upload` file metadata through verified image handling; invalid bytes and bounds still refuse.
+ - Administrative `data --all` / `snapshotAll` merge active and retained rows/cells once per ID; limited reads remain active-only. Proof imports load browsers lazily and dispatch native commands directly, retaining deadlines, cleanup and fresh real-user staging worlds.
+-=======
+-- Generated finite proof suites exit after their awaited tests and cleanup, preserving their status and draining reports. If timers or handles remain, one line names their resource types so builders can fix them. Custom suites can explicitly wrap their fully awaited body with `runProofSuite` from `snapback4/proof-runner`; service scripts keep their lifetime.
+-
+-- Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
+->>>>>>> 8af058e18d (bench(snapback4): prove all 120 expanded store and release custody identities)
+ 
+ ## 0.4.45
+ 
+
+commit 226ebd696bfb6305f5592865c2a463d4b4bb9703
+Merge: 61182f46e4 f91a774e12
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 15:41:40 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 15:41:40 2026 +0100
+
+    Merge VER1: one verify loop and bounded probe lifetime
+    
+    # Conflicts:
+    #       llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md
+    #       snapback4/JOURNAL.md
+    #       snapback4/crates/snapback4/tests/init.rs
+    #       snapback4/packages/snapback4/CHANGELOG.md
+    #       snapback4/scripts/publication-security.mjs
+
+diff --git a/snapback4/crates/snapback4/tests/init.rs b/snapback4/crates/snapback4/tests/init.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/tests/init.rs
+index 0ec6749765..1529f0ae42 100644
+--- a/snapback4/crates/snapback4/tests/init.rs
++++ b/snapback4/crates/snapback4/tests/init.rs
+@@ -602,69 +602,6 @@ fn starter_texts(root: &std::path::Path) -> Vec<(PathBuf, String)> {
+     snapshot(root).into_iter().filter_map(|(path, bytes)| bytes.map(|bytes| (path, String::from_utf8(bytes).unwrap()))).collect()
+ }
+ 
+-<<<<<<< 61182f46e4 (Merge LAT4: production materialization and finite proof runners)
+-#[test]
+-fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
+-    for (flag, screens) in [("--web", &["src/App.tsx", "src/client.ts", "src/main.tsx", "src/styles.css", "index.html", "vite.config.mts"][..]), ("--expo", &["App.tsx", "src/client.ts", "expo-env.d.ts", "metro.config.js"])] {
+-        let dir = Dir::new();
+-        let output = dir.run(flag);
+-        assert!(output.status.success(), "{output:?}");
+-        for file in screens { assert!(dir.0.join(file).is_file(), "{flag}: {file}"); }
+-        for chat in ["src/Inbox.tsx", "src/Thread.tsx", "src/intents.ts", "src/state.ts", "snapback/worker.ts", "snapback/worker.mts"] {
+-            assert!(!dir.0.join(chat).exists(), "{flag}: the small starter carries no chat file {chat}");
+-        }
+-        let texts = starter_texts(&dir.0);
+-        // Kit scripts replace builder-owned process orchestration; DX14 adds one
+-        // shared TypeScript helper and its ESM scope for Node proof imports.
+-        // @ref LLP 3000.011.003.000#10 — an exact licensed build dependency has its own inventory; application source keeps its ceiling.
+-        let dependency_files = ["toolchain/deepmerge/package.json", "toolchain/deepmerge/index.cjs", "toolchain/deepmerge/index.d.ts", "toolchain/deepmerge/LICENSE", "toolchain/deepmerge/README.md"];
+-        let dependency_paths = texts.iter().map(|(path, _)| path.strip_prefix(&dir.0).unwrap()).filter(|path| path.starts_with("toolchain/deepmerge")).collect::<std::collections::BTreeSet<_>>();
+-        let expected = if flag == "--expo" { dependency_files.iter().map(std::path::Path::new).collect::<std::collections::BTreeSet<_>>() } else { Default::default() };
+-        assert_eq!(dependency_paths, expected, "only the five declared dependency leaves may be outside the application-source count");
+-        let app_files = texts.iter().filter(|(path, _)| {
+-            let relative = path.strip_prefix(&dir.0).unwrap();
+-            !relative.starts_with(".snapback4") && !relative.starts_with("v1") && !expected.contains(relative)
+-
+-        }).count();
+-        assert!(app_files <= 30, "{flag}: {app_files} application files");
+-        assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
+-        let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+-        let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
+-        assert!(bound.diagnostics.is_empty() && bound.notes.iter().all(|n| n.code == "N_LOOKUP_FILTERED"), "{:?} {:?}", bound.diagnostics, bound.notes);
+-        assert_eq!(bound.schema.tables.len(), 1);
+-        assert!(bound.schema.auth.guests, "the starter screen signs in as a guest");
+-        for op in ["list", "add", "toggle", "remove"] { assert!(bound.schema.operations.contains_key(op), "{op}"); }
+-        let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
+-        assert!(checked.status.success(), "{checked:?}");
+-        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice", "--explain"]).current_dir(&dir.0).output().unwrap();
+-        let summary = String::from_utf8_lossy(&tested.stdout);
+-        assert!(tested.status.success() && summary.contains("cases: 7 passed, 0 failed"), "{flag}: {tested:?}");
+-        let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
+-        for call in ["AppProvider", "auth.guest()", "usePage(api.list", "useMutation(api.add)", "api.toggle", "api.remove"] { assert!(app.contains(call), "{flag}: {call}"); }
+-        // Wave 4 (I7): the named hook types and the signed-in viewer hook are
+-        // in the starter, where builders look for them.
+-        for call in ["useSignedInViewer()", "UsePage<typeof api.list>", "UseMutation<typeof api.toggle>", "UseQuery<typeof api.op>", "useQuery(api.op, args)", ".find(isFailed)"] { assert!(app.contains(call), "{flag}: {call}"); }
+-        assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("webDevice()"));
+-        let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+-        assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
+-        if flag == "--web" {
+-            assert_eq!(package["type"], "module", "a fresh directory keeps Vite's ESM package type");
+-            assert!(package["scripts"]["build"].as_str().unwrap().ends_with("snapback4 web-shell dist"));
+-            assert!(fs::read_to_string(dir.0.join("vite.config.mts")).unwrap().contains("strictPort: true"));
+-            assert!(!dir.0.join("vite.config.ts").exists(), "an .mts config loads as ESM whatever the package type");
+-            assert!(fs::read_to_string(dir.0.join("tsconfig.json")).unwrap().contains("\"vite.config.mts\""));
+-            let html = fs::read_to_string(dir.0.join("index.html")).unwrap();
+-            assert!(!html.contains("<style") && !html.contains("<title>Todos</title>"), "{html}");
+-        } else {
+-            assert_eq!(fs::read_to_string(dir.0.join("expo-env.d.ts")).unwrap().trim(), "/// <reference types=\"expo/types\" />");
+-            assert_eq!(package["scripts"]["typecheck"], "tsc -p tsconfig.json --noEmit");
+-        }
+-        let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+-        assert!(readme.contains(&format!("init <dir> {flag} --template chat")), "{flag}: the README names the full example");
+-    }
+-}
+-=======
+->>>>>>> f91a774e12 (docs: record VER1 qualification, replay misses and follow-ups)
+ 
+ #[test]
+ fn every_starter_is_free_of_repository_history() {
+@@ -750,55 +687,6 @@ fn init_port_sets_the_backend_url_and_next_step() {
+     assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+ }
+ 
+-<<<<<<< 61182f46e4 (Merge LAT4: production materialization and finite proof runners)
+-#[test]
+-fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
+-    for flag in ["--web", "--expo"] {
+-        let dir = Dir::new();
+-        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+-        fs::create_dir_all(dir.0.join("fixtures")).unwrap();
+-        fs::write(dir.0.join("snapback/schema.q"), "use identity\nuse personas alice\ntable notes:\n  body: text <=100\n  ownerId: principal\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\nquery mine(c: cursor ?):\n  return notes where .ownerId = viewer after c first 50 by .id\n").unwrap();
+-        fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\",\"ownerId\":\"dev:alice\"}\n").unwrap();
+-        fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"mine\",\"args\":{},\"count\":1}\n").unwrap();
+-        let output = dir.init(&[flag, "--skip-existing"]);
+-        assert!(output.status.success(), "{flag}: {output:?}");
+-        assert!(!dir.0.join("fixtures/todos.jsonl").exists(), "{flag}");
+-        assert_eq!(fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap(), "{\"as\":\"alice\",\"op\":\"mine\",\"args\":{},\"count\":1}\n");
+-        // With `use identity` the guest screen stays.
+-        let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
+-        assert!(app.contains("auth.guest()"), "{flag}");
+-        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice", "--explain"]).current_dir(&dir.0).output().unwrap();
+-        assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{flag}: {tested:?}");
+-    }
+-    // Wave 4 (1d): the starter's unmodified todos.jsonl beside a schema without
+-    // `todos` is skipped with a warning naming `init --adapt`; the project's
+-    // own rows still load and its cases still run.
+-    let dir = Dir::new();
+-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+-    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  body: text <=100\n  public 'shared'\nquery all(c: cursor ?):\n  return notes after c first 50 by .id\n").unwrap();
+-    let starter = Dir::new();
+-    assert!(starter.run("--web").status.success());
+-    fs::create_dir_all(dir.0.join("fixtures")).unwrap();
+-    fs::copy(starter.0.join("fixtures/todos.jsonl"), dir.0.join("fixtures/todos.jsonl")).unwrap();
+-    fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
+-    fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"all\",\"args\":{},\"count\":1}\n").unwrap();
+-    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice", "--explain"]).current_dir(&dir.0).output().unwrap();
+-    let stderr = String::from_utf8_lossy(&tested.stderr);
+-    assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{tested:?}");
+-    assert!(stderr.contains("WARNING: skipped fixtures/todos.jsonl") && stderr.contains("snapback4 init --adapt"), "{stderr}");
+-    // A todos.jsonl the project changed is its own file for a missing table: still a refusal, naming the starter.
+-    fs::write(dir.0.join("fixtures/todos.jsonl"), format!("{}{{\"id\":\"todo-eggs\",\"title\":\"Eggs\",\"done\":false,\"ownerId\":\"dev:alice\"}}\n", fs::read_to_string(starter.0.join("fixtures/todos.jsonl")).unwrap())).unwrap();
+-    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice", "--explain"]).current_dir(&dir.0).output().unwrap();
+-    assert!(!tested.status.success());
+-    assert!(String::from_utf8_lossy(&tested.stderr).contains("todo starter's sample"), "{tested:?}");
+-    // Any other file for a missing table refuses the run.
+-    fs::remove_file(dir.0.join("fixtures/todos.jsonl")).unwrap();
+-    fs::write(dir.0.join("fixtures/note.jsonl"), "{\"id\":\"n2\",\"body\":\"typo\"}\n").unwrap();
+-    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice", "--explain"]).current_dir(&dir.0).output().unwrap();
+-    assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("note.jsonl names no table"), "{tested:?}");
+-}
+-=======
+->>>>>>> f91a774e12 (docs: record VER1 qualification, replay misses and follow-ups)
+ 
+ #[test]
+ fn every_q_file_is_the_projects_schema() {
+diff --git a/snapback4/packages/snapback4/CHANGELOG.md b/snapback4/packages/snapback4/CHANGELOG.md
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/CHANGELOG.md
+index 0163f7ead5..870a7aa993 100644
+--- a/snapback4/packages/snapback4/CHANGELOG.md
++++ b/snapback4/packages/snapback4/CHANGELOG.md
+@@ -4,12 +4,10 @@
+ 
+ ### Guide changes
+ 
+-<<<<<<< 61182f46e4 (Merge LAT4: production materialization and finite proof runners)
+ - Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
+-=======
++
+ - New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
+ - An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle attempt refuses early. `SNAPBACK4_PROBE_HOLD=1` retains deliberate harness service. Foreground installs stay the default. The app-local dependency installer also offers explicit background admission, a private install log, request-bound status and one blocking join; its script owns those options.
+->>>>>>> f91a774e12 (docs: record VER1 qualification, replay misses and follow-ups)
+ 
+ ## 0.4.46
+ 
+diff --git a/snapback4/scripts/publication-security.mjs b/snapback4/scripts/publication-security.mjs
+remerge CONFLICT (content): Merge conflict in snapback4/scripts/publication-security.mjs
+index e8e0b5a77c..ff955ab6e7 100644
+--- a/snapback4/scripts/publication-security.mjs
++++ b/snapback4/scripts/publication-security.mjs
+@@ -130,7 +130,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
+   // Preserve the policy checklist in the cards that own it, rather than
+   // requiring the introductory card tour in the short README.
+   assert.match(readme, /npx snapback4 guide start/);
+-<<<<<<< 61182f46e4 (Merge LAT4: production materialization and finite proof runners)
++  assert.match(workflow, /startStaging/, "the routed app recipe carries real-account setup");
+   assert.match(readme, /guide api react\|client\|auth\|proof\|generated/);
+   assert.match(start, /guide workflow/);
+   assert.match(start, /independent spec intent/);
+@@ -141,15 +141,6 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
+   assert.match(workflow, /!\('price' in r\)/);
+   assert.match(workflow, /other\.query\(api\.board/);
+   assert.ok(Buffer.byteLength(start) <= 8001, "the complete installed start remains within the 8000-byte card budget plus newline");
+-=======
+-  assert.match(readme, /guide workflow/);
+-  assert.match(start, /guide workflow/);
+-  const workflow = command(["guide", "workflow", "--repeat"]);
+-  assert.match(workflow, /startStaging/, "the routed app recipe must carry real-account setup");
+-  assert.ok(Buffer.byteLength(start) <= 8001, "the complete installed start remains within the 8000-byte card budget plus newline");
+-  // The dedicated security card owns the policy checklist; the bounded start
+-  // routes to the app recipe instead of repeating a tour of reference cards.
+->>>>>>> f91a774e12 (docs: record VER1 qualification, replay misses and follow-ups)
+   for (const text of [guide]) {
+     assert.match(text, /spec/i); assert.match(text, /role/); assert.match(text, /column/);
+     assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
+
+commit 3a81d3f193336340a94ca56c5e68f14538516098
+Merge: 226ebd696b c4386f8f84
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 15:41:55 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 15:41:55 2026 +0100
+
+    Merge SCAF1: schema-generated acceptance, frontend and probe proofs
+    
+    # Conflicts:
+    #       llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+    #       snapback4/JOURNAL.md
+    #       snapback4/packages/snapback4/CHANGELOG.md
+
+diff --git a/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md b/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+remerge CONFLICT (content): Merge conflict in llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+index 1ef02486cc..71f5e87815 100644
+--- a/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
++++ b/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+@@ -5,11 +5,9 @@
+ **Systems:** Snapback 4 proof tooling, starters, fixtures, release source selection
+ **Author:** Codex for Charlie Cheever
+ **Date:** 2026-10-14
+-<<<<<<< 226ebd696b (Merge VER1: one verify loop and bounded probe lifetime)
+ **Revised:** 2026-10-28 (LAT4 command/runner costs); 2026-10-27 (LAT3 §18: proof command startup); 2026-10-26 (DX12 §17, Muse and fresh Codex reviewed); 2026-10-24 (DX9 wave-26 and DX10 §16 amendments; Muse and fresh Codex READY); 2026-10-23 (DX8: corroborated duplicate strace listener representation, §8); 2026-10-18 (DAY5 amendments; KIT4 clock, proof and test contracts); 2026-10-17 (KIT3 proof and clock contracts); 2026-10-16 (REG missing frontend export diagnostic; §11: wave-14 DAY4); 2026-10-16 (§9: wave-13 DAY3; §10: wave-13 KIT2); 2026-10-16 (§8: explicit platform boundary and client-source guard); 2026-10-15 (§8: wave-12 KIT and observational listener qualification)
+-=======
++
+ **Revised:** 2026-10-28 (SCAF1 §19: generated proof packet); 2026-10-27 (LAT3 §18: proof command startup); 2026-10-26 (DX12 §17, Muse and fresh Codex reviewed); 2026-10-24 (DX9 wave-26 and DX10 §16 amendments; Muse and fresh Codex READY); 2026-10-23 (DX8: corroborated duplicate strace listener representation, §8); 2026-10-18 (DAY5 amendments; KIT4 clock, proof and test contracts); 2026-10-17 (KIT3 proof and clock contracts); 2026-10-16 (REG missing frontend export diagnostic; §11: wave-14 DAY4); 2026-10-16 (§9: wave-13 DAY3; §10: wave-13 KIT2); 2026-10-16 (§8: explicit platform boundary and client-source guard); 2026-10-15 (§8: wave-12 KIT and observational listener qualification)
+->>>>>>> c4386f8f84 (snapback4: keep exact selector evidence compressed beside readable summaries)
+ **Related:** [Starters](./3000.011.003.000-offline-ready-application-starters.rfc.md), [Release activation](./3000.000.000-retained-storage-and-hot-release.rfc.md), [Built application proof](./3000.011.005.000-qualify-the-built-application.rfc.md)
+ 
+ STAGE staging and persistent startDev defaults are amended by [LLP 3000.000.000.001](./3000.000.000.001-staging-with-real-users.rfc.md); KIT4 owns other ongoing helper changes.
+@@ -975,7 +973,6 @@ source hashes and raw transcripts are retained under
+ llp/reviews/3000.011.003.000.000-lat3-*. Reviews bind that content, not an author
+ acceptance or a publication claim.
+ 
+-<<<<<<< 226ebd696b (Merge VER1: one verify loop and bounded probe lifetime)
+ ## 19. Explicit proof completion (LAT4)
+ 
+ Implementer: Codex for Charlie Cheever, 2026-10-28. This amendment owns finite
+@@ -1024,7 +1021,7 @@ READY for the same corrected implementation; the immutable failure status also
+ survives queued status updates and caller/global interception. Verbatim records
+ and hashes are under `llp/reviews/3000.011.003.000.000-lat4-r5.*`. This does not
+ accept the amendment for the author or qualify a publication.
+-=======
++
+ ## 19. Generated proof scaffolding (SCAF1)
+ 
+ Implementer: Codex for Charlie Cheever, 2026-10-28. The wave-34 fix #3
+@@ -1072,4 +1069,3 @@ line after the leading verdict, including preserved-file information; an unchang
+ JSON stdout remains one machine-readable result. The workstream report records
+ packed execution, complete-session before/after measurements, negative proof
+ controls and the limits of the comparison. No version bump or publication.
+->>>>>>> c4386f8f84 (snapback4: keep exact selector evidence compressed beside readable summaries)
+diff --git a/snapback4/packages/snapback4/CHANGELOG.md b/snapback4/packages/snapback4/CHANGELOG.md
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/CHANGELOG.md
+index ff06008c09..d0092f528f 100644
+--- a/snapback4/packages/snapback4/CHANGELOG.md
++++ b/snapback4/packages/snapback4/CHANGELOG.md
+@@ -4,14 +4,12 @@
+ 
+ ### Guide changes
+ 
+-<<<<<<< 226ebd696b (Merge VER1: one verify loop and bounded probe lifetime)
+ - Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
+ 
+ - New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
+ - An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle attempt refuses early. `SNAPBACK4_PROBE_HOLD=1` retains deliberate harness service. Foreground installs stay the default. The app-local dependency installer also offers explicit background admission, a private install log, request-bound status and one blocking join; its script owns those options.
+-=======
++
+ - A green `check` writes a schema proof packet under `scripts/proof-scaffold/`: acceptance, frontend and probe recipes with real role accounts, upload options and staging clocks. Edit the generated cases; missing business assertions refuse. Content hashes preserve edited files across checks. Run the acceptance command printed by check; existing npm scripts remain application-owned.
+->>>>>>> c4386f8f84 (snapback4: keep exact selector evidence compressed beside readable summaries)
+ 
+ ## 0.4.46
+ 
+
+diff --git a/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md b/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+index 71f5e87815..08935f206e 100644
+--- a/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
++++ b/llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+@@ -7,7 +7,6 @@
+ **Date:** 2026-10-14
+ **Revised:** 2026-10-28 (LAT4 command/runner costs); 2026-10-27 (LAT3 §18: proof command startup); 2026-10-26 (DX12 §17, Muse and fresh Codex reviewed); 2026-10-24 (DX9 wave-26 and DX10 §16 amendments; Muse and fresh Codex READY); 2026-10-23 (DX8: corroborated duplicate strace listener representation, §8); 2026-10-18 (DAY5 amendments; KIT4 clock, proof and test contracts); 2026-10-17 (KIT3 proof and clock contracts); 2026-10-16 (REG missing frontend export diagnostic; §11: wave-14 DAY4); 2026-10-16 (§9: wave-13 DAY3; §10: wave-13 KIT2); 2026-10-16 (§8: explicit platform boundary and client-source guard); 2026-10-15 (§8: wave-12 KIT and observational listener qualification)
+ 
+-**Revised:** 2026-10-28 (SCAF1 §19: generated proof packet); 2026-10-27 (LAT3 §18: proof command startup); 2026-10-26 (DX12 §17, Muse and fresh Codex reviewed); 2026-10-24 (DX9 wave-26 and DX10 §16 amendments; Muse and fresh Codex READY); 2026-10-23 (DX8: corroborated duplicate strace listener representation, §8); 2026-10-18 (DAY5 amendments; KIT4 clock, proof and test contracts); 2026-10-17 (KIT3 proof and clock contracts); 2026-10-16 (REG missing frontend export diagnostic; §11: wave-14 DAY4); 2026-10-16 (§9: wave-13 DAY3; §10: wave-13 KIT2); 2026-10-16 (§8: explicit platform boundary and client-source guard); 2026-10-15 (§8: wave-12 KIT and observational listener qualification)
+ **Related:** [Starters](./3000.011.003.000-offline-ready-application-starters.rfc.md), [Release activation](./3000.000.000-retained-storage-and-hot-release.rfc.md), [Built application proof](./3000.011.005.000-qualify-the-built-application.rfc.md)
+ 
+ STAGE staging and persistent startDev defaults are amended by [LLP 3000.000.000.001](./3000.000.000.001-staging-with-real-users.rfc.md); KIT4 owns other ongoing helper changes.
+@@ -1022,13 +1021,13 @@ survives queued status updates and caller/global interception. Verbatim records
+ and hashes are under `llp/reviews/3000.011.003.000.000-lat4-r5.*`. This does not
+ accept the amendment for the author or qualify a publication.
+ 
+-## 19. Generated proof scaffolding (SCAF1)
++## 20. Generated proof scaffolding (SCAF1)
+ 
+ Implementer: Codex for Charlie Cheever, 2026-10-28. The wave-34 fix #3
+ commission authorizes a schema-bound packet under `scripts/proof-scaffold/`,
+ emitted after a green ordinary `check`. This extends the proof kit rather than
+ adding a runtime or changing authorizations. It does not replace starter npm
+-scripts. TOK4 may name the packet in the first-read recipe; VER1 owns verify,
++scripts. The start/workflow recipe names the packet; VER1 owns verify,
+ starter launchers, installation and the idle bound.
+ 
+ The packet contains editable `cases.mjs`, an acceptance runner, frontend runner,
+diff --git a/snapback4/crates/snapback4-lang/src/guide/start.md b/snapback4/crates/snapback4-lang/src/guide/start.md
+index 92623d5abf..8f5764ca94 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/start.md
++++ b/snapback4/crates/snapback4-lang/src/guide/start.md
+@@ -52,7 +52,7 @@ local calls, rather than assuming advance() freezes the server clock.
+ - package.json: EDIT business script commands; keep pinned toolchain/config.
+ - versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+ 
+-Run npm run check, acceptance and frontend:proof; verify with `npm run probe:check`.
++Start proofs from scripts/proof-scaffold/cases.mjs; run `npm run verify`.
+ probe:serve stays up until SIGTERM. An intentional harness lifetime uses --hold.
+ 
+ ## Signatures only when needed
+diff --git a/snapback4/crates/snapback4-lang/src/guide/workflow.md b/snapback4/crates/snapback4-lang/src/guide/workflow.md
+index 6940434d58..8c4063222d 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/workflow.md
++++ b/snapback4/crates/snapback4-lang/src/guide/workflow.md
+@@ -113,7 +113,15 @@ getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
+ 
+ After check, initialize as start shows. scripts/staging.mjs's seedUsers plan is
+ `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
+-Set acceptance to `node scripts/acceptance.mjs`:
++Start with scripts/proof-scaffold/cases.mjs generated by check. Fill its business
++assertions; wire its runners into the starter loop:
++
++```sh
++npm pkg set 'scripts.acceptance=node scripts/proof-scaffold/acceptance.mjs' 'scripts.frontend:proof=node scripts/proof-scaffold/frontend-proof.mjs' 'scripts.probe:serve=exec node scripts/proof-scaffold/probe-serve.mjs'
++npm run verify
++```
++
++The following application assertions illustrate the scenario to adapt:
+ 
+ ```js
+ import assert from 'node:assert/strict';
+@@ -170,6 +178,6 @@ try {
+ ```
+ 
+ Add boundaries/job catch-up; use valid args in refusal tests. Run twice.
+-Edit scripts/frontend-proof.mjs assertions; keep build/cleanup. Verify with
+-`npm run probe:check`. Keep credentials out of diaries.
++Edit the scaffold frontend assertions; keep build/cleanup. Run `npm run verify`.
++Keep credentials out of diaries.
+ Args/hooks: `guide api generated`.
+diff --git a/snapback4/crates/snapback4/src/proof_scaffold.rs b/snapback4/crates/snapback4/src/proof_scaffold.rs
+index 8fb9f5aeda..6f0542ba5a 100644
+--- a/snapback4/crates/snapback4/src/proof_scaffold.rs
++++ b/snapback4/crates/snapback4/src/proof_scaffold.rs
+@@ -1,5 +1,5 @@
+ //! Schema-bound, editable proof recipes. No new runtime or authorization analysis.
+-// @ref LLP 3000.011.003.000.000#19-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
++// @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
+ mod infer;
+ use crate::project::Project;
+ use serde_json::{Value, json};
+diff --git a/snapback4/crates/snapback4/src/verbs/init.rs b/snapback4/crates/snapback4/src/verbs/init.rs
+index 1aec20df8a..6f1c989ae9 100644
+--- a/snapback4/crates/snapback4/src/verbs/init.rs
++++ b/snapback4/crates/snapback4/src/verbs/init.rs
+@@ -414,7 +414,7 @@ pub fn init(options: &Options) -> i32 {
+         }
+     }
+     if web || expo {
+-        println!("init: verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown). `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
++        println!("init: start app proofs from scripts/proof-scaffold/cases.mjs after check; wire its runners into package.json. Verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown). `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
+         if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
+             match install_frontend(dir) {
+                 Ok(0) => println!("init: frontend dependencies ready; next: npm run verify (no install join needed)"),
+diff --git a/snapback4/crates/snapback4/src/verbs/init/proof.rs b/snapback4/crates/snapback4/src/verbs/init/proof.rs
+index ba8feed458..47b6f7e6d7 100644
+--- a/snapback4/crates/snapback4/src/verbs/init/proof.rs
++++ b/snapback4/crates/snapback4/src/verbs/init/proof.rs
+@@ -3,7 +3,7 @@
+ use serde_json::{Value, json};
+ use super::{Options, pretty};
+ 
+-const README_PROOFS: &str = "\n## Frontend proofs\n\nNew starters with a `verify` script use `npm run verify`: Quarry and TypeScript checking, acceptance,\nfrontend proof, then probe shutdown; the first failure stops the loop.\nIn those starters, `npm run check` generates the API before typechecking. Replace starter fixture\nacceptance with your application assertions in package.json.\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nNew starters include `npm run day2:proof`, saved versions and id-based conservation\nacross two rollback/forward cycles. Add authenticated business assertions at\nBUSINESS_ASSERTION_BEGIN; return deliberately v1-written table/id and changed-field lists there.\nMark deliberate deletes with deleted:true; the proof checks they stay absent.\nExisting apps can add it with `snapback4 init --adapt --day2 --apply`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
++const README_PROOFS: &str = "\n## Frontend proofs\n\nNew starters with a `verify` script use `npm run verify`: Quarry and TypeScript checking, acceptance,\nfrontend proof, then probe shutdown; the first failure stops the loop.\nIn those starters, `npm run check` generates the API before typechecking. Replace starter fixture\nacceptance with scripts/proof-scaffold/acceptance.mjs after editing cases.mjs; route frontend:proof\nand probe:serve to that packet too.\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nNew starters include `npm run day2:proof`, saved versions and id-based conservation\nacross two rollback/forward cycles. Add authenticated business assertions at\nBUSINESS_ASSERTION_BEGIN; return deliberately v1-written table/id and changed-field lists there.\nMark deliberate deletes with deleted:true; the proof checks they stay absent.\nExisting apps can add it with `snapback4 init --adapt --day2 --apply`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+ const PREVIOUS_46_README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nNew starters include `npm run day2:proof`, saved versions and id-based conservation\nacross two rollback/forward cycles. Add authenticated business assertions at\nBUSINESS_ASSERTION_BEGIN; return deliberately v1-written table/id and changed-field lists there.\nMark deliberate deletes with deleted:true; the proof checks they stay absent.\nExisting apps can add it with `snapback4 init --adapt --day2 --apply`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+ const PREVIOUS_40_README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nDay-two scaffolding is opt-in: `snapback4 init --adapt --day2 --apply` captures\ncurrent sources and fixtures in versions/v1 and versions/v2 and adds day2:proof.\nReplace its BUSINESS_ASSERTION_BEGIN block before running `npm run day2:proof`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+ const PREVIOUS_30_README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nRun\n`npm run frontend:proof` (it builds its own dist) to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof` proves saved-source deploy,\nrollback and compatible forward using versions/v1 and versions/v2. Replace the marked business assertion before it can pass.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";

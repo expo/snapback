@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+Review complete. Verified SHA256 `3ab2d78…` matches, and checked each resolution hunk against current source in `/home/ccheever/projects/snapback-sb4loop` (HEAD `3a81d3f19` plus the working-tree ordinary diff).
+
+What the resolution gets right:
+
+- [release_bridge.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/release_bridge.rs): LAT4 `release_compile::compile` kept with the REL4 `rollback_hides` clause and REL4 `@ref` intact (lines 348–350). Fresh reads and security/live admission untouched.
+- [main.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/main.rs): explain→verbose and test→all mappings retained, and LAT4 `startup.step("cli.startup")` also retained (lines 84–87). CALLS1 diagnostic evidence preserved.
+- [verbs.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs.rs): both `pub(crate) mod promote` and `mod release_compile` present (lines 1372–1373).
+- [day2-proof.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs): `uniqueName` import retained and `runProofSuite` wrapper added (lines 9–11). Correct union, not a replacement.
+- [releases.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/releases.rs): `CompilationReuse` + `Scope` + timing coexist; `report_reclaim`, `security_envelope`, `enforce_release` with adoption-unchanged wording, `activation_qualified`, and the refusal-first mapping (`E_SECURITY_` / activation / compilation / adoption preflight, lines 635–638) all present. REL4 adoption-before-security ordering intact.
+- VER1: both init tests moved intact to [tests/init/ver1.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/tests/init/ver1.rs), wired via `#[path]` (init.rs:1395–1396), JSON helpers (`test_case_counts`, `test_report`) replacing human rendering, no duplication in `init.rs`.
+- [publication-security.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-security.mjs): `startStaging` assert and the 8001-byte first-read budget assert retained (lines 133, 143).
+- Final ordinary diff: §19 LAT4 / §20 SCAF1 both present, duplicate `Revised` line removed, TOK4→start/workflow corrected, `proof_scaffold.rs` `@ref` updated to `#20`, and start.md / workflow.md (with `npm pkg set` runner wiring) / init print / README proofs all agree: scaffold `cases.mjs` is the starting point, `npm run verify` is the loop. CHANGELOG wording preserves opt-in app-owned scripts and hash-preserved edits.
+
+Blocking finding: the §19→§20 renumbering is incomplete. [publication-scaf1.mjs:1](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-scaf1.mjs) still reads `@ref LLP 3000.011.003.000.000#19-generated-proof-scaffolding-scaf1`, but §19 is now LAT4 "Explicit proof completion" — the ref resolves to the wrong section. It was correct before the renumber (file predates it, SCAF1 lane), and the ordinary diff updated `proof_scaffold.rs` but missed this one. Repo-wide grep confirms it is the only stale `#19-generated-proof-scaffolding` ref. One-line fix: `#19` → `#20`.
+
+VERDICT: NOT READY

@@ -1,0 +1,23 @@
+{
+  "reviewedDiff": "resolution.diff",
+  "reviewedDiffSha256": "3ab2d78041677d01ab36915ea818fb13a3affcb87ce53545579469574384cb27",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "freshSession": true,
+    "verdict": "NOT READY",
+    "findings": [
+      "active scaffold frontend callback path",
+      "unheld idle probe lifetime"
+    ]
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "verdict": "NOT READY",
+    "findings": [
+      "stale publication-scaf1 section19 ref after SCAF1 renumbering"
+    ]
+  },
+  "disposition": "All three findings corrected in 23db85ac16. Explicitly preserve original verdicts; no synthetic READY or unreceived review. Build also exposed an obsolete report_reclaim call, removed in bump541ff6a12d because main emits that notice during acquisition. Final focused tests will qualify repairs."
+}
