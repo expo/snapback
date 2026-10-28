@@ -109864,3 +109864,24 @@ fallback. The marker design combines an exact backend format with an extra
 owner column, so old public owners refuse before claiming. Clock samples
 can trip on observed skew/suspend but cannot prove future behavior; automatic
 G6 still requires an enforced deployment clock contract. Defaults are unchanged.
+
+## 2026-10-28 — LAT4: deploy materialization and finite proof completion
+
+Opt-in native phase checkpoints now resolve startup, store open, staged source,
+retained matching, rollback registry, preview, activation/backfills, durable
+release/pointer work and output. Repeated release and bridge compilation shares
+one bounded command-local cache keyed on the complete ordered filename/source
+vector. Every source read, live admission, digest, registry, preview and CAS still
+runs; no store, release selection or campaign result is cached. Legacy pointer
+initialization keeps its old fallback. LLP 3000.000.000 §23 records the boundary.
+
+Generated finite frontend/day-two suites explicitly await their full body and
+cleanup through the separate proof runner. Custom suites opt in explicitly;
+module import, a success line and elapsed time never certify completion. Awaited
+unref work remains live. Reports drain before exit with the suite status; one
+line names lingering resource types/counts without their contents. No service
+entry point changes lifetime. LLP 3000.011.003.000.000 §19 records this boundary.
+Independent review caught a custom frontend scaffold truncation and unref await
+liveness; parser/status/drain/timer regressions cover the fixes. Measurements,
+complete store/release comparison and final review disposition remain in the
+LAT4 workstream report, not a publication qualification claim.
