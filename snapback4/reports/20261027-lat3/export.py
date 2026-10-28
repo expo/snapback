@@ -1,5 +1,5 @@
 """Retain numerical evidence and hashes; private app credentials/logs stay in /tmp."""
-import argparse, hashlib, json, pathlib, subprocess, sys
+import argparse, hashlib, json, pathlib, runpy, sys
 sys.dont_write_bytecode = True
 from replay import messages, SCRATCH, ROOT, HERE, PACK
 
@@ -7,7 +7,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--out', type=pathlib.Path, required=True)
 a = ap.parse_args()
 a.out.mkdir(parents=True, exist_ok=True)
-subprocess.run([sys.executable, str(HERE/'summarize.py'), '--out', str(SCRATCH/'final-summary.json')], check=True)
+original_argv=sys.argv
+sys.argv=['summarize.py','--out',str(SCRATCH/'final-summary.json')]
+comparison=runpy.run_path(str(HERE/'summarize.py'))
+sys.argv=original_argv
+normalize=comparison['failure_messages']
 summary = json.loads((SCRATCH/'final-summary.json').read_text())
 if summary['setupErrors'] or summary['exitDifferences'] or summary['clientCallDifferences'] or summary['missingClientCallVectors'] or summary['messageDifferenceCount']:
     raise SystemExit('Resolve/classify identity differences before exporting a green receipt')
@@ -50,12 +54,16 @@ for key, r in sorted(rows.items()):
         x[variant] = {k:result[k] for k in keys if k in result}
         name = r['script'].replace(':', '-').replace('/', '-')
         path = SCRATCH/'corpus-logs'/f"w{r['wave']}-{r['lane']}"/f'{name}-{variant}.log'
-        encoded = json.dumps(messages(path), separators=(',', ':')).encode()
+        extracted=messages(path)
+        encoded = json.dumps(extracted, separators=(',', ':')).encode()
         x[variant]['extractedMessageSha256'] = hashlib.sha256(encoded).hexdigest()
+        x[variant]['normalizedMessageSha256'] = hashlib.sha256(json.dumps(normalize(extracted),separators=(',',':')).encode()).hexdigest()
         if result.get('clientInputDigest') != result.get('clientOutputDigest'):
             mutated.append([*key, variant])
         if result.get('nativeTraceError'):
             trace_errors.append([*key, variant])
+    if x['before']['normalizedMessageSha256']!=x['after']['normalizedMessageSha256']:
+        raise SystemExit(f'Failure messages changed during export: {key}')
     safe.append(x)
 if mutated or trace_errors:
     raise SystemExit(f'Input mutation/trace parse errors: {mutated}, {trace_errors}')
