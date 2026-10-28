@@ -215,7 +215,11 @@
       "acceptanceUsesScaffold": false,
       "frontendUsesScaffold": false
     },
-    "copiesRemoved": true
+    "copiesRemoved": true,
+    "parsedCalls": 119,
+    "parsedInput": 12595509,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
   },
   {
     "phase": "v46",
@@ -614,6 +618,10 @@
       "acceptanceUsesScaffold": false,
       "frontendUsesScaffold": false
     },
-    "copiesRemoved": true
+    "copiesRemoved": true,
+    "parsedCalls": 117,
+    "parsedInput": 16461744,
+    "scaffoldReadTools": 6,
+    "scaffoldReadInputCost": 1051063.0
   }
 ]
