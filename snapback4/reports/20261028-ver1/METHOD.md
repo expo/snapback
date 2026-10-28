@@ -40,3 +40,16 @@ runPlan executor for the explicit affected starter/proof/installer tests and
 required docs, generated, inventory and ref checks. This is marked as scoped,
 never a complete battery or publication qualification. Packed consumer-only
 qualification remains a separate requested command; Mac is skipped.
+
+Final scope notes: the complete guide run has two byte-identical inherited
+budget reds, now named exclusions. Stale start/staging and short-README API-tour
+consumer assertions were repaired to follow the already implemented workflow
+route, without changing first-read content. Root dependencies were restored
+with bun install --frozen-lockfile after a missing-install precondition.
+Baseline archive packing needed dist/guide-api created before its first build;
+that generator follow-up is ticketed.
+
+Replay artifacts bind the runtime source f6a86a6cce / snapshot 5220560b91.
+Consumer-only qualification passed on 062c2e15db with its own frozen client/Expo
+inputs and generated musl tarball. Later changes are test/report/reference-only;
+no publication qualification or exact-final-HEAD release claim is made.

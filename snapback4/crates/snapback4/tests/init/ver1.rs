@@ -96,7 +96,7 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
     fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
     fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"all\",\"args\":{},\"count\":1}\n").unwrap();
     let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--json", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
-    let stderr = String::from_utf8_lossy(&tested.stderr);
+    let stderr = test_report(&tested);
     assert!(tested.status.success(), "{tested:?}");
     assert_eq!(test_case_counts(&tested.stdout), (1, 0), "{tested:?}");
     assert!(stderr.contains("WARNING: skipped fixtures/todos.jsonl") && stderr.contains("snapback4 init --adapt"), "{stderr}");
@@ -104,12 +104,12 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
     fs::write(dir.0.join("fixtures/todos.jsonl"), format!("{}{{\"id\":\"todo-eggs\",\"title\":\"Eggs\",\"done\":false,\"ownerId\":\"dev:alice\"}}\n", fs::read_to_string(starter.0.join("fixtures/todos.jsonl")).unwrap())).unwrap();
     let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--json", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success());
-    assert!(String::from_utf8_lossy(&tested.stderr).contains("todo starter's sample"), "{tested:?}");
+    assert!(test_report(&tested).contains("todo starter's sample"), "{tested:?}");
     // Any other file for a missing table refuses the run.
     fs::remove_file(dir.0.join("fixtures/todos.jsonl")).unwrap();
     fs::write(dir.0.join("fixtures/note.jsonl"), "{\"id\":\"n2\",\"body\":\"typo\"}\n").unwrap();
     let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--json", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
-    assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("note.jsonl names no table"), "{tested:?}");
+    assert!(!tested.status.success() && test_report(&tested).contains("note.jsonl names no table"), "{tested:?}");
 }
 
 // Machine consumers read TOK2's complete evidence, independent of presentation.
@@ -117,4 +117,9 @@ fn test_case_counts(stdout: &[u8]) -> (u64, u64) {
     let report: serde_json::Value = serde_json::from_slice(stdout).unwrap();
     let cases = report["evidence"].as_array().unwrap().iter().find_map(|e| e.get("cases")).unwrap();
     (cases["passed"].as_u64().unwrap(), cases["failed"].as_u64().unwrap())
+}
+
+fn test_report(output: &std::process::Output) -> String {
+    let body: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    format!("{}{}", body["report"].as_str().unwrap(), String::from_utf8_lossy(&output.stderr))
 }

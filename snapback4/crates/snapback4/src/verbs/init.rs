@@ -189,6 +189,7 @@ pub fn init(options: &Options) -> i32 {
         if (web || expo) && *name=="README.md" {*text=text.replace("npm install","node scripts/install.mjs");}
     }
     if web || expo {
+        // @ref LLP 3000.037.000#14-wave-34-one-verify-loop-ver1 — explicit deferred installs detach their owner, not only the IPC worker.
         files.push(("scripts/install.mjs", include_str!("init/install.mjs").into()));
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
         if let Err(error) = proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape, options.flags.contains_key("day2")) {eprintln!("init proof capture: {error}");return 2;}
