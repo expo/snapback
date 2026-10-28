@@ -19,12 +19,19 @@ def canonical(path):
 def artifacts(app):
  result={}
  for p in sorted((app/'deploy/releases').rglob('*')):
-  if p.is_file() and not p.is_symlink():
+  if p.is_symlink():
+   result['@symlink/'+str(p.relative_to(app/'deploy/releases'))]=hashlib.sha256(os.readlink(p).encode()).hexdigest()
+  elif p.is_file():
    b=p.read_bytes()
    # worker-package.json intentionally records the relocated host package root.
    # Both variants run at the same app path in this identity control, so no
    # normalization is necessary even for this location record.
    result[str(p.relative_to(app/'deploy/releases'))]=hashlib.sha256(b).hexdigest()
+ # SQLite's release metadata is not the whole compatibility custody surface.
+ # Compare the legacy deployment pointer/journal too, at the same private path.
+ for name in ['current','releases.jsonl','.deployed-schema']:
+  p=app/'deploy'/name
+  if p.exists():result['@deployment/'+name]=hashlib.sha256(p.read_bytes()).hexdigest()
  return result
 
 def execute(binary,app,args,log,clock):
