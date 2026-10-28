@@ -58,7 +58,7 @@ test('packed CLI propagates command status and literal withServeScript guide rec
  mkdirSync(join(cwd,'node_modules'));symlinkSync(join(pack,'package'),join(cwd,'node_modules/snapback4'));
  const module=pathToFileURL(join(pack,'package/dist/proof.js')).href;
  script(cwd,`import {startServe,serveUntilSignal} from ${JSON.stringify(module)}; const host=await startServe('production'); console.log(JSON.stringify({backendUrl:host.url})); await serveUntilSignal([host]);`);
- const result=await command(process.execPath,[join(pack,'package/bin/snapback4.js'),'serve-check','--deployment','production','--script','probe:serve','--then','node -e "process.exit(7)"'],{cwd,env,secret:true});
+ const result=await command(process.execPath,[join(pack,'package/bin/snapback4.js'),'serve-check','--json','--deployment','production','--script','probe:serve','--then','node -e "process.exit(7)"'],{cwd,env,secret:true});
  assert.equal(result.code,7,result.stderr);assert.equal(JSON.parse(result.stdout).commandCode,7);
  const guide=readFileSync(join(root,'crates/snapback4-lang/src/guide/testing.md'),'utf8');
  const block=guide.split('<!-- DX12 RUN SERVE BEGIN -->')[1].match(/```js\n([\s\S]*?)```/)[1];writeFileSync(join(cwd,'run.mjs'),block);

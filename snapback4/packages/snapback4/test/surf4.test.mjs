@@ -23,7 +23,7 @@ test('serve canonical ready wait, active/working hashes and confirmed socket clo
  const host=await startServe('deployment',{cwd,timeoutMs:30000});
  try {
   const log=readFileSync(host.logs.stderr,'utf8');assert.match(log,/SNAPBACK4_READY verb=serve/);
-  const hashes=log.match(/active schema ([a-f0-9]+), working schema ([a-f0-9]+)/);assert.ok(hashes,log);assert.notEqual(hashes[1],hashes[2]);
+  const hashes=log.match(/active schema ([a-f0-9]+) differs from working schema ([a-f0-9]+)/);assert.ok(hashes,log);assert.notEqual(hashes[1],hashes[2]);
  }finally{await host.stop();}
  assert.match(readFileSync(host.logs.stderr,'utf8'),/SNAPBACK4_SOCKET_CLOSED verb=serve.*socket closed/);
  assert.equal(await stopped(host),true);
