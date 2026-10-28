@@ -1,0 +1,497 @@
+{
+  "qualification": false,
+  "purpose": "Complete tail-boundary coverage only; primary timing rows remain unchanged.",
+  "orderedRoots": [
+    "/tmp/lat4/primary-complete",
+    "/tmp/lat4/tail-supplement",
+    "/tmp/lat4/tail-supplement34",
+    "/tmp/lat4/tail-ts-correction"
+  ],
+  "superseded": [
+    {
+      "key": [
+        32,
+        "006-snapback-turntable-servicing",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "006-snapback-turntable-servicing",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "006-snapback-turntable-servicing",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "031-snapback-kitchen-hood-cleanings",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "031-snapback-kitchen-hood-cleanings",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "031-snapback-kitchen-hood-cleanings",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "008-snapback-retaining-wall-repairs",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "008-snapback-retaining-wall-repairs",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "008-snapback-retaining-wall-repairs",
+        "day2:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "008-snapback-retaining-wall-repairs",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "014-snapback-ceiling-draping-installs",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "014-snapback-ceiling-draping-installs",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "014-snapback-ceiling-draping-installs",
+        "day2:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "014-snapback-ceiling-draping-installs",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "008-snapback-retaining-wall-repairs",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "008-snapback-retaining-wall-repairs",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "008-snapback-retaining-wall-repairs",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "006-snapback-turntable-servicing",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "006-snapback-turntable-servicing",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "006-snapback-turntable-servicing",
+        "day2:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "006-snapback-turntable-servicing",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "013-snapback-life-jacket-inspections",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "013-snapback-life-jacket-inspections",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "013-snapback-life-jacket-inspections",
+        "day2:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "013-snapback-life-jacket-inspections",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "031-snapback-kitchen-hood-cleanings",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "031-snapback-kitchen-hood-cleanings",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "031-snapback-kitchen-hood-cleanings",
+        "day2:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        33,
+        "031-snapback-kitchen-hood-cleanings",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        34,
+        "035-snapback-real-estate-photo-shoots",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        34,
+        "035-snapback-real-estate-photo-shoots",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        34,
+        "035-snapback-real-estate-photo-shoots",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/primary-complete",
+      "revision": 1,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 1,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "014-snapback-ceiling-draping-installs",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "acceptance"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 0,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "frontend:proof"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 1,
+      "afterCode": 0
+    },
+    {
+      "key": [
+        32,
+        "013-snapback-life-jacket-inspections",
+        "probe:serve/client:calls"
+      ],
+      "root": "/tmp/lat4/tail-supplement",
+      "revision": 5,
+      "beforeCode": 1,
+      "afterCode": 0
+    }
+  ],
+  "pairs": 400
+}

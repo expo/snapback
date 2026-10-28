@@ -1,0 +1,125 @@
+{
+  "qualification": false,
+  "artifacts": [
+    {
+      "path": "/tmp/lat4/packs-final/snapback4-0.4.45.tgz",
+      "sha256": "a0cfe6f1194c5facbcfd52e4b44777870e9a8830a6435cd986d8eb5d1b769824"
+    },
+    {
+      "path": "/tmp/lat4/packs-final/snapback4-linux-x64-0.4.45.tgz",
+      "sha256": "20bef54ffa0be020b8ce13f4e5db23c84adac4ff2c8c8b9c78a074535738c6b0"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/reports/integration29/packs-release/snapback4-expo-0.4.45.tgz",
+      "sha256": "ea8f448ee8e2984f05fca3cba9735cc8165e7e7b63b24b8e0c8eb4d5af9386fb"
+    }
+  ],
+  "results": [
+    {
+      "name": "starters",
+      "status": "failed",
+      "seconds": 33.534741849,
+      "message": "E_PROOF_LISTENER: unrecognized syscall: ???(2439282 ???(2439239 +++ exited with 0 +++"
+    },
+    {
+      "name": "proof-kit",
+      "status": "passed",
+      "seconds": 15.256217031,
+      "result": {
+        "status": "passed",
+        "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+        "wire": "literal first section, actual packed CLI trace",
+        "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+        "aliases": "array index path through packed test"
+      }
+    },
+    {
+      "name": "staging",
+      "status": "passed",
+      "seconds": 6.4666914189999956,
+      "result": {
+        "status": "passed",
+        "guide": "staging",
+        "recipes": "verbatim installed card",
+        "roles": {
+          "admin": 2,
+          "member": 2
+        },
+        "mode": "serve",
+        "realPasswordLogin": "passed",
+        "data": "passed",
+        "selfGrant": "refused",
+        "productionBulkSeed": "refused before mint",
+        "productionRelabel": "refused",
+        "firstAdmin": "passed",
+        "privateCredentials": "0600"
+      }
+    },
+    {
+      "name": "production",
+      "status": "passed",
+      "seconds": 45.032544934,
+      "result": {
+        "status": "passed",
+        "starters": [
+          {
+            "kind": "web",
+            "cwd": "/tmp/lat4/consumers/production/production-web",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/web/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/web/App.tsx src/App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/web/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/web",
+              "npm run typecheck",
+              "npm run build"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          },
+          {
+            "kind": "expo",
+            "cwd": "/tmp/lat4/consumers/production/production-expo",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/expo/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/expo/App.tsx App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/expo/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/expo",
+              "npm run typecheck",
+              "npm run build:web"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          }
+        ],
+        "realAccounts": "passed",
+        "browserRecipes": "passed",
+        "adaptation": [
+          {
+            "kind": "persona-only starter",
+            "status": "passed",
+            "preview": "unchanged",
+            "apply": "compiled",
+            "frontend": "unchanged",
+            "identity": [
+              "use identity"
+            ],
+            "writers": [
+              "bootstrapstaffRole1",
+              "bootstrapstaffRole2"
+            ],
+            "idempotent": true,
+            "alreadyProvisioned": false
+          }
+        ]
+      }
+    }
+  ]
+}

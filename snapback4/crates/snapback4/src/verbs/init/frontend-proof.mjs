@@ -6,7 +6,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { command, startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
 
+import { runProofSuite } from "snapback4/proof-runner";
 // SHARED_IMPORT
+await runProofSuite(async () => {
 
 // For SVG/foreignObject controls, click the actual rendered box, not a text
 // descendant whose DOM geometry Playwright may interpret differently.
@@ -64,3 +66,5 @@ try {
   // KEEP REGION: proof result and cleanup.
   console.log("frontend:proof passed");
 } finally { await cleanup(() => web?.stop(), () => dev.stop()); }
+
+});

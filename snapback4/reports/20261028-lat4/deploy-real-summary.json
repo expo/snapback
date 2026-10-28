@@ -1,0 +1,70 @@
+{
+  "qualification": false,
+  "rows": 120,
+  "setupErrors": [],
+  "explicitlySupersededAttempts": [],
+  "literalOutputEqual": 47,
+  "allStoreDumpsEqual": false,
+  "allReleaseFilesEqual": false,
+  "outputDifferencesBeyondDeclaredElapsedFields": [
+    {
+      "lane": "008-snapback-retaining-wall-repairs",
+      "scenario": "reactivate"
+    },
+    {
+      "lane": "008-snapback-retaining-wall-repairs",
+      "scenario": "new-release"
+    }
+  ],
+  "nonSecuritySeconds": {
+    "new-release": {
+      "before": {
+        "n": 40,
+        "median": 1.2606720250299976,
+        "p90": 2.970089756979256,
+        "max": 8.28807128513107
+      },
+      "after": {
+        "n": 40,
+        "median": 0.42398401809533803,
+        "p90": 0.7936342079465151,
+        "max": 1.4357221310492978
+      }
+    },
+    "reactivate": {
+      "before": {
+        "n": 39,
+        "median": 1.9040509139493134,
+        "p90": 4.082166547832372,
+        "max": 9.979306412943936
+      },
+      "after": {
+        "n": 39,
+        "median": 0.5550067951624249,
+        "p90": 0.9171544959295677,
+        "max": 1.034794170021674
+      }
+    },
+    "unchanged": {
+      "before": {
+        "n": 40,
+        "median": 1.1906805739292685,
+        "p90": 2.813536189959689,
+        "max": 7.534519676004088
+      },
+      "after": {
+        "n": 40,
+        "median": 0.245330803997392,
+        "p90": 0.5471656810344481,
+        "max": 0.8842894690586349
+      }
+    }
+  },
+  "notes": [
+    "Full canonical store dumps include every table, column, row and metadata field; no normalization.",
+    "Only successful JSON strings at adoption, details and preview.phases project numeric ms durations. Literal hashes remain. No error, assertion, id, rule, count, timestamp or refusal is normalized.",
+    "Clock-controlled identity is distinct from unmodified-realtime wall-time qualification.",
+    "Uncontrolled REALTIME differs between runs. These cases qualify timing only; full identity is established separately in deploy-identity.json. Two wave33/008 security notice differences are time-sensitive witness text; no status differs."
+  ],
+  "identityQualification": false
+}

@@ -168,10 +168,11 @@ fn current(dir: &Path, owner: &Owner) -> Result<Option<u64>, String> {
 }
 pub(super) fn bound_at(root: PathBuf) -> Result<snapback4_lang::Bound, String> {
     let project = Project { root };
-    if project.sources().map_err(|e| e.to_string())?.is_empty() {
+    let sources=phase::measure("release.source_read", || project.sources()).map_err(|e| e.to_string())?;
+    if sources.is_empty() {
         return Err("release has no Quarry source; select a complete immutable release".into());
     }
-    let bound = project.compile().map_err(|e| e.to_string())?;
+    let bound = super::release_compile::compile(&sources);
     if !bound.diagnostics.is_empty() {
         return Err(bound
             .diagnostics
@@ -302,6 +303,7 @@ fn activate(
     options: &Options,
     mut candidate: Option<&mut crate::release_files::Candidate>,
 ) -> Result<(), String> {
+    let mut timing=phase::Sequence::new();
     let selection_error=|error:String|if error.contains("E_ADOPT") {format!("{error}; operation: {} to release {release} from release {}",if rollback{"rollback"}else{"deploy"},previous.map(|n|n.to_string()).unwrap_or_else(||"none".into()))}else{error};
     let root = dir.join("releases").join(release.to_string());
     validate_registered_view(dir,&root)?;
@@ -322,9 +324,11 @@ fn activate(
             native_digest: prepared.installed.as_ref().map(|m| m.digest.clone()),
             operation: if rollback { "rollback" } else { "deploy" }.into(),
         };
+        timing.step("deploy.activate.prepare_fsync");
         let store = owner
             .open_store(std::time::Duration::from_secs(5))
             .map_err(|e| e.to_string())?;
+        timing.step("deploy.activate.store_open");
         let engine = snapback4_core::Engine::new_release_prepared(
             store,
             bound.schema,
@@ -333,7 +337,9 @@ fn activate(
             allow_feed_adoption,
         )
         .map_err(|e| selection_error(e.to_string()))?;
+        timing.step("deploy.activate.adoption_backfills");
         pointer.finish(engine.generation())?;
+        timing.step("deploy.activate.pointer_fsync");
         receipt(release,engine.generation(),engine.store().adoption_report(),options, &live_identity(dir, release)?);
 
     } else {
@@ -389,6 +395,8 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
 
 pub fn deploy(options: &Options) -> i32 {
     let _compilation_reuse = snapback4_lang::CompilationReuse::new();
+    let _compile_scope=super::release_compile::Scope::new();
+    let mut timing=phase::Sequence::new();
     match crate::store_config::StoreConfig::resolve(options) {
         Ok(Some(config)) => return report("deploy", super::configured_release::deploy(options, config)),
         Err(error) => return report("deploy", Err(error)),
@@ -406,6 +414,8 @@ pub fn deploy(options: &Options) -> i32 {
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
             let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
+            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
+            timing.step("deploy.owner_store_status");
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             security_sources=Some((project.root.clone(),sources.clone()));
@@ -425,17 +435,21 @@ pub fn deploy(options: &Options) -> i32 {
                 if dir.join("store.sqlite").exists() {snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
                 else {serde_json::json!({"release":null,"revision":0,"generation":1})}
             } else {held.expect("live activation target status")};
-            let previous = if let Some(owner) = _deployment.as_ref() {
+            let previous = if let Some(release) = held["release"].as_u64() {
+                Some(release)
+            } else if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
                 held["release"].as_u64()
             };
             // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — a legacy filesystem pointer is source context, not a persisted live predecessor.
             let activation_previous=held["release"].as_u64();
+            timing.step("deploy.source_materialization");
             security_summary={
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
                 phase::measure("deploy.security", || super::security::release_loop(&project,&bound,&sources,prior.as_ref(),previous.map(|n|Project{root:dir.join("releases").join(n.to_string())}.sources()).transpose().map_err(|e|e.to_string())?.as_deref(),options))?
             };
+            timing.step("deploy.security_envelope");
             let baseline=crate::client_compatibility::report(&project,&bound).map_err(|e|e.to_string())?.1;
             let mut options=options.clone();
             options.flags.insert("client-baseline-advice".into(),serde_json::to_string(&baseline).unwrap());
@@ -482,6 +496,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             crate::dev_worker::package_entry(build_project, &stage)?;
+            timing.step("deploy.stage_materialization");
             let staged_digest = crate::release_files::executable_digest(&stage)?;
             let mut matching = std::fs::read_dir(&releases).map_err(|e|e.to_string())?
                 .filter_map(Result::ok).filter_map(|e| e.file_name().to_str()?.parse::<u64>().ok())
@@ -494,6 +509,7 @@ pub fn deploy(options: &Options) -> i32 {
                     matched.get_or_insert(n);source_origin=Some(n);source_matches.push(n);
                 }
             }
+            timing.step("deploy.retained_matching");
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound=bound_at(stage.clone())?;
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
@@ -506,6 +522,7 @@ pub fn deploy(options: &Options) -> i32 {
             for candidate in source_matches {
                 if !super::rollback_views::needs_registration(&dir,Some(candidate),&views)? {matched=Some(candidate);break;}
             }
+            timing.step("deploy.rollback_registry");
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
             if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             if let Some(previous)=previous {
@@ -529,6 +546,8 @@ pub fn deploy(options: &Options) -> i32 {
                 if checking { return Ok(()); }
                 activation_qualified=true;
                 let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
+            timing.step("deploy.preview");
+
                 let selected = bound_at(releases.join(n.to_string()))?;
                 activate(&dir,_deployment.as_ref(),n,activation_previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
                 if let Some(saved)=&mut saved_version {saved.finish(n,&source_hash)?;}
@@ -544,12 +563,14 @@ pub fn deploy(options: &Options) -> i32 {
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
             }
+            timing.step("deploy.pre_preview");
             let mut validation=options.clone();
             validation.flags.insert("enforce-security-after-adoption".into(),String::new());
             validation.flags.insert("deploy-direction".into(),String::new());
             validation.flags.insert("validation-only".into(),String::new());
             let details=super::release_preview::plan(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation,_deployment.as_ref())?;
             activation_qualified=true;
+            timing.step("deploy.preview");
             let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
             if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
             n=n.checked_add(1).ok_or("release identity exhausted")?;
@@ -570,6 +591,7 @@ pub fn deploy(options: &Options) -> i32 {
             std::fs::File::open(&releases)
                 .and_then(|f| f.sync_all())
                 .map_err(|e| e.to_string())?;
+            timing.step("deploy.release_write_fsync");
             let result=activate(
                 &dir,
                 _deployment.as_ref(),
@@ -583,6 +605,7 @@ pub fn deploy(options: &Options) -> i32 {
                 options,
                 Some(&mut candidate),
             );
+            timing.step("deploy.activation");
             installed_views.pending=candidate.pending;
             match result {
                 Ok(()) => {
@@ -613,14 +636,17 @@ pub fn deploy(options: &Options) -> i32 {
         else if activation_qualified {format!("{error}; first failure: activation; adoption preflight and security gate passed")}
         else if failure_problems.is_some(){format!("{error}; first failure: compilation; adoption and security gate not run")}
         else{format!("{error}; first failure: adoption preflight; security gate not enforced")});
+    timing.step("deploy.selection_completion");
     if result.is_ok()&&!options.flags.contains_key("check"){if let Some((root,sources))=&security_sources{super::security::remember_write_release(&Project{root:root.clone()},sources);}}
+    timing.step("deploy.security_bookkeeping");
     if !options.json {
         if result.is_err() && failure_problems.is_none() {eprintln!("deploy verdict: REFUSED; {}",super::security::release_verdict(security_summary.as_ref()));}
         super::security::print_release(security_summary.as_ref());
 
     }
     if options.json {if let Err(error)=&result {println!("{}",serde_json::json!({"ok":false,"message":error,"dormant":failure_inventory,"compilation":failure_problems,"security":security_summary.as_ref().and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}}
-    report("deploy",result)
+    timing.step("deploy.output");
+    phase::measure("deploy.report_output", || report("deploy",result))
 }
 
 fn already_live(dir:&Path,active:u64,options:&Options)->Result<(),String>{
@@ -631,6 +657,7 @@ fn already_live(dir:&Path,active:u64,options:&Options)->Result<(),String>{
 }
 
 pub fn rollback(options: &Options) -> i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report(
         "rollback",
         (|| {
@@ -725,6 +752,7 @@ pub fn rollback(options: &Options) -> i32 {
 }
 
 pub fn releases(options: &Options) -> i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report(
         "releases",
         (|| {
@@ -1051,6 +1079,7 @@ pub(super) fn latest(dir:&Path)->Result<u64,String>{
         .max().ok_or("no complete immutable releases".into())
 }
 pub(super) fn check_release(options:&Options)->i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report("check",(|| {
         let store=PathBuf::from(options.flags.get("store").ok_or("--store required")?);
         let dir=store.parent().ok_or("store has no deployment directory")?;

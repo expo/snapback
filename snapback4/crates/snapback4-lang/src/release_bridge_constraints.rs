@@ -40,7 +40,7 @@ pub(super) fn relaxed(target:&[(String,String)],current:&[(String,String)])->boo
     let old=target.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.tables).collect::<Vec<_>>();
     if !old.iter().any(|t|!t.final_exists.is_empty()){return false;}
     let next=current.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.tables).collect::<Vec<_>>();
-    let (before,after)=(crate::compile(target),crate::compile(current));
+    let (before,after)=(crate::release_compile::compile(target),crate::release_compile::compile(current));
     if !before.diagnostics.is_empty()||!after.diagnostics.is_empty(){return true;}
     let mut identities=Identities::default();
     let mut pairs=Vec::new();

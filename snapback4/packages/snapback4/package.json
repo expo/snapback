@@ -82,6 +82,7 @@
       "import": "./dist/witness-web.js",
       "default": "./dist/witness-web.js"
     },
+    "./proof-runner": "./bin/proof-runner.js",
     "./proof": {
       "types": "./dist/proof.d.ts",
       "import": "./dist/proof.js",

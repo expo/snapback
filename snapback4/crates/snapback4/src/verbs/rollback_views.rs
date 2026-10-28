@@ -190,7 +190,7 @@ pub(super) fn prepare(
                     .join("; ")
             ));
         }
-        let compiled = snapback4_lang::compile(&bridge.sources);
+        let compiled = super::release_compile::compile(&bridge.sources);
         let mut aliases:std::collections::BTreeMap<String,String> = bound
             .schema
             .table_renames

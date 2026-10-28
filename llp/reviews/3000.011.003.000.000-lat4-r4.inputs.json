@@ -1,0 +1,15 @@
+{
+  "commit": "b4e27f542028deda8e6f683ec796343dda04fc22",
+  "briefSha256": "c65dff1a1747a7adb45d54f2da99c26f8101751bbd7ba49a8d14786e0202b0a5",
+  "paths": {
+    "snapback4/packages/snapback4/bin/proof-runner.js": "5ae75388c5e6039af24989a1baf53ddbac59ece8e4c9b5a0bfa3ecf9d5a2e939",
+    "snapback4/packages/snapback4/bin/proof-runner.d.ts": "5623e0528eca25131da19040bedcbcafb46aa83f6eef32dd84c4933ea40651ec",
+    "snapback4/packages/snapback4/test/proof-runner.test.mjs": "439788e2678d1fc563ff0044c6c18ba0b39879b2c522debf752df90aa453aa61",
+    "snapback4/crates/snapback4/src/verbs/phase.rs": "94677a82a9991e6c7b28415eef529701135a1ee8b71d85b5f74ab1807d67f475"
+  },
+  "reviewers": {
+    "codex": "fresh gpt-6.1-sol high, exact user exec command",
+    "muse": "muse-spark-1.3-contributor high, user muse-exec helper"
+  },
+  "disposition": "Codex found queued exitCode reset could mask an intercepted failure during drain. Fixed by immutable failed-status selection in 83cbe699c0; both interception regressions pass. Muse verdict remains verbatim on its supplied preceding snapshot. No author acceptance or publication claim."
+}

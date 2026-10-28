@@ -110185,3 +110185,23 @@ The incoming Postgres read-index reference introduced a checkout-only LLP citati
 Complete affected CLI/core/language crates,40clientfiles and root checks pass on the engine source after the documented root-hoist retry. Incoming-main checks preserve their literal guide/path-list failures, corrected by134/134 guide tests and10actual HTTP/proof/client files (154pass/3existing skips). All other incoming Rust targets/root checks pass; feature-gated Postgres core tests compile. Complete packed R4 consumer-only qualification passes Ubuntu/Alpine, all helpers/starters/frontends/audits and Expo configuration-merging regressions. Its engine/SDK/proof code is unchanged by the final guide-only prose repair; a fresh packed old/new guide counterexample and shipping reading qualify the actual final native cd4f6de0 bytes. The earlier packed attempt omitted the bounded continuation and correctly failed its contract-presence assertion; the corrected proof reads both sections. No paragraph was dropped, and no assertion or budget changed.
 
 Shipping reading is2937day-one tokens and10092/8564/11577/10969day-two strict totals, counting the whole current check output. Ordinary short difftest passes2000cases/120026executions/nineoracles with zero differences. Lean run-lean retains literal exit1 and18known open model-contract observations with all16saved-case hashes/counters identical to Integration29. Wasm measures738507gzip bytes with739007budget (measurement+500). The two engine-latency tickets are closed; upload-ID deterministic presentation and residual whole-proof-loop wall time stay explicit open followups. Publication owns the complete platform/client qualification and npm release; wave35 and the Snapback-only wave34 rerun own whole-session measurement. No universal security or whole-session improvement claim follows.
+## 2026-10-28 — LAT4: deploy materialization and finite proof completion
+
+Opt-in native phase checkpoints now resolve startup, store open, staged source,
+retained matching, rollback registry, preview, activation/backfills, durable
+release/pointer work and output. Repeated release and bridge compilation shares
+one bounded command-local cache keyed on the complete ordered filename/source
+vector. Every source read, live admission, digest, registry, preview and CAS still
+runs; no store, release selection or campaign result is cached. Legacy pointer
+initialization keeps its old fallback. LLP 3000.000.000 §23 records the boundary.
+
+Generated finite frontend/day-two suites explicitly await their full body and
+cleanup through the separate proof runner. Custom suites opt in explicitly;
+module import, a success line and elapsed time never certify completion. Awaited
+unref work remains live. Reports drain before exit with the suite status; one
+line names lingering resource types/counts without their contents. No service
+entry point changes lifetime. LLP 3000.011.003.000.000 §19 records this boundary.
+Independent review caught a custom frontend scaffold truncation and unref await
+liveness; parser/status/drain/timer regressions cover the fixes. Measurements,
+complete store/release comparison and final review disposition remain in the
+LAT4 workstream report, not a publication qualification claim.

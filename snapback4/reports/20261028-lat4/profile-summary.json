@@ -1,0 +1,559 @@
+{
+  "qualification": false,
+  "matchedLAT3TargetLanes": 31,
+  "nativeInvocationCountsPerDay2": {
+    "before": {
+      "n": 31,
+      "median": 37,
+      "p90": 124,
+      "max": 178
+    },
+    "after": {
+      "n": 31,
+      "median": 37,
+      "p90": 124,
+      "max": 178
+    }
+  },
+  "day2Commands": {
+    "before": {
+      "releases": {
+        "count": 62,
+        "wallSeconds": {
+          "n": 62,
+          "median": 0.625,
+          "p90": 2.155,
+          "max": 5.262
+        },
+        "outsideSecuritySeconds": {
+          "n": 62,
+          "median": 0.625,
+          "p90": 2.155,
+          "max": 5.262
+        }
+      },
+      "rollback": {
+        "count": 72,
+        "wallSeconds": {
+          "n": 72,
+          "median": 1.3995,
+          "p90": 3.821,
+          "max": 18.47
+        },
+        "outsideSecuritySeconds": {
+          "n": 72,
+          "median": 1.3995,
+          "p90": 3.821,
+          "max": 18.47
+        }
+      },
+      "token": {
+        "count": 66,
+        "wallSeconds": {
+          "n": 66,
+          "median": 0.168,
+          "p90": 0.512,
+          "max": 1.357
+        },
+        "outsideSecuritySeconds": {
+          "n": 66,
+          "median": 0.168,
+          "p90": 0.512,
+          "max": 1.357
+        }
+      },
+      "sql": {
+        "count": 705,
+        "wallSeconds": {
+          "n": 705,
+          "median": 0.019,
+          "p90": 0.076,
+          "max": 0.505
+        },
+        "outsideSecuritySeconds": {
+          "n": 705,
+          "median": 0.019,
+          "p90": 0.076,
+          "max": 0.505
+        }
+      },
+      "deploy": {
+        "count": 65,
+        "wallSeconds": {
+          "n": 65,
+          "median": 9.819,
+          "p90": 40.403,
+          "max": 76.773
+        },
+        "outsideSecuritySeconds": {
+          "n": 65,
+          "median": 3.705672313999999,
+          "p90": 11.900941707000005,
+          "max": 40.403
+        }
+      },
+      "data": {
+        "count": 302,
+        "wallSeconds": {
+          "n": 302,
+          "median": 0.017,
+          "p90": 0.039,
+          "max": 0.492
+        },
+        "outsideSecuritySeconds": {
+          "n": 302,
+          "median": 0.017,
+          "p90": 0.039,
+          "max": 0.492
+        }
+      }
+    },
+    "after": {
+      "releases": {
+        "count": 62,
+        "wallSeconds": {
+          "n": 62,
+          "median": 0.13,
+          "p90": 0.333,
+          "max": 0.748
+        },
+        "outsideSecuritySeconds": {
+          "n": 62,
+          "median": 0.13,
+          "p90": 0.333,
+          "max": 0.748
+        }
+      },
+      "rollback": {
+        "count": 72,
+        "wallSeconds": {
+          "n": 72,
+          "median": 0.2645,
+          "p90": 0.539,
+          "max": 1.536
+        },
+        "outsideSecuritySeconds": {
+          "n": 72,
+          "median": 0.2645,
+          "p90": 0.539,
+          "max": 1.536
+        }
+      },
+      "token": {
+        "count": 66,
+        "wallSeconds": {
+          "n": 66,
+          "median": 0.108,
+          "p90": 0.225,
+          "max": 0.376
+        },
+        "outsideSecuritySeconds": {
+          "n": 66,
+          "median": 0.108,
+          "p90": 0.225,
+          "max": 0.376
+        }
+      },
+      "sql": {
+        "count": 705,
+        "wallSeconds": {
+          "n": 705,
+          "median": 0.016,
+          "p90": 0.049,
+          "max": 0.197
+        },
+        "outsideSecuritySeconds": {
+          "n": 705,
+          "median": 0.016,
+          "p90": 0.049,
+          "max": 0.197
+        }
+      },
+      "deploy": {
+        "count": 65,
+        "wallSeconds": {
+          "n": 65,
+          "median": 3.325,
+          "p90": 11.051,
+          "max": 24.582
+        },
+        "outsideSecuritySeconds": {
+          "n": 65,
+          "median": 0.616383184,
+          "p90": 1.199896023,
+          "max": 1.706
+        }
+      },
+      "data": {
+        "count": 302,
+        "wallSeconds": {
+          "n": 302,
+          "median": 0.016,
+          "p90": 0.033,
+          "max": 0.203
+        },
+        "outsideSecuritySeconds": {
+          "n": 302,
+          "median": 0.016,
+          "p90": 0.033,
+          "max": 0.203
+        }
+      }
+    }
+  },
+  "selected025": {
+    "before": {
+      "wallSeconds": 194.82434183801524,
+      "securitySeconds": 52.45463167,
+      "withoutSecuritySeconds": 142.36971016801525,
+      "nativeInvocations": 124,
+      "counts": {
+        "releases": 9,
+        "sql": 54,
+        "data": 54,
+        "rollback": 2,
+        "serve": 2,
+        "token": 1,
+        "deploy": 2
+      },
+      "finiteCommandWallSeconds": 111.018
+    },
+    "after": {
+      "wallSeconds": 111.90278869494796,
+      "securitySeconds": 20.18728377,
+      "withoutSecuritySeconds": 91.71550492494796,
+      "nativeInvocations": 124,
+      "counts": {
+        "releases": 9,
+        "sql": 54,
+        "data": 54,
+        "rollback": 2,
+        "serve": 2,
+        "token": 1,
+        "deploy": 2
+      },
+      "finiteCommandWallSeconds": 30.208000000000002
+    }
+  },
+  "productionNonSecuritySeconds": {
+    "before": {
+      "n": 119,
+      "median": 1.4961706049156787,
+      "p90": 3.3088429289304675,
+      "max": 9.979306412943936
+    },
+    "after": {
+      "n": 119,
+      "median": 0.4091423051516118,
+      "p90": 0.8145961599493283,
+      "max": 1.4357221310492978
+    }
+  },
+  "productionPhases": {
+    "before": {
+      "cli.startup": {
+        "n": 119,
+        "median": 0.000191067,
+        "p90": 0.000258067,
+        "max": 0.000423715
+      },
+      "cli.total": {
+        "n": 119,
+        "median": 4.565669442,
+        "p90": 14.36531703,
+        "max": 28.131363831
+      },
+      "deploy.activate.adoption_backfills": {
+        "n": 85,
+        "median": 0.021824714,
+        "p90": 0.138230765,
+        "max": 0.324611809
+      },
+      "deploy.activate.pointer_fsync": {
+        "n": 85,
+        "median": 0.000382393,
+        "p90": 0.000515963,
+        "max": 0.001088572
+      },
+      "deploy.activate.prepare_fsync": {
+        "n": 85,
+        "median": 0.000927851,
+        "p90": 0.001969993,
+        "max": 0.005372532
+      },
+      "deploy.activate.store_open": {
+        "n": 85,
+        "median": 0.00188758,
+        "p90": 0.003257323,
+        "max": 0.004982478
+      },
+      "deploy.activation": {
+        "n": 51,
+        "median": 0.082707691,
+        "p90": 0.14897535,
+        "max": 0.35557489
+      },
+      "deploy.bind": {
+        "n": 119,
+        "median": 0.050991061,
+        "p90": 0.146236764,
+        "max": 0.342720493
+      },
+      "deploy.output": {
+        "n": 119,
+        "median": 2.7e-07,
+        "p90": 4.2e-07,
+        "max": 8.12e-07
+      },
+      "deploy.owner_store_status": {
+        "n": 119,
+        "median": 0.003552515,
+        "p90": 0.005511442,
+        "max": 0.009924687
+      },
+      "deploy.pre_preview": {
+        "n": 51,
+        "median": 8.7782e-05,
+        "p90": 0.218949705,
+        "max": 0.59200979
+      },
+      "deploy.preview": {
+        "n": 34,
+        "median": 0.819079719,
+        "p90": 1.609261301,
+        "max": 3.409731317
+      },
+      "deploy.release_write_fsync": {
+        "n": 51,
+        "median": 0.324998494,
+        "p90": 0.640409024,
+        "max": 2.117258244
+      },
+      "deploy.retained_matching": {
+        "n": 119,
+        "median": 0.111377574,
+        "p90": 0.266881317,
+        "max": 0.53634033
+      },
+      "deploy.rollback_registry": {
+        "n": 119,
+        "median": 0.665347022,
+        "p90": 1.621062674,
+        "max": 4.780922391
+      },
+      "deploy.security_bookkeeping": {
+        "n": 119,
+        "median": 0.000164837,
+        "p90": 0.000248643,
+        "max": 0.000375373
+      },
+      "deploy.security_envelope": {
+        "n": 119,
+        "median": 3.13659965,
+        "p90": 11.234401613,
+        "max": 24.930171253
+      },
+      "deploy.selection_completion": {
+        "n": 119,
+        "median": 0.14601912,
+        "p90": 0.442111923,
+        "max": 1.695062934
+      },
+      "deploy.source_materialization": {
+        "n": 119,
+        "median": 0.056177926,
+        "p90": 0.149686074,
+        "max": 0.346109682
+      },
+      "deploy.stage_materialization": {
+        "n": 119,
+        "median": 0.001736794,
+        "p90": 0.002189462,
+        "max": 0.004264202
+      },
+      "process_wall_outside_main_and_trace_flush": {
+        "n": 119,
+        "median": 0.00820049214419516,
+        "p90": 0.01624551010025499,
+        "max": 0.028399898858811667
+      },
+      "release.compile": {
+        "n": 119,
+        "median": 0.686359511,
+        "p90": 1.8195792020000001,
+        "max": 5.029187849
+      },
+      "release.source_read": {
+        "n": 119,
+        "median": 0.00047143199999999993,
+        "p90": 0.0006394379999999999,
+        "max": 0.001134429
+      },
+      "store.open": {
+        "n": 119,
+        "median": 0.005733173,
+        "p90": 0.009539018,
+        "max": 0.015715026
+      }
+    },
+    "after": {
+      "cli.startup": {
+        "n": 119,
+        "median": 0.00019294,
+        "p90": 0.000268823,
+        "max": 0.000458206
+      },
+      "cli.total": {
+        "n": 119,
+        "median": 3.558336156,
+        "p90": 12.049383835,
+        "max": 25.771067272
+      },
+      "deploy.activate.adoption_backfills": {
+        "n": 85,
+        "median": 0.021164233,
+        "p90": 0.135700242,
+        "max": 0.296357559
+      },
+      "deploy.activate.pointer_fsync": {
+        "n": 85,
+        "median": 0.000378708,
+        "p90": 0.00052074,
+        "max": 0.002040108
+      },
+      "deploy.activate.prepare_fsync": {
+        "n": 85,
+        "median": 0.000965227,
+        "p90": 0.001621981,
+        "max": 0.032548718
+      },
+      "deploy.activate.store_open": {
+        "n": 85,
+        "median": 0.001895321,
+        "p90": 0.003080798,
+        "max": 0.005141727
+      },
+      "deploy.activation": {
+        "n": 51,
+        "median": 0.025622535,
+        "p90": 0.052135657,
+        "max": 0.063794091
+      },
+      "deploy.bind": {
+        "n": 119,
+        "median": 0.051360805,
+        "p90": 0.14729482,
+        "max": 0.308925137
+      },
+      "deploy.output": {
+        "n": 119,
+        "median": 3.3e-07,
+        "p90": 4.3e-07,
+        "max": 5.81e-07
+      },
+      "deploy.owner_store_status": {
+        "n": 119,
+        "median": 0.003519395,
+        "p90": 0.005157491,
+        "max": 0.009645949
+      },
+      "deploy.pre_preview": {
+        "n": 51,
+        "median": 8.2464e-05,
+        "p90": 0.004951502,
+        "max": 0.016129456
+      },
+      "deploy.preview": {
+        "n": 85,
+        "median": 0.12295656,
+        "p90": 0.296057102,
+        "max": 0.524253451
+      },
+      "deploy.release_write_fsync": {
+        "n": 51,
+        "median": 0.002086939,
+        "p90": 0.003112184,
+        "max": 0.006061055
+      },
+      "deploy.report_output": {
+        "n": 119,
+        "median": 4.91e-07,
+        "p90": 5.61e-07,
+        "max": 6.61e-07
+      },
+      "deploy.retained_matching": {
+        "n": 119,
+        "median": 0.055201412,
+        "p90": 0.150743861,
+        "max": 0.243452163
+      },
+      "deploy.rollback_registry": {
+        "n": 119,
+        "median": 0.043553342,
+        "p90": 0.146086781,
+        "max": 0.378446192
+      },
+      "deploy.security_bookkeeping": {
+        "n": 119,
+        "median": 0.000163926,
+        "p90": 0.000241672,
+        "max": 0.000327551
+      },
+      "deploy.security_envelope": {
+        "n": 119,
+        "median": 3.15994998,
+        "p90": 11.384187295,
+        "max": 25.154066021
+      },
+      "deploy.selection_completion": {
+        "n": 119,
+        "median": 0.004456219,
+        "p90": 0.109572619,
+        "max": 0.304877843
+      },
+      "deploy.source_materialization": {
+        "n": 119,
+        "median": 0.05322543,
+        "p90": 0.148985995,
+        "max": 0.310150493
+      },
+      "deploy.stage_materialization": {
+        "n": 119,
+        "median": 0.001712997,
+        "p90": 0.002153388,
+        "max": 0.002983402
+      },
+      "process_wall_outside_main_and_trace_flush": {
+        "n": 119,
+        "median": 0.00802936400418286,
+        "p90": 0.017193511052688848,
+        "max": 0.02936207002149871
+      },
+      "release.compile": {
+        "n": 119,
+        "median": 0.11601826100000001,
+        "p90": 0.35123595900000004,
+        "max": 0.827912187
+      },
+      "release.source_read": {
+        "n": 119,
+        "median": 0.000445807,
+        "p90": 0.000620269,
+        "max": 0.0010685449999999997
+      },
+      "store.open": {
+        "n": 119,
+        "median": 0.0038484089999999997,
+        "p90": 0.006317159,
+        "max": 0.012434658000000001
+      }
+    }
+  },
+  "notes": [
+    "Native children owned by proof-command are counted once; app wrapper spawns are not extra invocations.",
+    "Serve/dev lifetime spans other commands and is excluded from finite per-command costs.",
+    "Primary .44 vs .45 timings include pre-existing version differences. Security/token improvements cannot be attributed to LAT4. Production before/after use same-version .45 controls.",
+    "Phase intervals nest; do not add medians or subtract arbitrary child intervals. Security complement subtracts only the enclosing measured security interval.",
+    "Startup inside main excludes loader/process setup. The residual includes process startup, scheduling, trace serialization/drain and final exit; it is not pure loader CPU."
+  ]
+}

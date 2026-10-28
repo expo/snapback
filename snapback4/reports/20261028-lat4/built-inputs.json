@@ -1,0 +1,61 @@
+{
+  "qualification": false,
+  "platform": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+  "artifacts": {
+    "LAT3 native 0.4.44": {
+      "path": "/tmp/lat4/lat3-native",
+      "sha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c"
+    },
+    "unoptimized control native 0.4.45": {
+      "path": "/tmp/lat4/before-native",
+      "sha256": "510fc4051021c19aa89e01e298f9c5fd14ae1861f913ea5bd8dd6200b4a84fdb"
+    },
+    "primary optimized native 0.4.45": {
+      "path": "/tmp/lat4/after-native",
+      "sha256": "d7b9f49589401aca80918f53730ad4086e2e54d3b12ab05a4a8b339dda320fd3"
+    },
+    "final native 0.4.45": {
+      "path": "/tmp/lat4/final-native",
+      "sha256": "3fdd8109f2a76eb9f4d1f39d1418786091f29d9b3fd9854b959e17c3ca746a12"
+    },
+    "primary client 0.4.45": {
+      "path": "/tmp/lat4/packs/snapback4-0.4.45.tgz",
+      "sha256": "8f0159601361e35fdf3b3c884c44bb25157374cda1fbe3f6b45fae1886831e97"
+    },
+    "final client 0.4.45": {
+      "path": "/tmp/lat4/packs-final/snapback4-0.4.45.tgz",
+      "sha256": "a0cfe6f1194c5facbcfd52e4b44777870e9a8830a6435cd986d8eb5d1b769824"
+    },
+    "final Linux pack 0.4.45": {
+      "path": "/tmp/lat4/packs-final/snapback4-linux-x64-0.4.45.tgz",
+      "sha256": "20bef54ffa0be020b8ce13f4e5db23c84adac4ff2c8c8b9c78a074535738c6b0"
+    },
+    "fixed-clock control": {
+      "path": "/tmp/lat4/fixed-clock.so",
+      "sha256": "6f814f73bde919dc86bafd6ac77f08c121c5474680938d10adfa299d853aacd8"
+    }
+  },
+  "productionBuild": {
+    "profile": "production",
+    "cargoEnv": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_BUILD_JOBS": "4"
+    },
+    "LIBSQLITE3_FLAGS": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "primaryProtocol": "acceptance -> frontend:proof -> day2:proof (where present) -> probe:serve/client:calls; adjacent before/after pairs, alternating first variant by lane; four worker scopes",
+  "primaryDifferenceFromFinal": "Final native adds finer opt-in phase boundaries only; cache unchanged. Final client repairs failure rendering/status only; successful path and full awaited boundary unchanged. Final negative-path replays and actual final packed consumers are separate evidence. Frozen primary artifacts were not overwritten.",
+  "excludedPilots": "Wrong old native b9b65... exploratory runs retained under /tmp/lat4/pilots; never included in primary measurements. Day2-only diagnostic runs are also excluded from primary timing qualification.",
+  "copyCustody": "Wave originals read only. Copies omit store.sqlite-owner/-token; internal absolute store links relocated; escaping store links refused. No original SQLite file opened.",
+  "primaryWindowUTC": {
+    "first": "2026-10-28T04:33:38.100215+00:00",
+    "last": "2026-10-28T05:49:03.624621+00:00"
+  },
+  "finalRuntimeSourceHashes": {
+    "snapback4/packages/snapback4/bin/proof-runner.js": "7fd86edfb265c1abf4ce262985639168009e5012e24b740309ba97fe22371207",
+    "snapback4/crates/snapback4-lang/src/release_compile.rs": "154bf1f02ef4db922774c9aace33331ab86367b145084d13bd196d8937f82bb4",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "80bc0268c9488356bcd0f6190c6fdfdcbe72abe1e453e2ef335d099f05aa57b5"
+  }
+}

@@ -7,6 +7,8 @@ import { mkdtemp, rm, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deploy, rollback, startServe, testSource, cli, cleanup, uniqueName } from "snapback4/proof";
+import { runProofSuite } from "snapback4/proof-runner";
+await runProofSuite(async () => {
 const args = process.argv.slice(2);
 // npm appends caller arguments after the script's default pair.
 const supplied = args.length > 3 && args[0] === "versions/v1" && args[1] === "versions/v2" ? args.slice(2) : args;
@@ -164,3 +166,5 @@ try {
   if (/holds at most \d+ rows/.test(String(error))) console.error("Proof capacity reached: repeat runs need freshUser() owners/groups and uniqueName() row names, or deliberate authorized cleanup; never reset the production store or raise caps for the proof.");
   throw error;
 } finally { await cleanup(() => serve?.stop(), () => temporary && rm(directory, { recursive: true, force: true })); }
+
+});

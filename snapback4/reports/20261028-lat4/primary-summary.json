@@ -1,0 +1,538 @@
+{
+  "qualification": false,
+  "completedPairs": 400,
+  "setupErrors": [],
+  "verdictOrMessageDifferences": [
+    {
+      "wave": 33,
+      "lane": "001-snapback-jukebox-restorations",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "038-snapback-dry-ice-deliveries",
+      "script": "day2:proof",
+      "beforeCode": 0,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 34,
+      "lane": "034-snapback-billboard-ad-bookings",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "012-snapback-picture-book-illustration",
+      "script": "day2:proof",
+      "beforeCode": 0,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "020-snapback-horseback-trail-rides",
+      "script": "day2:proof",
+      "beforeCode": 0,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    }
+  ],
+  "declaredLingeringDiagnosticOccurrences": {
+    "before": 0,
+    "after": 0
+  },
+  "LAT3TargetLanes": [
+    "002-snapback-breast-prosthesis-fittings",
+    "003-snapback-slot-machine-restorations",
+    "005-snapback-library-ladder-commissions",
+    "006-snapback-turntable-servicing",
+    "007-snapback-garden-design-commissions",
+    "008-snapback-retaining-wall-repairs",
+    "009-snapback-tapestry-conservation",
+    "010-snapback-tandem-paragliding-flights",
+    "011-snapback-heat-pump-installs",
+    "012-snapback-picture-book-illustration",
+    "013-snapback-life-jacket-inspections",
+    "014-snapback-ceiling-draping-installs",
+    "015-snapback-camping-gear-rentals",
+    "016-snapback-stagecoach-restorations",
+    "018-snapback-ash-tree-injections",
+    "021-snapback-cacao-fermentary-lots",
+    "022-snapback-custom-corset-fittings",
+    "023-snapback-shower-enclosure-repairs",
+    "024-snapback-home-sauna-installs",
+    "025-snapback-drone-pilot-certifications",
+    "026-snapback-vintage-synthesizer-repairs",
+    "027-snapback-animatronic-figure-builds",
+    "028-snapback-bandstand-restorations",
+    "029-snapback-grand-piano-moves",
+    "030-snapback-wireless-site-surveys",
+    "031-snapback-kitchen-hood-cleanings",
+    "032-snapback-executive-search-placements",
+    "034-snapback-baseball-glove-restorations",
+    "035-snapback-choir-robe-cleaning",
+    "036-snapback-championship-ring-orders",
+    "037-snapback-custom-cowboy-boots",
+    "038-snapback-dry-ice-deliveries",
+    "039-snapback-goat-kid-reservations"
+  ],
+  "LAT3TargetCoverage": {
+    "expected": 33,
+    "observed": 33,
+    "matchedPassing": 31,
+    "nonPassing": [
+      {
+        "lane": "038-snapback-dry-ice-deliveries",
+        "before": 0,
+        "after": 1
+      },
+      {
+        "lane": "012-snapback-picture-book-illustration",
+        "before": 0,
+        "after": 1
+      }
+    ]
+  },
+  "tables": {
+    "all": {
+      "acceptance": {
+        "seconds": {
+          "before": {
+            "n": 120,
+            "median": 8.106928177992813,
+            "p90": 24.0131603020709,
+            "max": 74.81814179196954
+          },
+          "after": {
+            "n": 120,
+            "median": 6.276759572559968,
+            "p90": 11.988899728981778,
+            "max": 68.90677569201216
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 120,
+            "median": 3.3482232995203853,
+            "p90": 7.901413429017325,
+            "max": 65.22769654720787
+          },
+          "after": {
+            "n": 120,
+            "median": 2.448484601998416,
+            "p90": 3.9714008700102568,
+            "max": 63.4469060620426
+          }
+        }
+      },
+      "day2:proof": {
+        "seconds": {
+          "before": {
+            "n": 32,
+            "median": 94.03764673159458,
+            "p90": 166.38596389093436,
+            "max": 242.0832269990351
+          },
+          "after": {
+            "n": 32,
+            "median": 75.29936882399488,
+            "p90": 111.90278869494796,
+            "max": 134.66096239699982
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 32,
+            "median": 81.23732493953045,
+            "p90": 135.05598196899845,
+            "max": 170.55914935990828
+          },
+          "after": {
+            "n": 32,
+            "median": 69.996450958966,
+            "p90": 89.17205386993439,
+            "max": 129.59016570403048
+          }
+        }
+      },
+      "frontend:proof": {
+        "seconds": {
+          "before": {
+            "n": 117,
+            "median": 13.642802653834224,
+            "p90": 26.369685187004507,
+            "max": 70.42958167591132
+          },
+          "after": {
+            "n": 117,
+            "median": 10.588125183945522,
+            "p90": 18.80413347808644,
+            "max": 34.58696634019725
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 117,
+            "median": 9.487815784000999,
+            "p90": 12.400770772179378,
+            "max": 21.565711489206237
+          },
+          "after": {
+            "n": 117,
+            "median": 8.723527012015786,
+            "p90": 11.2601429490763,
+            "max": 12.82177157419725
+          }
+        }
+      },
+      "probe:serve/client:calls": {
+        "seconds": {
+          "before": {
+            "n": 117,
+            "median": 4.924718179972842,
+            "p90": 13.342732060002163,
+            "max": 45.70892848703079
+          },
+          "after": {
+            "n": 117,
+            "median": 2.6687760499771684,
+            "p90": 9.080654422054067,
+            "max": 22.81070015509613
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 117,
+            "median": 4.8728007850626405,
+            "p90": 12.338800866947983,
+            "max": 45.707700546030786
+          },
+          "after": {
+            "n": 117,
+            "median": 2.618823103127698,
+            "p90": 8.532507524041279,
+            "max": 22.81035678109613
+          }
+        }
+      }
+    },
+    "LAT3-day2-33": {
+      "day2:proof": {
+        "seconds": {
+          "before": {
+            "n": 31,
+            "median": 94.27218819805421,
+            "p90": 166.38596389093436,
+            "max": 242.0832269990351
+          },
+          "after": {
+            "n": 31,
+            "median": 76.37587518198416,
+            "p90": 111.90278869494796,
+            "max": 134.66096239699982
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 31,
+            "median": 81.34092622096186,
+            "p90": 135.05598196899845,
+            "max": 170.55914935990828
+          },
+          "after": {
+            "n": 31,
+            "median": 71.02808016898149,
+            "p90": 89.17205386993439,
+            "max": 129.59016570403048
+          }
+        }
+      }
+    }
+  },
+  "clientCallPairs": 119,
+  "clientCallRecords": 6728,
+  "clientCallDifferences": [],
+  "missingClientCallVectors": [],
+  "tails": {
+    "completedSuites": 692,
+    "overOneSecond": {
+      "before": 2,
+      "after": 0
+    },
+    "postCompletionSeconds": {
+      "before": {
+        "n": 346,
+        "median": 0.0,
+        "p90": 0.006,
+        "max": 11.082
+      },
+      "after": {
+        "n": 346,
+        "median": 0.001,
+        "p90": 0.002,
+        "max": 0.003
+      }
+    }
+  },
+  "postReportObservations": {
+    "before": {
+      "processes": 399,
+      "overOneSecond": 9,
+      "seconds": {
+        "n": 396,
+        "median": 0.1195,
+        "p90": 0.201,
+        "max": 145.3
+      }
+    },
+    "after": {
+      "processes": 399,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 399,
+        "median": 0.0,
+        "p90": 0.001,
+        "max": 0.262
+      }
+    }
+  },
+  "commands": {
+    "before": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 367,
+          "median": 5.455,
+          "p90": 20.393,
+          "max": 76.773
+        },
+        "outsideSecuritySeconds": {
+          "n": 367,
+          "median": 1.0276211109999984,
+          "p90": 5.760134422,
+          "max": 40.403
+        },
+        "count": 367
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 1038,
+          "median": 0.144,
+          "p90": 0.413,
+          "max": 1.376
+        },
+        "outsideSecuritySeconds": {
+          "n": 1038,
+          "median": 0.144,
+          "p90": 0.413,
+          "max": 1.376
+        },
+        "count": 1038
+      },
+      "dev": {
+        "wallSeconds": {
+          "n": 69,
+          "median": 3.074,
+          "p90": 8.905,
+          "max": 31.77
+        },
+        "outsideSecuritySeconds": {
+          "n": 69,
+          "median": 3.074,
+          "p90": 8.905,
+          "max": 31.77
+        },
+        "count": 69
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 94,
+          "median": 1.4775,
+          "p90": 3.803,
+          "max": 18.47
+        },
+        "outsideSecuritySeconds": {
+          "n": 94,
+          "median": 1.4775,
+          "p90": 3.803,
+          "max": 18.47
+        },
+        "count": 94
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 80,
+          "median": 0.6185,
+          "p90": 2.028,
+          "max": 5.262
+        },
+        "outsideSecuritySeconds": {
+          "n": 80,
+          "median": 0.6185,
+          "p90": 2.028,
+          "max": 5.262
+        },
+        "count": 80
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 798,
+          "median": 0.0185,
+          "p90": 0.071,
+          "max": 0.505
+        },
+        "outsideSecuritySeconds": {
+          "n": 798,
+          "median": 0.0185,
+          "p90": 0.071,
+          "max": 0.505
+        },
+        "count": 798
+      },
+      "data": {
+        "wallSeconds": {
+          "n": 339,
+          "median": 0.017,
+          "p90": 0.037,
+          "max": 0.492
+        },
+        "outsideSecuritySeconds": {
+          "n": 339,
+          "median": 0.017,
+          "p90": 0.037,
+          "max": 0.492
+        },
+        "count": 339
+      }
+    },
+    "after": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 367,
+          "median": 2.871,
+          "p90": 8.865,
+          "max": 24.582
+        },
+        "outsideSecuritySeconds": {
+          "n": 367,
+          "median": 0.146605929,
+          "p90": 0.682464349,
+          "max": 1.706
+        },
+        "count": 367
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 1038,
+          "median": 0.094,
+          "p90": 0.168,
+          "max": 0.379
+        },
+        "outsideSecuritySeconds": {
+          "n": 1038,
+          "median": 0.094,
+          "p90": 0.168,
+          "max": 0.379
+        },
+        "count": 1038
+      },
+      "dev": {
+        "wallSeconds": {
+          "n": 69,
+          "median": 2.293,
+          "p90": 4.626,
+          "max": 31.442
+        },
+        "outsideSecuritySeconds": {
+          "n": 69,
+          "median": 2.293,
+          "p90": 4.626,
+          "max": 31.442
+        },
+        "count": 69
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 94,
+          "median": 0.257,
+          "p90": 0.482,
+          "max": 1.536
+        },
+        "outsideSecuritySeconds": {
+          "n": 94,
+          "median": 0.257,
+          "p90": 0.482,
+          "max": 1.536
+        },
+        "count": 94
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 79,
+          "median": 0.126,
+          "p90": 0.329,
+          "max": 0.748
+        },
+        "outsideSecuritySeconds": {
+          "n": 79,
+          "median": 0.126,
+          "p90": 0.329,
+          "max": 0.748
+        },
+        "count": 79
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 798,
+          "median": 0.016,
+          "p90": 0.046,
+          "max": 0.197
+        },
+        "outsideSecuritySeconds": {
+          "n": 798,
+          "median": 0.016,
+          "p90": 0.046,
+          "max": 0.197
+        },
+        "count": 798
+      },
+      "data": {
+        "wallSeconds": {
+          "n": 339,
+          "median": 0.016,
+          "p90": 0.033,
+          "max": 0.203
+        },
+        "outsideSecuritySeconds": {
+          "n": 339,
+          "median": 0.016,
+          "p90": 0.033,
+          "max": 0.203
+        },
+        "count": 339
+      }
+    }
+  }
+}

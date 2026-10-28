@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.47
+
+### Guide changes
+
+- Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
+
 ## 0.4.46
 
 ### Guide changes

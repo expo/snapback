@@ -58,7 +58,8 @@ use std::process::ExitCode;
 
 
 fn main() -> ExitCode {
-    let _phase_trace=verbs::phase::Trace;
+    let _phase_trace=verbs::phase::Trace::new();
+    let mut startup=verbs::phase::Sequence::new();
     // Before any thread: the wrapper's PID leaves the environment here.
     supervisor::adopt();
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);
@@ -82,6 +83,7 @@ fn main() -> ExitCode {
     let mut options = verbs::parse(&args);
     if options.flags.contains_key("explain") && !(verb=="test" && options.flags.contains_key("residency")) && matches!(verb,"deploy"|"rollback"|"releases"|"data"|"test"|"serve") { options.flags.insert("verbose".into(),String::new()); }
     if verb == "test" && options.flags.contains_key("verbose") { options.flags.insert("all".into(),String::new()); }
+    startup.step("cli.startup");
     if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
         println!("{}", verb_help::page(verb).unwrap_or_else(cli_flags::top_help));
