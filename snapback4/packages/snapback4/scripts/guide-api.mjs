@@ -82,9 +82,11 @@ function digest(module, names) {
   }
   return text;
 }
+// digest() writes full references before returning the compact card. A clean
+// client preparation removes dist, so create their common home first.
+if (!process.argv.includes('--check')) mkdirSync(new URL('guide-api/',dist), { recursive:true });
 for (const [module,names] of Object.entries(modules)) {
   const text = digest(module,names), tracked = new URL(`api_${module}.md`,out), packed = new URL(`guide-api/${module}.md`,dist);
-  mkdirSync(new URL('guide-api/',dist), { recursive:true });
   if (process.argv.includes('--check')) { if (readFileSync(tracked,'utf8') !== text || readFileSync(packed,'utf8') !== text) throw Error(`guide api ${module} drift; rebuild client`); }
   else { writeFileSync(tracked,text); writeFileSync(packed,text); }
   console.log(`guide api ${module}: ${encoding.encode(text).length}/2400 tokens`);
