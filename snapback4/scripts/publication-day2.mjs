@@ -103,8 +103,30 @@ export async function proveDay2(client, platform, directory) {
   await run(process.execPath, ["agreement.mjs"]);
   const expo = join(cwd, "expo-ports"); mkdirSync(expo);
   // Capture output through the published kit, so only packed modules/binary are used.
-  writeFileSync(join(cwd, "ports.mjs"), `import {cli} from 'snapback4/proof'; import {writeFileSync} from 'node:fs'; const result=await cli(['init','--expo'],{cwd:${JSON.stringify(expo)},env:{PORT_LO:'29120',PORT_HI:'29129'}}); writeFileSync('expo-init.stdout',result.stdout); if(result.code) throw Error(result.stderr);`);
+  writeFileSync(join(cwd, "ports.mjs"), `import {cli} from 'snapback4/proof'; import {writeFileSync} from 'node:fs'; const result=await cli(['init','--no-install','--expo'],{cwd:${JSON.stringify(expo)},env:{PORT_LO:'29120',PORT_HI:'29129'}}); writeFileSync('expo-init.stdout',result.stdout); if(result.code) throw Error(result.stderr);`);
   await run(process.execPath, ["ports.mjs"]);
   checkExpoPorts(expo, readFileSync(join(cwd, "expo-init.stdout"), "utf8"), 29120, 29129);
+  // Scaffolds defer unpublished dependencies until local pinning. Exercise
+  // DEFAULT foreground ownership separately using the real packed CLI/worker.
+  writeFileSync(join(cwd, "init-install.mjs"), `import assert from 'node:assert/strict';
+import {cli} from 'snapback4/proof';
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+import {join,delimiter} from 'node:path';
+const base=${JSON.stringify(cwd)};
+for(const code of [0,17]){
+ const project=join(base,'owned-install-'+code),bin=join(base,'mock-npm-'+code);
+ mkdirSync(project);mkdirSync(bin);
+ writeFileSync(join(bin,'npm'),'#!/bin/sh\\necho INSTALL_PRIVATE_PROGRESS\\nsleep 0.1\\nexit '+code+'\\n',{mode:0o755});
+ const result=await cli(['init','--web','--online','--password'],{cwd:project,env:{...process.env,PATH:bin+delimiter+process.env.PATH,SNAPBACK4_INIT_INSTALL:'1'}});
+ assert.equal(result.code,code,result.stdout+result.stderr);
+ assert.doesNotMatch(result.stdout+result.stderr,/INSTALL_PRIVATE_PROGRESS|still running/);
+ const state=JSON.parse(readFileSync(join(project,'.snapback4/install.json'),'utf8'));
+ assert.equal(state.state,'finished');assert.equal(state.code,code);
+ assert.match(readFileSync(join(project,'.snapback4/install.log'),'utf8'),/INSTALL_PRIVATE_PROGRESS/);
+}
+console.log('packed init default foreground ownership, quiet output and exit propagation passed');
+`);
+  await run(process.execPath, ["init-install.mjs"]);
+
   return { status: "passed", directory: cwd, savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
 }

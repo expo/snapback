@@ -1,3 +1,6 @@
+import { installProofFailureReporting } from "./proof-failure.ts";
+// Existing authored proof scripts may import only the client entry.
+if (["acceptance", "frontend:proof", "client:calls"].includes(process.env.npm_lifecycle_event ?? "")) installProofFailureReporting();
 // Node 24.18's bundled writer can throw setTypeOfService EINVAL outside the
 // fetch promise on macOS (undici#5544). Keep the host Fetch API and pass a
 // private fixed dispatcher, including through a host's fetch instrumentation.

@@ -354,7 +354,7 @@ pub fn init(options: &Options) -> i32 {
     let _ = std::io::stdout().flush();
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
-    let install = if web || expo { "`node scripts/install.mjs --wait`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
+    let install = if (web || expo) && (options.flags.contains_key("no-install") || std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() == Ok("0")) { "`node scripts/install.mjs`, then " } else if web || expo { "" } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
     let kind = if password_starter {"password app, online reads and journaled writes"} else if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
         else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
@@ -412,7 +412,11 @@ pub fn init(options: &Options) -> i32 {
     if web || expo {
         println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
         if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
-            if let Err(error) = background_install(dir) { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); }
+            match install_frontend(dir) {
+                Ok(0) => println!("init: frontend dependencies ready; next: snapback4 check (no install join needed)"),
+                Ok(code) => return code,
+                Err(error) => { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); return 1; }
+            }
         } else { println!("init: frontend install deferred; run node scripts/install.mjs"); }
     }
     0
@@ -797,24 +801,9 @@ fn starter_gitignore(text: &str) -> String {
 }
 
 
-// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — frontend installation must not block schema reading.
-fn background_install(dir: &Path) -> std::io::Result<()> {
-    use std::process::{Command, Stdio};
-    let logs = dir.join(".snapback4"); std::fs::create_dir_all(&logs)?;
-    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&logs, std::fs::Permissions::from_mode(0o700))?; }
-    let mut log_options = std::fs::OpenOptions::new(); log_options.create(true).append(true);
-    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; log_options.mode(0o600); }
-    let log = log_options.open(logs.join("install.log"))?;
-    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; log.set_permissions(std::fs::Permissions::from_mode(0o600))?; }
-    // Publish request identity BEFORE spawning: an immediate --wait cannot
-    // mistake an older successful receipt for this install, even on slow Node startup.
-    let request = format!("{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
-    let mut request_options = std::fs::OpenOptions::new(); request_options.create(true).write(true).truncate(true);
-    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; request_options.mode(0o600); }
-    let mut pending = request_options.open(logs.join("install-request.json"))?;
-    pending.write_all(serde_json::to_string(&json!({"id":request})).unwrap().as_bytes())?;
-    Command::new("node").arg("scripts/install.mjs").arg("--background").env("SNAPBACK4_INSTALL_REQUEST", &request).current_dir(dir)
-        .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?;
-    println!("init: frontend install running in background; read/edit now. Progress: node scripts/install.mjs --status; join once: node scripts/install.mjs --wait; log .snapback4/install.log");
-    Ok(())
+// @ref LLP 3000.037.000#9 — init owns one blocking, quiet install; tool cleanup cannot reclaim an unjoined child.
+fn install_frontend(dir: &Path) -> std::io::Result<i32> {
+    println!("init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log");
+    let status = std::process::Command::new("node").arg("scripts/install.mjs").current_dir(dir).status()?;
+    Ok(status.code().unwrap_or(1))
 }

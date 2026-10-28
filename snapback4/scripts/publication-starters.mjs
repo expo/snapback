@@ -213,14 +213,14 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     // packed binary. Pin native JS in init's manifest before dependency install.
     await run("npm", ["install", "--no-save", "--ignore-scripts", "--no-audit", "--no-fund", ...artifacts.slice(0, 2)], cwd);
     const cli = join(cwd, "node_modules/.bin/snapback4");
-    await run(cli, ["init", ...flags], cwd);
+    await run(cli, ["init", "--no-install", ...flags], cwd);
     const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
     pkg.dependencies.snapback4 = `file:${artifacts[0]}`;
     pkg.optionalDependencies = { [`snapback4-${process.platform}-${process.arch}`]: `file:${artifacts[1]}` };
     if (kind === "expo") pkg.dependencies["snapback4-expo"] = `file:${artifacts[2]}`;
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     // Lifecycle scripts are enabled: esbuild and the other real tools need them.
-    await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
+    await run(process.execPath, ["scripts/install.mjs", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
     // Runtime fixture proofs use the pinned Node 24 host. Clean userspaces
     // are build-only (Ubuntu intentionally carries Node 22, without TS workers).
     if (browserProofs) {
@@ -330,7 +330,7 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
       // password starter. The child resolves this packed consumer's toolchain.
       const password = join(cwd, "password-witness"); mkdirSync(password);
       try {
-        await run(cli, ["init", "--web"], password);
+        await run(cli, ["init", "--no-install", "--web"], password);
         const schema = join(password, "snapback/schema.q");
         writeFileSync(schema, readFileSync(schema, "utf8").replace(/^use identity[^\n]*/m, "use identity password"));
         await run(cli, ["init", "--adapt", "--apply"], password);

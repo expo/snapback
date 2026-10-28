@@ -29,3 +29,4 @@ export interface Refusal { readonly code: string; readonly family: string; reado
 ```
 
 Declaration fingerprint: 0f1daeb466401f69c5a4cf652baaa30f5d3b0fa213a6055650c37e5846246f9d
+

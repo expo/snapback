@@ -21,3 +21,4 @@ export function narrowSession(url: string, session: Session, doFetch?: typeof fe
 ```
 
 Declaration fingerprint: 893ef66faed41fb2f218c685ef2ce4616fcfb2478dce55748bab662c56b4c753
+

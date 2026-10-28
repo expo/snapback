@@ -1,4 +1,6 @@
 import { capacityAdvice } from "./proof-fresh.ts";
+import { proofRole } from "./proof-observation.ts";
+
 import { rosterLock } from "./proof-roster-lock.ts";
 import { identityRequest } from "./identity-request.ts";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -160,6 +162,7 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       }
       entry.done = true; save();
       }
+      proofRole(account.token, role);
       sessions[role]!.push(account);
     }
   }

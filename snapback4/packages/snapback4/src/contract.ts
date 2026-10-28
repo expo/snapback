@@ -276,9 +276,10 @@ export interface Asset {
  * (LLP 3000.038): `type` is its declared media type, checked against the
  * bytes, and `name` the filename a download offers. A `File`/`Blob` supplies
  * its own when they are omitted. Without `file`, `upload` is the image/video
- * upload. */
+ * upload. On a schema without file columns, file metadata may accompany
+ * verified image bytes. Size is advisory; the server measures the bytes. */
 export interface UploadOptions {
-  readonly file?: { readonly type?: string; readonly name?: string };
+  readonly file?: { readonly type?: string; readonly name?: string; readonly size?: number };
 }
 
 export type Uploaded = { readonly ok: true; readonly asset: Asset } | { readonly ok: false; readonly why: Refusal };

@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 const args = process.argv.slice(2);
 if (args[0] === "--worker") {
   if (!process.send || !process.connected) throw Error("install worker requires its owning IPC channel");
-  const npm = spawn("npm", ["install", ...args.slice(1)], { stdio: ["ignore", "inherit", "inherit"] });
+  const log = openSync(".snapback4/install.log", "a", 0o600);
+  const npm = spawn("npm", ["install", "--no-fund", "--no-audit", ...args.slice(1)], { stdio: ["ignore", log, log] });
+  closeSync(log);
   const stop = () => {
     if (process.platform === "win32") { npm.kill("SIGKILL"); process.exit(1); }
     // The owner spawned THIS process as its private group leader. Never read a
@@ -30,16 +32,14 @@ if (args[0] === "--worker") {
   const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === "EPERM"; } };
   const report = s => console.log(s ? `frontend install: ${s.state}; ${Math.round((Date.now() - s.started) / 1000)}s elapsed${s.code === undefined ? "" : `; exit ${s.code}`}; log .snapback4/install.log` : "frontend install: not started; node scripts/install.mjs");
   const wait = async () => {
-    let tick = 0, pendingSince = Date.now();
+    const pendingSince = Date.now();
     for (;;) {
       const s = read();
       if (requested() && s?.request !== requested()) {
         if (Date.now() - pendingSince > 30_000) { console.error("frontend install: requested owner did not start within 30s; inspect .snapback4/install.log"); return 1; }
-        if (tick++ % 10 === 0) console.log("frontend install: requested run starting; earlier receipt is not this run");
         await new Promise(resolve => setTimeout(resolve, 100)); continue;
       }
       if (!s || s.state !== "running" || !alive(s.pid)) { report(s); return s?.state === "finished" ? s.code : 1; }
-      if (tick++ % 10 === 0) report(s);
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   };
@@ -65,12 +65,11 @@ if (args[0] === "--worker") {
     if (locked) {
       const started = Date.now(), state = { state: "running", request, pid: process.pid, started };
       const save = extra => writeFileSync(stateFile, JSON.stringify({ ...state, ...extra }) + "\n", { mode: 0o600 });
-      save({}); console.error("Installing dependencies with npm (frontend); you can edit the schema now.");
+      save({}); console.error("frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).");
       const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--worker", ...args.filter(a => a !== "--background")], { detached: process.platform !== "win32", stdio: ["ignore", "inherit", "inherit", "ipc"] });
-      const progress = setInterval(() => console.error(`npm install still running (${Math.round((Date.now() - started) / 1000)}s elapsed)`), 10_000);
       let result = 1, done = false;
       const finish = () => {
-        if (done) return; done = true; clearInterval(progress);
+        if (done) return; done = true;
         save({ state: "finished", code: result }); unlinkSync(lockFile);
         console.error(`npm install finished (exit ${result})`); process.exitCode = result;
       };

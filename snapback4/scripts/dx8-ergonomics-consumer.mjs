@@ -62,7 +62,7 @@ await withBrowser({ logsDir: "browser-logs", executablePath: process.env.CHROME 
 
 async function initialized(name, args) {
   const cwd = join(process.cwd(), name); mkdirSync(cwd);
-  const result = await cli(["init", ...args], { cwd }); assert.equal(result.code, 0, result.stderr);
+  const result = await cli(["init", "--no-install", ...args], { cwd }); assert.equal(result.code, 0, result.stderr);
   const schema = readFileSync(join(cwd, "snapback/schema.q"), "utf8");
   const checked = await cli(["check", "--json"], { cwd }); assert.equal(checked.code, 0, checked.stderr + checked.stdout);
   return schema;

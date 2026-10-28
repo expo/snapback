@@ -278,7 +278,7 @@ mutation add():
     { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.send only .authorId = viewer" },
     { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.send only .authorId = viewer" },
   ]) {
-    const project = join(cwd, starter.id); command(["init", project, ...starter.flags]);
+    const project = join(cwd, starter.id); command(["init", "--no-install", project, ...starter.flags]);
     const source = readFileSync(join(project, "snapback/schema.q"), "utf8");
     if (starter.intent) assert.ok(source.includes(starter.intent), `${starter.id} ships its independent intent`);
     const security = checked(project), finite = campaign(project);

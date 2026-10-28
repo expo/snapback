@@ -3,6 +3,8 @@
 use crate::{ast::*, bind, parser, Bound, Diagnostic, Site};
 use std::ops::Range;
 
+mod safe;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ReadChange { NamedKey { columns: Vec<String>, index: Option<String> }, Index(String), Point, SearchOrder { keys: Vec<String>, order: Vec<String> } }
 
@@ -15,7 +17,7 @@ pub(crate) struct ReadRepair {
 // @ref LLP 3000.013#2.2 — index advice is source only after the patched
 // declaration passes the real parser, planner and admission in its own scope.
 pub(crate) fn verify_bound(documents: &[Document], diagnostics: &mut [Diagnostic]) {
-    for diagnostic in diagnostics {
+    for diagnostic in diagnostics.iter_mut() {
         let Some(repair) = diagnostic.read_repair.take() else { continue; };
         let verify = |change: &ReadChange| {
             let candidate = read_candidate(documents, &repair.site, change)?;
@@ -39,6 +41,7 @@ pub(crate) fn verify_bound(documents: &[Document], diagnostics: &mut [Diagnostic
         } else { diagnostic.rewrite.clear(); }
         if diagnostic.rewrite.is_empty() { diagnostic.mechanical = false; }
     }
+    safe::verify(documents, diagnostics);
 }
 
 fn read_candidate(documents: &[Document], site: &Site, change: &ReadChange) -> Option<Candidate> {

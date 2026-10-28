@@ -109,7 +109,7 @@ export async function proveProduction(client, platform, expo, directory) {
     writeFileSync(join(cwd, "package.json"), '{"private":true,"type":"module"}');
     await run("npm", ["install", "--no-save", "--ignore-scripts", "--no-audit", "--no-fund", ...artifacts.slice(0, 2)], cwd);
     const cli = join(cwd, "node_modules/snapback4/bin/snapback4.js");
-    await run(process.execPath, [cli, "init", `--${kind}`], cwd);
+    await run(process.execPath, [cli, "init", "--no-install", `--${kind}`], cwd);
     const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
     pkg.dependencies.snapback4 = `file:${artifacts[0]}`;
     pkg.optionalDependencies = { [`snapback4-${process.platform}-${process.arch}`]: `file:${artifacts[1]}` };
@@ -149,7 +149,7 @@ export async function proveProduction(client, platform, expo, directory) {
   });
   const cli = join(web.cwd, "node_modules/snapback4/bin/snapback4.js");
   const persona = join(output, "production-adapt-persona"); mkdirSync(persona, { recursive: true });
-  await run(process.execPath, [cli, "init", "--web"], persona);
+  await run(process.execPath, [cli, "init", "--no-install", "--web"], persona);
   const path = join(persona, "snapback/schema.q");
   writeFileSync(path, readFileSync(path, "utf8").replace(/^use identity[^\n]*\n/gm, "") + personaRoster);
   writeFileSync(join(persona, "src/legacy-principal.ts"), "export const legacyPrincipal = 'dev:alice';\n");

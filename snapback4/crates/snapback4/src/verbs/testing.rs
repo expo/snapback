@@ -165,7 +165,11 @@ pub fn test(options: &Options) -> i32 {
     if security_campaign.violations.len()>reachable {crate::command_output::fact("authored replay",format!("REVIEW: {} seed/synthetic observations need authored replay; test --all keeps directed history context",security_campaign.violations.len()-reachable));println!("REVIEW: seed/synthetic observations need authored replay; test --all keeps the directed history context");}
     for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability.is_reachable()) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
     let coverage_all=options.flags.contains_key("all")||options.flags.contains_key("verbose");
-    for reason in security_campaign.unsupported.iter().take(if coverage_all{usize::MAX}else{5}) {println!("security not covered: {reason}");}
+    for reason in security_campaign.unsupported.iter().take(if coverage_all{usize::MAX}else{5}) {
+        if reason.contains("E_ASSET_TYPE") && reason.contains("no column of this backend takes a file") {
+            println!("security coverage: file scenarios inapplicable (schema has no file column)");
+        } else { println!("security not covered: {reason}"); }
+    }
     if !coverage_all&&security_campaign.unsupported.len()>5 {println!("security: {} more coverage limits; test --all keeps every reason",security_campaign.unsupported.len()-5);}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {

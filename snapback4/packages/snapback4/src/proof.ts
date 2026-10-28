@@ -3,6 +3,11 @@ export { uniqueName } from "./proof-fresh.ts";
 export { freshUser, type FreshUserOptions } from "./proof-accounts.ts";
 import { capacityAdvice } from "./proof-fresh.ts";
 
+import { installProofFailureReporting, proofServerLog, forgetProofServerLog, reportProofFailure } from "./proof-failure.ts";
+export { proofFailure, reportProofFailure } from "./proof-failure.ts";
+installProofFailureReporting();
+import { observeProofReply, observeRefusal } from "./proof-observation.ts";
+
 import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
 export { probeServeGuard } from "./proof-probe.ts";
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
@@ -52,7 +57,8 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
       if (!Array.isArray(status.body.personas) || !status.body.personas.every(name => typeof name === "string")) throw Error("proof dev personas missing");
       personas = status.body.personas;
     }
-    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.pid()!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+    proofServerLog(run.logs.stderr);
+    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.pid()!, logs: run.logs, stop: async () => { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); forgetProofServerLog(run.logs.stderr); } };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
 export interface DevHost extends ProofHost {
@@ -213,7 +219,7 @@ async function frontend(kind: "static" | "vite", dir: string, options: ProofOpti
     const response = await fetch(url, { signal: AbortSignal.timeout(timeout) });
     if (response.headers.get("x-snapback4-proof") !== String(run.child.pid) + ":" + run.id) throw Error("proof frontend identity mismatch");
     await response.body?.cancel();
-    return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+    return { url, pid: run.child.pid!, logs: run.logs, stop: async () => { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); forgetProofServerLog(run.logs.stderr); } };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
 /** @throws missing export/index or build script precondition; exhausted ports, readiness deadline or served identity mismatch. */
@@ -335,6 +341,20 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     let context: BrowserContext | undefined;
     try {
       context = await browser.newContext();
+      await context.exposeBinding("__snapback4ProofRefusal", (_source, value: unknown) => {
+        const event = value as {operation?:string;role?:string;code?:string;field?:string};
+        observeRefusal(event.operation ?? "client.mutate", event.role ?? "role unavailable", {code:event.code,site:event.field});
+      });
+      await context.addInitScript(() => {
+        (globalThis as Record<symbol, unknown>)[Symbol.for("snapback4.proof.refusal")] = (event: unknown) => {
+          void (globalThis as unknown as {__snapback4ProofRefusal(event: unknown): Promise<void>}).__snapback4ProofRefusal(event).catch(() => {});
+        };
+      });
+      context.on("response", response => {
+        const request = response.request();
+        if (!/\/[qma]\//.test(new URL(response.url()).pathname) && !new URL(response.url()).pathname.startsWith("/auth/") && !(new URL(response.url()).pathname === "/assets" && request.method() === "POST")) return;
+        void response.json().then(value => observeProofReply(response.url(), request.headers(), value)).catch(() => {});
+      });
       await context.exposeBinding("__snapback4ProofDiagnostic", (_source, value: unknown) => {
         writeSync(diagnostic, `${JSON.stringify(value)}\n`);
       });
@@ -350,7 +370,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       // Proof code lives in this realm, outside the application's bundle.
       await context.addInitScript({ content: webWitnessObserverScript() });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
-      return await proof(context);
+      try { return await proof(context); } catch (error) { reportProofFailure(error); throw error; }
     } finally {
       try { if (context) await bounded(context.close(), 5000, "browser context close"); }
       finally { await bounded(browser.close(), 5000, "browser close"); }

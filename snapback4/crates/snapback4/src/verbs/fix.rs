@@ -38,6 +38,7 @@ pub(super) fn compile_observed(project: &Project, mut observe: impl FnMut(&str))
         // Best effort: an editor can still save between these reads and the write.
         verify_sources(project, &sources)?;
         std::fs::write(&path, &changed)?;
+        show_diff(name, source, &changed);
         eprintln!("fix: {} — {}: {}", diagnostic.site, diagnostic.code, diagnostic.rewrite.replace('\n', " "));
         sources[target].1 = changed;
     }
@@ -61,6 +62,12 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    if matches!(diagnostic.code.as_str(), "E_QUARRY_TYPE" | "E_QUARRY_UNKNOWN" | "E_QUARRY_BOUND")
+        && let Some((site, original)) = diagnostic.verified_edit() {
+        let from = offset(source, site.line, site.col)?;
+        let end = from.checked_add(original.len())?;
+        return (source.get(from..end)? == original).then(|| (index, from, end, diagnostic.rewrite.clone()));
+    }
     if diagnostic.code == "E_QUARRY_SYNTAX" && diagnostic.message == "shapes infer their row type; omit on table" {
         let actual = tokens(&source[start..]);
         let [on, table, equals, ..] = actual.as_slice() else { return None; };
@@ -162,6 +169,15 @@ fn offset(source: &str, line: u32, col: u32) -> Option<usize> {
         at += text.len();
     }
     None
+}
+
+fn show_diff(name: &str, before: &str, after: &str) {
+    let (old, new): (Vec<_>, Vec<_>) = (before.lines().collect(), after.lines().collect());
+    let prefix = old.iter().zip(&new).take_while(|(a, b)| a == b).count();
+    let suffix = old[prefix..].iter().rev().zip(new[prefix..].iter().rev()).take_while(|(a, b)| a == b).count();
+    eprintln!("--- {name}\n+++ {name}\n@@ line {} @@", prefix + 1);
+    for line in &old[prefix..old.len() - suffix] { eprintln!("-{line}"); }
+    for line in &new[prefix..new.len() - suffix] { eprintln!("+{line}"); }
 }
 
 fn tokens(text: &str) -> Vec<Token> {

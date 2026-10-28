@@ -126,6 +126,9 @@ impl fmt::Display for Diagnostic {
         let discovery = if self.mechanical { " — check --fix applies it" } else { "" };
         write!(f, "{} — {}: {}", self.site, self.code, self.message)?;
         if !self.rewrite.is_empty() { write!(f, "\n  rewrite: {}{discovery}", self.rewrite)?; }
+        if let Some(line) = self.details.as_ref().filter(|s| self.mechanical && s.starts_with("edited line: ")) {
+            write!(f, "\n  {line}")?;
+        }
         write!(f, "\n  guide: {}", self.guide)
     }
 }

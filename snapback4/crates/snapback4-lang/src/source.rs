@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SourceMap {
-    expressions: BTreeMap<String, (Expr, String, bool, crate::Site)>,
+    pub(crate) expressions: BTreeMap<String, (Expr, String, bool, crate::Site)>,
     pub(crate) declarations: BTreeMap<String, String>,
     pub(crate) repairs: Vec<crate::repair::Candidate>,
 }

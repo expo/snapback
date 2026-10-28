@@ -1,3 +1,4 @@
+import { proofResponse, observeRefusal, proofRoleName } from "./proof-observation.ts";
 import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedSession } from "./session-input.ts";
@@ -79,7 +80,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
   let release: ReturnType<typeof servedRelease> | undefined;
   const transport = clock.wrap(options.fetch ?? defaultFetch);
-  const doFetch: typeof fetch = async (...args) => { const response = await transport(...args); release?.hint(response); return response; };
+  const doFetch: typeof fetch = async (...args) => { const response = await transport(...args); await proofResponse(args[0], args[1], response); release?.hint(response); return response; };
   const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");
   const engineInfo = options.device.engineInfo ? normalizeEngine(await options.device.engineInfo()) : undefined;
@@ -136,6 +137,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await keepSession(base, session, sessions);
     headers.authorization = `Bearer ${session.token}`;
   }
+  const proofIdentity = () => options.persona ?? proofRoleName(session?.token);
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
   let credentialRevision = 0, authenticationFloor = 0, rotating = false;
@@ -1285,8 +1287,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
+      const diagnose = (why: Refusal) => observeRefusal(op.name, proofIdentity(), why);
       const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) {
+        diagnose(unavailableWhy);
         const failed = { state: "failed" as const, id, why: unavailableWhy };
         if (!mutationIds.knows(id)) emitLocalFailure(failed);
         return failedAdmission<R>(id, unavailableWhy);
@@ -1298,7 +1302,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const request = { op: "admit", ...(waiting ? identity!.fields() : {}),
           entry: mutationEntry(id, ++submissions, op.name, args, principal, clock.issuedDeviceNow(), backend!, options?.id !== undefined) };
         const denied = admitNow(core, request);
-        if (denied) { release(); if (denied.code === "E_ADMISSION_STORE") emitLocalFailure({ state: "failed", id, why: denied }); return failedAdmission<R>(id, denied); }
+        if (denied) { diagnose(denied); release(); if (denied.code === "E_ADMISSION_STORE") emitLocalFailure({ state: "failed", id, why: denied }); return failedAdmission<R>(id, denied); }
         return (async () => {
         const response = closingResponses.request();
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
@@ -1309,6 +1313,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (admitted.denied) {
             settled.delete(id);
             const why = waiting && ["E_GENERATION", "E_PREDICT", "E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE", "E_ADMISSION_STORE"].includes(admitted.denied.code) ? identityRefusal(false) : admitted.denied;
+            diagnose(why);
             const failed = { state: "failed" as const, id, why };
             return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
           }
@@ -1320,7 +1325,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           rerunTables(predictedTables(entry.predicted));
         } catch (error) {
           release(); settled.delete(id);
-          return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
+          const why = { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` };
+          diagnose(why);
+          return emitLocalFailure({ state: "failed", id, why });
         }
         if (closed) {
           try {
@@ -1346,7 +1353,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const ready = identity!.check(state, backend, generation, unavailable() ?? partitionDenied);
           if (ready === true) { storeIdentity = state!.store_id!; identified = true; }
           return ready;
-        }, submit, why => emitLocalFailure({ state: "failed", id, why }));
+        }, submit, why => { diagnose(why); return emitLocalFailure({ state: "failed", id, why }); });
       })));
     }),
     write(id) { return unavailable() ? Promise.resolve(undefined) : identification.write(id) ?? lookupWrite(history, queued, id, unavailable, () => acquired); },

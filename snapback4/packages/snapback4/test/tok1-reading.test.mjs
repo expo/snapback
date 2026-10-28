@@ -50,7 +50,11 @@ test('wave32 Codex install polls: --status returns before npm completes; --wait 
   while(!(()=>{try{return JSON.parse(readFileSync(join(directory,'.snapback4/install.json'))).state==='running';}catch{return false;}})())await new Promise(r=>setTimeout(r,20));
   const status=execFileSync(process.execPath,['scripts/install.mjs','--status'],{cwd:directory,encoding:'utf8'});assert.match(status,/running/);
   const waiter=spawn(process.execPath,['scripts/install.mjs','--wait'],{cwd:directory,env,stdio:'pipe'});
+  let output=''; waiter.stdout.on('data',b=>output+=b);
   assert.equal(await new Promise(r=>waiter.once('exit',r)),code);assert.equal(await exited,code);
+  assert.equal(output.trim().split('\n').length,1,'wave34 install polling: a blocking join prints only completion');
+  assert.match(output,/finished/);
+  assert.match(readFileSync(join(directory,'.snapback4/install.log'),'utf8'),/npm-progress/);
  }
 });
 test('wave32 Muse 028/019/036/029: same selected bytes need two placements even in one row; separate uploads work',async t=>{

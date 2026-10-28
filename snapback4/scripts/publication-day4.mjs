@@ -17,7 +17,7 @@ const mode=process.argv[2];
 const cwd=join(process.cwd(),'day4-'+mode);mkdirSync(join(cwd,'snapback'),{recursive:true});
 writeFileSync(join(cwd,'snapback/schema.q'),source);
 const run=async args=>{const r=await cli(args,{cwd});assert.equal(r.code,0,r.stdout+r.stderr);return r.stdout;};
-await run(['init','--web']);
+await run(['init','--no-install','--web']);
 const pkg=()=>JSON.parse(readFileSync(join(cwd,'package.json')));
 const save=p=>writeFileSync(join(cwd,'package.json'),JSON.stringify(p));
 if(mode==='custom'){
@@ -50,7 +50,7 @@ if(mode==='custom'){
 }else if(mode==='optin'){
  for(const flag of ['--web','--expo']){
   const fresh=join(cwd,flag.slice(2));mkdirSync(fresh);
-  const made=await cli(['init',flag,'--day2'],{cwd:fresh});assert.equal(made.code,0,made.stdout+made.stderr);
+  const made=await cli(['init','--no-install',flag,'--day2'],{cwd:fresh});assert.equal(made.code,0,made.stdout+made.stderr);
   assert.ok(existsSync(join(fresh,'versions/v1/schema.q')));
   assert.ok(existsSync(join(fresh,'scripts/day2-proof.mjs')));
  }

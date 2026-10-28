@@ -109915,6 +109915,21 @@ verdict line. Nullable arithmetic/conditions and required inserts are explained
 where the recipe needs them. LLP 3000.037.000 §10 records scope and measurement
 requirements. No version bump, publication or push.
 
+## 2026-10-27 — CALLS1: image metadata and a quiet install join
+
+Wave 34 file options selected the document path on image-only schemas. The client now retries only the explicit pre-body no-file-column refusal through the existing media sniffer, using the same bytes and credentials; mixed/file schemas keep document semantics. Image bounds, placement and authorization remain enforced. The installer retains its private worker custody, puts npm chatter in its private log and gives --wait one final completion line; init promotes that blocking join instead of status polling. No version bump.
+
+CALLS1's explicitly requested MIME/name/size upload shape adds only optional advisory `UploadOptions.file.size`; the server still measures the bytes and the existing result/authority contract is unchanged. This is the scoped upload option acceptance authorized by the brief, not a client-contract redesign.
+
+## 2026-10-27 — CALLS1: context-verified diagnostic edits
+
+Quarry fix-its preserve source spans, compile the affected operation before offering an edit, and print a diff when applied. Optional bool conditions compare with true; nullable arithmetic propagates null or guards a positive condition, retaining the authored refusal code. Required insert columns are copied only from same-named parameters, never inferred owners/defaults. Whole-population bounds require structural non-null uniqueness before first 1; nullable unique ties remain advisory. The guard regression also covers nested arithmetic whose source map records only the containing comparison. Existing race/editor checks remain in the fixer. Runtime IR and security binder rules are untouched.
+
+A fresh Codex install replay found that its tool reclaimed init's unjoined background installer before the receipt existed. Init now owns the frontend installer through completion and returns its exit status. The backend-only mirror install measured 1.180 seconds; the reading/map output precedes frontend installation, npm chatter stays private, and explicitly deferred installs can still be started/joined separately. The before-correction transcript is retained as a failed preliminary witness, not a final success claim.
+
+## 2026-10-27 — CALLS1: refusal-first proof content
+
+Proof-enabled transports observe the caller's single JSON decode, retain only operation/role/code/field labels, and correlate exact refusal objects through a weak map. Conflicting reuse permanently disables exact attribution; historical matches are labelled nearest context. Native npm acceptance/frontend:proof/client:calls entry paths, browser responses and local device admission feed the same formatter. Original assertions and their fields/stacks remain intact. Muse's two reviews were READY; fresh Codex identified nullable unique truncation, missing local admission observation, code-only attribution and shared-refusal reuse, each corrected with a regression. Review records preserve the original verdicts verbatim. Runner layout and guide recipes remain with their workstream owners.
 
 ## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
 
@@ -109948,3 +109963,11 @@ per-command decision-fact ledger are in `reports/20261027-tok2/`. Both fresh
 model families reviewed the compact facts as READY; final affected and packed
 Linux consumer receipts are recorded in the workstream report. Version stays
 0.4.44, with the output changes listed in the next 0.4.46 guide changes entry.
+The refusal observer also covers identity-request decoding and browser auth replies, so a real failed login can name `/auth/login` and the anonymous role while discarding credentials and successful session bodies. The Horse Trailer Rentals auth shape has a real-server regression. The generic custom-code recovery route is `snapback4 why CODE`.
+
+The original-lane compiler replays exposed an additional verifier boundary: declaration-local checking removed other operations and invalidated authored invariant targets, withholding safe fixes in otherwise valid real applications. Safe fix verification now retains all original operations and their invariant referents, permits only identical unrelated pre-existing diagnostics, and refuses every new diagnostic or error in the edited declaration. A cross-file invariant plus an independent unknown-name regression pins this behavior.
+
+## 2026-10-28 — CALLS1: packed consumer install ownership
+
+Foreground init exposed publication fixtures that scaffolded before pinning unpublished tarballs. Those scaffolds now explicitly defer installation; the frontend and starter consumers pin their packed dependencies and then run the actual shipped install worker before their unchanged type, build and browser proofs. A separate packed default-init witness requires foreground completion, private npm output and exact success/failure exit propagation. No assertion or runtime rule is relaxed.
+
