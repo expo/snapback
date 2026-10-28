@@ -207,6 +207,8 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
         "Read [client](https://github.com/expo/snapback/blob/main/snapback4/packages/snapback4/README.md).",
         "Read https://raw.githubusercontent.com/expo/snapback/main/snapback4/packages/snapback4/README.md.",
     ] { assert!(unshipped(text, &shipped).is_empty(), "refused {text}"); }
+    assert!(unshipped_at("Read [entry](../README.md) and [server](./SERVER.md).", &shipped, Path::new("reference")).is_empty());
+    assert!(!unshipped_at("Read [escape](../../README.md).", &shipped, Path::new("reference")).is_empty());
     let without_adoption = shipped.into_iter().filter(|p| p != "reference/FOLLOWING-ADOPTION.md").collect();
     assert!(!unshipped("[adoption](./reference/FOLLOWING-ADOPTION.md)", &without_adoption).is_empty());
 }
