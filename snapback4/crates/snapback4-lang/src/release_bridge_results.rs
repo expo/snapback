@@ -5,7 +5,7 @@ use std::collections::{BTreeMap,BTreeSet};
 
 pub(super) fn preserve(target:&[(String,String)], bridge:&mut Bridge) {
     if !bridge.diagnostics.is_empty(){return;}
-    let old=crate::compile(target);let current=crate::compile(&bridge.sources);let mut needed_children=BTreeSet::new();
+    let old=crate::release_compile::compile(target);let current=crate::release_compile::compile(&bridge.sources);let mut needed_children=BTreeSet::new();
     if current.schema.extractions.is_empty(){return;}
     fn table(ty:&Ty)->Option<&str>{match ty{Ty::Row(t)|Ty::WriteRow(t)|Ty::Page(t,_)=>Some(t),Ty::Optional(t)|Ty::List(t,_)|Ty::Collection(t,_)=>table(t),_=>None}}
     fn returns<'a>(body:&'a [Stmt],out:&mut Vec<&'a Expr>,implicit:bool){
@@ -79,5 +79,5 @@ pub(super) fn preserve(target:&[(String,String)], bridge:&mut Bridge) {
         }
         edits.sort_by_key(|e|std::cmp::Reverse(e.0));for(offset,addition)in edits{text.insert_str(offset,&addition);}
     }
-    bridge.diagnostics.extend(crate::compile(&bridge.sources).diagnostics);
+    bridge.diagnostics.extend(crate::release_compile::compile(&bridge.sources).diagnostics);
 }

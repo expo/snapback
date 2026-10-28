@@ -136,7 +136,7 @@ pub(super) fn frontend_scaffold(web: bool) -> String {
     let setup = setup.replace(r#"} else {
       assert.ok(personas.length, "declare identity or personas before proving the starter");"#, "} else if (personas.length) {")
         .replace(r#"    await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#, r#"    if (identity.guests || identity.password || personas.length) await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();"#);
-    format!("{setup}    assert.ok((await page.locator('body').innerText()).trim(), 'frontend rendered no content');\n    // Add a real UI write and assert its SDK receipt and fresh rendered result here.\n    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');\n  }});\n}} finally {{ await cleanup(() => web?.stop(), () => dev.stop()); }}\n")
+    format!("{setup}    assert.ok((await page.locator('body').innerText()).trim(), 'frontend rendered no content');\n    // Add a real UI write and assert its SDK receipt and fresh rendered result here.\n    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');\n  }});\n}} finally {{ await cleanup(() => web?.stop(), () => dev.stop()); }}\n}});\n")
 }
 
 fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static str>> {
@@ -318,6 +318,27 @@ mod tests {
                     std::fs::remove_dir_all(dir).unwrap();
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod finite_runner_syntax_tests {
+    #[test]
+    fn complete_generated_suites_and_custom_schema_scaffolds_parse() {
+        use std::{io::Write, process::{Command, Stdio}};
+        let mut sources=vec![include_str!("day2-proof.mjs").to_owned()];
+        for web in [false,true] {
+            sources.push(super::frontend_scaffold(web));
+            for template in [None,Some("chat"),Some("social")] {
+                sources.push(super::frontend_proof(include_str!("frontend-proof.mjs"),template,web));
+            }
+        }
+        for source in sources {
+            let mut node=Command::new("node").args(["--check","--input-type=module"]).stdin(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("Node 24 on PATH");
+            node.stdin.take().unwrap().write_all(source.as_bytes()).unwrap();
+            let result=node.wait_with_output().unwrap();
+            assert!(result.status.success(),"{}",String::from_utf8_lossy(&result.stderr));
         }
     }
 }

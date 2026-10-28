@@ -9,3 +9,5 @@ Constraints: preserve every admission, visibility, refusal, rollback registry an
 Risks: concurrent source edits must invalidate reuse; source metadata must never stand in for source bytes. Long-lived serving must not inherit an unbounded command cache. Bare module evaluation cannot certify completion of an unawaited main(). Proof diagnostic resources must not expose credentials.
 
 Likely updates: governing amendment, append-only JOURNAL, next guide changes entry for lingering resource reporting. Hand-off: none.
+
+Profile refinement: bridge qualification itself repeatedly invokes the pure compiler. The command-local scope is shared with release_bridge functions in the language crate; source re-reading and all bridge comparisons still execute. Test modules keep direct compiler calls as independent oracles. No bind/security source changes.

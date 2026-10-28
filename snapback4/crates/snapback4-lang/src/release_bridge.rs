@@ -17,11 +17,11 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     // the old implementation. Ordinary schema/intent evolution is governed by
     // visibility facts below, rather than the mere presence of an invariant.
     if same_data_and_intent(target,current)
-        && super::release_presence_allowance::independent(&crate::compile(current))
+        && super::release_presence_allowance::independent(&crate::release_compile::compile(current))
         && modules(target)!=modules(current) {return true;}
-    let before_schema=crate::compile(target).schema;
+    let before_schema=crate::release_compile::compile(target).schema;
     // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — column authority alone is not a visibility risk.
-    let after_schema=crate::compile(current).schema;
+    let after_schema=crate::release_compile::compile(current).schema;
     // One historical child is not a uniqueness promise for future parents.
     // Retain the current child population when old source has only one cell.
     if after_schema.extractions.iter().any(|e|!e.each&&before_schema.table(&e.parent).is_some_and(|t|e.fields.values().any(|c|t.columns.contains_key(c)))) {return true;}
@@ -129,7 +129,7 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
 /// Data fit is deliberately a separate, transactional store obligation.
 // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — fitting extraction rollback prefers the truthful predecessor shape.
 pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(String,String)])->bool {
-    let old=crate::compile(target);let next=crate::compile(current);
+    let old=crate::release_compile::compile(target);let next=crate::release_compile::compile(current);
     if !old.diagnostics.is_empty()||!next.diagnostics.is_empty()
         ||!next.schema.extractions.iter().any(|e|!e.each&&old.schema.table(&e.parent).is_some_and(|t|e.fields.values().any(|c|t.columns.contains_key(c)))) {return false;}
     // A selective source must also satisfy the CLI's hard-authority boundary.
@@ -199,7 +199,7 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
                 if !child.columns.get(destination).is_some_and(|next|snapback4_core::schema::Extraction::payload_accepts(kind,next)){return false;}
                 // Read-through insertion independently requires a readable
                 // parent, including for an empty/null payload and allow rule.
-                let mut proof=crate::compile(target);
+                let mut proof=crate::release_compile::compile(target);
                 proof.schema.tables.get_mut(name).unwrap().column_writes.insert(column.clone(),now.rules.read.clone());
                 if exact_authority(target,target,&old,&proof,Some("insert")).is_err(){return false;}
                 for (effect,gate) in [("insert",&child.rules.insert),("update",&child.rules.update)] {
@@ -208,7 +208,7 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
                     let reachable=next.programs.iter().filter(|p|old.programs.iter().any(|o|o.program.name==p.program.name))
                         .any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(table,kind)|*table==e.child&&(*kind==effect||*kind=="upsert")));
                     if !authored&&!reachable {continue;}
-                    let mut proof=crate::compile(target);
+                    let mut proof=crate::release_compile::compile(target);
                     let mut referenced=std::collections::BTreeSet::new();gate.fields(&mut referenced);
                     // A child focal field is not its parent's same-named field.
                     // Only viewer/literal/probe rules enter this closed proof.
@@ -269,7 +269,7 @@ fn extraction_invariants_preserved(target:&[(String,String)],old:&crate::Bound,n
             let Some((file,text))=proof.iter_mut().find(|(file,text)|parser::parse_document(file,text).0.tables.iter().any(|t|t.name==extraction.parent))else{return false;};
             let proof_file=file.clone();let proof_line=text.bytes().filter(|b|*b==b'\n').count() as u32+2;
             text.push_str(&format!("\ninvariant {}.read only {}\n",extraction.parent,crate::print::expression(&predicate)));
-            let bound=crate::compile(&proof);if !bound.diagnostics.is_empty(){return false;}
+            let bound=crate::release_compile::compile(&proof);if !bound.diagnostics.is_empty(){return false;}
             let Some(projected)=bound.invariants.iter().find(|i|i.site.file==proof_file&&i.site.line==proof_line&&i.table==extraction.parent&&i.target=="read").and_then(|i|i.policy.as_ref())else{return false;};
             return old.schema.tables[&extraction.parent].rules.read==*projected
                 ||old.invariants.iter().any(|prior|prior.table==extraction.parent&&prior.target=="read"&&prior.column.is_none()&&prior.policy.as_ref()==Some(projected));
@@ -320,7 +320,7 @@ fn canonical_table(mut table:snapback4_core::schema::Table)->snapback4_core::sch
 }
 
 fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
-    let current_bound=crate::compile(current);
+    let current_bound=crate::release_compile::compile(current);
     if current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
         let mut allow_guarded=false;
         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
@@ -411,11 +411,11 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         super::release_bridge_rules::carry(&mut sources,current,&mut changes,&fallback);
         (diagnostics,_)=super::release_bridge_guards::carry(&mut sources,current,&affected,&mut changes);
     }
-    let current_bound=crate::compile(current);
-    if current_bound.diagnostics.is_empty()&&crate::compile(target).diagnostics.is_empty() {
+    let current_bound=crate::release_compile::compile(current);
+    if current_bound.diagnostics.is_empty()&&crate::release_compile::compile(target).diagnostics.is_empty() {
         super::release_bridge_indexes::prune_unused_equivalent_keys(&mut sources,current,&mut changes);
     }
-    let bound=crate::compile(&sources);
+    let bound=crate::release_compile::compile(&sources);
     if bound.schema.auth!=current_bound.schema.auth
         || super::release_bridge_guards::current_context_needed(&sources,current,&bound.schema,&current_bound.schema) {
         diagnostics.push(crate::diag::type_error(&crate::Site::default(),"rollback guards need the current ordered execution and schema context","retain the complete current guarded workflow, including authentication and guard-dependent reads").guide("deploy"));
@@ -433,7 +433,7 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
         }
     }
 
-    for previous in &crate::compile(target).programs {
+    for previous in &crate::release_compile::compile(target).programs {
         if let Some(current)=current_bound.programs.iter().find(|p|p.program.name==previous.program.name) {
             let mut positions=std::collections::BTreeSet::new();
             let collapsed=previous.program.args.iter().any(|(name,_)| {
@@ -470,7 +470,7 @@ fn loosen_guarded(target:&[(String,String)],current:&[(String,String)])->Bridge 
             }
         }
     }
-    if bound.diagnostics.is_empty() && !super::release_bridge_current::contracts(&crate::compile(target),&bound) {
+    if bound.diagnostics.is_empty() && !super::release_bridge_current::contracts(&crate::release_compile::compile(target),&bound) {
         diagnostics.push(crate::diag::type_error(&crate::Site::default(),"rollback view cannot preserve every predecessor wire contract, including argument aliases and distinct input positions","retain the old parameter aliases on compatible current endpoints, or author a guarded compatibility endpoint before deploying").guide("deploy"));
     }
     diagnostics.extend(bound.diagnostics);diagnostics.extend(domain_diagnostics);
@@ -649,7 +649,7 @@ mod tests {
 /// This closed proof accepts an identical guard or a conjunctive table guard;
 /// other workflows need an authored compatibility endpoint, never an ack.
 pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)])->Result<(),String>{
-    let old=crate::compile(target);let next=crate::compile(current);
+    let old=crate::release_compile::compile(target);let next=crate::release_compile::compile(current);
     exact_authority(target,current,&old,&next,None)
 }
 fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&crate::Bound,next:&crate::Bound,effect_filter:Option<&str>)->Result<(),String>{
@@ -725,7 +725,7 @@ fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&cra
         // Each requirement is an independent sufficient condition; a later
         // unsupported argument check cannot invalidate an earlier stable guard.
         sources[index].1.push_str(&format!("\ntable {guard}:\n  read <- {}\n  online only\n",crate::print::expression(&condition)));
-        let proof=crate::compile(&sources);if !proof.diagnostics.is_empty(){return false;}
+        let proof=crate::release_compile::compile(&sources);if !proof.diagnostics.is_empty(){return false;}
         let comparison=PolicyComparison::new(&proof.schema,aligned);
         // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — finite control flow preserves a stable leading guard; scope changes do not.
         fn stable(rule:&RuleExpr)->bool {

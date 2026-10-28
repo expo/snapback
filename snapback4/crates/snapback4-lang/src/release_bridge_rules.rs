@@ -58,8 +58,8 @@ pub(super) fn carry(
         for(name,target,_)in &doc.aliases {if let Some(p)=doc.programs.iter().find(|p|p.name==*target){programs.insert(super::release_bridge::operation_name(file,name),(*file,*text,p));}}
     }
     for(file,text)in sources.iter(){for old in parser::parse_document(file,text).0.tables{if let Some(prior)=&old.renamed_from{if !tables.contains_key(&old.name){if let Some(next)=tables.get(prior).copied(){tables.insert(old.name.clone(),next);aliases.insert(prior.clone(),old.name.clone());}}}}}
-    let before_schema=crate::compile(sources).schema;
-    let current_schema=crate::compile(current).schema.with_table_names(&aliases).ok();
+    let before_schema=crate::release_compile::compile(sources).schema;
+    let current_schema=crate::release_compile::compile(current).schema.with_table_names(&aliases).ok();
     let remap = |expr: &ast::Expr| {
         let mut expr = expr.clone();
         crate::bind::intent_walk::expression(&mut expr, &mut |e| {

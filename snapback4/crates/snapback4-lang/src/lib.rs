@@ -82,3 +82,6 @@ mod release_bridge_rules;
 
 #[cfg(test)]
 mod release_bridge_indexes_tests;
+
+#[doc(hidden)]
+pub mod release_compile;

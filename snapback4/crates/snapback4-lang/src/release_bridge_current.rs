@@ -13,8 +13,8 @@ type Source = (String, String);
 
 pub(super) fn prepare(target: &[Source], current: &[Source], guarded_fallback: &mut bool) -> Bridge {
     *guarded_fallback=false;
-    let old = crate::compile(target);
-    let next = crate::compile(current);
+    let old = crate::release_compile::compile(target);
+    let next = crate::release_compile::compile(current);
     if !old.diagnostics.is_empty() {
         return Bridge {
             sources: target.to_vec(),
@@ -35,7 +35,7 @@ pub(super) fn prepare(target: &[Source], current: &[Source], guarded_fallback: &
     }
     match alpha(target, current) {
         Ok(Some(sources)) => {
-            let bound = crate::compile(&sources);
+            let bound = crate::release_compile::compile(&sources);
             if !bound.diagnostics.is_empty() {
                 return Bridge {
                     sources,
@@ -76,7 +76,7 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
         Err(error)=>return refused(current,&error.reason),
     };
     let current=normalized.as_deref().unwrap_or(current);
-    let old=crate::compile(target);let next=crate::compile(current);
+    let old=crate::release_compile::compile(target);let next=crate::release_compile::compile(current);
     if !old.diagnostics.is_empty()||!next.diagnostics.is_empty(){return refused(current,"both authored sources must compile before preparing a guarded view");}
     if !table_contracts(&old,&next,true){
         let missing=old.schema.tables.iter().flat_map(|(table,t)|{let old=&old;let next=&next;t.columns.iter().filter_map(move |(column,kind)|{
@@ -123,7 +123,7 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
     }
     // A view can pause an incompatible write; it cannot guess a required
     // choice or silently consume a removed data-bearing argument.
-    let available=crate::compile(&sources);
+    let available=crate::release_compile::compile(&sources);
     let delete_roots=destructive_delete_roots(&old,&available);
     let mut paused=BTreeSet::new();
     for (file,text) in &mut sources {
@@ -153,7 +153,7 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
         }
         edits.sort();edits.dedup();for(a,b)in edits.into_iter().rev(){text.replace_range(a..b,"");}
     }
-    let bound=crate::compile(&sources);
+    let bound=crate::release_compile::compile(&sources);
     if !bound.diagnostics.is_empty(){return Bridge{sources,changes,diagnostics:bound.diagnostics};}
     if !table_contracts(&old,&bound,true)||!endpoint_contracts(&old,&bound,true){
         let incompatible=old.programs.iter().filter(|p|bound.programs.iter().find(|n|n.program.name==p.program.name).is_none_or(|n|!endpoint_contract(&p.program,&n.program))).map(|p|format!("{} predecessor arguments [{}], current arguments [{}]",p.program.name,p.program.args.keys().cloned().collect::<Vec<_>>().join(", "),bound.programs.iter().find(|n|n.program.name==p.program.name).map(|n|n.program.args.keys().cloned().collect::<Vec<_>>().join(", ")).unwrap_or_else(||"export absent".into()))).collect::<Vec<_>>();
