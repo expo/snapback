@@ -1,0 +1,22 @@
+import {readFileSync,writeFileSync,mkdirSync,createWriteStream,existsSync,copyFileSync} from 'node:fs';
+import {spawn} from 'node:child_process';
+import {builderEnvironment} from '/home/ccheever/sb4-loop/bakeoff/harn34.mjs';
+import {archiveSessions} from '/home/ccheever/sb4-loop/bakeoff/sessions34.mjs';
+const phase=process.argv[2],n=Number(process.argv[3]),registry=readFileSync(`/tmp/muse1-evidence/registry-${phase}.url`,'utf8').trim();
+const a=JSON.parse(readFileSync('/home/ccheever/sb4-loop/bakeoff/next37/wave34r2/assignments.json')).find(a=>a.n===n),version=phase==='v46'?'0.4.46':phase==='v47'?'0.4.47':JSON.parse(readFileSync(`/tmp/muse1-evidence/packs/${phase}/manifest.json`)).version;
+const dir=`/tmp/muse1-replay/${phase}/${a.id}`,tmp=`/tmp/muse1-replay/t/${phase}-${n}`;
+if(existsSync(dir))throw Error('replay directory must start empty');mkdirSync(dir,{recursive:true});mkdirSync(tmp,{recursive:true});
+const old='/home/ccheever/sb4-loop/bakeoff/next37/wave34r2/apps/'+a.id;
+let brief=readFileSync(old+'/BRIEF.md','utf8').replaceAll(old,dir).replaceAll('snapback4@0.4.47',`snapback4@${version}`).replaceAll('snapback4-expo@0.4.47',`snapback4-expo@${version}`);
+const i=[19,32,26,35,1,14].indexOf(n),lo=([ 'v46','v47','branch'].indexOf(phase)+1)*100+53000+i*10;
+brief=brief.replaceAll(String(a.portLo+9),String(lo+9)).replaceAll(String(a.portLo),String(lo));writeFileSync(dir+'/BRIEF.md',brief);
+const env=builderEnvironment({...process.env,PORT_LO:String(lo),PORT_HI:String(lo+9),TMPDIR:tmp,PATH:`/home/ccheever/sb4-loop/bakeoff/proc-shims:/home/ccheever/.bun-1.4.2/bin:${process.env.PATH}`,SB4_LANE:`muse1-${phase}-${n}`,SB4_LANE_DIRS:dir+':'+tmp,SB4_GUARD_LOG:'/tmp/muse1-evidence/guard.jsonl',CHROME:'/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome',CI:'1',EXPO_NO_TELEMETRY:'1',npm_config_registry:registry});
+for(const k of Object.keys(env))if(/^(CONVEX_|SUPABASE_|DATABASE_URL$|POSTGRES_URL$|HARNESS_BACKEND_)/.test(k)||['FORCE_COLOR','NO_COLOR','SNAPBACK4_BIN'].includes(k))delete env[k];
+const args=a.model==='codex'?['exec','--dangerously-bypass-approvals-and-sandbox','--skip-git-repo-check','--json','--color','never','-m','gpt-6.1-sol','-c','model_reasoning_effort=high','-C',dir,'-o',dir+'/.agent-final.md','-']:['--yolo','--json','--model','muse-spark-1.3-contributor','--reasoning-effort','high','--prompt-file',dir+'/BRIEF.md'];
+const cmd=a.model==='codex'?'/home/ccheever/.local/bin/codex':'/home/ccheever/sb4-loop/muse-exec.sh',start=Date.now(),child=spawn(cmd,args,{cwd:dir,env,stdio:['pipe','pipe','pipe']});
+child.stdout.pipe(createWriteStream(dir+'/.agent.ndjson'));child.stderr.pipe(createWriteStream(`/tmp/muse1-evidence/${phase}-${n}.stderr`));if(a.model==='codex')child.stdin.end(brief);else child.stdin.end();
+writeFileSync(`/tmp/muse1-evidence/${phase}-${n}-launch.json`,JSON.stringify({a,version,dir,tmp,cmd,args,started:new Date(start).toISOString(),pid:child.pid,initialPackageInstalled:existsSync(dir+'/node_modules/snapback4')},null,2));
+const status=await new Promise(done=>child.on('close',done));let archive,error;
+try{archive=archiveSessions(dir);}catch(e){error=String(e);}
+writeFileSync(`/tmp/muse1-evidence/${phase}-${n}-result.json`,JSON.stringify({status,wallMs:Date.now()-start,report:existsSync(dir+'/REPORT.md'),archive,error},null,2));
+console.log(phase,n,status,Math.round((Date.now()-start)/1000));

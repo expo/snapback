@@ -1,0 +1,75 @@
+{
+  "head": "8f60156e9d74a94bab4f1c6b101a552448a8454a",
+  "ok": false,
+  "unchanged": false,
+  "complete": true,
+  "commandsAllPassed": true,
+  "reason": "provenance/review commits changed observed inputs during this preliminary run; final pass remains required",
+  "results": [
+    {
+      "id": "install-client",
+      "status": 0
+    },
+    {
+      "id": "build-cli",
+      "status": 0
+    },
+    {
+      "id": "build-wasm",
+      "status": 0
+    },
+    {
+      "id": "build-client",
+      "status": 0
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0
+    },
+    {
+      "id": "rust:muse1-cli",
+      "status": 0
+    },
+    {
+      "id": "rust:muse1-guide",
+      "status": 0
+    },
+    {
+      "id": "client:muse1-proof",
+      "status": 0
+    },
+    {
+      "id": "diagnostics",
+      "status": 0
+    },
+    {
+      "id": "docs-budget",
+      "status": 0
+    },
+    {
+      "id": "generated",
+      "status": 0
+    },
+    {
+      "id": "guide",
+      "status": 0
+    },
+    {
+      "id": "inventories",
+      "status": 0
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0
+    },
+    {
+      "id": "ref-check",
+      "status": 0
+    },
+    {
+      "id": "selector-tests",
+      "status": 0
+    }
+  ],
+  "fullSelectorPlanExecuted": false
+}
