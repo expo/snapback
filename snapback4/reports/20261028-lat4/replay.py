@@ -85,7 +85,7 @@ def run(dst,script,base,binary,slot,port=None):
 def main():
  global SCRATCH
  ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--slot',type=int);ap.add_argument('--out',type=pathlib.Path);ap.add_argument('--revision',type=int,default=1);ap.add_argument('--waves',default='32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof');ap.add_argument('--candidate',type=pathlib.Path,required=True);ap.add_argument('--before-native',type=pathlib.Path,required=True);ap.add_argument('--after-native',type=pathlib.Path,required=True);a=ap.parse_args()
- SCRATCH=a.out or SCRATCH;SCRATCH.mkdir(parents=True,exist_ok=True)
+ SCRATCH=a.out or SCRATCH;SCRATCH.mkdir(parents=True,exist_ok=True,mode=0o700);SCRATCH.chmod(0o700)
  slot=a.worker if a.slot is None else a.slot
  cases=[(wave,p.parent)for wave in map(int,a.waves.split(','))for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{wave}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p)for w,p in cases if p.name[:3]in a.lanes.split(',')]
@@ -104,7 +104,7 @@ def main():
    for script in wanted:
     row={'wave':wave,'lane':src.name,'script':script,'measurementRevision':a.revision,'wrapped':wrapped,'beforeBinarySha256':hashlib.sha256(a.before_native.read_bytes()).hexdigest(),'afterBinarySha256':hashlib.sha256(a.after_native.read_bytes()).hexdigest()}
     for variant,dst,binary in ([('before',before,a.before_native),('after',after,a.after_native)]if i%2==0 else [('after',after,a.after_native),('before',before,a.before_native)]):
-     key=script.replace(':','-')+'-'+variant;port=21120 if (wave in [32,33]and src.name.startswith('012-'))else 21280 if wave==34 and src.name.startswith('028-')else 21090 if wave==33 and src.name[:3]in ['009','035']else None
+     key=script.replace(':','-').replace('/','-')+'-'+variant;port=21120 if (wave in [32,33]and src.name.startswith('012-'))else 21280 if wave==34 and src.name.startswith('028-')else 21090 if wave==33 and src.name[:3]in ['009','035']else None
      digest=lat3.client_digest(dst)
      row[variant]=run(dst,script,logs/key,binary,slot,port)
      row[variant]['clientInputDigest']=digest;row[variant]['clientOutputDigest']=lat3.client_digest(dst)
