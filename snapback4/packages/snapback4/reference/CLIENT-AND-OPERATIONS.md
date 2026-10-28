@@ -4391,6 +4391,31 @@ import { probeServeGuard } from "snapback4/proof";
 export const acquireProbeLifetime = (directory: string) => probeServeGuard({ directory });
 ```
 
+
+### Isolated reruns and proof failure reports
+
+Use fresh real accounts and unique row names for independent reruns. A runner
+prints a bounded report and preserves the original assertion on failure;
+`proofFailure(error)` also supplies refusal text for an application-owned report.
+
+```ts
+import { freshUser, uniqueName, proofFailure, reportProofFailure, printProofReport,
+  type ServeHost, type StagingAccount, type ServeCheckReport } from "snapback4/proof";
+export function refusalText(error: unknown): string { return proofFailure(error); }
+export async function isolatedProof(host: ServeHost,
+  verify: (user: StagingAccount, rowName: string) => Promise<ServeCheckReport>): Promise<void> {
+  try {
+    const user = await freshUser(host);
+    const report = await verify(user, uniqueName("proof"));
+    printProofReport("probe:check", report);
+  } catch (error) {
+    reportProofFailure(error);
+    throw error;
+  }
+}
+```
+
+
 ## Your first working account screen
 
 This optional walkthrough replaces the generated starter with a password profile, avatar and thread. Run the starter first; read on when you need those features.

@@ -14,7 +14,7 @@ import { runInNewContext } from "node:vm";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(path, "utf8");
 const pkg = JSON.parse(read(join(root, "package.json")));
-const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./contract").map(([key, value]) => {
+const publicSources = Object.entries(pkg.exports).filter(([key, value]) => key !== "./contract" && typeof value === "object" && typeof value.types === "string").map(([key, value]) => {
   const stem = value.types.replace("./dist/", "src/").replace(/\.d\.ts$/, "");
   return { key, path: join(root, stem + (key === "./react" ? ".tsx" : ".ts")) };
 });
