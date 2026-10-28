@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-28T04:37:21.612001+00:00",
+  "productCommit": "f6a86a6ccef25ab4afaae79c93754de87431a730",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "freshSession": true,
+    "round": 7,
+    "brief": "Review the final VER1 delta against 1c4c51b551 in /home/ccheever/projects/sb4-b35-calls1, source only. Governing amendment: LLP 3000.037.000 section 14. Scope is new starter verify/check scripts (first red, refusal summary, its own caller/group custody), explicit deferred installer detachment and request-pinned joins, and probe ready-idle 10s with unchanged hold. The pre-existing foreground installer owner must still reclaim its IPC worker on owner death; it stays in its caller's process group. Targeted foreground-parent-only death is outside this increment's claim. Inspect init/{verify.mjs,verify-parent.mjs,verify.rs,install.mjs,probe-serve.mjs}, proof-probe.ts and ver1-loop.test.mjs under snapback4. Do not read previous review artifacts or reports. No edits or unrelated corpus tour. Return READY or blocking issues introduced by this delta. Do not claim tests, performance or qualification from source review.\n",
+    "verdict": "READY"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "effort": "high",
+    "round": 4,
+    "brief": "Review VER1's current diff in /home/ccheever/projects/sb4-b35-calls1, independently. Read snapback4/AGENTS.md and LLP 3000.037.000 section 14. Scope: guide/why.rs and codes.rs E_PROBE_IDLE wording and their guide test, init/verify-parent.mjs, init/proof.rs README route, tests/init_ver1.rs, init/verify.rs, verify.mjs, probe-serve.mjs, init.rs next steps, install.mjs background mode, proof-probe.ts idle bound, proof.ts idle diagnostic, and tests ver1-loop/tok1-reading. Assess correctness, process custody, stale receipts, first-red refusal output and preservation of existing harness hold. Read code, do not edit. Return READY or concrete blocking findings with file/line. Do not claim measurement or qualification from source review. No external credentials or other worktrees.\n\nDo not read previous review artifacts, reports or reasoning. Focus only on the listed product files and their current diff, plus the 14th RFC section; no full-corpus or unrelated diff tour.\n",
+    "verdict": "READY",
+    "note": "Its response records the tests it actually ran; no performance or qualification. Final duplicate-admission interleaving regression added afterward without a final runtime delta."
+  },
+  "sourceSha256": {
+    "llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md": "69ee394a9271a56143a02830ff3a69e03eb0056773c0b96d81516d0f3ddea1c9",
+    "snapback4/JOURNAL.md": "22f94aa9159d90bb4bfe4aec7f5e5af7f0b4c417e5d10dad0e607c2c4b70785d",
+    "snapback4/crates/snapback4-lang/src/guide/api_proof.md": "44734d1b3bf5581144f09d1c4f8c632ead69d62f85bd5b2027b1622d44d4de48",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "a135549cac70c1a9596d0fa80d3df586c6b654bf9124eba925cb735b5c5532e0",
+    "snapback4/crates/snapback4-lang/src/guide/why.rs": "29c7638ee7eb85e52f4d8924fc9affd764806417662088f52c544d4b3ec1bd72",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "052a642801fcec8d3826688c5df08ad52ae4971151b4ccd947f46cb67d48d381",
+    "snapback4/crates/snapback4-lang/tests/guide/published.rs": "339a0d93a222ce76ca45e6d648f810f4373d586cfa6c2dd2c224ebb451be67b6",
+    "snapback4/crates/snapback4/src/verbs/init.rs": "24dd9f3eda855d75fe18311a49dbf2e779ef34fa34d7d42bd61d2f9922f78c65",
+    "snapback4/crates/snapback4/src/verbs/init/install.mjs": "bb95af4b3151b6e911e77e0d14cc7fca9eeb18490d94700e9dc625ebfb10f016",
+    "snapback4/crates/snapback4/src/verbs/init/probe-serve.mjs": "b29cbc18cd5ec789837f96151cf24375691fd4f6e454e09315271fd0425c26d3",
+    "snapback4/crates/snapback4/src/verbs/init/proof.rs": "e758fb8c1618b517f320c3dd099fc89b144e6b8e9ddffaaadb2047ce2179888d",
+    "snapback4/crates/snapback4/src/verbs/init/verify-parent.mjs": "9fc653a96104bd77e4b14bf4c86fb564845190e2f8368917883e2025588a07dd",
+    "snapback4/crates/snapback4/src/verbs/init/verify.mjs": "193c773a8e9ecdb7296c12752d778b33c68ea25ea21e5d69bed853f0e4e6ed3e",
+    "snapback4/crates/snapback4/src/verbs/init/verify.rs": "322de056d2fe2be6f878140926461a472d0b619995dcc0ad909897530508121d",
+    "snapback4/crates/snapback4/tests/init_ver1.rs": "8d4fa39cc4db800c993af8f07ff8ce2f645d82442866739571b27c449367df40",
+    "snapback4/crates/snapback4/tests/tok1.rs": "6d366d304581e3ba592f8fa078b5455e4cd8c53a5d48d3f7094d93a8c86ecd81",
+    "snapback4/packages/snapback4/CHANGELOG.md": "938e953878b0b9b1cfe1ea4b18db6119d52271e9a5b936b4f2fbea1c21568d78",
+    "snapback4/packages/snapback4/src/proof-probe.ts": "5a044c25b34ccce5845e07b695314e9b048556027b6e4007a69619d14396d978",
+    "snapback4/packages/snapback4/src/proof.ts": "67f0e116c18b4f9bf186117413f56a76b321eec247e10340f69b7f81ddf54ca9",
+    "snapback4/packages/snapback4/test/tok1-reading.test.mjs": "91c6dc97f33e03f6eb957d124a68f8e53c944214645beb890b6b2d3c38df6e21",
+    "snapback4/packages/snapback4/test/ver1-loop.test.mjs": "66a6c1b776db3c1331fd2ef39e1de6f12263ab1ec30827f2fce289d7cc2ecb0d",
+    "snapback4/reports/20261028-ver1/METHOD.md": "be0b70e897e6b3292fdd7479d38a8f4f7318359a3c49f6cc06304ef1ec03ab05",
+    "snapback4/reports/20261028-ver1/measure-whole-sessions.py": "2435e4d3f44c6cc3c588cf969d5183637d7e3176d4c43a3b87d0345cf2aa9335",
+    "snapback4/reports/20261028-ver1/prove-packed-loop.mjs": "441e96b4c92558b0c5232376b69dd5cc024174e62837cdb43101a444525e5cec",
+    "snapback4/reports/20261028-ver1/replay-registry.mjs": "d2fe433a7053cb4e146aed508b6a434c9780b3a0765f1293501ece0196357d3a",
+    "snapback4/reports/20261028-ver1/replay-whole-session.mjs": "dd3f0501375e50e2145046c6850488f2618d24d507faef811d195814d2814aed",
+    "snapback4/reports/20261028-ver1/run-affected-scoped.mjs": "c0cc03eff49f4a749e12f76ba2856341749c3a8c13b07993a701b12527f9cbe4"
+  },
+  "disposition": "Earlier findings retained verbatim. Round-6 foreground-parent-only wording corrected to existing installer-owner/group custody, matching scope."
+}

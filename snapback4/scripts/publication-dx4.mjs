@@ -36,7 +36,12 @@ export async function proveDX4(directory) {
     // Builders first see the default truncated view, not --full.
     for (const name of ["start","cheatsheet","personas"]) {
       const reply=spawnSync(process.execPath,[cli,"guide",name,"--repeat"],{cwd,env,encoding:"utf8",timeout:30000});
-      assert.equal(reply.status,0,reply.stderr);assert.match(reply.stdout,/guide staging/,`default guide ${name} must surface staging`);
+      assert.equal(reply.status,0,reply.stderr);
+      if(name === "start" && !reply.stdout.includes("guide staging")) {
+        assert.match(reply.stdout,/guide workflow/,"start must route to its complete app recipe");
+        const workflow=spawnSync(process.execPath,[cli,"guide","workflow","--repeat"],{cwd,env,encoding:"utf8",timeout:30000});
+        assert.equal(workflow.status,0,workflow.stderr);assert.match(workflow.stdout,/startStaging/,"the routed recipe must carry actual staging setup");
+      } else assert.match(reply.stdout,/guide staging/,`default guide ${name} must surface staging`);
       if(name==="cheatsheet") {assert.match(reply.stdout,/deploy staging --staging/);assert.match(reply.stdout,/serve staging/);}
     }
     const wave19=await proveWave19(cwd,run,fences(await card("staging"),"quarry")[0]);

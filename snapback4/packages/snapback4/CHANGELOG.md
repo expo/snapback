@@ -6,6 +6,9 @@
 
 - Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
 
+- New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
+- An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle attempt refuses early. `SNAPBACK4_PROBE_HOLD=1` retains deliberate harness service. Foreground installs stay the default. The app-local dependency installer also offers explicit background admission, a private install log, request-bound status and one blocking join; its script owns those options.
+
 ## 0.4.46
 
 ### Guide changes

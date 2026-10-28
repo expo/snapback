@@ -110205,3 +110205,14 @@ Independent review caught a custom frontend scaffold truncation and unref await
 liveness; parser/status/drain/timer regressions cover the fixes. Measurements,
 complete store/release comparison and final review disposition remain in the
 LAT4 workstream report, not a publication qualification claim.
+
+## 2026-10-28 — VER1: one verification loop and tool-safe install ownership
+
+New UI starters use npm run verify for ordered check/typecheck, acceptance,
+frontend and probe shutdown; npm run check itself generates the checked API.
+The first red stops the loop, retaining private details and refusal-first lines.
+An empty unheld probe expires after 10 seconds ready; harness hold is unchanged.
+Explicit background installation detaches the owner with file-backed admission,
+status and logs, retaining the worker's existing IPC custody inside that session.
+Foreground installation remains default. Process-group teardown passes 10/10;
+packed qualification and whole-session measurements are recorded in VER1's report.

@@ -22,7 +22,7 @@ fn wave32_muse_028_starter_prints_a_custody_map_and_every_script_names_signature
     let p=Project::new("init");fs::remove_dir(p.0.join("snapback")).unwrap();
     let out=p.cli(&["init","--web","--online","--password","--no-install"]);
     assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));let text=String::from_utf8_lossy(&out.stdout);
-    assert!(text.starts_with("# Start:"));assert!(text.contains("Starter map"));assert!(text.contains("verify with `npm run probe:check`"));
+    assert!(text.starts_with("# Start:"));assert!(text.contains("Starter map"));assert!(text.contains("verify loop: `npm run verify`"));
     for file in fs::read_dir(p.0.join("scripts")).unwrap().flatten() {
         if file.path().extension().is_some_and(|s|s=="mjs") { let text=fs::read_to_string(file.path()).unwrap();assert!(text.lines().take(3).any(|line|line.contains("guide api proof")),"{}",file.path().display()); }
     }

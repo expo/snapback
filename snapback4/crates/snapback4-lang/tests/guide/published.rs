@@ -66,6 +66,7 @@ const APP_FILES: &[&str] = &[
     "snapback4-sw.js", "contact.html", "about.html", "store.sqlite",
     "<dir>/store.sqlite", "<deployment>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
     "scripts/prod-serve.mjs", "production/proof-accounts/default.json",
+    ".snapback4/install.log", ".snapback4/last/verify.txt",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
     "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
     "provenance.json", "promotion.json", "versions/v1/release.json", "bridge/ROLLBACK-CHECKLIST.md", "fixtures/test.sweep.json", "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",

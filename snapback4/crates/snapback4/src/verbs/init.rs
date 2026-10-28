@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 use std::{io::Write, path::Path};
 
 mod web;
+mod verify;
 mod social;
 mod starter;
 mod adapt;
@@ -188,9 +189,11 @@ pub fn init(options: &Options) -> i32 {
         if (web || expo) && *name=="README.md" {*text=text.replace("npm install","node scripts/install.mjs");}
     }
     if web || expo {
+        // @ref LLP 3000.037.000#14-wave-34-one-verify-loop-ver1 — explicit deferred installs detach their owner, not only the IPC worker.
         files.push(("scripts/install.mjs", include_str!("init/install.mjs").into()));
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
         if let Err(error) = proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape, options.flags.contains_key("day2")) {eprintln!("init proof capture: {error}");return 2;}
+        verify::files(&mut files, shape.password);
     }
     for (name, text) in &mut files {
         if name.starts_with("scripts/") && (name.ends_with(".mjs") || name.ends_with(".ts")) && !text.contains("API signatures:") {
@@ -362,11 +365,12 @@ pub fn init(options: &Options) -> i32 {
         else if online_web { "Vite + React app, online reads and journaled writes (no device)" }
         else if web && home { &format!("Vite + React app: sign-in and a Home screen for your snapback/*.q{}", shape.offline.summary()) } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
-    println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    let verify_loop = if web || expo { "npm run verify" } else { "snapback4 check" };
+    println!("init: wrote {} files in {} — {kind} — next: {install}`{verify_loop}`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
-        println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
+        println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npm run verify`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
         println!("init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)");
     }
     if web {
@@ -410,10 +414,10 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     if web || expo {
-        println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
+        println!("init: verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown). `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
         if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
             match install_frontend(dir) {
-                Ok(0) => println!("init: frontend dependencies ready; next: snapback4 check (no install join needed)"),
+                Ok(0) => println!("init: frontend dependencies ready; next: npm run verify (no install join needed)"),
                 Ok(code) => return code,
                 Err(error) => { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); return 1; }
             }

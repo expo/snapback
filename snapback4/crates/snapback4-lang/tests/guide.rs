@@ -1508,7 +1508,8 @@ fn wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget
         let card=guide::reader_card(name,guide::card(name).unwrap());
         let shown=guide::piped(name,&card);
         assert!(shown.len()<=guide::FULL_BYTES);
-        assert!(shown.contains("guide staging"),"{name}: preserve staging in the actual bounded opening");
+        let routed_staging = name == "start" && shown.contains("guide workflow") && guide::card("workflow").unwrap().contains("startStaging");
+        assert!(shown.contains("guide staging") || routed_staging,"{name}: preserve staging directly or through the actual bounded recipe route");
     }
     for (name,words) in [("rename","opening"),("deploy","Keep v1 clients working"),("deploy","Bridge a safety gate"),("security","N_PRESENCE_LOOSENING"),("deploy","Migrations and adoption"),("deploy","Which migration shape"),("evolution","Move media"),("production","Serve script and reusable accounts")] {
         let card=guide::reader_card(name,guide::card(name).unwrap());

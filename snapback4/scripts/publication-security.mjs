@@ -130,6 +130,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   // Preserve the policy checklist in the cards that own it, rather than
   // requiring the introductory card tour in the short README.
   assert.match(readme, /npx snapback4 guide start/);
+  assert.match(workflow, /startStaging/, "the routed app recipe carries real-account setup");
   assert.match(readme, /guide api react\|client\|auth\|proof\|generated/);
   assert.match(start, /guide workflow/);
   assert.match(start, /independent spec intent/);

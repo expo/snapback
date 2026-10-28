@@ -19,17 +19,17 @@ test('wave32 Codex 001/025 + Muse 019/028: first schema and exact signatures fit
  }
  execFileSync(process.execPath,['scripts/guide-api.mjs','--check'],{cwd:join(root,'packages/snapback4')});
 });
-test('wave32 Muse 005/008/017/018/019/024/027/028/029/033/036/037: killed empty >60s run refuses before deployment; --hold bypasses',t=>{
+test('wave32 Muse 005/008/017/018/019/024/027/028/029/033/036/037: killed empty >=10s run refuses before deployment; --hold bypasses',t=>{
  const directory=scratch(t);mkdirSync(join(directory,'.snapback4'));
  const started=Date.now()-100000;
- writeFileSync(join(directory,'.snapback4/probe-run.json'),JSON.stringify({pid:2147483647,started,lastSeen:started+61000,requests:0}));
+ writeFileSync(join(directory,'.snapback4/probe-run.json'),JSON.stringify({pid:2147483647,started,lastSeen:started+10000,requests:0,ready:true}));
  assert.throws(()=>probeServeGuard({directory}),/E_PROBE_IDLE.*probe:check/);
  const guard=probeServeGuard({directory,hold:true});guard.ready();assert.equal(guard.idle(),false);guard.close();
 });
-test('wave32 Muse foreground wait: first ready empty run ends after 60s; observed request/hold preserve service',t=>{
+test('wave32 Muse foreground wait: first ready empty run ends after 10s; observed request/hold preserve service',t=>{
  const directory=scratch(t);t.mock.timers.enable({apis:['Date','setInterval']});
  const guard=probeServeGuard({directory});guard.ready();
- assert.equal(guard.idle(),false);t.mock.timers.tick(60001);assert.equal(guard.idle(),true);guard.close();
+ assert.equal(guard.idle(),false);t.mock.timers.tick(10000);assert.equal(guard.idle(),true);guard.close();
  const activity=probeServeGuard({directory,hold:true});activity.ready();t.mock.timers.tick(61000);assert.equal(activity.idle(),false);activity.close();
 });
 test('wave32 Muse 019/028/036/029: placement refusal carries a same-image two-column copy recipe and preserves fields',async()=>{
@@ -51,7 +51,7 @@ test('wave32 Codex install polls: --status returns before npm completes; --wait 
   const status=execFileSync(process.execPath,['scripts/install.mjs','--status'],{cwd:directory,encoding:'utf8'});assert.match(status,/running/);
   const waiter=spawn(process.execPath,['scripts/install.mjs','--wait'],{cwd:directory,env,stdio:'pipe'});
   let output=''; waiter.stdout.on('data',b=>output+=b);
-  assert.equal(await new Promise(r=>waiter.once('exit',r)),code);assert.equal(await exited,code);
+  assert.equal(await new Promise(r=>waiter.once('exit',r)),code);assert.equal(await exited,0);
   assert.equal(output.trim().split('\n').length,1,'wave34 install polling: a blocking join prints only completion');
   assert.match(output,/finished/);
   assert.match(readFileSync(join(directory,'.snapback4/install.log'),'utf8'),/npm-progress/);
@@ -80,7 +80,7 @@ test('wave32 foreground guard counts actual post-ready HTTP requests, excluding 
  const guard=probeServeGuard({directory:cwd});
  const host=await startDev({cwd,env:{...process.env,SNAPBACK4_BIN:join(root,'target/debug/snapback4')},args:['--memory','--no-watch']});
  try{
-  guard.ready();t.mock.timers.enable({apis:['Date'],now:Date.now()});t.mock.timers.tick(60001);assert.equal(guard.idle(),true,'readiness requests do not count');
+  guard.ready();t.mock.timers.enable({apis:['Date'],now:Date.now()});t.mock.timers.tick(10000);assert.equal(guard.idle(),true,'readiness requests do not count');
   const result=await fetch(`${host.url}/q/alive`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{}'});assert.equal(result.status,200);
   assert.equal(guard.idle(),false,'a real post-ready request preserves indefinite service');
  }finally{await host.stop();guard.close();}
@@ -89,7 +89,7 @@ test('wave32 install custody: SIGKILL of owner stops its private npm worker; a d
  const directory=scratch(t),bin=join(directory,'bin');mkdirSync(bin);mkdirSync(join(directory,'scripts'));
  const source=join(directory,'scripts/install.mjs');writeFileSync(source,readFileSync(join(root,'crates/snapback4/src/verbs/init/install.mjs')));
  writeFileSync(join(bin,'npm'),'#!/bin/sh\nwhile true; do echo tick >> activity; sleep 0.1; done\n',{mode:0o755});
- const env={...process.env,PATH:`${bin}:${process.env.PATH}`},child=spawn(process.execPath,[source,'--background'],{cwd:directory,env,stdio:'ignore'});
+ const env={...process.env,PATH:`${bin}:${process.env.PATH}`},child=spawn(process.execPath,[source],{cwd:directory,env,stdio:'ignore'});
  const exited=new Promise(r=>child.once('exit',r));
  while(!(()=>{try{return readFileSync(join(directory,'activity'),'utf8').length>0;}catch{return false;}})())await new Promise(r=>setTimeout(r,20));
  child.kill('SIGKILL');await exited;await new Promise(r=>setTimeout(r,300));
@@ -109,4 +109,21 @@ test('check-owned probes opt into hold, so an explicit uptime proof can exceed t
  const module=pathToFileURL(join(root,'packages/snapback4/dist/proof.js')).href;
  writeFileSync(join(cwd,'serve.mjs'),`import{probeServeGuard,startServe,serveUntilSignal}from ${JSON.stringify(module)};const guard=probeServeGuard();const host=await startServe('release');guard.ready();const real=Date.now;Date.now=()=>real()+61000;if(guard.idle())throw Error('checker failed to opt into hold');console.log(JSON.stringify({backendUrl:host.url}));try{await serveUntilSignal([host]);}finally{Date.now=real;guard.close();await host.stop();}`);
  const report=await serveCheck({cwd,env,script:'probe:serve',deployment:'release',upMs:500});assert.equal(report.ok,true,JSON.stringify(report));
+});
+
+test('VER1: slow failed startup and an intentional held check never poison the next unheld probe',t=>{
+ const directory=scratch(t);t.mock.timers.enable({apis:['Date','setInterval']});
+ for(const hold of [false,true]){
+  const guard=probeServeGuard({directory,hold});if(hold)guard.ready();
+  t.mock.timers.tick(30000);guard.close();
+  const path=join(directory,'.snapback4/probe-run.json'),previous=JSON.parse(readFileSync(path));
+  writeFileSync(path,JSON.stringify({...previous,pid:2147483647}));
+  const next=probeServeGuard({directory});next.close();
+ }
+});
+
+test('VER1: legacy receipts keep their former sixty-second threshold',t=>{
+ const directory=scratch(t);mkdirSync(join(directory,'.snapback4'));const path=join(directory,'.snapback4/probe-run.json'),started=Date.now()-100000;
+ writeFileSync(path,JSON.stringify({pid:2147483647,started,lastSeen:started+15000,requests:0}));probeServeGuard({directory}).close();
+ writeFileSync(path,JSON.stringify({pid:2147483647,started,lastSeen:started+61000,requests:0}));assert.throws(()=>probeServeGuard({directory}),/E_PROBE_IDLE/);
 });
