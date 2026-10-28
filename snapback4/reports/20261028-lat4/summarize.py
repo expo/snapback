@@ -1,5 +1,5 @@
 """Numerical export only. Full stores, credentials and raw app logs remain private."""
-import argparse,collections,hashlib,json,math,pathlib,re,statistics
+import argparse,collections,hashlib,json,math,pathlib,re,shlex,statistics
 HERE=pathlib.Path(__file__).resolve().parent
 DIAGNOSTIC=re.compile(r'snapback4 proof: lingering handles after suite: [A-Za-z]+\(\d+\)(?:, [A-Za-z]+\(\d+\))*; exiting with status \d+')
 
@@ -56,6 +56,26 @@ def import_boundary(row,file):
    inside=False
  return boundary
 
+def report_tails(root,row,variant):
+ # Cover authored process.exit and unadapted historical TS entries as well.
+ # This is an observed exit-minus-last-output gap, NOT a completion boundary or
+ # permission to terminate a test. Awaited-completion tails remain separate.
+ app=pathlib.Path(f"/home/ccheever/sb4-loop/wave{row['wave']}/apps")/row['lane']
+ script='client:calls'if row['script']=='probe:serve/client:calls'else row['script']
+ parts=shlex.split(json.loads((app/'package.json').read_text())['scripts'][script])
+ entries={pathlib.Path(p).name for p in parts if p.endswith(('.mjs','.ts'))}
+ name=row['script'].replace(':','-').replace('/','-')+'-'+variant
+ observer=root/'logs'/f"w{row['wave']}-{row['lane']}"/(name+'.observer.jsonl')
+ if not observer.exists():return []
+ events=[json.loads(line)for line in observer.read_text().splitlines()]
+ result=[]
+ for end in events:
+  if end['event']!='exit'or end['entry']not in entries:continue
+  writes=[e['at']for e in events if e['event']=='output'and e['pid']==end['pid']and e['at']<=end['at']]
+  done=any(e['event']=='suite-done'and e['pid']==end['pid']for e in events)
+  result.append({'wave':row['wave'],'lane':row['lane'],'script':row['script'],'variant':variant,'entry':end['entry'],'code':end['code'],'explicitCompletionObserved':done,'exitMinusLastOutputSeconds':(end['at']-max(writes))/1000 if writes else None})
+ return result
+
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--root',type=pathlib.Path,default=pathlib.Path('/tmp/lat4'));ap.add_argument('--out',type=pathlib.Path,required=True);a=ap.parse_args()
  raw=[json.loads(l)for p in sorted(a.root.glob('results-*.jsonl'))for l in p.read_text().splitlines()]
@@ -65,7 +85,7 @@ def main():
  if isinstance(target,dict):target=target.get('pairs',target.get('measurements',target.get('rows',[])))
  # The exact LAT3 successful day-two set, never a newly selected fast subset.
  target_lanes={r['lane']for r in target if r.get('wave')==33 and r.get('script')=='day2:proof'and r['before']['code']==r['after']['code']==0}
- tables={};deltas=[];tails=[];commands={v:collections.defaultdict(list)for v in ['before','after']}
+ tables={};deltas=[];tails=[];reported_tails=[];commands={v:collections.defaultdict(list)for v in ['before','after']}
  for r in rows:
   before=messages(r['before'].get('messages',[]));after=messages(r['after'].get('messages',[]))
   # The wrapper introduces an async boundary on an original import-only line.
@@ -81,6 +101,7 @@ def main():
   for v,lines in [('before',before),('after',after)]:
    r[v]['normalizedMessageSha256']=hashlib.sha256(json.dumps([boundary(line)for line in lines]).encode()).hexdigest()
    r[v]['rawMessageSha256']=hashlib.sha256(json.dumps(r[v].get('messages',[])).encode()).hexdigest()
+   reported_tails.extend(report_tails(a.root,r,v))
    for done in r[v].get('completions',[]):tails.append({'wave':r['wave'],'lane':r['lane'],'script':r['script'],'variant':v,**done})
    for command in command_summary(a.root,r,v):
     if command['verb']!='serve':commands[v][command['verb']].append(command)
@@ -109,6 +130,7 @@ def main():
  target_rows=[r for r in rows if r['wave']==33 and r['script']=='day2:proof'and r['lane']in target_lanes]
  summary={'qualification':False,'completedPairs':len(rows),'setupErrors':[r for r in raw if 'setupError'in r],'verdictOrMessageDifferences':deltas,'declaredLingeringDiagnosticOccurrences':{v:sum(len(DIAGNOSTIC.findall(line))for r in rows for line in r[v].get('messages',[]))for v in ['before','after']},'LAT3TargetLanes':sorted(target_lanes),'LAT3TargetCoverage':{'expected':len(target_lanes),'observed':len(target_rows),'matchedPassing':sum(r['before']['code']==r['after']['code']==0 for r in target_rows),'nonPassing':[{'lane':r['lane'],'before':r['before']['code'],'after':r['after']['code']}for r in target_rows if r['before']['code']or r['after']['code']]},'tables':tables,'clientCallPairs':call_pairs,'clientCallRecords':call_records,'clientCallDifferences':call_differences,'missingClientCallVectors':missing_vectors,
  'tails':{'completedSuites':len(tails),'overOneSecond':{v:sum(t['variant']==v and t['postCompletionSeconds']>1 for t in tails)for v in ['before','after']},'postCompletionSeconds':{v:stats([t['postCompletionSeconds']for t in tails if t['variant']==v])for v in ['before','after']}},
+ 'postReportObservations':{v:{'processes':sum(t['variant']==v for t in reported_tails),'overOneSecond':sum(t['variant']==v and t['exitMinusLastOutputSeconds']is not None and t['exitMinusLastOutputSeconds']>1 for t in reported_tails),'seconds':stats([t['exitMinusLastOutputSeconds']for t in reported_tails if t['variant']==v and t['exitMinusLastOutputSeconds']is not None])}for v in ['before','after']},
  'commands':{v:{verb:{'wallSeconds':stats([c['seconds']for c in values]),'outsideSecuritySeconds':stats([c['outsideSecuritySeconds']for c in values]),'count':len(values)}for verb,values in groups.items()}for v,groups in commands.items()}}
  a.out.mkdir(parents=True,exist_ok=True)
  sanitized=[]
@@ -118,5 +140,6 @@ def main():
   sanitized.append(value)
  (a.out/'measurements.json').write_text(json.dumps(sanitized,indent=2)+'\n')
  (a.out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');(a.out/'tails.json').write_text(json.dumps(tails,indent=2)+'\n')
+ (a.out/'post-report-observations.json').write_text(json.dumps(reported_tails,indent=2)+'\n')
  print(json.dumps({k:summary[k]for k in ['completedPairs','setupErrors','verdictOrMessageDifferences']}))
 if __name__=='__main__':main()

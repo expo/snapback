@@ -1,8 +1,15 @@
 // Measurement-only opt-in adaptation: preserve every assertion and await known async entry calls.
 import ts from '../../node_modules/typescript/lib/typescript.js';
 import {readFileSync,writeFileSync} from 'node:fs';
+import {dirname,join} from 'node:path';
 const file=process.argv[2],runner=process.argv[3];
 const source=readFileSync(file,'utf8');
+const done=file.endsWith('.ts')?`(process as typeof process & {__lat4Done?:()=>void}).__lat4Done?.();`:`process.__lat4Done?.();`;
+if(file.endsWith('.ts') && runner==='file:///tmp/lat4/observe-runner.mjs') {
+ // Declare only the measurement stub's added import. Keep all authored TS
+ // checks enabled; do not add ts-ignore or modify the app's tsconfig/types.
+ writeFileSync(join(dirname(file),'lat4-observer.d.ts'),`declare module ${JSON.stringify(runner)} { export function runProofSuite(suite:()=>void|Promise<void>):Promise<never>; }\n`);
+}
 const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,file.endsWith('.ts')?ts.ScriptKind.TS:ts.ScriptKind.JS);
 const imports=ast.statements.filter(ts.isImportDeclaration);
 const body=ast.statements.filter(s=>!ts.isImportDeclaration(s));
@@ -16,7 +23,7 @@ if(body.some(s=>s.modifiers?.some(m=>m.kind===ts.SyntaxKind.ExportKeyword))) {
  const block=entry.thenStatement,edits=[
   [imports.at(-1).end,`;import {runProofSuite as __lat4Suite} from ${JSON.stringify(runner)};`],
   [block.getStart(ast)+1,'await __lat4Suite(async()=>{try{'],
-  [block.end-1,'}finally{process.__lat4Done?.();}});']];
+  [block.end-1,`}finally{${done}}});`]];
  let output=source;for(const[index,text]of edits.sort((a,b)=>b[0]-a[0]))output=output.slice(0,index)+text+output.slice(index);
  writeFileSync(file,output);console.log(JSON.stringify({file,awaitedEntries:0,exportedEntryGuard:true}));process.exit(0);
 }
@@ -37,7 +44,6 @@ for(const statement of body) {
  }
 }
 // Keep source line numbers and import order. No authored test/cleanup is removed.
-const done=`process.__lat4Done?.();`;
 edits.push([start,`;import {runProofSuite as __lat4Suite} from ${JSON.stringify(runner)};await __lat4Suite(async()=>{try{`]);
 let output=source;for(const[index,text]of edits.sort((a,b)=>b[0]-a[0]))output=output.slice(0,index)+text+output.slice(index);
 output+=`\n}finally{${done}}});\n`;

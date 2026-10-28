@@ -1,0 +1,376 @@
+{
+  "qualification": false,
+  "completedPairs": 16,
+  "setupErrors": [],
+  "verdictOrMessageDifferences": [
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1,
+      "sameOperativeMessages": false
+    }
+  ],
+  "declaredLingeringDiagnosticOccurrences": {
+    "before": 0,
+    "after": 1
+  },
+  "LAT3TargetLanes": [
+    "002-snapback-breast-prosthesis-fittings",
+    "003-snapback-slot-machine-restorations",
+    "005-snapback-library-ladder-commissions",
+    "006-snapback-turntable-servicing",
+    "007-snapback-garden-design-commissions",
+    "008-snapback-retaining-wall-repairs",
+    "009-snapback-tapestry-conservation",
+    "010-snapback-tandem-paragliding-flights",
+    "011-snapback-heat-pump-installs",
+    "012-snapback-picture-book-illustration",
+    "013-snapback-life-jacket-inspections",
+    "014-snapback-ceiling-draping-installs",
+    "015-snapback-camping-gear-rentals",
+    "016-snapback-stagecoach-restorations",
+    "018-snapback-ash-tree-injections",
+    "021-snapback-cacao-fermentary-lots",
+    "022-snapback-custom-corset-fittings",
+    "023-snapback-shower-enclosure-repairs",
+    "024-snapback-home-sauna-installs",
+    "025-snapback-drone-pilot-certifications",
+    "026-snapback-vintage-synthesizer-repairs",
+    "027-snapback-animatronic-figure-builds",
+    "028-snapback-bandstand-restorations",
+    "029-snapback-grand-piano-moves",
+    "030-snapback-wireless-site-surveys",
+    "031-snapback-kitchen-hood-cleanings",
+    "032-snapback-executive-search-placements",
+    "034-snapback-baseball-glove-restorations",
+    "035-snapback-choir-robe-cleaning",
+    "036-snapback-championship-ring-orders",
+    "037-snapback-custom-cowboy-boots",
+    "038-snapback-dry-ice-deliveries",
+    "039-snapback-goat-kid-reservations"
+  ],
+  "LAT3TargetCoverage": {
+    "expected": 33,
+    "observed": 0,
+    "matchedPassing": 0,
+    "nonPassing": []
+  },
+  "tables": {
+    "all": {
+      "acceptance": {
+        "seconds": {
+          "before": {
+            "n": 4,
+            "median": 5.024061213596724,
+            "p90": 11.737819822039455,
+            "max": 11.737819822039455
+          },
+          "after": {
+            "n": 4,
+            "median": 3.019860826898366,
+            "p90": 4.372378422180191,
+            "max": 4.372378422180191
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 4,
+            "median": 5.024061213596724,
+            "p90": 11.736500625039454,
+            "max": 11.736500625039454
+          },
+          "after": {
+            "n": 4,
+            "median": 3.0195952288983663,
+            "p90": 4.372378422180191,
+            "max": 4.372378422180191
+          }
+        }
+      },
+      "day2:proof": {
+        "seconds": {
+          "before": null,
+          "after": null
+        },
+        "withoutPreflightSeconds": {
+          "before": null,
+          "after": null
+        }
+      },
+      "frontend:proof": {
+        "seconds": {
+          "before": {
+            "n": 4,
+            "median": 12.288324432447553,
+            "p90": 33.52957256115042,
+            "max": 33.52957256115042
+          },
+          "after": {
+            "n": 4,
+            "median": 12.614765117294155,
+            "p90": 19.053680883953348,
+            "max": 19.053680883953348
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 4,
+            "median": 10.471075237947552,
+            "p90": 13.337887599150417,
+            "max": 13.337887599150417
+          },
+          "after": {
+            "n": 4,
+            "median": 10.568436728294156,
+            "p90": 11.857824164953348,
+            "max": 11.857824164953348
+          }
+        }
+      },
+      "probe:serve/client:calls": {
+        "seconds": {
+          "before": {
+            "n": 3,
+            "median": 10.435141043970361,
+            "p90": 14.79839208885096,
+            "max": 14.79839208885096
+          },
+          "after": {
+            "n": 3,
+            "median": 7.980202426901087,
+            "p90": 9.03102076984942,
+            "max": 9.03102076984942
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 3,
+            "median": 10.433893303970361,
+            "p90": 14.79720254585096,
+            "max": 14.79720254585096
+          },
+          "after": {
+            "n": 3,
+            "median": 7.979671740901087,
+            "p90": 9.03054003884942,
+            "max": 9.03054003884942
+          }
+        }
+      }
+    },
+    "LAT3-day2-33": {}
+  },
+  "clientCallPairs": 3,
+  "clientCallRecords": 200,
+  "clientCallDifferences": [],
+  "missingClientCallVectors": [],
+  "tails": {
+    "completedSuites": 32,
+    "overOneSecond": {
+      "before": 0,
+      "after": 0
+    },
+    "postCompletionSeconds": {
+      "before": {
+        "n": 16,
+        "median": 0.0,
+        "p90": 0.001,
+        "max": 0.001
+      },
+      "after": {
+        "n": 16,
+        "median": 0.001,
+        "p90": 0.002,
+        "max": 0.002
+      }
+    }
+  },
+  "postReportObservations": {
+    "before": {
+      "processes": 15,
+      "overOneSecond": 2,
+      "seconds": {
+        "n": 15,
+        "median": 0.122,
+        "p90": 84.32,
+        "max": 136.67
+      }
+    },
+    "after": {
+      "processes": 15,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 15,
+        "median": 0.0,
+        "p90": 0.001,
+        "max": 0.001
+      }
+    }
+  },
+  "commands": {
+    "before": {
+      "dev": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 2.8975,
+          "p90": 6.55,
+          "max": 6.55
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 2.8975,
+          "p90": 6.55,
+          "max": 6.55
+        },
+        "count": 6
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 40,
+          "median": 0.187,
+          "p90": 0.243,
+          "max": 0.32
+        },
+        "outsideSecuritySeconds": {
+          "n": 40,
+          "median": 0.187,
+          "p90": 0.243,
+          "max": 0.32
+        },
+        "count": 40
+      },
+      "deploy": {
+        "wallSeconds": {
+          "n": 14,
+          "median": 6.792,
+          "p90": 25.586,
+          "max": 37.336
+        },
+        "outsideSecuritySeconds": {
+          "n": 14,
+          "median": 2.0073322559999998,
+          "p90": 6.749477736999999,
+          "max": 8.139680803
+        },
+        "count": 14
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 1.1155,
+          "p90": 1.985,
+          "max": 1.985
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 1.1155,
+          "p90": 1.985,
+          "max": 1.985
+        },
+        "count": 6
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 0.013000000000000001,
+          "p90": 0.026,
+          "max": 0.026
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 0.013000000000000001,
+          "p90": 0.026,
+          "max": 0.026
+        },
+        "count": 4
+      }
+    },
+    "after": {
+      "dev": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 2.447,
+          "p90": 4.034,
+          "max": 4.034
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 2.447,
+          "p90": 4.034,
+          "max": 4.034
+        },
+        "count": 6
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 40,
+          "median": 0.07100000000000001,
+          "p90": 0.132,
+          "max": 0.148
+        },
+        "outsideSecuritySeconds": {
+          "n": 40,
+          "median": 0.07100000000000001,
+          "p90": 0.132,
+          "max": 0.148
+        },
+        "count": 40
+      },
+      "deploy": {
+        "wallSeconds": {
+          "n": 14,
+          "median": 3.1265,
+          "p90": 12.794,
+          "max": 19.315
+        },
+        "outsideSecuritySeconds": {
+          "n": 14,
+          "median": 0.224234657,
+          "p90": 0.9758026540000024,
+          "max": 1.048432858
+        },
+        "count": 14
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 0.254,
+          "p90": 0.373,
+          "max": 0.373
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 0.254,
+          "p90": 0.373,
+          "max": 0.373
+        },
+        "count": 6
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 0.0215,
+          "p90": 0.029,
+          "max": 0.029
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 0.0215,
+          "p90": 0.029,
+          "max": 0.029
+        },
+        "count": 4
+      }
+    }
+  }
+}

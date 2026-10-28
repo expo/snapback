@@ -1,0 +1,239 @@
+{
+  "qualification": false,
+  "completedPairs": 3,
+  "setupErrors": [],
+  "verdictOrMessageDifferences": [],
+  "declaredLingeringDiagnosticOccurrences": {
+    "before": 0,
+    "after": 0
+  },
+  "LAT3TargetLanes": [
+    "002-snapback-breast-prosthesis-fittings",
+    "003-snapback-slot-machine-restorations",
+    "005-snapback-library-ladder-commissions",
+    "006-snapback-turntable-servicing",
+    "007-snapback-garden-design-commissions",
+    "008-snapback-retaining-wall-repairs",
+    "009-snapback-tapestry-conservation",
+    "010-snapback-tandem-paragliding-flights",
+    "011-snapback-heat-pump-installs",
+    "012-snapback-picture-book-illustration",
+    "013-snapback-life-jacket-inspections",
+    "014-snapback-ceiling-draping-installs",
+    "015-snapback-camping-gear-rentals",
+    "016-snapback-stagecoach-restorations",
+    "018-snapback-ash-tree-injections",
+    "021-snapback-cacao-fermentary-lots",
+    "022-snapback-custom-corset-fittings",
+    "023-snapback-shower-enclosure-repairs",
+    "024-snapback-home-sauna-installs",
+    "025-snapback-drone-pilot-certifications",
+    "026-snapback-vintage-synthesizer-repairs",
+    "027-snapback-animatronic-figure-builds",
+    "028-snapback-bandstand-restorations",
+    "029-snapback-grand-piano-moves",
+    "030-snapback-wireless-site-surveys",
+    "031-snapback-kitchen-hood-cleanings",
+    "032-snapback-executive-search-placements",
+    "034-snapback-baseball-glove-restorations",
+    "035-snapback-choir-robe-cleaning",
+    "036-snapback-championship-ring-orders",
+    "037-snapback-custom-cowboy-boots",
+    "038-snapback-dry-ice-deliveries",
+    "039-snapback-goat-kid-reservations"
+  ],
+  "LAT3TargetCoverage": {
+    "expected": 33,
+    "observed": 0,
+    "matchedPassing": 0,
+    "nonPassing": []
+  },
+  "tables": {
+    "all": {
+      "acceptance": {
+        "seconds": {
+          "before": {
+            "n": 1,
+            "median": 4.8244083530735224,
+            "p90": 4.8244083530735224,
+            "max": 4.8244083530735224
+          },
+          "after": {
+            "n": 1,
+            "median": 2.869101239135489,
+            "p90": 2.869101239135489,
+            "max": 2.869101239135489
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 1,
+            "median": 4.823422295073523,
+            "p90": 4.823422295073523,
+            "max": 4.823422295073523
+          },
+          "after": {
+            "n": 1,
+            "median": 2.868742632135489,
+            "p90": 2.868742632135489,
+            "max": 2.868742632135489
+          }
+        }
+      },
+      "frontend:proof": {
+        "seconds": {
+          "before": null,
+          "after": null
+        },
+        "withoutPreflightSeconds": {
+          "before": null,
+          "after": null
+        }
+      },
+      "probe:serve/client:calls": {
+        "seconds": {
+          "before": {
+            "n": 1,
+            "median": 3.4212832839693874,
+            "p90": 3.4212832839693874,
+            "max": 3.4212832839693874
+          },
+          "after": {
+            "n": 1,
+            "median": 1.7175821098499,
+            "p90": 1.7175821098499,
+            "max": 1.7175821098499
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 1,
+            "median": 3.4203296839693875,
+            "p90": 3.4203296839693875,
+            "max": 3.4203296839693875
+          },
+          "after": {
+            "n": 1,
+            "median": 1.7172048038499,
+            "p90": 1.7172048038499,
+            "max": 1.7172048038499
+          }
+        }
+      }
+    },
+    "LAT3-day2-33": {}
+  },
+  "clientCallPairs": 1,
+  "clientCallRecords": 33,
+  "clientCallDifferences": [],
+  "missingClientCallVectors": [],
+  "tails": {
+    "completedSuites": 4,
+    "overOneSecond": {
+      "before": 0,
+      "after": 0
+    },
+    "postCompletionSeconds": {
+      "before": {
+        "n": 2,
+        "median": 0.0,
+        "p90": 0.0,
+        "max": 0.0
+      },
+      "after": {
+        "n": 2,
+        "median": 0.001,
+        "p90": 0.001,
+        "max": 0.001
+      }
+    }
+  },
+  "postReportObservations": {
+    "before": {
+      "processes": 3,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 2,
+        "median": 0.0915,
+        "p90": 0.183,
+        "max": 0.183
+      }
+    },
+    "after": {
+      "processes": 3,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 3,
+        "median": 0.0,
+        "p90": 0.0,
+        "max": 0.0
+      }
+    }
+  },
+  "commands": {
+    "before": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 3,
+          "median": 1.525,
+          "p90": 1.525,
+          "max": 1.525
+        },
+        "outsideSecuritySeconds": {
+          "n": 3,
+          "median": 1.524045669,
+          "p90": 1.5240463999999998,
+          "max": 1.5240463999999998
+        },
+        "count": 3
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 10,
+          "median": 0.1285,
+          "p90": 0.139,
+          "max": 0.144
+        },
+        "outsideSecuritySeconds": {
+          "n": 10,
+          "median": 0.1285,
+          "p90": 0.139,
+          "max": 0.144
+        },
+        "count": 10
+      }
+    },
+    "after": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 3,
+          "median": 0.141,
+          "p90": 0.152,
+          "max": 0.152
+        },
+        "outsideSecuritySeconds": {
+          "n": 3,
+          "median": 0.14064139299999998,
+          "p90": 0.151634762,
+          "max": 0.151634762
+        },
+        "count": 3
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 10,
+          "median": 0.0835,
+          "p90": 0.097,
+          "max": 0.099
+        },
+        "outsideSecuritySeconds": {
+          "n": 10,
+          "median": 0.0835,
+          "p90": 0.097,
+          "max": 0.099
+        },
+        "count": 10
+      }
+    }
+  }
+}

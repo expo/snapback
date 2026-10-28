@@ -297,6 +297,28 @@
       }
     }
   },
+  "postReportObservations": {
+    "before": {
+      "processes": 399,
+      "overOneSecond": 9,
+      "seconds": {
+        "n": 396,
+        "median": 0.1195,
+        "p90": 0.201,
+        "max": 145.3
+      }
+    },
+    "after": {
+      "processes": 399,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 399,
+        "median": 0.0,
+        "p90": 0.001,
+        "max": 0.262
+      }
+    }
+  },
   "commands": {
     "before": {
       "deploy": {
