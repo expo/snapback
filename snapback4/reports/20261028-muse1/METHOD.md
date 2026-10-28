@@ -56,3 +56,15 @@ selector plan is retained: the root workstream report/shared CLI table fail
 broad, but the brief excludes the full multi-crate/client/model battery. The
 scoped runner uses the selector executor for CLI/guide/proof surfaces and all
 mandatory root checks, excluding only the unrelated W8B residency calibration.
+
+## Revised candidate after the first result
+
+The initial opt-in-only candidate completed all 18 sessions and missed both
+models' input/call bars. replays-v1.json preserves every draw and independently
+parsed totals. A second candidate changes the mechanism: a <=8KB three-file,
+one-scenario default business draft retains shared accounts/lifecycle; the full
+matrix remains opt-in. Run six new after sessions (`compact`) on the fixed draws,
+reuse the same twelve completed before controls, and retain all six rejected
+after sessions. This is a changed-code experiment, not a reroll. Final compact
+package/native hashes are kept separately from branch-pins.json. Its source
+reviews use a new mutually blind restricted snapshot.

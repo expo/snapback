@@ -166,3 +166,8 @@ completed before controls and all six rejected candidate sessions.
 Compact source checks: scaf1 Rust integration 14/14 passed. Fresh Muse round 2
 and Codex round 4 returned READY from the same restricted snapshot; verbatim
 artifacts and provenance are under llp/reviews/. Neither is performance evidence.
+
+Guide checks: the first compact pass was 134/135 because the installed-path
+guard did not yet recognize generated proof-draft outputs. Registered exact
+application filenames (no directory-prefix exemption); rerun 135/135 passed.
+No shipped runtime change was needed for that test correction.
