@@ -41,7 +41,20 @@ impl Roster {
                 _ => 0,
             }
         }
-        if writes(&serde_json::to_value(&program.body).ok()?) != 1 {
+        let body = serde_json::to_value(&program.body).ok()?;
+        fn control(v: &serde_json::Value) -> bool {
+            match v {
+                serde_json::Value::Object(m) => {
+                    ["Assign", "If", "For", "Block"]
+                        .iter()
+                        .any(|tag| m.contains_key(*tag))
+                        || m.values().any(control)
+                }
+                serde_json::Value::Array(v) => v.iter().any(control),
+                _ => false,
+            }
+        }
+        if control(&body) || writes(&body) != 1 {
             return None;
         }
         Self::shape(program, principal, role_arg, role, schema)
@@ -61,6 +74,8 @@ impl Roster {
             if let Stmt::Let { name, value } | Stmt::Const { name, value } = stmt {
                 if let Some(v) = eval(value, &env, None, schema) {
                     env.insert(name.clone(), v);
+                } else {
+                    env.remove(name);
                 }
             }
             let write = match stmt {
@@ -129,7 +144,12 @@ fn get(read: &Read, env: &Env, roster: Option<&Roster>, schema: &Schema) -> Opti
         return None;
     }
     let t = schema.table(&read.table)?;
-    if t.expire.is_some() || t.not_before.is_some() {
+    if t.expire.is_some()
+        || t.not_before.is_some()
+        || t.through.is_some()
+        || !t.column_reads.is_empty()
+        || !t.written_by.is_empty()
+    {
         return None;
     }
     let index = t.index(&read.index)?;
@@ -181,19 +201,19 @@ fn eval(expr: &Expr, env: &Env, roster: Option<&Roster>, schema: &Schema) -> Opt
             !eval(value, env, roster, schema)?.as_bool().ok()?,
         )),
         Expr::Binary { op, left, right } => {
-            let l = eval(left, env, roster, schema);
-            let r = eval(right, env, roster, schema);
+            let l = eval(left, env, roster, schema)?;
+            // Preserve the interpreter's left-to-right short circuit and unknown boundary.
             match op {
-                BinaryOp::And if l == Some(Value::Bool(false)) || r == Some(Value::Bool(false)) => {
-                    Some(Value::Bool(false))
-                }
-                BinaryOp::Or if l == Some(Value::Bool(true)) || r == Some(Value::Bool(true)) => {
-                    Some(Value::Bool(true))
-                }
-                BinaryOp::And => Some(Value::Bool(l?.as_bool().ok()? && r?.as_bool().ok()?)),
-                BinaryOp::Or => Some(Value::Bool(l?.as_bool().ok()? || r?.as_bool().ok()?)),
-                BinaryOp::Eq => Some(Value::Bool(l? == r?)),
-                BinaryOp::Ne => Some(Value::Bool(l? != r?)),
+                BinaryOp::And if l == Value::Bool(false) => Some(Value::Bool(false)),
+                BinaryOp::Or if l == Value::Bool(true) => Some(Value::Bool(true)),
+                BinaryOp::And => Some(Value::Bool(
+                    l.as_bool().ok()? && eval(right, env, roster, schema)?.as_bool().ok()?,
+                )),
+                BinaryOp::Or => Some(Value::Bool(
+                    l.as_bool().ok()? || eval(right, env, roster, schema)?.as_bool().ok()?,
+                )),
+                BinaryOp::Eq => Some(Value::Bool(l == eval(right, env, roster, schema)?)),
+                BinaryOp::Ne => Some(Value::Bool(l != eval(right, env, roster, schema)?)),
                 _ => None,
             }
         }

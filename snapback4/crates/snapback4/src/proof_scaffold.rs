@@ -333,7 +333,13 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         walk(&body, &mut guards);
         let guards=guards.into_iter().enumerate().map(|(i,g)|json!({"id":format!("guard-{i}"),"code":g["code"],"site":g["site"],"clock":uses_clock(&g,&clock_names),"condition":g["condition"]})).collect::<Vec<_>>();
         let approvals = approvals(&p.body, &p.args);
-        facts.push(json!({"name":p.name,"kind":p.kind.word(),"args":p.args,"guards":guards,"approvals":approvals}));
+        let signal = p.kind == ProgramKind::Mutation
+            && bound
+                .schema
+                .operations
+                .get(&p.name)
+                .is_some_and(|fact| fact.ephemeral);
+        facts.push(json!({"name":p.name,"kind":p.kind.word(),"signal":signal,"args":p.args,"guards":guards,"approvals":approvals}));
         for role in &roles {
             let roster = provision.and_then(|(p, principal, role_arg, _)| {
                 infer::Roster::from(p, principal, role_arg, role, &bound.schema)
@@ -344,7 +350,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             } else {
                 "null /* TODO: async (result, ctx, account, args) => assert business data */".into()
             };
-            cases.push_str(&format!("  {{ op: {}, role: {}, args: async (ctx, account) => ({}),\n    expected: {}, // TODO: tighten status/data; excluded roles need the exact refusal code.\n    assert: {} }},\n",quoted(&p.name),quoted(role),args(&p.args),refusal.map(|c|format!("{{ code: {} }}",quoted(&c))).unwrap_or(if p.kind==ProgramKind::Query {"{ complete: true }"}else if p.kind==ProgramKind::Action {"{ state: 'done' }"}else{"{ state: 'sent' }"}.into()),assertion));
+            cases.push_str(&format!("  {{ op: {}, role: {}, args: async (ctx, account) => ({}),\n    expected: {}, // TODO: tighten status/data; excluded roles need the exact refusal code.\n    assert: {} }},\n",quoted(&p.name),quoted(role),args(&p.args),refusal.map(|c|format!("{{ code: {} }}",quoted(&c))).unwrap_or(if signal {"{ ok: true }"} else if p.kind==ProgramKind::Query {"{ complete: true }"}else if p.kind==ProgramKind::Action {"{ state: 'done' }"}else{"{ state: 'sent' }"}.into()),assertion));
         }
         for g in &guards {
             cases.push_str(&format!("  {{ op: {}, guard: {}, role: {}, args: null,\n    expected: {{ code: {} }}, advance: {}, // TODO: isolate this guard; earlier guards must pass.\n    assert: null }},\n",quoted(&p.name),g["id"],quoted(&roles[0]),g["code"],if g["clock"]==true {"null /* set e.g. '31d'; setup a fresh row before crossing its deadline */"}else{"undefined"}));
@@ -362,10 +368,11 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
     for schedule in &bound.schema.schedules {
         time_cases.push_str(&format!("\n  {{ schedule: {}, advance: {}, assert: null }}, // TODO: assert job/action results and fired report; choose a fresh boundary", quoted(&schedule.name), quoted(&format!("{}ms",if schedule.months>0 { 32*86400000_u64*schedule.months as u64 }else{schedule.every_ms}))));
     }
+    // Expand right-to-left once, so schema strings are never interpreted as placeholders.
     let cases = include_str!("proof_scaffold/cases.mjs")
-        .replace("ACCOUNT_PLAN", &plan)
-        .replace("OPERATION_CASES", &cases)
-        .replace("TIME_CASES", &time_cases);
+        .replacen("TIME_CASES", &time_cases, 1)
+        .replacen("OPERATION_CASES", &cases, 1)
+        .replacen("ACCOUNT_PLAN", &plan, 1);
     vec![
         (
             "schema.json",

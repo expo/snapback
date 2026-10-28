@@ -262,3 +262,72 @@ fn custom_argument_mapping_suppresses_undeclared_defaults_and_multiwrite_inferen
         "must not infer the intermediate roster: {case}"
     );
 }
+
+#[test]
+fn reassignment_does_not_produce_an_intermediate_role_and_marker_names_parse() {
+    let p = Project::new("assigned-roles");
+    let source=SOURCE.replace("return upsert roles[principal] { principal, role }","assigned = role\n  assigned = 'admin'\n  return upsert roles[principal] { principal, role: assigned }");
+    fs::write(p.0.join("snapback/schema.q"),format!("{source}\nmutation adminOnly():\n  require exists roles[viewer, role = 'admin'] else NOT_ADMIN\n  return null\nquery TIME_CASES():\n  return 1\nquery OPERATION_CASES():\n  return 2\nquery ACCOUNT_PLAN():\n  return 3\n")).unwrap();
+    fs::write(
+        p.0.join("snapback/team.v1.q"),
+        "query ping():\n  return 'pong'\n",
+    )
+    .unwrap();
+    let out = p.check();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let cases = fs::read_to_string(p.file("cases.mjs")).unwrap();
+    let case = cases
+        .split("  { op: \"adminOnly\", role: \"member\"")
+        .nth(1)
+        .unwrap()
+        .split("  { op:")
+        .next()
+        .unwrap();
+    assert!(
+        !case.contains("code: \"NOT_ADMIN\""),
+        "must not infer a stale assigned value: {case}"
+    );
+    for name in [
+        "TIME_CASES",
+        "OPERATION_CASES",
+        "ACCOUNT_PLAN",
+        "team.v1.ping",
+    ] {
+        assert!(cases.contains(&format!("op: \"{name}\"")), "{name}");
+    }
+    let out = Command::new("node")
+        .arg("--check")
+        .arg(p.file("cases.mjs"))
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn ephemeral_mutations_have_signal_expectations() {
+    let p = Project::new("signals");
+    fs::write(p.0.join("snapback/schema.q"),format!("{SOURCE}\ntable pulses:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation pulse():\n  upsert pulses[viewer] {{principal:viewer}}\n")).unwrap();
+    let out = p.check();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let cases = fs::read_to_string(p.file("cases.mjs")).unwrap();
+    let case = cases
+        .split("  { op: \"pulse\", role: \"member\"")
+        .nth(1)
+        .unwrap()
+        .split("  { op:")
+        .next()
+        .unwrap();
+    assert!(case.contains("ok: true"), "{case}");
+}

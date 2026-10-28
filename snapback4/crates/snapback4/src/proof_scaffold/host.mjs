@@ -13,6 +13,9 @@ const schemaBytes=readFileSync(new URL('./schema.json', import.meta.url));
 const hashes=JSON.parse(readFileSync(new URL('./.generated-hashes.json', import.meta.url)));
 assert.equal(createHash('sha256').update(schemaBytes).digest('hex'),hashes['$current-schema'],'E_PROOF_SCENARIO: schema.json was edited or is stale; save it, delete it and run check to refresh bound facts');
 export const schema = JSON.parse(schemaBytes);
+const operations=new Map();
+function index(value) { if(value && typeof value==='object') { if(typeof value.name==='string' && typeof value.kind==='string') operations.set(value.name,value); else for(const entry of Object.values(value)) index(entry); } }
+index(api);
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB1kAAAAASUVORK5CYII=', 'base64');
 export async function startProof(options = {}) {
   assert.equal(schema.password, true, 'E_PROOF_SCENARIO: real-user proofs require use identity password; this scaffold never changes auth');
@@ -35,7 +38,7 @@ export async function startProof(options = {}) {
       async call(op, account, args) {
         const fact = schema.operations.find(p => p.name === op);
         assert.ok(fact, `unknown proof operation ${op}`);
-        const handle=op.split('.').reduce((value,key)=>value?.[key],api);
+        const handle=operations.get(op);
         assert.ok(handle, `generated API missing ${op}; run check`);
         const client=as(account);
         return fact.kind === 'query' ? client.query(handle,args) : fact.kind === 'action' ? client.act(handle,args) : client.mutate(handle,args);
