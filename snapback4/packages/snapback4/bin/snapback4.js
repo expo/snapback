@@ -6,10 +6,12 @@ import { synopsis } from "./cli-usage.js";
 // die together: SIGINT, SIGTERM and SIGHUP to this wrapper are forwarded, and
 // SIGKILL, which cannot be forwarded, still stops the binary: it is told this
 // wrapper's PID (SNAPBACK4_SUPERVISOR_PID) and exits when its parent is gone
-// (Linux: the kernel's parent-death signal; elsewhere within 250 ms). So a
+// (Linux: a checked kernel notification plus watchdog; Darwin: within 250 ms).
+// Both this wrapper and the binary also observe npm above surviving shells. So a
 // recorded PID of either stops the server; `GET /dev/status` reports both
 // (`pid` is the binary, `wrapperPid` this wrapper), and so does the stderr line
 // `SNAPBACK4_READY … url=… pid=… wrapperPid=…`.
+import { watchParent } from "../dist/parent-lifetime.js";
 import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
 import { fileURLToPath } from "node:url";
@@ -59,14 +61,9 @@ for (const [signal, handler] of handlers) process.on(signal, handler);
 // npx PID kills npm and the shell but never reaches us, so the server would keep
 // serving as an orphan. Our parent's death is the stop signal. (`process.ppid` is
 // read once at startup, so probe the original parent instead.)
-const parent = process.ppid;
-const parentAlive = () => { try { process.kill(parent, 0); return true; } catch (error) { return error.code === "EPERM"; } };
-const orphanWatch = parent > 1 ? setInterval(() => {
-  if (!parentAlive()) { try { child.kill("SIGTERM"); } catch { /* gone */ } }
-}, 250) : null;
-orphanWatch?.unref();
+const unwatch = watchParent(() => { try { child.kill("SIGTERM"); } catch { /* gone */ } });
 child.on("exit", (code, signal) => {
-  if (orphanWatch) clearInterval(orphanWatch);
+  unwatch();
   for (const [name, handler] of handlers) process.off(name, handler);
   if (signal) {
     // Restore the default disposition before re-raising. Some platforms do not

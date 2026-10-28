@@ -140,7 +140,12 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
         // Only the CLI's bounded ownership fields are safe to render. Raw stderr
         // may include app diagnostics or credentials and remains withheld.
         const holder=/owned by ([^;\n]+)/.exec(lock.stderr)?.[1];
-        const safeHolder=holder?.match(/^(?:https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
+        const legacyHolder=holder?.match(/^(?:https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
+        // @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — PID and address are separate bounded fields.
+        // Render only bounded PID/literal address shapes, never raw diagnostics.
+        const holderPid=holder?.match(/^pid ([1-9]\d{0,9}),/)?.[1];
+        const holderAddress=/; address (https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d{1,5});/.exec(lock.stderr)?.[1];
+        const safeHolder=legacyHolder??(holderPid?`${holderAddress??"address unavailable"} (pid ${holderPid})`:undefined);
         add(lock.stderr.includes("E_STORE_BUSY")?"E_SERVE_LOCK_HELD":"E_SERVE_LOCK_BARRIER", `store ${storePath}: ${lock.stderr.includes("E_STORE_BUSY")?`lock held after group SIGTERM; actual holder ${safeHolder??"unavailable from the ownership record"}`:"lock barrier refused (store/inspection failure, not evidence of a live holder)"}`);
       }
     }

@@ -9,6 +9,8 @@
 - Required-to-optional rollback views retain independent invariants. Intentional null hiding narrows the generated view and refuses null writes with `ROLLBACK_NULL`; forward keeps the nullable workflow. Deploy previews report unavailable hiding views separately, so their population-safety refusal cannot brick forward activation. The release card explains visible optional views and exact-source preview commands.
 - `deploy --check` runs adoption preflight before enforcing security and labels the first failure. Global bare `cap N` survives rollback generation. `check` refuses an extraction's unmapped nonliteral defaults with the column and remedies; retired required-column refusals name the missing `down` outputs.
 
+- Serve follows parent and npm lifetime, including wrapper-only SIGTERM/SIGKILL; proof drivers reap owned hosts on SIGTERM/SIGINT/SIGHUP or parent death so pipes finish. Busy stores name holder PID, command, start time and liveness with `snapback4 stop <dir>` recovery; dead-holder records are reclaimed with a notice. Password starters add `prod:serve` and bounded `prod:check`; deliberate harness hold remains opt-in.
+
 ## 0.4.45
 
 ### Guide changes
@@ -19,6 +21,7 @@
 - Existing app rows, accounts and users remain. Restart serving hosts and use this CLI for cold release commands: successful release moves upgrade the internal server-store fence to 11 and require activation protocol 11. Older executors refuse unsupported receipt-owned result views. Rebuild clients for generated result aliases; no source rewrite is required unless choosing them.
 
 - New Expo starters include a local patched configuration merger for the unpatched deepmerge advisory. Existing projects keep their toolchain files; `init --expo --skip-existing` adds the patch only when its files and dependency override do not conflict.
+
 
 ## 0.4.44
 

@@ -403,7 +403,6 @@ pub fn deploy(options: &Options) -> i32 {
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
             let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             security_sources=Some((project.root.clone(),sources.clone()));
@@ -635,10 +634,10 @@ pub fn rollback(options: &Options) -> i32 {
             let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let (_deployment, held) = activation_target(&dir)?;
-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             // A source pointer alone cannot establish a live rollback predecessor.
             let active = held["release"].as_u64()
                 .ok_or("no persisted live release; deploy its source once before rollback")?;
+
             let revision = held["revision"].as_u64().unwrap_or(0);
             let selected = options
                 .flags
@@ -842,7 +841,6 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let dir = existing_deployment(&directory(options)?)?;
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
-    owner.report_reclaim(options.flags.contains_key("verbose"));
     let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
     if options.flags.contains_key("clock-offset") {
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
@@ -886,7 +884,10 @@ pub fn stop_release(options: &Options) -> i32 {
         if crate::store_config::StoreConfig::resolve(options)?.is_some() {
             return Err("E_STORE_UNSUPPORTED: stop is outside the admitted store profile".into());
         }
-        let dir = existing_deployment(&directory(options)?)?;
+        let dir = directory(options)?.canonicalize().map_err(|e|e.to_string())?;
+        let store = dir.join("store.sqlite").canonicalize().map_err(|e|e.to_string())?;
+        snapback4_core::private_fs::database_metadata(&store).map_err(|e|e.to_string())?
+            .ok_or("no existing store.sqlite in the requested directory")?;
         match crate::release_control::request(&dir, crate::release_control::Command::Stop) {
             Ok(_) => {
                 crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(10))?;

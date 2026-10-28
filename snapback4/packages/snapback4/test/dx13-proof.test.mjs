@@ -20,8 +20,10 @@ test('missing store is a path error, never a lock claim; secrets stay private',{
 });
 test('actual holder and exact store are named for a genuinely held barrier',{skip:process.platform==='win32'},async t=>{
  const cwd=await project(t),host=await startServe('production',{cwd,env});
+ const path=join(cwd,'production/serve.lock'),lines=readFileSync(path,'utf8').split('\n');
+ const metadata=JSON.parse(lines[3]);metadata.command='DX13-PRIVATE-HOLDER-SENTINEL';lines[3]=JSON.stringify(metadata);writeFileSync(path,lines.join('\n'));
  try {script(cwd,idle);const report=await serveCheck(opts(cwd)),failure=report.failures.find(f=>f.code==='E_SERVE_LOCK_HELD');
- assert.ok(failure,JSON.stringify(report));assert.ok(failure.message.includes(join(cwd,'production/store.sqlite')),failure.message);assert.ok(failure.message.includes(String(host.pid))&&failure.message.includes(host.url),failure.message);
+ assert.ok(failure,JSON.stringify(report));assert.ok(failure.message.includes(join(cwd,'production/store.sqlite')),failure.message);assert.ok(failure.message.includes(String(host.pid))&&failure.message.includes(host.url),failure.message);assert.ok(!JSON.stringify(report).includes('DX13-PRIVATE-HOLDER-SENTINEL'),JSON.stringify(report));
  }finally{await host.stop();}
 });
 test('serve script actual --dir is compared even if the requested store exists and is unlocked',{skip:process.platform==='win32'},async t=>{

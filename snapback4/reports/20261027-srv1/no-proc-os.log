@@ -1,0 +1,105 @@
+warning: static `STARTED` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:10:8
+   |
+10 | static STARTED: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+   |        ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `started` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:11:15
+   |
+11 | pub(crate) fn started() -> u64 { *STARTED.get_or_init(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_o...
+   |               ^^^^^^^
+
+warning: function `alive` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:12:4
+   |
+12 | fn alive(pid: u32) -> bool {
+   |    ^^^^^
+
+warning: function `opaque_identity` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:16:4
+   |
+16 | fn opaque_identity(pid: u32) -> Option<(u32, String)> {
+   |    ^^^^^^^^^^^^^^^
+
+warning: function `changed` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:19:4
+   |
+19 | fn changed(before: &str, after: &str) -> bool { before != "unverified" && after != "unverified" && before != after }
+   |    ^^^^^^^
+
+warning: constant `ENV` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:21:18
+   |
+21 | pub(crate) const ENV: &str = "SNAPBACK4_SUPERVISOR_PID";
+   |                  ^^^
+
+warning: static `SUPERVISOR` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:22:8
+   |
+22 | static SUPERVISOR: AtomicU32 = AtomicU32::new(0);
+   |        ^^^^^^^^^^
+
+warning: static `PARENT` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:23:8
+   |
+23 | static PARENT: AtomicU32 = AtomicU32::new(0);
+   |        ^^^^^^
+
+warning: static `PARENTS` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:24:8
+   |
+24 | static PARENTS: std::sync::OnceLock<Vec<(u32, String)>> = std::sync::OnceLock::new();
+   |        ^^^^^^^
+
+warning: function `parents` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:25:15
+   |
+25 | pub(crate) fn parents() -> &'static [(u32, String)] { PARENTS.get().map(Vec::as_slice).unwrap_or(&[]) }
+   |               ^^^^^^^
+
+warning: function `pid` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:26:15
+   |
+26 | pub(crate) fn pid() -> Option<u32> { Some(SUPERVISOR.load(Ordering::Acquire)).filter(|pid| *pid != 0) }
+   |               ^^^
+
+warning: function `identity` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:30:15
+   |
+30 | pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
+   |               ^^^^^^^^
+
+warning: function `npm` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:61:4
+   |
+61 | fn npm(pid: u32) -> bool {
+   |    ^^^
+
+warning: function `parent_notification` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:82:15
+   |
+82 | extern "C" fn parent_notification(_: libc::c_int) {
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `adopt` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:89:15
+   |
+89 | pub(crate) fn adopt() {
+   |               ^^^^^
+
+warning: `srv1-darwin-check` (lib) generated 15 warnings
+   Compiling srv1-darwin-check v0.0.0 (/tmp/srv1-darwin-check)
+warning: function `parents` is never used
+  --> /home/ccheever/projects/sb4-b32-dx15/snapback4/crates/snapback4/src/supervisor.rs:25:15
+   |
+25 | pub(crate) fn parents() -> &'static [(u32, String)] { PARENTS.get().map(Vec::as_slice).unwrap_or(&[]) }
+   |               ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `srv1-darwin-check` (bin "srv1-darwin-check") generated 2 warnings (1 duplicate)
+    Finished `dev` profile [unoptimized] target(s) in 0.21s
+{"noProc":true,"healthyParent":"passed","parentDeathEOF":"passed","healthy":"live parent accepted without proc\nsurvived with live parent\nhealthy-completed\n","death":"live parent accepted without proc\nlauncher exits after readiness\n"}

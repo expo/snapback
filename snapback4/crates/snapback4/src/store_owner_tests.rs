@@ -272,3 +272,16 @@ fn store_admits_exact_evaluation_tracker_only_with_evaluation_support() {
     assert_eq!(error.code(),"E_STORE");
     assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{error}");
 }
+
+#[test]
+fn unannounced_owner_has_birth_command_and_safe_recovery_metadata() {
+    let dir = std::env::temp_dir().join(format!("snapback4-owner-record-{}", std::process::id()));
+    let path = dir.join("store.sqlite");
+    let owner = command(&path).unwrap();
+    let message = command(&path).err().unwrap();
+    assert!(message.contains(&format!("pid {}", std::process::id())), "{message}");
+    for part in ["command snapback4", "start time", "still alive: true", "snapback4 stop", "--memory"] { assert!(message.contains(part), "{message}"); }
+    assert_eq!(address(&path), None, "pending metadata never invents port zero");
+    drop(owner);
+    fs::remove_dir_all(dir).unwrap();
+}
