@@ -39,6 +39,9 @@ const APP_FILES: &[&str] = &[
     // The testing card's fixture cases file and acceptance script.
     // Exact generated packet path executed by the packed scaffold consumer.
     "scripts/proof-scaffold/cases.mjs",
+    // Compact generated app files, exercised by the packed scaffold consumer.
+    "scripts/proof-draft/cases.mjs", "scripts/proof-draft/acceptance.mjs",
+    "cases.mjs", "acceptance.mjs",
     "test.cases.jsonl", "scripts/acceptance.mjs", "scripts/wire-proof.mjs", "scripts/day2-accounts.mjs",
     "scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs", "scripts/install.mjs",
     "versions/v1.q", "versions/v2.q", "versions/v1/schema.q", "versions/v1/generated/api.ts", "versions/v1/generated/package.json", "versions/v2/schema.q", "versions/bridge/schema.q", "file.q",
