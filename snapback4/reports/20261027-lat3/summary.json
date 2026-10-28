@@ -1,0 +1,717 @@
+{
+  "completedPairs": 750,
+  "rawRows": 1004,
+  "explicitlySupersededRows": 254,
+  "lanes": 220,
+  "setupErrors": [],
+  "exitDifferences": [],
+  "nonzeroPairs": [
+    {
+      "wave": 31,
+      "lane": "019-snapback-pet-relocation-flights",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 32,
+      "lane": "025-snapback-drone-pilot-certifications",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "001-snapback-jukebox-restorations",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "017-snapback-science-show-parties",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "025-snapback-drone-pilot-certifications",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "048-snapback-treehouse-builds",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "048-snapback-treehouse-builds",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 34,
+      "lane": "034-snapback-billboard-ad-bookings",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 30,
+      "lane": "023-snapback-gutter-repair-calls",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "019-snapback-exotic-bird-transport",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "010-snapback-whitewater-rafting-trips",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 31,
+      "lane": "010-snapback-whitewater-rafting-trips",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 32,
+      "lane": "036-snapback-championship-ring-orders",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "004-snapback-senior-downsizing-moves",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "020-snapback-horseback-trail-rides",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "036-snapback-championship-ring-orders",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    },
+    {
+      "wave": 33,
+      "lane": "040-snapback-jet-ski-repairs",
+      "script": "day2:proof",
+      "beforeCode": 1,
+      "afterCode": 1
+    }
+  ],
+  "rawMessageDifferenceCount": 22,
+  "messageDifferenceCount": 0,
+  "clientCallPairsCompared": 217,
+  "clientCallRecordsCompared": 11763,
+  "missingClientCallVectors": [],
+  "clientCallDifferences": [],
+  "tables": {
+    "all": {
+      "acceptance/seconds": {
+        "before": {
+          "n": 220,
+          "median": 7.629958595149219,
+          "p90": 28.472685758024454,
+          "max": 82.34755306993611
+        },
+        "after": {
+          "n": 220,
+          "median": 7.205544640542939,
+          "p90": 28.73257261607796,
+          "max": 81.40536333993077
+        }
+      },
+      "acceptance/withoutPreflightSeconds": {
+        "before": {
+          "n": 120,
+          "median": 3.7000707814275944,
+          "p90": 8.310901976911524,
+          "max": 65.46006724797185
+        },
+        "after": {
+          "n": 120,
+          "median": 3.3482717550446637,
+          "p90": 7.788281073980869,
+          "max": 64.93733769084885
+        }
+      },
+      "frontend:proof/seconds": {
+        "before": {
+          "n": 216,
+          "median": 11.738706009928137,
+          "p90": 24.96690089511685,
+          "max": 74.05771828512661
+        },
+        "after": {
+          "n": 216,
+          "median": 11.31335926859174,
+          "p90": 24.46230572089553,
+          "max": 65.74052743893117
+        }
+      },
+      "frontend:proof/withoutPreflightSeconds": {
+        "before": {
+          "n": 117,
+          "median": 6.761171311990495,
+          "p90": 11.050334977027259,
+          "max": 17.677677958905335
+        },
+        "after": {
+          "n": 117,
+          "median": 6.800803752958174,
+          "p90": 11.69176280105017,
+          "max": 17.331067490071405
+        }
+      },
+      "day2:proof/seconds": {
+        "before": {
+          "n": 77,
+          "median": 87.65919888485223,
+          "p90": 137.4369338939432,
+          "max": 240.52158841397613
+        },
+        "after": {
+          "n": 77,
+          "median": 90.76930626598187,
+          "p90": 135.07016002899036,
+          "max": 227.8212185979355
+        }
+      },
+      "day2:proof/withoutPreflightSeconds": {
+        "before": {
+          "n": 33,
+          "median": 82.747323840159,
+          "p90": 137.4353238199432,
+          "max": 178.60455091604436
+        },
+        "after": {
+          "n": 33,
+          "median": 81.68532758605176,
+          "p90": 135.06845718599035,
+          "max": 172.55274893593202
+        }
+      },
+      "probe:serve/client:calls/seconds": {
+        "before": {
+          "n": 214,
+          "median": 6.051516470964998,
+          "p90": 14.140922460937873,
+          "max": 75.65419463510625
+        },
+        "after": {
+          "n": 214,
+          "median": 5.575428502052091,
+          "p90": 14.89405659516342,
+          "max": 74.30642011598684
+        }
+      },
+      "probe:serve/client:calls/readySeconds": {
+        "before": {
+          "n": 214,
+          "median": 4.907435521,
+          "p90": 11.874043023,
+          "max": 41.69353888799999
+        },
+        "after": {
+          "n": 214,
+          "median": 4.608612403,
+          "p90": 11.89499086,
+          "max": 41.314125371
+        }
+      },
+      "probe:serve/client:calls/callsSeconds": {
+        "before": {
+          "n": 214,
+          "median": 0.7391810954999998,
+          "p90": 1.196592087,
+          "max": 61.579996604
+        },
+        "after": {
+          "n": 214,
+          "median": 0.7288384830000002,
+          "p90": 1.1310420649999997,
+          "max": 61.596388911999995
+        }
+      },
+      "probe:serve/client:calls/withoutPreflightSeconds": {
+        "before": {
+          "n": 117,
+          "median": 4.973179937996462,
+          "p90": 11.790030237858982,
+          "max": 42.89842061693363
+        },
+        "after": {
+          "n": 117,
+          "median": 4.573360875016078,
+          "p90": 11.239461027954968,
+          "max": 42.44576654998009
+        }
+      },
+      "probe:serve/client:calls/readyWithoutPreflightSeconds": {
+        "before": {
+          "n": 117,
+          "median": 3.7412767340000004,
+          "p90": 10.549755456,
+          "max": 41.692311757999995
+        },
+        "after": {
+          "n": 117,
+          "median": 3.693359451,
+          "p90": 10.159908084000001,
+          "max": 41.312820324
+        }
+      },
+      "probe:serve/client:calls/callsWithoutPreflightSeconds": {
+        "before": {
+          "n": 117,
+          "median": 0.7330519470000004,
+          "p90": 0.9815394510000005,
+          "max": 21.540281683
+        },
+        "after": {
+          "n": 117,
+          "median": 0.7292636190000003,
+          "p90": 1.011681909,
+          "max": 21.209587734
+        }
+      }
+    },
+    "day-one": {
+      "acceptance/seconds": {
+        "before": {
+          "n": 80,
+          "median": 10.535998602979816,
+          "p90": 28.668210534844548,
+          "max": 75.22596162115224
+        },
+        "after": {
+          "n": 80,
+          "median": 9.684373801574111,
+          "p90": 31.12734875502065,
+          "max": 74.84168347693048
+        }
+      },
+      "acceptance/withoutPreflightSeconds": {
+        "before": {
+          "n": 80,
+          "median": 3.7000707814275944,
+          "p90": 7.083205102017107,
+          "max": 65.46006724797185
+        },
+        "after": {
+          "n": 80,
+          "median": 3.3636656890417402,
+          "p90": 6.636396325945393,
+          "max": 64.93733769084885
+        }
+      },
+      "frontend:proof/seconds": {
+        "before": {
+          "n": 78,
+          "median": 13.896585286478512,
+          "p90": 24.561348618008196,
+          "max": 60.83420239412226
+        },
+        "after": {
+          "n": 78,
+          "median": 14.046121326624416,
+          "p90": 23.21122092497535,
+          "max": 60.991795156151056
+        }
+      },
+      "frontend:proof/withoutPreflightSeconds": {
+        "before": {
+          "n": 78,
+          "median": 6.609142257355215,
+          "p90": 11.050334977027259,
+          "max": 14.58930578195784
+        },
+        "after": {
+          "n": 78,
+          "median": 6.518331629617162,
+          "p90": 11.470637498936203,
+          "max": 14.137577403151056
+        }
+      },
+      "day2:proof/seconds": {
+        "before": null,
+        "after": null
+      },
+      "day2:proof/withoutPreflightSeconds": {
+        "before": null,
+        "after": null
+      },
+      "probe:serve/client:calls/seconds": {
+        "before": {
+          "n": 79,
+          "median": 4.522023763973266,
+          "p90": 11.538313913159072,
+          "max": 24.16963704302907
+        },
+        "after": {
+          "n": 79,
+          "median": 4.022681856993586,
+          "p90": 10.787882909877226,
+          "max": 23.314963478129357
+        }
+      },
+      "probe:serve/client:calls/readySeconds": {
+        "before": {
+          "n": 79,
+          "median": 3.3623354909999996,
+          "p90": 9.607122799999999,
+          "max": 17.657702637000003
+        },
+        "after": {
+          "n": 79,
+          "median": 3.133829598,
+          "p90": 8.89458372,
+          "max": 17.532395945999998
+        }
+      },
+      "probe:serve/client:calls/callsSeconds": {
+        "before": {
+          "n": 79,
+          "median": 0.7197470830000002,
+          "p90": 0.9281279429999995,
+          "max": 21.540281683
+        },
+        "after": {
+          "n": 79,
+          "median": 0.7146029579999995,
+          "p90": 0.8747423250000002,
+          "max": 21.209587734
+        }
+      },
+      "probe:serve/client:calls/withoutPreflightSeconds": {
+        "before": {
+          "n": 79,
+          "median": 4.221709740047144,
+          "p90": 10.0330473360739,
+          "max": 24.16882701802907
+        },
+        "after": {
+          "n": 79,
+          "median": 3.770543379167995,
+          "p90": 9.58127180591204,
+          "max": 23.314175957129358
+        }
+      },
+      "probe:serve/client:calls/readyWithoutPreflightSeconds": {
+        "before": {
+          "n": 79,
+          "median": 2.9592924659999995,
+          "p90": 8.841270728000001,
+          "max": 13.241187221
+        },
+        "after": {
+          "n": 79,
+          "median": 2.7822292429999993,
+          "p90": 8.67221202,
+          "max": 15.386117141000001
+        }
+      },
+      "probe:serve/client:calls/callsWithoutPreflightSeconds": {
+        "before": {
+          "n": 79,
+          "median": 0.7197470830000002,
+          "p90": 0.9281279429999995,
+          "max": 21.540281683
+        },
+        "after": {
+          "n": 79,
+          "median": 0.7146029579999995,
+          "p90": 0.8747423250000002,
+          "max": 21.209587734
+        }
+      }
+    },
+    "day-two": {
+      "acceptance/seconds": {
+        "before": {
+          "n": 40,
+          "median": 4.673116575926542,
+          "p90": 13.644472195999697,
+          "max": 35.78434903896414
+        },
+        "after": {
+          "n": 40,
+          "median": 4.196973855490796,
+          "p90": 13.091343889944255,
+          "max": 35.38382864394225
+        }
+      },
+      "acceptance/withoutPreflightSeconds": {
+        "before": {
+          "n": 40,
+          "median": 3.6610108631472955,
+          "p90": 9.336527524981648,
+          "max": 13.991294702980667
+        },
+        "after": {
+          "n": 40,
+          "median": 3.270796898053959,
+          "p90": 8.98486717720516,
+          "max": 13.690370957832783
+        }
+      },
+      "frontend:proof/seconds": {
+        "before": {
+          "n": 39,
+          "median": 10.93512964504771,
+          "p90": 34.88783511589281,
+          "max": 74.05771828512661
+        },
+        "after": {
+          "n": 39,
+          "median": 10.886153282830492,
+          "p90": 33.23055529897101,
+          "max": 65.74052743893117
+        }
+      },
+      "frontend:proof/withoutPreflightSeconds": {
+        "before": {
+          "n": 39,
+          "median": 7.480197401950136,
+          "p90": 12.188741907011718,
+          "max": 17.677677958905335
+        },
+        "after": {
+          "n": 39,
+          "median": 7.0280057701747864,
+          "p90": 12.109596113931168,
+          "max": 17.331067490071405
+        }
+      },
+      "day2:proof/seconds": {
+        "before": {
+          "n": 33,
+          "median": 97.20433392096311,
+          "p90": 174.49872637097724,
+          "max": 240.52158841397613
+        },
+        "after": {
+          "n": 33,
+          "median": 96.35358879412524,
+          "p90": 154.62500605685636,
+          "max": 224.32730268407613
+        }
+      },
+      "day2:proof/withoutPreflightSeconds": {
+        "before": {
+          "n": 33,
+          "median": 82.747323840159,
+          "p90": 137.4353238199432,
+          "max": 178.60455091604436
+        },
+        "after": {
+          "n": 33,
+          "median": 81.68532758605176,
+          "p90": 135.06845718599035,
+          "max": 172.55274893593202
+        }
+      },
+      "probe:serve/client:calls/seconds": {
+        "before": {
+          "n": 38,
+          "median": 6.451623153407127,
+          "p90": 15.243945256108418,
+          "max": 42.899647746933624
+        },
+        "after": {
+          "n": 38,
+          "median": 6.1760911660967395,
+          "p90": 14.89405659516342,
+          "max": 42.447071596980095
+        }
+      },
+      "probe:serve/client:calls/readySeconds": {
+        "before": {
+          "n": 38,
+          "median": 5.4223337654999995,
+          "p90": 11.838854149,
+          "max": 41.69353888799999
+        },
+        "after": {
+          "n": 38,
+          "median": 5.184124832,
+          "p90": 13.813120383000001,
+          "max": 41.314125371
+        }
+      },
+      "probe:serve/client:calls/callsSeconds": {
+        "before": {
+          "n": 38,
+          "median": 0.8026259300000002,
+          "p90": 1.0631095909999995,
+          "max": 6.350941574
+        },
+        "after": {
+          "n": 38,
+          "median": 0.7701305049999991,
+          "p90": 1.0504466660000003,
+          "max": 6.203223544999999
+        }
+      },
+      "probe:serve/client:calls/withoutPreflightSeconds": {
+        "before": {
+          "n": 38,
+          "median": 6.45098258156813,
+          "p90": 13.037864987952911,
+          "max": 42.89842061693363
+        },
+        "after": {
+          "n": 38,
+          "median": 6.174871357096739,
+          "p90": 14.74565455192072,
+          "max": 42.44576654998009
+        }
+      },
+      "probe:serve/client:calls/readyWithoutPreflightSeconds": {
+        "before": {
+          "n": 38,
+          "median": 5.4217243265,
+          "p90": 11.83718077,
+          "max": 41.692311757999995
+        },
+        "after": {
+          "n": 38,
+          "median": 5.182905023,
+          "p90": 13.811487004000002,
+          "max": 41.312820324
+        }
+      },
+      "probe:serve/client:calls/callsWithoutPreflightSeconds": {
+        "before": {
+          "n": 38,
+          "median": 0.8026259300000002,
+          "p90": 1.0631095909999995,
+          "max": 1.6288670769999998
+        },
+        "after": {
+          "n": 38,
+          "median": 0.7701305049999991,
+          "p90": 1.0504466660000003,
+          "max": 1.47711245
+        }
+      }
+    }
+  },
+  "coverage": {
+    "expectedPairs": 750,
+    "complete": true,
+    "installedClientMutations": 0,
+    "nativeTraceParseErrors": 0,
+    "pairsWithClientDigests": 750,
+    "pairsWithNativeTraces": 400,
+    "qualification": false
+  },
+  "installedClientDigests": {
+    "before": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+    "after": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66"
+  },
+  "artifacts": [
+    {
+      "role": "baseline",
+      "name": "snapback4-0.4.44.tgz",
+      "sha256": "1607ab400f747650f9174fb84cced477804e261fbf87e91c4f7ccbb4936ff4c8"
+    },
+    {
+      "role": "baseline",
+      "name": "snapback4-expo-0.4.44.tgz",
+      "sha256": "077ae35841424fa42452d7789be547f032f90ca9ecec158623b7d601eb5ef5f5"
+    },
+    {
+      "role": "baseline",
+      "name": "snapback4-linux-x64-0.4.44.tgz",
+      "sha256": "a63c87c8e994d895e3f742f91523b93225c21334f712438bd2bcbb01b3f4f920"
+    },
+    {
+      "role": "consumer-candidate",
+      "name": "snapback4-0.4.44.tgz",
+      "sha256": "f3d0ee371ec4e1b99a1ce547b3806bb28465668ae9c08fb2409ec78dd977e604"
+    },
+    {
+      "role": "consumer-candidate",
+      "name": "snapback4-linux-x64-0.4.44.tgz",
+      "sha256": "ad0d46cc9056cf7be70ced8e32e616681b0dabcae6b3dfd70777e62fe1d72408"
+    }
+  ],
+  "runtimeCommit": "eb80c8c7b3",
+  "measurementNotes": [
+    "Same retained production native binary on both sides; candidate overlays final built client JS.",
+    "No original lane store opened; pairs use independent copies and alternate order.",
+    "Only matched successful pairs enter timing distributions; inherited failures remain listed.",
+    "Residuals subtract enclosing check/deploy security preflight, not exact witness CPU.",
+    "No capability/publication qualification is claimed by this affected-scope receipt."
+  ]
+}
