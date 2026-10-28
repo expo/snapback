@@ -31,7 +31,7 @@ export async function runProofSuite(suite) {
     const extra = count - (baseline.get(name) ?? 0);
     return extra > 0 ? [`${name}(${extra})`] : [];
   }).sort();
-  const code = process.exitCode ?? 0;
+  const code = failed ? 1 : process.exitCode ?? 0;
   if (lingering.length) console.error(`snapback4 proof: lingering handles after suite: ${lingering.join(', ')}; exiting with status ${code}`);
   // Exit only after the suite's complete stdout and stderr have drained.
   await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));

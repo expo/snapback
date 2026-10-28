@@ -50,3 +50,10 @@ test('intercepting a completed failure cannot leave timers pinning the process',
   assert.equal(result.code,1);assert.match(result.stderr,/Error: E_CAUGHT: still failed/);
   assert.match(result.stderr,/lingering handles after suite: Timeout\(1\)/);
 });
+
+test('queued status changes cannot turn an intercepted failure into success',async()=>{
+  const caught=await run(`process.nextTick(()=>{process.exitCode=0;});throw Error('E_STATUS: caught failure');`,true);
+  assert.equal(caught.code,1);assert.match(caught.stderr,/E_STATUS: caught failure/);
+  const global=await run(`process.on('uncaughtException',()=>{process.exitCode=0;});process.nextTick(()=>{process.exitCode=0;});throw Error('E_STATUS: globally intercepted');`);
+  assert.equal(global.code,1);assert.match(global.stderr,/E_STATUS: globally intercepted/);
+});
