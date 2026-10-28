@@ -58,7 +58,8 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     }
     let has = |name: &str| args.iter().skip(1).any(|arg| arg == &format!("--{name}") || arg.starts_with(&format!("--{name}=")));
     if verb == "check" {
-        if has("proof-scaffold") && ["audit", "emit-lean", "release"].iter().any(|f| has(f)) { return Err("E_INPUT: check --proof-scaffold requires a current project check, not --audit, --emit-lean or --release".into()); }
+        if (has("proof-scaffold") || has("proof-draft")) && ["audit", "emit-lean", "release"].iter().any(|f| has(f)) { return Err("E_INPUT: proof drafts require a current project check, not --audit, --emit-lean or --release".into()); }
+        if has("proof-scaffold") && has("proof-draft") { return Err("E_INPUT: choose --proof-draft or --proof-scaffold".into()); }
         if has("ack-security")!=has("reason"){return Err("E_INPUT: --ack-security ID requires --reason TEXT".into());}
         if has("ack-security")&&["ack-notes","fix","store","release","emit-lean","audit"].iter().any(|f|has(f)){return Err("E_INPUT: individual security review cannot combine with --ack-notes, --fix, saved-store/release, --emit-lean or --audit".into());}
         if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
@@ -112,6 +113,7 @@ pub(crate) fn help(verb: &str) -> String {
     for name in allowed(verb).split_whitespace().chain(["help"]) {
         let value = value(verb, name);
         let description = match (verb, name) {
+            ("check", "proof-draft") => " — opt into a compact one-scenario proof draft (created once)",
             ("check", "proof-scaffold") => " — opt into exhaustive editable operation/role/guard proof drafts",
             ("check", "review") => " — show advisory decisions, witnesses and notes; gates always print",
             ("check", "ack-security") => " — repeat this flag or comma-separate decision IDs; all share --reason and record atomically",

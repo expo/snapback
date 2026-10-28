@@ -405,7 +405,16 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
 
 /// Called only after a green check, never during deploy/private source checks.
 // @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — draft code is opt-in; existing packets retain fresh coverage facts.
-pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool) -> io::Result<Option<String>> {
+pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool, draft_requested: bool) -> io::Result<Option<String>> {
+    // Both recipes are explicit choices. Ordinary check only maintains existing matrix facts.
+    let matrix = generate_matrix(project, bound, requested)?;
+    let draft = if draft_requested { compact::generate(project, bound)? } else { None };
+    Ok(match (matrix, draft) {
+        (Some(matrix), Some(draft)) => Some(format!("{matrix}; {draft}")),
+        (notice, None) | (None, notice) => notice,
+    })
+}
+fn generate_matrix(project: &Project, bound: &Bound, requested: bool) -> io::Result<Option<String>> {
     let dir = project.root.join("scripts/proof-scaffold");
     // Refuse symlink custody for directories and files, including the manifest.
     for path in [project.root.join("scripts"), dir.clone()] {
@@ -420,7 +429,7 @@ pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool) -> io:
     // Existing opted-in packets still need current facts so new guards cannot
     // disappear behind an old (possibly application-edited) cases file.
     if !requested && !regular(&manifest)? {
-        return if dir.exists() { Ok(None) } else { compact::generate(project, bound) };
+        return Ok(None);
     }
     std::fs::create_dir_all(&dir)?;
     let old: BTreeMap<String, String> = if regular(&manifest)? {

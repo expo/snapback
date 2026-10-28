@@ -186,3 +186,16 @@ exact three compact output paths while retaining byte-preservation and repeated
 apply assertions. This is a test-only change; frozen replay bytes are unchanged.
 The failed attempt remains in /tmp/muse1-evidence/consumer-compact.log; a fresh
 complete consumer-only run follows, without claiming partial qualification.
+
+## 6. Compact-default result and explicit fallback
+
+Completed Codex: CPAP 33 calls/1,675,163 input; e-bike 39/2,408,528. Medians
+36/2,041,845.5 versus .47's 34.5/2,227,055: input PASS, calls MISS (+4.35%).
+Completed Muse: child talent 93/9,630,048, gown 118/12,882,917. Gown took 29.7min
+and expanded its small cases file to 16KB; .46 was 83/8,014,586/15.8min.
+Remaining two Muse sessions must complete and stay in the record. These results
+justify withdrawing the mandatory compact route without waiting to relabel it
+a win. Both drafts become explicit choices: --proof-draft (compact, once),
+--proof-scaffold (exhaustive). Default remains app-owned assertions plus verify.
+No auto-rewiring application package scripts and no same-code reroll. Six new
+fallback after sessions reuse fixed draws and twelve completed before controls.

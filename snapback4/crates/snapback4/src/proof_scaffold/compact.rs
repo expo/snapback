@@ -1,5 +1,5 @@
 //! One small authored scenario, without an operation/role/guard expansion.
-// @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — the opt-in-only replay lost Codex's helper convenience; keep a bounded first draft.
+// @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — a bounded helper remains available explicitly; default drafts still attracted Muse expansion.
 use super::{account_plan, host_template, quoted};
 use crate::project::Project;
 use snapback4_lang::Bound;
@@ -22,6 +22,7 @@ pub(super) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
     let dir = project.root.join("scripts/proof-draft");
     // Any existing directory/file/symlink belongs to its author. Code is born
     // once; schema checks and verify never rewrite or expand the draft.
+    if std::fs::symlink_metadata(project.root.join("scripts")).is_ok_and(|m| !m.is_dir()) { return Ok(None); }
     if std::fs::symlink_metadata(&dir).is_ok() { return Ok(None); }
     let packet = files(bound);
     debug_assert!(packet.iter().map(|(_, s)| s.len()).sum::<usize>() <= 8000);

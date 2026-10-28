@@ -373,6 +373,9 @@ fn ordinary_check_leaves_drafts_optional_and_refreshes_only_opted_in_facts() {
     assert!(ordinary().status.success());
     assert!(!p.file("").exists(), "ordinary checks must not emit a proof matrix");
     let draft = p.0.join("scripts/proof-draft");
+    assert!(!draft.exists(), "ordinary check emits neither draft");
+    let requested = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft"]).current_dir(&p.0).output().unwrap();
+    assert!(requested.status.success(), "{}", String::from_utf8_lossy(&requested.stderr));
     let before: Vec<_> = ["cases.mjs", "host.mjs", "acceptance.mjs"].iter().map(|name| {
         let path = draft.join(name);
         let syntax = Command::new("node").arg("--check").arg(&path).output().unwrap();
@@ -401,13 +404,18 @@ fn ordinary_check_leaves_drafts_optional_and_refreshes_only_opted_in_facts() {
 #[test]
 fn scaffold_flag_requires_current_project_check() {
     let p = Project::new("flag-modes");
+    for flag in ["--proof-draft", "--proof-scaffold"] {
     for mode in [vec!["--audit"], vec!["--emit-lean", "absent.q"], vec!["--store", "absent", "--release", "1"]] {
         let out = Command::new(env!("CARGO_BIN_EXE_snapback4"))
-            .args(["check", "--proof-scaffold"]).args(mode).current_dir(&p.0).output().unwrap();
+            .args(["check", flag]).args(mode).current_dir(&p.0).output().unwrap();
         assert!(!out.status.success());
         assert!(String::from_utf8_lossy(&out.stderr).contains("E_INPUT"));
         assert!(!p.file("").exists());
     }
+    }
+    let both = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft", "--proof-scaffold"]).current_dir(&p.0).output().unwrap();
+    assert!(!both.status.success());
+    assert!(String::from_utf8_lossy(&both.stderr).contains("choose --proof-draft"));
 }
 
 #[test]
@@ -419,10 +427,10 @@ fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
         .current_dir(&p.0).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let next = String::from_utf8_lossy(&out.stdout);
-    assert!(next.contains("Optional exhaustive drafts: snapback4 check --proof-scaffold"), "{next}");
+    assert!(next.contains("optional proof helpers: snapback4 check --proof-draft"), "{next}");
     assert!(!next.contains("start app proofs from scripts/proof-scaffold"));
     let readme = fs::read_to_string(p.0.join("README.md")).unwrap();
-    assert!(readme.contains("Optional exhaustive drafts:"), "{readme}");
+    assert!(readme.contains("Optional proof helpers:"), "{readme}");
     assert!(readme.contains("scripts/frontend-proof.mjs"));
     assert!(!readme.contains("acceptance with scripts/proof-scaffold/acceptance.mjs"));
     let checked = Command::new(env!("CARGO_BIN_EXE_snapback4"))
@@ -438,7 +446,7 @@ fn compact_draft_respects_existing_files_and_dangling_links() {
     fs::create_dir_all(p.0.join("scripts")).unwrap();
     let draft = p.0.join("scripts/proof-draft");
     fs::write(&draft, "application-owned").unwrap();
-    let run = || Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("check").current_dir(&p.0).output().unwrap();
+    let run = || Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft"]).current_dir(&p.0).output().unwrap();
     assert!(run().status.success());
     assert_eq!(fs::read_to_string(&draft).unwrap(), "application-owned");
     fs::remove_file(&draft).unwrap();

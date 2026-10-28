@@ -110349,3 +110349,14 @@ without an exhaustive matrix or automatic code rewrites. Matrix remains opt-in;
 empty/unfilled/refusal-only drafts refuse; coverage stays application-owned.
 Six new after sessions reuse the fixed draws and twelve completed controls.
 Source reviews and packed controls must be repeated for this amendment.
+
+### 2026-10-29 — MUSE1 fallback: both helpers opt-in
+
+The compact default still attracts expansion: gown Muse authored 16KB of cases
+and finished at 118 calls / 12.883M input versus .46's 83 / 8.015M. Completed
+Codex draws improve median input 8.3% but miss calls 36 versus .47's 34.5.
+The compact default is withdrawn. Ordinary check creates neither helper;
+--proof-draft explicitly creates the bounded single-scenario draft once, and
+--proof-scaffold retains the exhaustive matrix. Verify is unchanged. Preserve
+all six default-compact after sessions (remaining Muse results still running),
+then measure six opt-in fallback sessions against the same completed controls.

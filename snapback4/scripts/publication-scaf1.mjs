@@ -15,6 +15,8 @@ export async function proveScaffolds(client, platform, directory) {
   writeFileSync(join(cwd,'snapback/schema.q'),source);
   await run(cli,['check']);
   assert.equal(existsSync(join(cwd,'scripts/proof-scaffold')),false,'ordinary check leaves proof drafts optional');
+  assert.equal(existsSync(join(cwd,'scripts/proof-draft')),false,'ordinary check creates no draft');
+  await run(cli,['check','--proof-draft']);
   const draft=join(cwd,'scripts/proof-draft');
   const draftBytes=['cases.mjs','host.mjs','acceptance.mjs'].map(f=>readFileSync(join(draft,f)));
   assert.ok(draftBytes.reduce((n,b)=>n+b.length,0)<=8000,'bounded compact packet');

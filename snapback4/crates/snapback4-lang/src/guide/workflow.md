@@ -113,9 +113,8 @@ getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
 
 seedUsers in scripts/staging.mjs is
 `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
-Fill scripts/proof-draft/cases.mjs; set acceptance to its acceptance.mjs runner,
-then `npm run verify`. Reuse its host for accounts/cleanup in frontend/probe.
-Adapt these assertions:
+Adapt these assertions; run `npm run verify`. Optional account/lifecycle drafts:
+`check --proof-draft` (one scenario) or `check --proof-scaffold` (exhaustive).
 
 ```js
 import assert from 'node:assert/strict';
