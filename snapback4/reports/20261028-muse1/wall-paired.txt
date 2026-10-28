@@ -1,3 +1,5 @@
+# Adapted original scripts/wall.py: snapback = wave34r2 (.47), w34snapback = wave34r1 (.46); unused competitor columns are empty. Original heading labels follow.
+
 #### Harness-run proof timings, wave 34r1 (median / p90 seconds; n lanes)
 
 | model / arm | check | acceptance | frontend | probe:serve ready (verify) | probe:serve ready (probe phase) | client:calls |

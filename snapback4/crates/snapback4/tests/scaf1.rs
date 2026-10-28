@@ -414,7 +414,7 @@ fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
     let readme = fs::read_to_string(p.0.join("README.md")).unwrap();
     assert!(readme.contains("Optional exhaustive drafts:"), "{readme}");
     assert!(readme.contains("scripts/frontend-proof.mjs"));
-    assert!(!readme.contains("route frontend:proof\\nand probe:serve to that packet too"));
+    assert!(!readme.contains("acceptance with scripts/proof-scaffold/acceptance.mjs"));
     let checked = Command::new(env!("CARGO_BIN_EXE_snapback4"))
         .arg("check").current_dir(&p.0).output().unwrap();
     assert!(checked.status.success());
