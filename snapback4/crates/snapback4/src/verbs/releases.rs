@@ -172,7 +172,7 @@ pub(super) fn bound_at(root: PathBuf) -> Result<snapback4_lang::Bound, String> {
     if sources.is_empty() {
         return Err("release has no Quarry source; select a complete immutable release".into());
     }
-    let bound = phase::measure("release.compile", || snapback4_lang::compile(&sources));
+    let bound = super::release_compile::compile(&sources);
     if !bound.diagnostics.is_empty() {
         return Err(bound
             .diagnostics
@@ -391,6 +391,7 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
 }
 
 pub fn deploy(options: &Options) -> i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     let mut timing=phase::Sequence::new();
     match crate::store_config::StoreConfig::resolve(options) {
         Ok(Some(config)) => return report("deploy", super::configured_release::deploy(options, config)),
@@ -429,7 +430,9 @@ pub fn deploy(options: &Options) -> i32 {
                 if dir.join("store.sqlite").exists() {snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
                 else {serde_json::json!({"release":null,"revision":0,"generation":1})}
             } else {held.expect("live activation target status")};
-            let previous = if let Some(owner) = _deployment.as_ref() {
+            let previous = if let Some(release) = held["release"].as_u64() {
+                Some(release)
+            } else if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
                 held["release"].as_u64()
@@ -640,6 +643,7 @@ fn already_live(dir:&Path,active:u64,options:&Options)->Result<(),String>{
 }
 
 pub fn rollback(options: &Options) -> i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report(
         "rollback",
         (|| {
@@ -732,6 +736,7 @@ pub fn rollback(options: &Options) -> i32 {
 }
 
 pub fn releases(options: &Options) -> i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report(
         "releases",
         (|| {
@@ -1045,6 +1050,7 @@ pub(super) fn latest(dir:&Path)->Result<u64,String>{
         .max().ok_or("no complete immutable releases".into())
 }
 pub(super) fn check_release(options:&Options)->i32 {
+    let _compile_scope=super::release_compile::Scope::new();
     report("check",(|| {
         let store=PathBuf::from(options.flags.get("store").ok_or("--store required")?);
         let dir=store.parent().ok_or("store has no deployment directory")?;

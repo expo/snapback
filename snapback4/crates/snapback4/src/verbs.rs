@@ -1347,6 +1347,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 
 mod releases;
+mod release_compile;
 mod configured_release;
 mod release_safeguards;
 mod release_preview;
