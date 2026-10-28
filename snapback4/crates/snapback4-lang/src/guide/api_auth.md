@@ -20,4 +20,4 @@ export function refreshSession(url: string, token: string, doFetch?: typeof fetc
 export function narrowSession(url: string, session: Session, doFetch?: typeof fetch): Promise<SignIn>;
 ```
 
-Declaration fingerprint: 774ca62187dde905e8ae3065302315e08f46f2ab54542f230d75337a07be8500
+Declaration fingerprint: 46fed84921896c022287029dd55d7bc7eef15eaf114978353dffda0b3464fa2c

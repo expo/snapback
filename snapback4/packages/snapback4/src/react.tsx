@@ -26,7 +26,7 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, matchReadList, type ReadMatchListHandlers, otherwiseAll, isReady, isPresent, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadMatchOverrides, type OtherwiseAll, type ReadPresentation } from "./contract.ts";
+export { matchRead, matchReadList, type ReadMatchListHandlers, otherwiseAll, isReady, isPresent, isLoading, isDenied, isFailed, sentResult, refusalOf, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadMatchOverrides, type OtherwiseAll, type ReadPresentation } from "./contract.ts";
 export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
@@ -180,7 +180,7 @@ class Observation<R> {
  * Mount route-owned child components only while their route is active. Unmount
  * releases this owner; keep:true still permits its existing 30-second linger.
  * Account/backend/argument keys belong to the shell. The bounded screen recipe
- * in CLIENT-AND-OPERATIONS.md also resets page/identity owners on withdrawal,
+ * in reference/CLIENT-AND-OPERATIONS.md also resets page/identity owners on withdrawal,
  * including generation changes. There is no inactive Read or query cache.
  * @ref LLP 3000.023#13 — tested route-owned composition before another hook option.
  */
@@ -295,7 +295,7 @@ type PagedQuery<A, R> = Query<A, R> & ("c" extends keyof A ? unknown
 /** Own the current requested cursor chain. A changed/withdrawn cursor releases
  * its old suffix. Mount this hook in an active route child; keep the composer
  * outside that child and bound point-reader IDs to requested pages/visible rows.
- * See the bounded screen recipe in CLIENT-AND-OPERATIONS.md.
+ * See the bounded screen recipe in reference/CLIENT-AND-OPERATIONS.md.
  */
 export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ReadHookOptions): PageHook<R> {
   const client = useClient();
