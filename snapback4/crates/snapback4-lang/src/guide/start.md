@@ -45,14 +45,15 @@ local calls, rather than assuming advance() freezes the server clock.
 - src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
 - src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
 - scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
-- scripts/proof-scaffold/cases.mjs: EDIT business and frontend.assert callbacks.
+- scripts/acceptance.mjs, scripts/frontend-proof.mjs: EDIT business assertions.
 - scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
 - scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
 - snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
 - package.json: EDIT business script commands; keep pinned toolchain/config.
 - versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
 
-Start proofs from scripts/proof-scaffold/cases.mjs; run `npm run verify`.
+Write application acceptance and frontend assertions; run `npm run verify`.
+Optional exhaustive proof drafts: `npx snapback4 check --proof-scaffold`.
 probe:serve exits after 10s ready without requests; use --hold for a harness.
 
 ## Signatures only when needed

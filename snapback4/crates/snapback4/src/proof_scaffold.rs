@@ -391,7 +391,8 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
 }
 
 /// Called only after a green check, never during deploy/private source checks.
-pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<String>> {
+// @ref LLP 3000.037.000#15-optional-proof-scaffolding-muse1 — draft code is opt-in; existing packets retain fresh coverage facts.
+pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool) -> io::Result<Option<String>> {
     let dir = project.root.join("scripts/proof-scaffold");
     // Refuse symlink custody for directories and files, including the manifest.
     for path in [project.root.join("scripts"), dir.clone()] {
@@ -401,13 +402,18 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
             ));
         }
     }
-    std::fs::create_dir_all(&dir)?;
     let manifest = dir.join(".generated-hashes.json");
+    // An ordinary check creates no packet and takes no custody of a collision.
+    // Existing opted-in packets still need current facts so new guards cannot
+    // disappear behind an old (possibly application-edited) cases file.
+    if !requested && !regular(&manifest)? { return Ok(None); }
+    std::fs::create_dir_all(&dir)?;
     let old: BTreeMap<String, String> = if regular(&manifest)? {
         serde_json::from_slice(&std::fs::read(&manifest)?).unwrap_or_default()
     } else {
         BTreeMap::new()
     };
+    if !requested && !old.contains_key("$current-schema") { return Ok(None); }
     let mut hashes = old.clone();
     let mut written = Vec::new();
     let mut kept = Vec::new();
@@ -424,6 +430,7 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
         ),
     );
     for (name, text) in packet {
+        if !requested && name != "schema.json" { continue; }
         let path = dir.join(name);
         let regular = regular(&path)?;
         let current = if regular {

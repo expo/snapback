@@ -428,7 +428,7 @@ pub fn check(options: &Options) -> i32 {
     check_surface::remember(&project, &bound, Some((&security, &dispositions)));
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
     let proof_scaffold = if !security_failed {
-        match crate::proof_scaffold::generate(&project, &bound) {
+        match crate::proof_scaffold::generate(&project, &bound, options.flags.contains_key("proof-scaffold")) {
             Ok(notice) => notice,
             Err(error) => { failed_check(&bound, options.json, "E_STORE", format!("cannot write proof scaffold: {error}")); return 2; }
         }

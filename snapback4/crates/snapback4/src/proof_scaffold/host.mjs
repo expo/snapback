@@ -11,7 +11,7 @@ import { accountPlan, setup } from './cases.mjs';
 import { api } from '../../snapback/generated/api.ts';
 const schemaBytes=readFileSync(new URL('./schema.json', import.meta.url));
 const hashes=JSON.parse(readFileSync(new URL('./.generated-hashes.json', import.meta.url)));
-assert.equal(createHash('sha256').update(schemaBytes).digest('hex'),hashes['$current-schema'],'E_PROOF_SCENARIO: schema.json was edited or is stale; save it, delete it and run check to refresh bound facts');
+assert.equal(createHash('sha256').update(schemaBytes).digest('hex'),hashes['$current-schema'],'E_PROOF_SCENARIO: schema.json was edited or is stale; save it, delete it and run check --proof-scaffold to refresh bound facts');
 export const schema = JSON.parse(schemaBytes);
 const operations=new Map();
 function index(value) { if(value && typeof value==='object') { if(typeof value.name==='string' && typeof value.kind==='string') operations.set(value.name,value); else for(const entry of Object.values(value)) index(entry); } }

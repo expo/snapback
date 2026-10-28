@@ -1,0 +1,40 @@
+[
+  {
+    "version": "0.4.46",
+    "name": "snapback4",
+    "sha256": "c4f4a806a8c4a805daffb131a3a6490fc25cfbbcd5fb64ecbc7ed0f0ebf9b52a",
+    "integrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q=="
+  },
+  {
+    "version": "0.4.46",
+    "name": "snapback4-linux-x64",
+    "sha256": "7d36193286a4d4139e3a748db5a908a8db2cada5084d52cb964d0809d16beae6",
+    "integrity": "sha512-VUtu66vgfyo8h6euEHBsyfmT2C3pP3Uqo+qgUYzkx2f23RbGOTCeg21vtAsdVShaLvQB6NJeHhFvad58ZHqJKQ==",
+    "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd"
+  },
+  {
+    "version": "0.4.46",
+    "name": "snapback4-expo",
+    "sha256": "524f8be446b6c19dba36be871a463aec3a3be0551743e358076ca9fefd8f159d",
+    "integrity": "sha512-m2MM0Wm3y0ZNi27C83gOqenkGTrS0K934QrmiBB55+s/zJ/6NmWs9OsAUTX62jDZURa99GJsZxP03hVSaAF04A=="
+  },
+  {
+    "version": "0.4.47",
+    "name": "snapback4",
+    "sha256": "9010ee93bab458b5276dff9f7d13378c3a393fcc0887a9fca4c45f19f231c4a4",
+    "integrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg=="
+  },
+  {
+    "version": "0.4.47",
+    "name": "snapback4-linux-x64",
+    "sha256": "21600d5753559f66ac46bb508919feacf1daa1ed0adde9a0e66d47e1483d4e4a",
+    "integrity": "sha512-J5jxAEqy89RRzOjy70jxFFsk8uco1w4i27Eo0a46berqhDziIHV8NuMuB0EZ4yGRRjtk8JwfzujSaZN8+Sc9Ng==",
+    "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea"
+  },
+  {
+    "version": "0.4.47",
+    "name": "snapback4-expo",
+    "sha256": "85ae9d8b32b9f570e70c260e9b508a630d84feb0bd23b73a8ca5190b1c79d75d",
+    "integrity": "sha512-eUk0Pw3RVbpBj3b68udPA09ICXjphBxmi0Oi3anI8ypOERg09rgdafO6ecTaba4fwbhy7jjapdVeWuK/t3gAnA=="
+  }
+]

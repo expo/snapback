@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+### Guide changes
+
+- `npm run verify` retains its compact first-failure loop. Exhaustive operation/role/guard proof drafts are optional: request them with `snapback4 check --proof-scaffold`. Ordinary checks create no packet and refresh only bound facts in existing packets; code drafts refresh only on an explicit request, preserving builder edits.
+
 ## 0.4.47
 
 ### Guide changes

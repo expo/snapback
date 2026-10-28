@@ -87,7 +87,20 @@ source-byte savings alone are not a performance result.
 
 ## 2. Implementation
 
-Pending.
+Implemented explicit `check --proof-scaffold`, validated before alternate-mode
+work, plus optional start/workflow wording. Ordinary checks do not create a
+packet; existing opted-in/0.4.47 packets refresh only schema.json and its
+manifest. Code drafts remain byte-identical until explicitly requested. Edited
+facts still refuse through current-schema binding. Existing SCAF1 coverage,
+real users, refusal assertions and private lifecycle remain intact.
+
+`npm run verify` is retained unchanged: first red, bounded summary, private full
+log and parent/process cleanup. No speculative incremental proof cache.
+
+Initial checks: scaffold integration 12/12 passed; wasm 738,640 gzip bytes
+within 739,140; client build passed; ref-check passed. The workflow's first
+revision exceeded its 8,000-byte contract; its optional-matrix wording is now
+inside that unchanged budget. Packed correctness and full sessions are pending.
 
 ## 3. Whole-session controls
 

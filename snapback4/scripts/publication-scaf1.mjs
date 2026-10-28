@@ -1,6 +1,6 @@
 // @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — execute emitted code through installed tarballs and reject missing/incorrect proofs.
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {chromiumExecutable} from '../witness/lib.mjs';
@@ -14,6 +14,8 @@ export async function proveScaffolds(client, platform, directory) {
   const cli=join(cwd,'node_modules/.bin/snapback4');
   writeFileSync(join(cwd,'snapback/schema.q'),source);
   await run(cli,['check']);
+  assert.equal(existsSync(join(cwd,'scripts/proof-scaffold')),false,'ordinary check leaves proof drafts optional');
+  await run(cli,['check','--proof-scaffold']);
   const capture=args=>spawnSync(process.execPath,args,{cwd,env,encoding:'utf8',timeout:60000});
   for(const file of ['cases.mjs','host.mjs','acceptance.mjs','frontend-proof.mjs','probe-serve.mjs']) {
     const out=capture(['--check',`scripts/proof-scaffold/${file}`]);assert.equal(out.status,0,out.stderr);
@@ -48,11 +50,11 @@ export async function proveScaffolds(client, platform, directory) {
   const custom=join(cwd,'custom');mkdirSync(join(custom,'snapback'),{recursive:true});
   const customSource=source.replace("mutation provision(principal: principal, role: enum('admin', 'member')):","mutation provision(member: principal, level: enum('admin', 'member')):").replace('return upsert roles[principal] {principal,role}','return upsert roles[member] {principal:member,role:level}');
   assert.notEqual(customSource,source);writeFileSync(join(custom,'snapback/schema.q'),customSource+'\ntable pulses:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation pulse():\n  upsert pulses[viewer] {principal:viewer}\n');writeFileSync(join(custom,'snapback/team.v1.q'),"query ping():\n  return 'pong'\n");
-  await runToolchainCommand(cli,['check'],{cwd:custom,env,timeout:300000});
+  await runToolchainCommand(cli,['check','--proof-scaffold'],{cwd:custom,env,timeout:300000});
   writeFileSync(join(custom,'smoke.mjs'),`import assert from 'node:assert/strict';import {startProof} from './scripts/proof-scaffold/host.mjs';const ctx=await startProof();try {assert.equal(ctx.sessions.admin.length,2);assert.equal((await ctx.call('pulse',ctx.sessions.admin[0],{})).state,'sent');assert.equal((await ctx.call('team.v1.ping',ctx.sessions.admin[0],{})).data,'pong');assert.equal((await ctx.call('approve',ctx.sessions.admin[0],{note:'missing',reason:'custom'})).why.code,'NOT_FOUND');assert.equal((await ctx.call('approve',ctx.sessions.member[0],{note:'missing',reason:'custom'})).why.code,'NOT_ADMIN');}finally{await ctx.stop();}`);
   await runToolchainCommand(process.execPath,['smoke.mjs'],{cwd:custom,env,timeout:300000});
   const empty=join(cwd,'empty');mkdirSync(join(empty,'snapback'),{recursive:true});writeFileSync(join(empty,'snapback/schema.q'),"use identity password\ntable notes:\n  body: text <=100\n  public 'empty proof control'\n  online only\n");
-  await runToolchainCommand(cli,['check'],{cwd:empty,env,timeout:300000});
+  await runToolchainCommand(cli,['check','--proof-scaffold'],{cwd:empty,env,timeout:300000});
   const emptyProof=spawnSync(process.execPath,['scripts/proof-scaffold/acceptance.mjs'],{cwd:empty,env,encoding:'utf8',timeout:30000});assert.notEqual(emptyProof.status,0);assert.match(emptyProof.stderr,/no operation business cases/);
   const result={status:'passed',syntax:5,realAccounts:'admin/member/roleless signup plus sign-in, including custom member/level provisioning args',frontend:'six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection',positive:'operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread',negative:['unfilled acceptance','unfilled frontend','UI click without a durable write','wrong refusal code','missing excluded role','new operation with preserved edits','edited stale schema facts','empty acceptance'],qualification:false};
   writeFileSync(join(resolve(directory),'scaf1.json'),JSON.stringify(result,null,2)+'\n');return result;

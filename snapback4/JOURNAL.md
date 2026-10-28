@@ -110265,3 +110265,15 @@ pair adopts verify and scaffold acceptance but regresses input tokens
 whole-session performance win; the 40-lane rerun measures the landed release.
 Durable evidence is reports/integration31/REPORT.md. Publication owns the full
 platform/client battery and npm release.
+
+### 2026-10-28 — MUSE1 optional exhaustive proof drafts
+
+The wave34r1/r2 per-call decomposition finds the default expanded matrix driving
+Muse scaffold reading and construction: ~52KB scaffold reads and ~1.35M repeated
+input tokens per lane, with extra authoring and verification calls. Check now
+requires --proof-scaffold to emit/refresh code drafts; ordinary checks keep
+existing packets' bound coverage facts current. Start/workflow keep verify as
+the default loop and describe the matrix as optional. Coverage, stale-fact
+refusals, first-red output and cleanup remain. See LLP 3000.037.000 §15 and the
+MUSE1 report for measured controls; no performance or publication claim follows
+from these source changes alone.

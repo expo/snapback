@@ -15,6 +15,7 @@ impl Project {
     fn check(&self) -> Output {
         Command::new(env!("CARGO_BIN_EXE_snapback4"))
             .arg("check")
+            .arg("--proof-scaffold")
             .arg("--json")
             .current_dir(&self.0)
             .output()
@@ -339,6 +340,7 @@ fn scaffold_notice_follows_the_verdict_and_unchanged_checks_are_quiet() {
     let run = || {
         Command::new(env!("CARGO_BIN_EXE_snapback4"))
             .arg("check")
+            .arg("--proof-scaffold")
             .current_dir(&p.0)
             .output()
             .unwrap()
@@ -360,4 +362,40 @@ fn scaffold_notice_follows_the_verdict_and_unchanged_checks_are_quiet() {
     let next = run();
     assert!(next.status.success());
     assert!(!String::from_utf8_lossy(&next.stdout).contains("proof scaffold:"));
+}
+
+#[test]
+fn ordinary_check_leaves_drafts_optional_and_refreshes_only_opted_in_facts() {
+    let p = Project::new("opt-in");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    let ordinary = || Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .arg("check").current_dir(&p.0).output().unwrap();
+    assert!(ordinary().status.success());
+    assert!(!p.file("").exists(), "ordinary checks must not emit a proof matrix");
+    assert!(p.check().status.success());
+    let cases = fs::read(p.file("cases.mjs")).unwrap();
+    let runner = fs::read(p.file("acceptance.mjs")).unwrap();
+    fs::write(p.0.join("snapback/schema.q"), format!("{SOURCE}\nquery added():\n  return 1\n")).unwrap();
+    assert!(ordinary().status.success());
+    assert_eq!(fs::read(p.file("cases.mjs")).unwrap(), cases, "no unrequested draft expansion");
+    assert_eq!(fs::read(p.file("acceptance.mjs")).unwrap(), runner);
+    assert!(fs::read_to_string(p.file("schema.json")).unwrap().contains("added"), "coverage facts must see new operations");
+    fs::remove_file(p.file("acceptance.mjs")).unwrap();
+    assert!(ordinary().status.success());
+    assert!(!p.file("acceptance.mjs").exists(), "only an explicit request restores code");
+    assert!(p.check().status.success());
+    assert!(p.file("acceptance.mjs").exists());
+    assert!(fs::read_to_string(p.file("cases.mjs")).unwrap().contains("added"));
+}
+
+#[test]
+fn scaffold_flag_requires_current_project_check() {
+    let p = Project::new("flag-modes");
+    for mode in [vec!["--audit"], vec!["--emit-lean", "absent.q"], vec!["--store", "absent", "--release", "1"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+            .args(["check", "--proof-scaffold"]).args(mode).current_dir(&p.0).output().unwrap();
+        assert!(!out.status.success());
+        assert!(String::from_utf8_lossy(&out.stderr).contains("E_INPUT"));
+        assert!(!p.file("").exists());
+    }
 }
