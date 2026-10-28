@@ -4,7 +4,7 @@
 
 ### Guide changes
 
-- Backend-only proof imports no longer load browser tooling. Common proof commands launch the native binary without an extra CLI shim process, retaining command deadlines, private token logs and process cleanup. Staging tests still create fresh deployments and real users.
+- Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
 
 ## 0.4.44
 
