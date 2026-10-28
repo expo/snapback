@@ -11,12 +11,13 @@ subprocess.run([sys.executable, str(HERE/'summarize.py'), '--out', str(SCRATCH/'
 summary = json.loads((SCRATCH/'final-summary.json').read_text())
 if summary['setupErrors'] or summary['exitDifferences'] or summary['clientCallDifferences'] or summary['missingClientCallVectors'] or summary['messageDifferenceCount']:
     raise SystemExit('Resolve/classify identity differences before exporting a green receipt')
-rows = {}
+rows = {}; all_attempts = []
 for p in sorted(SCRATCH.glob('corpus-[0-9].jsonl')):
     for line in p.read_text().splitlines():
         r = json.loads(line)
         if 'script' not in r:
             continue
+        all_attempts.append(r)
         key = (r['wave'], r['lane'], r['script'])
         if key not in rows or r.get('measurementRevision', 1) > rows[key].get('measurementRevision', 1):
             rows[key] = r
@@ -73,4 +74,21 @@ summary['measurementNotes'] = [
 ]
 (a.out/'measurements.json').write_text(json.dumps(safe, indent=2)+'\n')
 (a.out/'summary.json').write_text(json.dumps(summary, indent=2)+'\n')
+excluded = []
+for r in all_attempts:
+    key = (r['wave'], r['lane'], r['script'])
+    if r.get('measurementRevision', 1) < rows[key].get('measurementRevision', 1):
+        excluded.append((r, 'explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed'))
+for p in sorted(SCRATCH.glob('corpus-*.superseded.jsonl')):
+    excluded.extend((json.loads(line), 'incomplete-lane restart or empty artifact-directory copy precondition repair') for line in p.read_text().splitlines())
+retained = []
+for r, reason in excluded:
+    if 'script' not in r:continue
+    x = {k:r[k] for k in ['wave','lane','script','measurementRevision'] if k in r};x['reason']=reason
+    for variant in ['before','after']:
+        if variant not in r:continue
+        value=r[variant];x[variant]={k:value[k] for k in ['code','seconds','clientInputDigest'] if k in value}
+        x[variant]['originalExtractedMessageSha256']=hashlib.sha256(json.dumps(value.get('messages',[]),separators=(',',':')).encode()).hexdigest()
+    retained.append(x)
+(a.out/'superseded-attempts.json').write_text(json.dumps(retained,indent=2)+'\n')
 print(f'Exported {len(safe)} paired commands without raw credentials or app logs')
