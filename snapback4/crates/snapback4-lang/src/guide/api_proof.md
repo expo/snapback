@@ -36,21 +36,12 @@ export interface ProvisionAccountsOptions extends SeedAccountsOptions { roster?:
 export interface SeedAccountsOptions { roles?: Record<string, number>; provision?: { readonly name: string; }; users?: number; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 export interface StagingAccount { kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number; }
 export type StagingSessions = Record<string, StagingAccount[]>;
-export interface DevHost extends ProofHost { devAccounts(options: SeedAccountsOptions): Promise<StagingSessions>; personas: string[]; now(): Promise<number>; advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>; drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>; operatorToken(service?: string, days?: number): Promise<string>; }
-export interface ServeHost extends ProofHost { readonly deploymentDir: string; now(): Promise<number>; advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>; drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>; operatorToken(service?: string, days?: number): Promise<string>; seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>; provisionAccounts(options: ProvisionAccountsOptions): Promise<ProvisionedSessions>; sessions?: StagingSessions; }
-export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"]; }
+export type ProvisionedAccount = StagingAccount;
+export function probeServeGuard(options?: { directory?: string; hold?: boolean; }): ProbeGuard;
 export type ProvisionedSessions = StagingSessions;
-export interface StagingAccount { kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number; }
 export function uniqueName(prefix?: string): string;
 export function freshUser(host: Pick<ServeHost, "url" | "operatorToken">, options?: FreshUserOptions): Promise<StagingAccount>;
 export interface FreshUserOptions { role?: string; provision?: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 ```
 
-Other exports/options: dist/proof.d.ts; follow its named imports only on demand.
-
-Declaration fingerprint: b27b2a97d38baf0483de3c6dbced49b82963056dad1839414f95bcd85e0e0251
-
-
-
-
-
+Declaration fingerprint: 10ada95ccb24d1b7644a1e7620b6e46ef642a74e20e8f9d676c8bf3ede96e5df

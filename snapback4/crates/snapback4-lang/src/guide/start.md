@@ -15,7 +15,6 @@ Only after that first backend check, initialize the frontend:
 
 ```sh
 npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
-node scripts/install.mjs --wait                # join once before building
 ```
 
 Init keeps your schema and emits a generic Home plus a matching account plan.
@@ -23,8 +22,8 @@ Build your screen and replace the marked proof assertions. Starting from a demo
 instead means adapting it after the schema changes: `init --adapt --apply`
 (preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
 All .q files share one namespace. Node 24.x is required.
-If a tool host reaps the background installer, run `node scripts/install.mjs`
-in the foreground rather than repeatedly polling a missing worker.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
 
 ## Syntax and time essentials
 

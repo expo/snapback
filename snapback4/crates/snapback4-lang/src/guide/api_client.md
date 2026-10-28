@@ -19,14 +19,19 @@ export type AssetRead = { readonly url: string; readonly type: string; readonly 
 // Uploaded: import type from snapback4/contract
 export type Uploaded = { readonly ok: true; readonly asset: Asset; } | { readonly ok: false; readonly why: Refusal; };
 // UploadOptions: import type from snapback4/contract
-export interface UploadOptions { readonly file?: { readonly type?: string; readonly name?: string; }; }
+export interface UploadOptions { readonly file?: { readonly type?: string; readonly name?: string; readonly size?: number; }; }
 export function settleMutation<A, R>(client: Client, op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>>;
 export interface Session { readonly principal: string; readonly kind: string; readonly token: string; readonly expiresAt: number; readonly scope?: "full" | "read"; readonly capExpiresAt?: number; }
 // SignIn: import type from snapback4/contract
 export type SignIn = { readonly ok: true; readonly session: Session; } | { readonly ok: false; readonly why: Refusal; };
 export interface MutateOptions { readonly id?: string; readonly waitSeconds?: number; }
 export interface Refusal { readonly code: string; readonly family: string; readonly message: string; readonly detail?: string; readonly site?: string; readonly rewrite?: string; readonly guide?: string; readonly rule?: string; readonly retryable?: boolean; readonly retryAfterMs?: number; }
+export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query"; readonly ephemeralReads?: readonly string[]; readonly rowKey?: "id"; };
+export type Mutation<Args, Result> = Op<Args, Result> & { readonly kind: "mutation"; readonly ephemeral?: false; };
+export function mintId(now?: number): string;
+export function idFrom(key: string): string;
+export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true; }>;
+export type MutationPromise<R = unknown> = Promise<Write<R>> & { readonly state?: "failed"; readonly id?: string; readonly why?: Refusal; };
 ```
 
-Declaration fingerprint: 0f1daeb466401f69c5a4cf652baaa30f5d3b0fa213a6055650c37e5846246f9d
-
+Declaration fingerprint: f1335e13b1914be7bae62c311af401d3283423f8f34d64aec61e8701c3570b40

@@ -4,25 +4,15 @@
 
 ### Guide changes
 
-- `promote STAGING PRODUCTION` preserves password accounts, data, assets and release history in a new production deployment. Stop real-time staging first; preview with `promote STAGING PRODUCTION --check`. Users sign in again, devices reacquire, and inherited service credentials are revoked. Existing targets, live guest sessions, advanced clocks, unfinished work and production security refusals remain explicit.
-
-- Required-to-optional rollback views retain independent invariants. Intentional null hiding narrows the generated view and refuses null writes with `ROLLBACK_NULL`; forward keeps the nullable workflow. Deploy previews report unavailable hiding views separately, so their population-safety refusal cannot brick forward activation. The release card explains visible optional views and exact-source preview commands.
-- `deploy --check` runs adoption preflight before enforcing security and labels the first failure. Global bare `cap N` survives rollback generation. `check` refuses an extraction's unmapped nonliteral defaults with the column and remedies; retired required-column refusals name the missing `down` outputs.
-
-- Serve follows parent and npm lifetime, including wrapper-only SIGTERM/SIGKILL; proof drivers reap owned hosts on SIGTERM/SIGINT/SIGHUP or parent death so pipes finish. Busy stores name holder PID, command, start time and liveness with `snapback4 stop <dir>` recovery; dead-holder records are reclaimed with a notice. Password starters add `prod:serve` and bounded `prod:check`; deliberate harness hold remains opt-in.
-
-- `guide day2` walks the release loop with change-specific routes, frozen v1 calls and production accounts. Large `--full` reads list bounded sections; rereads show new content only (`guide --repeat` forces a selection).
-- `init --adapt --day2 --apply` freezes `v1/` with its own ESM package and checked API. Its runner accepts inline `CALLS_USERS` or a file path. `uniqueName` and `freshUser` isolate repeat proofs; capacity refusals give setup advice without retrying writes. The proof digest includes production helpers and roster/account shapes.
-- Administrative `data --all` and `snapshotAll` include active and retained rows/cells, merged once per ID. Ephemeral tables still require a serving-memory read.
-
-- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores full output and `--json` keeps complete evidence. Serve startup retains URL/readiness identity. Proof checks report readiness, uptime, lock release and failures compactly, with complete JSON receipts on request. Check output budgets are unchanged.
-
-
-- Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in the app's private install log; init owns one blocking install with bounded start/completion output, preserving its exit status. Explicit install joins print a single completion line.
-
-- Safe Quarry fix-its show the exact edited line and check --fix applies context-compiled edits with a source diff. Null defaults, arbitrary bounds and security rules remain manual. Proof failures lead with operation, role, refusal code, field and a likely fix, preserving the original assertion; uncorrelated request/server context is labelled explicitly.
-- Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
-
+- Existing app rows, accounts, releases and frozen v1 clients remain. Restart serving hosts after upgrading. Shared campaign fixtures, lazy replay IDs and ordered concurrent searches reduce check/deploy work while retaining security gates, witnessed questions, payloads and search budgets. No store migration beyond 0.4.45's fence is needed.
+- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores details and `--json` keeps complete evidence. Proof failures lead with operation, role, code, field and repair, retaining original assertions and exits.
+- `guide start` routes to one `guide workflow` app recipe; README is a pointer. `guide api` digests replace declaration tours; starter scripts mark business edit regions. Nullable conditions/arithmetic and required inserts have compiling examples. App-owned scripts stay owned by the app.
+- `guide day2` routes saved versions, preview, rollback, forward and frozen callers. Large `guide --full` reads list bounded sections; `guide --repeat` forces rereading. `init --adapt --day2 --apply` explicitly freezes checked v1 source/API. `uniqueName`/`freshUser` isolate reruns without retrying writes or raising caps.
+- Serve and proof hosts follow parent/npm lifetime and forward termination. Busy stores name the holder and `snapback4 stop <dir>` recovery. Password starters add `prod:serve` and bounded `prod:check`; existing scripts can adopt the production-card recipe. Init owns one foreground frontend install with private logs and propagates its status; explicit deferred installs need one join.
+- `promote STAGING PRODUCTION [--check]` copies stopped, real-time, quiescent SQLite staging into new production, retaining data/assets/password accounts/releases. Users sign in again, devices reacquire and inherited service credentials are revoked. Existing targets, live guests, unfinished work, advanced clocks and security refutations refuse with repairs.
+- Required-to-optional rollback views retain independent invariants. Intentional null hiding refuses null writes with `ROLLBACK_NULL`; unavailable hiding views no longer veto safe forward activation. `deploy --check` reports adoption before security. Extraction defaults and missing reverse values refuse at check/preview with column repairs; bare global `cap N` survives generated views.
+- `check --fix` applies context-compiled `E_QUARRY_*` edits with exact diffs; defaults, arbitrary bounds and security intent stay manual. Image-only backends accept `client.upload` file metadata through verified image handling; invalid bytes and bounds still refuse.
+- Administrative `data --all` / `snapshotAll` merge active and retained rows/cells once per ID; limited reads remain active-only. Proof imports load browsers lazily and dispatch native commands directly, retaining deadlines, cleanup and fresh real-user staging worlds.
 
 ## 0.4.45
 
@@ -43,7 +33,6 @@
 
 ### Guide changes
 
-- Day-one builders read start then workflow: one composed role/private-field/upload/price/stage/deadline/approval recipe with acceptance. README routes there; operator documents stay explicit references. API digests cover React, observation, sessions and account plans, and declarations point to them. Starter edit regions and check’s API-index hint reduce file rereads. Nullable arithmetic/condition and required-insert idioms are shown in place.
 
 
 - Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
