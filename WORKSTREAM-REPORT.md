@@ -211,3 +211,17 @@ I committed the fallback while it ran. This was an avoidable sequencing mistake;
 it is NOT a successful qualification claim. Preserve proofs.json, per-proof
 receipts and log. The final fallback qualification must run with the checkout
 frozen: no commits or tracked/untracked repository edits until its receipt.
+
+All six compact-default sessions completed; installed pins verified, independently
+parsed usage matches provider totals, all copies deleted. Exact data retained in
+replays-v2.json (including before controls and first candidate). Muse medians
+106.5 calls / 11,503,679.5 input / 22.14min versus .46 96 / 8,993,342 / 16.32min:
+both bars MISS. Codex 36 / 2,041,845.5 versus .47 34.5 / 2,227,055: calls MISS,
+input PASS. Final opt-in fallback is required; no default compact claim remains.
+
+Fallback packed scaffold controls passed, guide 135/135 passed. Main fetched and
+merged again as 085cb67d7d: upstream fixture/test pins only, no semantic conflict
+or changed runtime/scaffold/guide input. Repacking before/after merge produced
+identical client/expo/platform bytes and native SHA-256
+4b4767de85072da0aeaa866a5d857b8fbf6da9218049dc2838f3cc366b7d309b.
+Final source/qualification/replays now freeze; no commits until consumer receipt.

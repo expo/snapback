@@ -1,0 +1,24 @@
+{
+  "version": "0.4.48",
+  "source": "085cb67d7dd4da12428b2a514c6548915cb82660",
+  "profile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "binarySha256": "4b4767de85072da0aeaa866a5d857b8fbf6da9218049dc2838f3cc366b7d309b",
+  "packages": [
+    {
+      "file": "snapback4-0.4.48.tgz",
+      "sha256": "4f3c2a912e88a87c3ee306fa483d43206d00c828b46148cf22d84c10abacaa75",
+      "bytes": 1411154
+    },
+    {
+      "file": "snapback4-expo-0.4.48.tgz",
+      "sha256": "6c345458eca346667a3dd8ba22cc68c84abcaccc653b441e41d905de9d2a5216",
+      "bytes": 24279
+    },
+    {
+      "file": "snapback4-linux-x64-0.4.48.tgz",
+      "sha256": "ab58f5130f0f938e5ea79a34b08261640be7944b95917513311c5f7b76b4457e",
+      "bytes": 18786372
+    }
+  ]
+}

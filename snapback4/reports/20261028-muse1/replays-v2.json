@@ -1,0 +1,867 @@
+[
+  {
+    "phase": "branch",
+    "idea": 1,
+    "title": "CPAP Equipment Setups",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T20:44:59.742Z",
+    "status": 0,
+    "report": true,
+    "input": 2879383,
+    "calls": 40,
+    "wallMinutes": 12.503166666666667,
+    "modelMinutes": 11.701233333333333,
+    "toolMinutes": 0.8479333333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 40,
+    "parsedInput": 2879383,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "branch",
+    "idea": 14,
+    "title": "E-Bike Conversions",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T21:37:53.036Z",
+    "status": 0,
+    "report": true,
+    "input": 2558415,
+    "calls": 41,
+    "wallMinutes": 13.193833333333334,
+    "modelMinutes": 12.187083333333334,
+    "toolMinutes": 1.0243833333333334,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 41,
+    "parsedInput": 2558415,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "branch",
+    "idea": 19,
+    "title": "Child Talent Bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T20:43:27.653Z",
+    "status": 0,
+    "report": true,
+    "input": 13756002,
+    "calls": 120,
+    "wallMinutes": 17.614516666666667,
+    "modelMinutes": 13.052616666666667,
+    "toolMinutes": 3.9380333333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 120,
+    "parsedInput": 13756002,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "branch",
+    "idea": 26,
+    "title": "Wildlife Exclusion Jobs",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.48",
+    "started": "2026-10-28T21:19:34.087Z",
+    "status": 0,
+    "report": true,
+    "input": 14316173,
+    "calls": 118,
+    "wallMinutes": 27.545583333333333,
+    "modelMinutes": 7.769933333333333,
+    "toolMinutes": 19.267216666666666,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 118,
+    "parsedInput": 14316173,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "branch",
+    "idea": 32,
+    "title": "Gown Preservation Orders",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.48",
+    "started": "2026-10-28T20:57:32.387Z",
+    "status": 0,
+    "report": true,
+    "input": 7054408,
+    "calls": 77,
+    "wallMinutes": 12.98655,
+    "modelMinutes": 9.784583333333334,
+    "toolMinutes": 2.6589666666666667,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 77,
+    "parsedInput": 7054408,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "branch",
+    "idea": 35,
+    "title": "Real Estate Photo Shoots",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T21:47:07.541Z",
+    "status": 0,
+    "report": true,
+    "input": 12595509,
+    "calls": 119,
+    "wallMinutes": 20.354883333333333,
+    "modelMinutes": 7.341866666666666,
+    "toolMinutes": 12.627133333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+      "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 119,
+    "parsedInput": 12595509,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 1,
+    "title": "CPAP Equipment Setups",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:31:55.980Z",
+    "status": 0,
+    "report": true,
+    "input": 1675163,
+    "calls": 33,
+    "wallMinutes": 9.71405,
+    "modelMinutes": 9.071383333333333,
+    "toolMinutes": 0.645,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": true,
+      "compactCasesBytes": 1176,
+      "acceptanceUsesCompact": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 33,
+    "parsedInput": 1675163,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 14,
+    "title": "E-Bike Conversions",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:41:39.514Z",
+    "status": 0,
+    "report": true,
+    "input": 2408528,
+    "calls": 39,
+    "wallMinutes": 11.9133,
+    "modelMinutes": 10.929033333333333,
+    "toolMinutes": 0.9876166666666667,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": true,
+      "compactCasesBytes": 1189,
+      "acceptanceUsesCompact": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 39,
+    "parsedInput": 2408528,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 19,
+    "title": "Child Talent Bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:31:53.967Z",
+    "status": 0,
+    "report": true,
+    "input": 9630048,
+    "calls": 93,
+    "wallMinutes": 20.185783333333333,
+    "modelMinutes": 11.6063,
+    "toolMinutes": 8.200233333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": true,
+      "compactCasesBytes": 11143,
+      "acceptanceUsesCompact": true
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 93,
+    "parsedInput": 9630048,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 26,
+    "title": "Wildlife Exclusion Jobs",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:52:06.126Z",
+    "status": 0,
+    "report": true,
+    "input": 10124442,
+    "calls": 95,
+    "wallMinutes": 16.4263,
+    "modelMinutes": 11.602633333333333,
+    "toolMinutes": 4.515616666666666,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": true,
+      "compactCasesBytes": 1181,
+      "acceptanceUsesCompact": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 95,
+    "parsedInput": 10124442,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 32,
+    "title": "Gown Preservation Orders",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:31:57.966Z",
+    "status": 0,
+    "report": true,
+    "input": 12882917,
+    "calls": 118,
+    "wallMinutes": 29.745966666666668,
+    "modelMinutes": 14.306133333333333,
+    "toolMinutes": 14.517883333333334,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": true,
+      "compactCasesBytes": 16434,
+      "acceptanceUsesCompact": true
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 118,
+    "parsedInput": 12882917,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "compact",
+    "idea": 35,
+    "title": "Real Estate Photo Shoots",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.48",
+    "started": "2026-10-28T22:53:35.292Z",
+    "status": 0,
+    "report": true,
+    "input": 15529104,
+    "calls": 124,
+    "wallMinutes": 24.092283333333334,
+    "modelMinutes": 12.359766666666667,
+    "toolMinutes": 11.168166666666666,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.48",
+      "binarySha256": "f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03",
+      "clientIntegrity": "sha512-gblFY66d7bt77uWbuDtmY3sB8z+1AD0GpM3NfqGUeOcBn/HRwrSDFF7DXYWHnfozVrxPob0p2WBXI3FF2GTGbw==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "compactCreated": false,
+      "compactCasesBytes": 0,
+      "acceptanceUsesCompact": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 124,
+    "parsedInput": 15529104,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 1,
+    "title": "CPAP Equipment Setups",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.46",
+    "started": "2026-10-28T20:05:33.832Z",
+    "status": 0,
+    "report": true,
+    "input": 2528911,
+    "calls": 40,
+    "wallMinutes": 11.67445,
+    "modelMinutes": 11.0373,
+    "toolMinutes": 0.66175,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q=="
+    },
+    "proofRoute": null,
+    "copiesRemoved": true,
+    "parsedCalls": 40,
+    "parsedInput": 2528911,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 14,
+    "title": "E-Bike Conversions",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.46",
+    "started": "2026-10-28T21:13:49.891Z",
+    "status": 0,
+    "report": true,
+    "input": 2265122,
+    "calls": 43,
+    "wallMinutes": 11.341266666666666,
+    "modelMinutes": 9.890383333333334,
+    "toolMinutes": 1.4760166666666668,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q==",
+      "clientFiles": {
+        "files": 379,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 43,
+    "parsedInput": 2265122,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 19,
+    "title": "Child Talent Bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.46",
+    "started": "2026-10-28T20:05:31.509Z",
+    "status": 0,
+    "report": true,
+    "input": 9506799,
+    "calls": 102,
+    "wallMinutes": 16.805316666666666,
+    "modelMinutes": 11.166716666666666,
+    "toolMinutes": 4.925716666666666,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q=="
+    },
+    "proofRoute": null,
+    "copiesRemoved": true,
+    "parsedCalls": 102,
+    "parsedInput": 9506799,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 26,
+    "title": "Wildlife Exclusion Jobs",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.46",
+    "started": "2026-10-28T20:38:10.389Z",
+    "status": 0,
+    "report": true,
+    "input": 19174721,
+    "calls": 147,
+    "wallMinutes": 28.974733333333333,
+    "modelMinutes": 18.32185,
+    "toolMinutes": 9.848966666666668,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q==",
+      "clientFiles": {
+        "files": 379,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 147,
+    "parsedInput": 19174721,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 32,
+    "title": "Gown Preservation Orders",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.46",
+    "started": "2026-10-28T20:22:20.564Z",
+    "status": 0,
+    "report": true,
+    "input": 8014586,
+    "calls": 83,
+    "wallMinutes": 15.820233333333332,
+    "modelMinutes": 12.218833333333333,
+    "toolMinutes": 3.39405,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q=="
+    },
+    "proofRoute": null,
+    "copiesRemoved": true,
+    "parsedCalls": 83,
+    "parsedInput": 8014586,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v46",
+    "idea": 35,
+    "title": "Real Estate Photo Shoots",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.46",
+    "started": "2026-10-28T21:25:12.388Z",
+    "status": 0,
+    "report": true,
+    "input": 8479885,
+    "calls": 90,
+    "wallMinutes": 12.66305,
+    "modelMinutes": 5.89155,
+    "toolMinutes": 6.47735,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.46",
+      "binarySha256": "43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd",
+      "clientIntegrity": "sha512-aZS29slbE/192zs7Qe6rxZ3rub8mbPh9GFDdVOtiFed1EM3+z06UaVeNS9QTaKp1ws30kYtDre+Ly0XO+0WS2Q==",
+      "clientFiles": {
+        "files": 379,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": false,
+      "casesBytes": 0,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 90,
+    "parsedInput": 8479885,
+    "scaffoldReadTools": 0,
+    "scaffoldReadInputCost": 0
+  },
+  {
+    "phase": "v47",
+    "idea": 1,
+    "title": "CPAP Equipment Setups",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.47",
+    "started": "2026-10-28T20:17:15.281Z",
+    "status": 0,
+    "report": true,
+    "input": 2093185,
+    "calls": 35,
+    "wallMinutes": 11.119833333333334,
+    "modelMinutes": 10.496983333333333,
+    "toolMinutes": 0.6453333333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg=="
+    },
+    "proofRoute": null,
+    "copiesRemoved": true,
+    "parsedCalls": 35,
+    "parsedInput": 2093185,
+    "scaffoldReadTools": 1,
+    "scaffoldReadInputCost": 223806.0
+  },
+  {
+    "phase": "v47",
+    "idea": 14,
+    "title": "E-Bike Conversions",
+    "model": "codex",
+    "frontend": "expo",
+    "version": "0.4.47",
+    "started": "2026-10-28T21:01:07.580Z",
+    "status": 0,
+    "report": true,
+    "input": 2360925,
+    "calls": 34,
+    "wallMinutes": 10.362616666666666,
+    "modelMinutes": 9.487183333333334,
+    "toolMinutes": 0.8823666666666666,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": true,
+      "casesBytes": 35796,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 34,
+    "parsedInput": 2360925,
+    "scaffoldReadTools": 2,
+    "scaffoldReadInputCost": 221168.1120689655
+  },
+  {
+    "phase": "v47",
+    "idea": 19,
+    "title": "Child Talent Bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.47",
+    "started": "2026-10-28T20:05:32.683Z",
+    "status": 0,
+    "report": true,
+    "input": 21142866,
+    "calls": 150,
+    "wallMinutes": 37.87055,
+    "modelMinutes": 22.714766666666666,
+    "toolMinutes": 14.319433333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": null,
+    "copiesRemoved": true,
+    "parsedCalls": 150,
+    "parsedInput": 21142866,
+    "scaffoldReadTools": 5,
+    "scaffoldReadInputCost": 1282849.0
+  },
+  {
+    "phase": "v47",
+    "idea": 26,
+    "title": "Wildlife Exclusion Jobs",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.47",
+    "started": "2026-10-28T21:13:47.829Z",
+    "status": 0,
+    "report": true,
+    "input": 16453649,
+    "calls": 118,
+    "wallMinutes": 21.825533333333333,
+    "modelMinutes": 15.587666666666667,
+    "toolMinutes": 5.738683333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": true,
+      "casesBytes": 34964,
+      "acceptanceUsesScaffold": true,
+      "frontendUsesScaffold": true
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 118,
+    "parsedInput": 16453649,
+    "scaffoldReadTools": 5,
+    "scaffoldReadInputCost": 728499.0
+  },
+  {
+    "phase": "v47",
+    "idea": 32,
+    "title": "Gown Preservation Orders",
+    "model": "muse",
+    "frontend": "react",
+    "version": "0.4.47",
+    "started": "2026-10-28T20:28:22.874Z",
+    "status": 0,
+    "report": true,
+    "input": 11237971,
+    "calls": 93,
+    "wallMinutes": 16.596866666666667,
+    "modelMinutes": 6.5804,
+    "toolMinutes": 9.53605,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": true,
+      "casesBytes": 23462,
+      "acceptanceUsesScaffold": true,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 93,
+    "parsedInput": 11237971,
+    "scaffoldReadTools": 6,
+    "scaffoldReadInputCost": 968052.8822460634
+  },
+  {
+    "phase": "v47",
+    "idea": 35,
+    "title": "Real Estate Photo Shoots",
+    "model": "muse",
+    "frontend": "expo",
+    "version": "0.4.47",
+    "started": "2026-10-28T21:35:38.917Z",
+    "status": 0,
+    "report": true,
+    "input": 16461744,
+    "calls": 117,
+    "wallMinutes": 25.039816666666667,
+    "modelMinutes": 16.22585,
+    "toolMinutes": 8.422033333333333,
+    "sessionsMissing": [],
+    "installed": {
+      "version": "0.4.47",
+      "binarySha256": "543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea",
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "clientFiles": {
+        "files": 381,
+        "mismatches": []
+      }
+    },
+    "proofRoute": {
+      "packetCreated": true,
+      "casesBytes": 23740,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false
+    },
+    "copiesRemoved": true,
+    "parsedCalls": 117,
+    "parsedInput": 16461744,
+    "scaffoldReadTools": 6,
+    "scaffoldReadInputCost": 1051063.0
+  }
+]

@@ -8,7 +8,7 @@ const dir=`/tmp/muse1-replay/${phase}/${a.id}`,tmp=`/tmp/muse1-replay/t/${phase}
 if(existsSync(dir))throw Error('replay directory must start empty');mkdirSync(dir,{recursive:true});mkdirSync(tmp,{recursive:true});
 const old='/home/ccheever/sb4-loop/bakeoff/next37/wave34r2/apps/'+a.id;
 let brief=readFileSync(old+'/BRIEF.md','utf8').replaceAll(old,dir).replaceAll('snapback4@0.4.47',`snapback4@${version}`).replaceAll('snapback4-expo@0.4.47',`snapback4-expo@${version}`);
-const i=[19,32,26,35,1,14].indexOf(n),lo=([ 'v46','v47','branch'].indexOf(phase)+1)*100+53000+i*10;
+const i=[19,32,26,35,1,14].indexOf(n),lo=((phase==='optin'?4:[ 'v46','v47','branch'].indexOf(phase))+1)*100+53000+i*10;
 brief=brief.replaceAll(String(a.portLo+9),String(lo+9)).replaceAll(String(a.portLo),String(lo));writeFileSync(dir+'/BRIEF.md',brief);
 const env=builderEnvironment({...process.env,PORT_LO:String(lo),PORT_HI:String(lo+9),TMPDIR:tmp,PATH:`/home/ccheever/sb4-loop/bakeoff/proc-shims:/home/ccheever/.bun-1.4.2/bin:${process.env.PATH}`,SB4_LANE:`muse1-${phase}-${n}`,SB4_LANE_DIRS:dir+':'+tmp,SB4_GUARD_LOG:'/tmp/muse1-evidence/guard.jsonl',CHROME:'/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome',CI:'1',EXPO_NO_TELEMETRY:'1',npm_config_registry:registry});
 for(const k of Object.keys(env))if(/^(CONVEX_|SUPABASE_|DATABASE_URL$|POSTGRES_URL$|HARNESS_BACKEND_)/.test(k)||['FORCE_COLOR','NO_COLOR','SNAPBACK4_BIN'].includes(k))delete env[k];

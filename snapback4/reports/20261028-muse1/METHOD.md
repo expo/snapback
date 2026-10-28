@@ -68,3 +68,15 @@ reuse the same twelve completed before controls, and retain all six rejected
 after sessions. This is a changed-code experiment, not a reroll. Final compact
 package/native hashes are kept separately from branch-pins.json. Its source
 reviews use a new mutually blind restricted snapshot.
+
+## Explicit-choice fallback
+
+All six compact-default sessions completed and missed Muse input/call bars and
+Codex calls. replays-v2.json retains all 24 sessions, independently parsed. The
+third changed-code candidate (`optin`) makes both drafts explicit choices and
+keeps verify unchanged. Run six fresh after sessions against the same twelve
+controls; preserve both rejected candidate sets. This uses fresh isolated ports
+53500+ and the same brief/CLI rules. The global queue admits at most three builders.
+Main merge 085cb67d7d adds fixture/test corrections only; repacking confirms every
+client/expo/platform byte and native hash unchanged. Final consumer qualification
+runs on a frozen checkout; no commits or Snapback4 edits until its receipt.
