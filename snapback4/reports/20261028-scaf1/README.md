@@ -54,3 +54,6 @@ development-profile runs, an unfrozen exploratory after run, and the cohort
 stopped to fix the introduced verdict-first compatibility defect. They are not
 pooled with the final comparison. Final source and briefs stay frozen during
 that comparison. All replay app copies are deleted after evidence capture.
+
+Selector JSON files are readable summaries; the corresponding deterministic
+.full.json.gz files retain the exact complete plans/receipt and source digests.
