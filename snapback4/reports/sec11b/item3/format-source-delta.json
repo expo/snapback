@@ -1,0 +1,15 @@
+{
+  "onlyProductionSourceChanged": [
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/security.rs",
+      "before": "50f80a4bf22b9ca420a99b4299a065f55e9d14b75e52bb461b3d90837077dfb2",
+      "after": "5c12fdfae426df6b0e261278e0479dd52dae53d15dad649d234b2557c358887a"
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs",
+      "before": "af194282549e3670bc1503b91340a62ec5d71b65c43f161316fd310e1a2ab3d8",
+      "after": "cb8ab5b08199cf0db8a565e041c36ac9c663c89c967220c4be2f749f60e3d488"
+    }
+  ],
+  "unchangedProductionFiles": 1953
+}

@@ -15,6 +15,7 @@ mod proof;
 mod password_proof;
 mod password_online;
 mod proof_advice;
+mod expo_toolchain;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
 fn usage() -> String { format!("usage: {}", crate::cli_flags::synopsis("init")) }
@@ -151,6 +152,7 @@ pub fn init(options: &Options) -> i32 {
         else if chat && web { web::files() } else if chat { expo_files() }
         else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
         else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    if expo { files.extend(expo_toolchain::files()); }
     if password_starter { password_online::configure(&mut files, &shape, web); }
     if online_web {
         for (name, text) in &mut files {
@@ -197,6 +199,7 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     let mut conflicts = Vec::new();
+    let toolchain_parents_ok = !expo || match expo_toolchain::parents(dir) { Ok(()) => true, Err(error) => { conflicts.push(error); false } };
     // A project's existing introduction is unrelated to the starter. Keep it
     // and place our setup instructions beside it, still without overwriting.
     if dir.join("README.md").symlink_metadata().is_ok() {
@@ -239,8 +242,18 @@ pub fn init(options: &Options) -> i32 {
     // Check every destination before writing any starter file. An existing
     // file is a conflict, or with --skip-existing is kept exactly as it is.
     let mut existing = Vec::new();
-    for (name, _) in &files {
-        if let Err(error) = preflight_parents(&dir.join(name)) { conflicts.push(error); }
+    for (name, text) in &files {
+        if expo_toolchain::contains(name) && !toolchain_parents_ok { continue; }
+        let parents_ok = match preflight_parents(&dir.join(name)) { Ok(()) => true, Err(error) => { conflicts.push(error); false } };
+        // The override must not bind an application-owned or symlinked module.
+        if parents_ok && expo_toolchain::contains(name) {
+            match dir.join(name).symlink_metadata() {
+                Ok(meta) if !meta.is_file() || std::fs::read_to_string(dir.join(name)).ok().as_deref() != Some(text.as_str()) => conflicts.push(format!("{}: patched Expo toolchain file differs; rename the local toolchain directory before retrying; your file is kept", dir.join(name).display())),
+                Ok(_) => {},
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                Err(error) => conflicts.push(format!("{}: {error}", dir.join(name).display())),
+            }
+        }
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
         let mut present = Vec::new();
         if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
@@ -626,6 +639,19 @@ fn merge_package(path: &Path, starter: &str, pinned: &mut Vec<String>, kept_scri
     let object = existing.as_object_mut().ok_or("package.json must be an object")?;
     let required: Value = serde_json::from_str(starter).unwrap();
     let mut conflicts = Vec::new();
+    if let Some(needed) = required.pointer("/overrides/deepmerge") {
+        // npm refuses overriding a direct dependency with a different spec.
+        for group in ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] {
+            if object.get(group).and_then(|v| v.get("deepmerge")).is_some_and(|spec| spec != needed) {
+                conflicts.push(format!("package.json conflict at {group}.deepmerge: direct dependency differs from the patched local dependency"));
+            }
+        }
+        if let Some(overrides) = object.get_mut("overrides") {
+            if !overrides.is_object() { conflicts.push("package.json overrides must be an object".into()); }
+            else if expo_toolchain::conflicting_override(overrides) { conflicts.push("package.json conflict at overrides.deepmerge: a nested, scoped or direct rule differs from the patched local dependency".into()); }
+            else { overrides.as_object_mut().unwrap().entry("deepmerge").or_insert_with(|| needed.clone()); }
+        }
+    }
     for (key, value) in required.as_object().unwrap() {
         if matches!(key.as_str(), "dependencies" | "devDependencies" | "scripts") {
             let Some(group) = object.entry(key.clone()).or_insert_with(|| json!({})).as_object_mut() else {
@@ -690,7 +716,7 @@ fn expo_package() -> String {
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
     // @ref LLP 3000.011.003.000#7.3 — Expo 57's config plugins pin xcode@3.0.1, whose uuid@7 is deprecated and advised against; uuid 11 keeps the CommonJS `v4` it calls.
-    package["overrides"] = json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1" });
+    package["overrides"] = json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1", "deepmerge": "file:./toolchain/deepmerge" });
     pretty(&package)
 }
 
@@ -719,7 +745,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
         ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
         ("snapback/schema.q", schema),
-        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config using snapback4-expo/metro: the package emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.30, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.16. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n`package.json`'s `overrides` moves the config plugins' `xcode` off the\ndeprecated `uuid@7`. The Expo CLI code-signing dependency `node-forge` is pinned to patched 1.4.1.\nQualification audits all development dependencies and refuses fixable or unrecorded findings.\n\nRun `npm install`, `npx snapback4 check`, then `npm run backend` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
+        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config using snapback4-expo/metro: the package emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.30, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.16. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n`package.json`'s `overrides` moves the config plugins' `xcode` off the\ndeprecated `uuid@7`. The Expo CLI code-signing dependency `node-forge` is pinned to patched 1.4.1.\nQualification audits all development dependencies and refuses fixable or unrecorded findings.\nNew Expo starters include the patched configuration merger in toolchain/deepmerge;\ncommit it with the app. Existing apps can add it with init --expo --skip-existing,\nwhich refuses conflicting overrides or modified patch files.\n\nRun `npm install`, `npx snapback4 check`, then `npm run backend` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
     ]
 }
 

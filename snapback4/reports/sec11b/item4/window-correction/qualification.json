@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "b25313ff7da9f947b753a82e97923a325edd3371",
+  "nativeBinarySha256": "2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac",
+  "originalNative800": {
+    "sourceCommit": "883aeea5d0",
+    "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+    "path": "../qualification.json",
+    "immutable": true
+  },
+  "qualificationScope": "Original actual native800 records retained under a correction-specific, review-backed equivalence bridge; NOT a new-binary 800-schema execution.",
+  "bridge": {
+    "inputs": 857,
+    "surveyInputs": 800,
+    "wave31Inputs": 50,
+    "repairedInputs": 7,
+    "orderedSerializedObligationsAndDiagnosticsEqual": true,
+    "changedInputs": 0,
+    "serializedSyntaxOmitted": true,
+    "additionalProof": "Unchanged normalizers and window/completion constructor source blocks; all other 1960 frozen source inputs identical. Only pure uncertainty-guard scope and ignored cfg(test) utility changed. Serialized equality alone is not a general AST-semantic proof."
+  },
+  "freshNativeChecks": {
+    "schemas": 7,
+    "exactEffects": 8,
+    "decisionsAndWitnessesByteEqual": true
+  },
+  "freshNativeFixForward": {
+    "lanes": [
+      "030",
+      "035",
+      "018"
+    ],
+    "allTargetedWitnessesClear": true,
+    "allAdjustedAcceptancePass": true,
+    "original030BypassExpectationRetainedAsFailure": true,
+    "unchangedAcceptance035Checks": 133,
+    "unchangedAcceptance018Pass": true
+  },
+  "reviews": {
+    "muse": "READY: llp/reviews/3000.036.004.004-sec11b-muse-window-round9.md",
+    "codex": "READY: llp/reviews/3000.036.004.004-sec11b-codex-window-round9.md"
+  },
+  "carriedMeasurements": {
+    "coverage": {
+      "26": "8/15",
+      "28": "6/12",
+      "30": "11/14",
+      "31": "10/16"
+    },
+    "assessedFalseGates": 0,
+    "assessedFalseProductionRefusals": 0,
+    "unclassified": 0,
+    "defaultCheckMedian": 3,
+    "defaultDeployMedian": 5,
+    "httpQualificationGaps": 17
+  },
+  "regression": {
+    "existingTenCaseParentWindowTest": "PASS unchanged",
+    "existingSixCaseReopeningTest": "PASS unchanged",
+    "failedPartialAffectedRun": "Retained without PASS; correction receives a new final affected run."
+  },
+  "finalAffected": "Recorded separately in WORKSTREAM-REPORT.md after the clean committed-source run."
+}

@@ -106,7 +106,7 @@ fn hiding_a_positive_freeze_witness_refuses_under_the_writer() {
     let target=current.replace("value: int ?","value: int");
     let mut e=engine(current);seed(&mut e,"locks",json!({"id":"lock","value":null}));seed(&mut e,"docs",json!({"id":"d","body":"frozen"}));
     let (schema,programs)=compile(&target);let generation=e.generation();
-    let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"locks".into(),column:"value".into(),reason:"pending".into()}]});
+    let mut activation=ReleaseActivation::new(2,Some(selected(&e)));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"locks".into(),column:"value".into(),reason:"pending".into()}]});
     let error=e.adopt_release(schema,programs,&activation,false).unwrap_err().to_string();assert!(error.contains("lookup population"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("locks").unwrap(),1);
 }
 

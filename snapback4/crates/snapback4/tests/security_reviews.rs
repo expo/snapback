@@ -52,3 +52,17 @@ fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BI
     assert_eq!(fs::read(&target).unwrap(),b"unchanged");
     let events=fs::read_to_string(regular).unwrap().lines().map(|line|serde_json::from_str::<Value>(line).unwrap()).collect::<Vec<_>>();assert!(events.iter().any(|v|v["phase"]=="check.bind"));
 }
+
+#[test]fn declared_design_scan_edit_intent_allows_production_without_a_false_freeze_refusal(){
+ let p=scratch();fs::write(p.0.join("snapback/schema.q"),include_str!("../../snapback4-lang/tests/security/sec13/w33-036.q")).unwrap();
+ let result=Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("deploy").arg(p.0.join("deployment")).arg("--json").current_dir(&p.0).output().unwrap();
+ assert!(result.status.success(),"production refused declared edit intent: stdout={} stderr={}",String::from_utf8_lossy(&result.stdout),String::from_utf8_lossy(&result.stderr));
+ let value:Value=serde_json::from_slice(&result.stdout).unwrap();assert_eq!(value["release"],1);
+}
+
+#[test]fn explicit_scan_intent_keeps_its_authored_refutation_blocking(){
+ let p=scratch();let source=include_str!("../../snapback4-lang/tests/security/sec13/w33-036.q");let guarded="mutation setDesignScan(order: orders, designScan: image <=10000000):\n  require exists roles[principal = viewer, role = 'coordinator'] or exists roles[principal = viewer, role = 'owner'] else NOT_COORDINATOR\n";
+ assert!(source.contains(guarded));let source=source.replace(guarded,"mutation setDesignScan(order: orders, designScan: image <=10000000):\n");fs::write(p.0.join("snapback/schema.q"),source).unwrap();
+ let result=Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("deploy").arg(p.0.join("deployment")).arg("--json").current_dir(&p.0).output().unwrap();assert_eq!(result.status.code(),Some(1));let value:Value=serde_json::from_slice(&result.stdout).unwrap();let security=if let Some(s)=value["security"].as_str(){serde_json::from_str::<Value>(s).unwrap()}else{value["security"].clone()};
+ assert!(security["report"]["invariants"].as_array().unwrap().iter().any(|v|v["invariant"]["site"]["file"]=="schema.q"&&v["invariant"]["column"]=="designScan"&&v["invariant"]["target"]=="update"&&!v["counterexample"].is_null()),"authored update intent lost its current refutation: {value}");
+}

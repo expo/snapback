@@ -1,0 +1,22 @@
+{
+  "complete": true,
+  "schemas": 980,
+  "unchanged": 978,
+  "changed": [
+    [
+      31,
+      "036-snapback-mascot-costume-commissions"
+    ],
+    [
+      33,
+      "036-snapback-championship-ring-orders"
+    ]
+  ],
+  "finalCompiler": "ffa02ad9666525df5485a44314596492efbb462d0adbb0f4c11fcaf21382edf4",
+  "build": {
+    "rlib": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/deps/libsnapback4_lang-4c84d633ece50f7a.rlib",
+    "rlibSha256": "cb28aae5dd9886ce9178dc917adeea0e35b95ac793f757ad958957eb9c12bbd6",
+    "head": "1050213daf54d89870241075d552b9a129c8ed84",
+    "derivedSha256": "d4a2221ae5a058c7e403d070f4d5a7c781b2fd808eb862d7b6f0229934bb50f5"
+  }
+}

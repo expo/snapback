@@ -117,6 +117,10 @@ pub(crate) fn record_event(
     counter(generation)?;
     release.map(counter).transpose()?;
     previous.map(counter).transpose()?;
+    // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — even private previews never manufacture a self-transition.
+    if release.is_some() && release == previous && operation != "prune" {
+        return Ok(revision - 1);
+    }
     tx.insert_release_event(
         &Event {
             id: 0,

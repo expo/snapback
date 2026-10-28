@@ -1,0 +1,27 @@
+{
+  "inputs": 857,
+  "orderedInvariantListsAndDiagnosticsEqual": true,
+  "changedInputs": 0,
+  "changes": [],
+  "beforeSha256": "6ab6491a48e75c376a23e7223951869643fd4a0ea9f593f8c8ca6113150c5eee",
+  "afterSha256": "6ab6491a48e75c376a23e7223951869643fd4a0ea9f593f8c8ca6113150c5eee",
+  "inputManifestSha256": "2773841596c523822f11701dd738715f7648565fcfb2d2d8871bd36aab4a02b5",
+  "sourceCommit": "b25313ff7d",
+  "scope": "Pure derived-inference output comparison; not new native800 execution. All unchanged questions/runtime code retain old qualified source behavior; correction-specific fixture tested separately.",
+  "serializedSyntaxOmitted": true,
+  "unchangedSourceBlocks": {
+    "helpers": {
+      "byteEqual": true,
+      "sha256": "b15356a637a1246e803412e017c621240f2da142347385755bdc95eee8474a1f"
+    },
+    "window": {
+      "byteEqual": true,
+      "sha256": "3966e7ba91dc75dccb2c4bd2a35fbee7bb811c0bbc5f369bdeff8d6251341ada"
+    },
+    "completion": {
+      "byteEqual": true,
+      "sha256": "a5e85d9205bcba77d3bf61a78611f53ad7b17a6c8f9f3be26195051f3990d56f"
+    }
+  },
+  "qualificationRationale": "Serialized descriptors alone are not a general semantic proof. This bridge additionally binds the unchanged normalizers, window/completion constructors and every other production source input; only pure uncertainty-guard scope changed. Ordered output equality is therefore specific to this correction. Fresh native witness checks remain required."
+}

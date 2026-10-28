@@ -1,0 +1,874 @@
+{
+  "kind": "composed-disjoint-shards",
+  "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "projects": 800,
+  "sourceHashesMatch": true,
+  "parts": [
+    {
+      "label": "local",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-local",
+      "schemas": 600,
+      "resultsSha256": "9683be71b50a703711c6bfd527e1f783aaa9ed31fe7348a7b469764ec144b41c",
+      "measurement": {
+        "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+        "projects": 600,
+        "workers": 24,
+        "waves": "30,26,28,15,16,18,19,20,21,22,23",
+        "checkOnly": false,
+        "stripIntent": false,
+        "defaultOutput": true,
+        "freshOnly": false,
+        "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-indok0g0/snapback4",
+        "watchdogSeconds": {
+          "check": 1200,
+          "test": 3600,
+          "deploy": 1200
+        }
+      }
+    },
+    {
+      "label": "fleet-wave24",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-wave24-complete",
+      "schemas": 50,
+      "resultsSha256": "e9c7bd2cac96437121b5ec8f7dbb7d079e513475a8752c90ccfb588f44646815",
+      "measurement": {
+        "kind": "entire-completed-wave-selected-from-parent",
+        "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+        "projects": 50,
+        "selectedWave": 24,
+        "originalMeasurement": {
+          "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+          "projects": 100,
+          "workers": 6,
+          "waves": "24,25",
+          "checkOnly": false,
+          "stripIntent": false,
+          "defaultOutput": true,
+          "freshOnly": false,
+          "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-qv97iw3m/snapback4",
+          "watchdogSeconds": {
+            "check": 1200,
+            "test": 3600,
+            "deploy": 1200
+          }
+        },
+        "originalDirectory": "/home/ccheever/sb4-loop/reports/sec11b/item3-a-v2/out",
+        "recordSha256": {
+          "w24-001-snapback-organ-pipe-voicing.json": "a24a497fd00b5cfbc26d110dfb117d7e9c1f86c48af6bb3a15ece2940a634a1c",
+          "w24-002-snapback-ocular-prosthesis-fittings.json": "17d00f89137d986bb37423c6ceba97b830ef88284fc6ac39d921525808f3f29b",
+          "w24-003-snapback-typewriter-restoration-jobs.json": "4d68162920c25fb884ee3b0123b20f303c1e8816af8cc5516d43883ba2ab9670",
+          "w24-004-snapback-saddle-fitting-visits.json": "8b34c2df543cfa8ccfd94f4bbcfb4e3e5d6259e0759a25219d25e58de5c669f6",
+          "w24-005-snapback-headstone-engraving-orders.json": "fd43cd7595213cd93eee016d42581f5c53186f5cc2931f32cb03cfde5e21588c",
+          "w24-006-snapback-telescope-mirror-recoating.json": "094e6311b3e063eff702149bc382698aa3d014d07fe0e98564fcffaa32571c57",
+          "w24-007-snapback-wig-making-orders.json": "d3b57b4a2b5dccfb953aa76ba6dce00cc5683d30bc4a73ad2d76b78dbdc93e9e",
+          "w24-008-snapback-terrazzo-floor-restorations.json": "a299d8231bac00416292f4a4d03eb0f4b4b04ac8b65d564bcc928c5421cd51ff",
+          "w24-009-snapback-process-server-deliveries.json": "10525c91dc7d174a44f65f36f373151d4df6f8d1bc7f068f921af05b30ce5831",
+          "w24-010-snapback-hot-air-balloon-flights.json": "1f897584a8ddc5bd18f8e4ff543f68e1fbf44124086ba96ceb5edfb5efe5e819",
+          "w24-011-snapback-radon-mitigation-jobs.json": "2ab1f01fe161e35c03dbf05d5343a5060f803c598a3152ff80c2a9214475fe77",
+          "w24-012-snapback-portrait-studio-sessions.json": "6ab2e7bc0ac2b25efe3570139b7695c34a0798329a16b83371565b85a7b89ff1",
+          "w24-013-snapback-dive-shop-tank-fills.json": "3cdbe524657b3c41a005458b351ada3c63996b5cf4e4e340abd6aa836e0def52",
+          "w24-014-snapback-bed-bug-heat-treatments.json": "7a63c8cb174d3d9d1c9a4de19538da9d41adba880b3fe68836c689edc2cf5a03",
+          "w24-015-snapback-band-instrument-rentals.json": "298aa0862dc87b35e0b4f263b83cad25b7b2fae80978f3f14551589e09543712",
+          "w24-016-snapback-carousel-horse-restorations.json": "d09afa63462b743a14db0482afdbba7c25bd05a8e1b041ebc37a70d24faebc9e",
+          "w24-017-snapback-butcher-custom-orders.json": "9189dfbc35b46124787f219fa9a22ab683d152fb541668d04d24719139a8012a",
+          "w24-018-snapback-equine-dental-floats.json": "4ec9f2d2320377c0667dc880c772f3d3281f145dabc1291052d4ff0b4ddf0cf8",
+          "w24-019-snapback-mobile-vet-house-calls.json": "2863b6d02d8a220233f35410dcdbcb73db91bd429dc789ab759a8694bba8c38c",
+          "w24-020-snapback-fly-fishing-guide-trips.json": "3be8b7670e4ef74c5bd4f45e8013b3afce99e489c6295c71d3d0a464d1c7e675",
+          "w24-021-snapback-coffee-roastery-green-lots.json": "071f3ee9ee4420f43de6afd560a7c0425bea64b803ec4bfc7d237a502d5653b4",
+          "w24-022-snapback-kilt-hire-fittings.json": "f79acdbb3d27329bd78d4b047148e1d6360e82295d2f9ae194689b5e58789b96",
+          "w24-023-snapback-windshield-chip-repairs.json": "9fb1f69d007c5d2b0132cad3459858dff7bb3732f9a869e90e3a310838e724d4",
+          "w24-024-snapback-stair-lift-installs.json": "c694a64074f2d9710c28d42f304ddaa6775bfecd46a7f09a2d846e6785f00a4b",
+          "w24-025-snapback-forklift-certification-tests.json": "c245b0495231306c9be3b0296f64c590e99b43bb33a1b66454b5db089754dd54",
+          "w24-026-snapback-accordion-repair-tickets.json": "9feaa0f1ac43047abd1dd016d7cbc3ae37293febb9006cd99cbdb4558e53f6e7",
+          "w24-027-snapback-mold-remediation-jobs.json": "30d4af9db3ec6aa549f49ce856383831fb20a54281dda28627124821e7e70d24",
+          "w24-028-snapback-church-bell-rehangings.json": "71bb140df44aecdcdc86b370adf1a5c7c8a6eb9a77fd12e729c30cf5b70b76c5",
+          "w24-029-snapback-dog-sled-tours.json": "39c75e6d52cb9771413f3c190fa3cae5cbd675aff023f443fdb61670c2d16644",
+          "w24-030-snapback-sewer-camera-inspections.json": "7fb08b909f213f30d213e70f9a5450bbf5c0cfbf57c050dc0b9e3c0ff1d81660",
+          "w24-031-snapback-grease-trap-servicing.json": "efeb6bc0f5a2a81a30d0e92265b5782e6d020c18c774616ee1b0c4c5c1eb7c76",
+          "w24-032-snapback-home-inspection-reports.json": "05a5f32079655f316a092cdfa81288cbda3ae7a5dd2012cc3614a396fac8af68",
+          "w24-033-snapback-pressure-washing-jobs.json": "1c8ae51b14b0316e58c27bf511ad93de391a01a640a8dd6167743a5b810f54d0",
+          "w24-034-snapback-photo-restoration-orders.json": "8a4254dac692ed973e895bc8a5b7598385a6a4959ef2dd2fa925c0fd9c8b6ed7",
+          "w24-035-snapback-alpaca-fleece-processing.json": "e6cf77d804f695877feae18e9afb210d091be2025187b2e39e3756a4a5b701b4",
+          "w24-036-snapback-ice-sculpture-commissions.json": "c91cfbd676d3c3db8f0754a28882bfbd4d32e069b79d4ca4cffd3c6fc733e692",
+          "w24-037-snapback-uniform-embroidery-orders.json": "7d47cf49395b0c053e4e27e4a9de5c7c4b43b928216d7e6bbf5a1b00a9b7ea12",
+          "w24-038-snapback-heating-oil-deliveries.json": "5fd935b88a7ea725dc93daed60f5152f7a4422408fa4bcdf2b6c79401c0d970b",
+          "w24-039-snapback-horse-drawn-carriage-hires.json": "715520e500bceb74c37b34376d7906d9e5e64343b6917b4dd5fdd7499b10860a",
+          "w24-040-snapback-sewing-machine-repairs.json": "986cec2ae0819e01f48b4b94cf4a4f84d789fe8ba1287a99db8099ed650f229b",
+          "w24-041-snapback-pinball-machine-repairs.json": "1f80101b38103b3ec75391348a0878f61e797d660cf4ec3e82abff5c6c8bb831",
+          "w24-042-snapback-calligraphy-commission-orders.json": "d8070570f1b29abe781ba784c6952d982fb1fad182eb80b1e70aa69ab5bebce0",
+          "w24-043-snapback-termite-inspection-reports.json": "f37abc090a26dcb5bf0d95de7e3053fb94766d612e74be1a247f489090b19d4e",
+          "w24-044-snapback-car-wrap-installs.json": "ba094053d0bf7378621dc74443d71f069ea6870b3a7a8b592a1e89fdceb57f44",
+          "w24-045-snapback-basement-waterproofing-jobs.json": "3c63920e3e88fc78b9b3d75117eedbc718d60203d7ba4a7c82a24db06523b21a",
+          "w24-046-snapback-garage-door-repairs.json": "41e3183f7720e9ad67f343f137d9d4c66e1e0eba6e6a540334d3fc9f81dd852e",
+          "w24-047-snapback-golf-club-regrip-orders.json": "2b3949334337ac42cc3bc34a8635aa2445a5496e2de5539387f6cb92b1359d79",
+          "w24-048-snapback-awning-fabrication-orders.json": "268783303cff3ece16faa1e44c37602ac958a7170f87bc3edeef16c6447aa472",
+          "w24-049-snapback-e-bike-battery-swaps.json": "ebbe8a6a4a13640459eceb13df6f577638bf493d00f63a07456a80f92253a282",
+          "w24-050-snapback-harp-regulation-visits.json": "145117b0b9d9053b857ce0c5a3a1c305f85b8fafb32c19abe58b4ca769318264"
+        },
+        "parentRunPassClaim": false,
+        "scope": "Every native case in this declared wave has actual recorded command attempts. No parent completion or test-subcampaign PASS is inferred."
+      }
+    },
+    {
+      "label": "fleet-wave27",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-wave27-complete",
+      "schemas": 50,
+      "resultsSha256": "d33e497f20772275c9e6704c67420145b8290daa1a2ab44c321d9ef3d4ed2e2a",
+      "measurement": {
+        "kind": "entire-completed-wave-selected-from-parent",
+        "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+        "projects": 50,
+        "selectedWave": 27,
+        "originalMeasurement": {
+          "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+          "projects": 100,
+          "workers": 6,
+          "waves": "27,29",
+          "checkOnly": false,
+          "stripIntent": false,
+          "defaultOutput": true,
+          "freshOnly": false,
+          "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-1sq44zhf/snapback4",
+          "watchdogSeconds": {
+            "check": 1200,
+            "test": 3600,
+            "deploy": 1200
+          }
+        },
+        "originalDirectory": "/home/ccheever/sb4-loop/reports/sec11b/item3-remote-b-snapshot/out",
+        "recordSha256": {
+          "w27-001-snapback-longcase-clock-restorations.json": "a05c01cfe07828ae838f36c5a2a84892b623e404769441f7919b6e25874a1545",
+          "w27-002-snapback-compression-garment-fittings.json": "50e3ebdf07f1f75d4179013e745717b6518eea284e95b1b9b827673868f6b884",
+          "w27-003-snapback-vintage-amplifier-repairs.json": "653ef529d625d239ee16bea182a27b16dd53cd31e389fbd56cdfac09d96b17d4",
+          "w27-004-snapback-hoarding-cleanout-jobs.json": "edeed6ec151933e619e957934062ec94fe0aac07a651d1967c781e0b033a94f4",
+          "w27-005-snapback-neon-sign-commissions.json": "76eacea1be0d4249a88c882ddbe70abd4763373d00d3e0f584e5a26a3952aec2",
+          "w27-006-snapback-microscope-overhaul-jobs.json": "723fbe1bd9de097159deeaef4fa6110d9b5f2fab3e5145067d7496e6345c3e30",
+          "w27-007-snapback-custom-fragrance-commissions.json": "5ec784eb0c01ff8fee4bf9c4c290378429c5565bfb96bd0846723341e8c40ff0",
+          "w27-008-snapback-stucco-repair-jobs.json": "e29523306e388ccbdd3b6e2ef4b32e2c3b86650d3305cec1590f0eb4a34f00ce",
+          "w27-009-snapback-painting-conservation-treatments.json": "748763373099722f725f3e05440f854c938230012bd1514fa1fd45828be5e601",
+          "w27-010-snapback-canyoneering-guided-trips.json": "8b036b27a03f64a9ef44839e2a4bd59ef8e2dab91ef02159ab05e1b0165557a4",
+          "w27-011-snapback-water-softener-installs.json": "53e5b33c57ec2bb0a5a9d810f6e8e9a00d161a329a66e5676b18cd3723bbcff8",
+          "w27-012-snapback-wedding-video-edits.json": "08cbd45f1296e77b3e2b92a9a9cc9fcefa1a0e1676c0241f45769af22ebde1aa",
+          "w27-013-snapback-parachute-repack-logs.json": "b29e94795a4dfab0b8aa16cf4d9a266ff2280b4e6741f9910981e47d1e3b1c41",
+          "w27-014-snapback-home-staging-projects.json": "4ef6bf8fc491d5e68b5983e989c06180c014cf4037663126744e9258eea53226",
+          "w27-015-snapback-camera-lens-rentals.json": "5f1e99b3d4e4b14b902b5dad5d92b5044a16feb2eb72a2314768ed50acb63276",
+          "w27-016-snapback-vintage-motorcycle-restorations.json": "9703faaf505db761d8e8d55ccef36dcca6ccfe6806b08476ea55f4bd9615608a",
+          "w27-017-snapback-personal-chef-bookings.json": "81f08a673b16c07bda5df4c584aa489fb138115b0a6783cdfa18d16213178290",
+          "w27-018-snapback-livestock-ultrasound-scans.json": "2b7f23003e4ecb223f77b9f400ca66c9587f68162076c696d131c61d1d4d7e64",
+          "w27-019-snapback-horse-transport-bookings.json": "527ff551950a37473fe3c1779d99b5574aaf9b99df716eabc1d8df15b067086c",
+          "w27-020-snapback-llama-trekking-trips.json": "3142184a69ada84ccd8418796eb42937f6b4d437a1f30af0ead8661c265844a8",
+          "w27-021-snapback-olive-oil-press-runs.json": "e4431656e2c5c87182655274676e5d9cb5645f42ad940329f312bfa6f6143c2e",
+          "w27-022-snapback-ski-boot-fittings.json": "1b42add149120561a362bf946bfc63c48d021f608a9da029dfa0eea18fdcf0b0",
+          "w27-023-snapback-paintless-dent-repairs.json": "92cdefe2aa0a50a5a3ec563a8caf2a77dcd95b9af1f99616b9f86aa50f12df86",
+          "w27-024-snapback-billiard-table-relocations.json": "2a81a7964d9a5aa80e8a7da268f8e582526516d80e2c7bf7796cc4a0eda55e58",
+          "w27-025-snapback-lifeguard-certification-exams.json": "7af7f0de9cf3e61193ffa90e99eb1e60529747c40438084f51aaf0c13f78dddc",
+          "w27-026-snapback-string-bow-rehairing.json": "b31a2eeabd757f0b4ef281939db9e7ec415069400dd7fc2bffc05d6e827ae50f",
+          "w27-027-snapback-exhibit-stand-builds.json": "477c1376567b4a34253d99c5664b67b8bb5f0360aac325a1b8150790fa7cff4e",
+          "w27-028-snapback-chandelier-restorations.json": "dd566be1233a08f7d6d52774ed49be900bcc9551b2288bc7c357c05026ad04aa",
+          "w27-029-snapback-boat-delivery-voyages.json": "79c7c60b3a86c7d8db4d4c67d104e3415e88acd2062c5018aed9df9d917b62ea",
+          "w27-030-snapback-thermal-imaging-surveys.json": "4463dc3331af55e81b70b3051f1aad1290259943bf28eb45019d18f01801895c",
+          "w27-031-snapback-ice-machine-cleanings.json": "f4bb494bbdaeea98528ee497735aa1b43349e4cc896bf20d2494d67bb451cd4f",
+          "w27-032-snapback-service-dog-placements.json": "d220096a79dbd5d2bc6a6192aae150c8e687352d8d3f25d57521204c38a9d25f",
+          "w27-033-snapback-asphalt-sealcoating-jobs.json": "5ee67e5486c452616a3cf90716d72d6367a6938fde8e920661ad0118fa4a1609",
+          "w27-034-snapback-luxury-watch-servicing.json": "26699d6bec5739d558053a06aede3b2d5fd6725e9eca8e43342e36b4f6d86bc3",
+          "w27-035-snapback-sheepskin-tannery-orders.json": "45b4c139210c5b89575c2e9f47d10a9a4f687267e2f2ec3af0017a2a4a503c9e",
+          "w27-036-snapback-bronze-statue-casting.json": "b739b37dd1c2fcea323132b80190b71430df757b438ced5217858245e0a67bc0",
+          "w27-037-snapback-bespoke-shoe-commissions.json": "0aa95bfcf7b9998b5c701b19d0719e74890ed7f924ac73d864596657e6d3423f",
+          "w27-038-snapback-water-cooler-deliveries.json": "9c63c5c22ee22d57005134f7fc8afc39739ddef35a5e35e121a5f22d252efe0a",
+          "w27-039-snapback-dog-breeder-litter-reservations.json": "718e4804d7210d69a385fd5088c12a9f0f9980dd90413313332f7278422becd0",
+          "w27-040-snapback-lawn-mower-repairs.json": "9d4658a0b9935c53f11c9590de4f6dbc2d766d26c7f291882a23c3dafe180c83",
+          "w27-041-snapback-espresso-machine-repairs.json": "6663517ec1996e1bec1b3d1ca93a5c17a541ae67ffddb5d3cae50156b4d00292",
+          "w27-042-snapback-classic-car-consignments.json": "878fe0b70fce5ef6658a6fc1ce977e31ffac75429156850347238d64b852c509",
+          "w27-043-snapback-roof-inspection-certificates.json": "f17428b104ccfb05cf77ab67c29f2428c0bbc6199ae2311a37417e52c935c999",
+          "w27-044-snapback-yacht-varnish-refinishing.json": "edd96c781aad54d26161dbce44de51fdcca35d9b09c81978f714da6ed5c10804",
+          "w27-045-snapback-storm-shelter-installs.json": "afd884e215845966d240d4c8c7e813c3dda8af874047e5c46e9f19f53f51d5fc",
+          "w27-046-snapback-sump-pump-repairs.json": "1806ddafd5bed021f519f529431942008a4d61af524b4b137a7a0727a3f21bfa",
+          "w27-047-snapback-makeup-artist-bridal-bookings.json": "276bdd538594d1fbe810e15fccb87d4eb6a924565a48f3f9f86b8c409568b009",
+          "w27-048-snapback-shade-sail-installs.json": "5b46bdfcf948d3abc914366d73bf41b4b4d29c3a94d093c274cf0a78afa34ee2",
+          "w27-049-snapback-wedding-dj-bookings.json": "b91e582e3ec41a84aac54d365cd92b010791cd730720970d95399138d6525155",
+          "w27-050-snapback-hot-tub-servicing-visits.json": "51541111d838880abd1cf4915ac3fc4586856e4a8b3fc989f055dbedc342c02d"
+        },
+        "parentRunPassClaim": false,
+        "scope": "Every native case in this declared wave has actual recorded command attempts. No parent completion or test-subcampaign PASS is inferred."
+      }
+    },
+    {
+      "label": "fleet-and-local-w25-29",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-waves25-29-complete",
+      "schemas": 100,
+      "resultsSha256": "4e7fa03b1652fbc44b4975d7c09fcf5fa6ebf92534f9678a046791f17240509b",
+      "measurement": {
+        "kind": "explicitly-composed-native-cases",
+        "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+        "projects": 100,
+        "selectionSha256": "b76228fc6908afc98025d39e1ac3cb04e761a8267a1ca49a32910a4910677389",
+        "parents": {
+          "a": {
+            "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-a-v2/out",
+            "measurement": {
+              "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+              "projects": 100,
+              "workers": 6,
+              "waves": "24,25",
+              "checkOnly": false,
+              "stripIntent": false,
+              "defaultOutput": true,
+              "freshOnly": false,
+              "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-qv97iw3m/snapback4",
+              "watchdogSeconds": {
+                "check": 1200,
+                "test": 3600,
+                "deploy": 1200
+              }
+            },
+            "parentPassInferred": false
+          },
+          "local-tail": {
+            "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-local-tail",
+            "measurement": {
+              "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+              "projects": 45,
+              "workers": 8,
+              "waves": "25,29",
+              "checkOnly": false,
+              "stripIntent": false,
+              "defaultOutput": true,
+              "freshOnly": false,
+              "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-3lt3opvg/snapback4",
+              "watchdogSeconds": {
+                "check": 1200,
+                "test": 1200,
+                "deploy": 1200
+              }
+            },
+            "parentPassInferred": false
+          },
+          "d": {
+            "directory": "/home/ccheever/sb4-loop/reports/sec11b/item3-d-v2/out",
+            "measurement": {
+              "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+              "projects": 50,
+              "workers": 6,
+              "waves": "29",
+              "checkOnly": false,
+              "stripIntent": false,
+              "defaultOutput": true,
+              "freshOnly": false,
+              "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-ablx3l_c/snapback4",
+              "watchdogSeconds": {
+                "check": 1200,
+                "test": 3600,
+                "deploy": 1200
+              }
+            },
+            "parentPassInferred": false
+          }
+        },
+        "selected": [
+          {
+            "wave": 25,
+            "lane": "001-snapback-organ-pipe-voicing",
+            "source": "a",
+            "recordSha256": "cc1bdb8f04fceb747674bbdef17b6f3a24f9519fb8ca2fea8d677fdc1bc5dd88"
+          },
+          {
+            "wave": 25,
+            "lane": "002-snapback-ocular-prosthesis-fittings",
+            "source": "a",
+            "recordSha256": "f902a8fa033f3d9c151f2c88bd04922e6083a8bf5259d08258763409033de8f7"
+          },
+          {
+            "wave": 25,
+            "lane": "003-snapback-typewriter-restoration-jobs",
+            "source": "a",
+            "recordSha256": "bcb1c5314535aa22fce1cd805d703f8e94971c31a53ba20e0ff0e5df78528dc7"
+          },
+          {
+            "wave": 25,
+            "lane": "004-snapback-saddle-fitting-visits",
+            "source": "a",
+            "recordSha256": "f1af2546e6bf72327dc68b8b4d87deb45952623e0345d6595864fb0eea1612b7"
+          },
+          {
+            "wave": 25,
+            "lane": "005-snapback-headstone-engraving-orders",
+            "source": "a",
+            "recordSha256": "e0ecce8ea12973e438b8e55cef78171126beddb45c2b2e65330ef387e8f44f9b"
+          },
+          {
+            "wave": 25,
+            "lane": "006-snapback-telescope-mirror-recoating",
+            "source": "a",
+            "recordSha256": "bd0298ced7dcc0652319729833c1bbde83b1c652afe2b0fd13bcef1c94ef9309"
+          },
+          {
+            "wave": 25,
+            "lane": "007-snapback-wig-making-orders",
+            "source": "a",
+            "recordSha256": "f2287e51514c3716d8898c20d1224e505c4c6d48e4865f28d986c607550fad4c"
+          },
+          {
+            "wave": 25,
+            "lane": "008-snapback-terrazzo-floor-restorations",
+            "source": "a",
+            "recordSha256": "e3578a6a00d9000c921a8797d28293b76ebef9be2f4416a752e792ad804179a4"
+          },
+          {
+            "wave": 25,
+            "lane": "009-snapback-process-server-deliveries",
+            "source": "a",
+            "recordSha256": "c3e8372f5544b02117155695bf5479b14ec5074b7f296ffe56da90d111dd1c36"
+          },
+          {
+            "wave": 25,
+            "lane": "010-snapback-hot-air-balloon-flights",
+            "source": "a",
+            "recordSha256": "fe4f759dcc2440443788a60682d50c869852eee6d9c228cd3632e5524f37b348"
+          },
+          {
+            "wave": 25,
+            "lane": "011-snapback-radon-mitigation-jobs",
+            "source": "a",
+            "recordSha256": "b8ab68fb6411b6724587b310452803ed383345215856529cce2a074aa4b0ec93"
+          },
+          {
+            "wave": 25,
+            "lane": "012-snapback-portrait-studio-sessions",
+            "source": "a",
+            "recordSha256": "0f8aab7fb42134761806aa73d086fe149307005118546428ca745e444bd97eb2"
+          },
+          {
+            "wave": 25,
+            "lane": "013-snapback-dive-shop-tank-fills",
+            "source": "a",
+            "recordSha256": "f36f254748cb82b101109cfb1d9c8e026216b41fb6bd56107f7ce4edbf404f52"
+          },
+          {
+            "wave": 25,
+            "lane": "014-snapback-bed-bug-heat-treatments",
+            "source": "a",
+            "recordSha256": "e576d990c186a199e3e51dbb9700727b42d22ef3ea2c15d87e99b09a47482d01"
+          },
+          {
+            "wave": 25,
+            "lane": "015-snapback-band-instrument-rentals",
+            "source": "a",
+            "recordSha256": "9251997032e5a8107b6591d29031734a8fefdbf1a2f66bbd8248a152983bbc2e"
+          },
+          {
+            "wave": 25,
+            "lane": "016-snapback-carousel-horse-restorations",
+            "source": "a",
+            "recordSha256": "289f9342eb7a5579a74f98d7650b5c8fb38374bfadbcf81de7312cee49368fc2"
+          },
+          {
+            "wave": 25,
+            "lane": "017-snapback-butcher-custom-orders",
+            "source": "a",
+            "recordSha256": "c3f192f72f7d1e0664d25b5613076e6881a90d47edfb6d60636b77e29ad9f071"
+          },
+          {
+            "wave": 25,
+            "lane": "018-snapback-equine-dental-floats",
+            "source": "a",
+            "recordSha256": "e6b0fcb1f94a60ee2694491999b0e1b609366c8f528c5164052924d5909e6174"
+          },
+          {
+            "wave": 25,
+            "lane": "019-snapback-mobile-vet-house-calls",
+            "source": "a",
+            "recordSha256": "f75bb77a895541412ab3b640788237b6ed469528bce9eb9455e15235861cd01a"
+          },
+          {
+            "wave": 25,
+            "lane": "020-snapback-fly-fishing-guide-trips",
+            "source": "a",
+            "recordSha256": "2ad85d2d784cc69a577b51261f01fdc0511f5e5e2ae9d48caf682fe4b2220f50"
+          },
+          {
+            "wave": 25,
+            "lane": "021-snapback-coffee-roastery-green-lots",
+            "source": "a",
+            "recordSha256": "ff224c9275979eaf9e459c25de192bc7d1a6adae6040a9d9fa19b4801050c5e2"
+          },
+          {
+            "wave": 25,
+            "lane": "022-snapback-kilt-hire-fittings",
+            "source": "a",
+            "recordSha256": "17c8c665a05521c115a1fc1d352822c7d3ce6eea7a4992a12784d61caef5af59"
+          },
+          {
+            "wave": 25,
+            "lane": "023-snapback-windshield-chip-repairs",
+            "source": "a",
+            "recordSha256": "b68e589a9371a92a157512e42e64b22beeed5c23ea23b3cb359df638c19d238d"
+          },
+          {
+            "wave": 25,
+            "lane": "024-snapback-stair-lift-installs",
+            "source": "a",
+            "recordSha256": "80989e7fb7dc6dd0ab82ea259011673646208a8afb928e002689c48f3cf4ab02"
+          },
+          {
+            "wave": 25,
+            "lane": "025-snapback-forklift-certification-tests",
+            "source": "a",
+            "recordSha256": "05ea5e68a223a25274767d4c79db4ba435f143c2b95da722172a6e50609955ca"
+          },
+          {
+            "wave": 25,
+            "lane": "026-snapback-accordion-repair-tickets",
+            "source": "a",
+            "recordSha256": "777527b7f7ebb5317c4cd25a27c91449005e19d881a20f4af0e706948291d13d"
+          },
+          {
+            "wave": 25,
+            "lane": "027-snapback-mold-remediation-jobs",
+            "source": "a",
+            "recordSha256": "3acd420673a19acd5fae97899b1a08303886adb69cb6f6036bf5f505db523df3"
+          },
+          {
+            "wave": 25,
+            "lane": "028-snapback-church-bell-rehangings",
+            "source": "a",
+            "recordSha256": "51d082ed7e205e5d4ae420d517fd736928a6d70db0bfeb1cafc63128767576fe"
+          },
+          {
+            "wave": 25,
+            "lane": "029-snapback-dog-sled-tours",
+            "source": "a",
+            "recordSha256": "7f633da1977847d17c26870ce2b8951639553ca9e9318a235af01d6fb1a0aee9"
+          },
+          {
+            "wave": 25,
+            "lane": "030-snapback-sewer-camera-inspections",
+            "source": "a",
+            "recordSha256": "6900b8f2535cc125635377ca778dc0e3a24e2307701c5570503a45b210465c38"
+          },
+          {
+            "wave": 25,
+            "lane": "031-snapback-grease-trap-servicing",
+            "source": "a",
+            "recordSha256": "da28bedcc582587d49d9b6612e6c5f4e114e770d22bac8b33cd20ec63b6d454e"
+          },
+          {
+            "wave": 25,
+            "lane": "032-snapback-home-inspection-reports",
+            "source": "a",
+            "recordSha256": "c5bf87b738819119ad01b8fba8dadb64bd9d36af292de87310503492b0d1ae04"
+          },
+          {
+            "wave": 25,
+            "lane": "033-snapback-pressure-washing-jobs",
+            "source": "a",
+            "recordSha256": "1e972e54749ce84f7a70211f71816cb56e4b73dc7e8ea6dd34f746c61094eb77"
+          },
+          {
+            "wave": 25,
+            "lane": "034-snapback-photo-restoration-orders",
+            "source": "local-tail",
+            "recordSha256": "4373c903f681dd4b0b6f227b5369e482e7ff589796ebef9a6186580782e0ed45"
+          },
+          {
+            "wave": 25,
+            "lane": "035-snapback-alpaca-fleece-processing",
+            "source": "local-tail",
+            "recordSha256": "1da0990cac592ed60301c4966e642f6573fd12df05232f4c83f75848173b67e5"
+          },
+          {
+            "wave": 25,
+            "lane": "036-snapback-ice-sculpture-commissions",
+            "source": "a",
+            "recordSha256": "aa2ce60cc1d347d1b38dd4d714db33cb24f8951c0a1ab3ff7d1312000a4bc36d"
+          },
+          {
+            "wave": 25,
+            "lane": "037-snapback-uniform-embroidery-orders",
+            "source": "local-tail",
+            "recordSha256": "7265e38ec6e6e0deaa5b37cd407fc8c9f7de6b1a81cb3c40ab93e2f2b5adb1b0"
+          },
+          {
+            "wave": 25,
+            "lane": "038-snapback-heating-oil-deliveries",
+            "source": "local-tail",
+            "recordSha256": "40db6f2477325e553ab5e957facebf9dcda8c9daa256b9808f034ea1767b8a79"
+          },
+          {
+            "wave": 25,
+            "lane": "039-snapback-horse-drawn-carriage-hires",
+            "source": "local-tail",
+            "recordSha256": "a569fb5a349541dc25777626a9ff7d056c2a77d648624251ea9d1aad502a0525"
+          },
+          {
+            "wave": 25,
+            "lane": "040-snapback-sewing-machine-repairs",
+            "source": "local-tail",
+            "recordSha256": "89e772b26574d5f7e7a34ead269f0b731a24f28e7cb239f33da8a6389a295619"
+          },
+          {
+            "wave": 25,
+            "lane": "041-snapback-pinball-machine-repairs",
+            "source": "local-tail",
+            "recordSha256": "ac4f679be7ecd2176e548ee875efb08463cca44cf97e582fe6167d7057a6c11f"
+          },
+          {
+            "wave": 25,
+            "lane": "042-snapback-calligraphy-commission-orders",
+            "source": "local-tail",
+            "recordSha256": "e66dfdf73ed1eef779914f9bbf69dd00101a1e9d475b023b1160f641557e7196"
+          },
+          {
+            "wave": 25,
+            "lane": "043-snapback-termite-inspection-reports",
+            "source": "local-tail",
+            "recordSha256": "786f3864699cea9b812ed4ca391e0d56a0201914806b842dce4aee373adca481"
+          },
+          {
+            "wave": 25,
+            "lane": "044-snapback-car-wrap-installs",
+            "source": "local-tail",
+            "recordSha256": "ae8c10226f14888ba7d70da5e3529a367e2e6bdc2af7b01f0b7df54f5b85ff74"
+          },
+          {
+            "wave": 25,
+            "lane": "045-snapback-basement-waterproofing-jobs",
+            "source": "local-tail",
+            "recordSha256": "79f02ff55be38b90c67c40cbcb695ab34ec006f6e534b77dc2cdbf7391627475"
+          },
+          {
+            "wave": 25,
+            "lane": "046-snapback-garage-door-repairs",
+            "source": "local-tail",
+            "recordSha256": "1cb99dc570fa8476020c9e458ec00d58785946af533eb220945e16bc040a1135"
+          },
+          {
+            "wave": 25,
+            "lane": "047-snapback-golf-club-regrip-orders",
+            "source": "local-tail",
+            "recordSha256": "265c2b2ff20e1191a6f205241ed2dd63152650029b23bc2524c45ad7cae7379e"
+          },
+          {
+            "wave": 25,
+            "lane": "048-snapback-awning-fabrication-orders",
+            "source": "local-tail",
+            "recordSha256": "c19d2d8f3b03a18e6a73f9305792e2b255dae29d7e90fdd91b971ba210eb75bc"
+          },
+          {
+            "wave": 25,
+            "lane": "049-snapback-e-bike-battery-swaps",
+            "source": "local-tail",
+            "recordSha256": "e8ee395cfe735ac75695acd37bedde5f7ecaf048c514f38b9e2617cad7e9597f"
+          },
+          {
+            "wave": 25,
+            "lane": "050-snapback-harp-regulation-visits",
+            "source": "local-tail",
+            "recordSha256": "b1f90797d8741f0922582dbff01ef57e935870dcb8e21ced1a1f869669087f81"
+          },
+          {
+            "wave": 29,
+            "lane": "001-snapback-barometer-restorations",
+            "source": "d",
+            "recordSha256": "696ea4493673129e4f6b94fc34d8cd16b9e5ec76c3213041c47cce0051576e55"
+          },
+          {
+            "wave": 29,
+            "lane": "002-snapback-scleral-lens-fittings",
+            "source": "d",
+            "recordSha256": "03d1511ce459f8ed7c85d1876593e40663c66186b1bade1b2cdb84d8adca38a6"
+          },
+          {
+            "wave": 29,
+            "lane": "003-snapback-antique-telephone-restorations",
+            "source": "d",
+            "recordSha256": "8b22fd01fb9dfa7656e1f81bd235b9a849c7579ef6622e88f542c3f57157cce0"
+          },
+          {
+            "wave": 29,
+            "lane": "004-snapback-smoke-damage-cleanups",
+            "source": "d",
+            "recordSha256": "9c7942a484102491ce62449f814f6e41cab53b5e359abad8940df7d7d084440c"
+          },
+          {
+            "wave": 29,
+            "lane": "005-snapback-wrought-iron-gate-commissions",
+            "source": "d",
+            "recordSha256": "1bdf24effc0d7feecf33959e45c9818933393d5876832c85344bed9b5cf29d0a"
+          },
+          {
+            "wave": 29,
+            "lane": "006-snapback-binocular-overhaul-jobs",
+            "source": "d",
+            "recordSha256": "bfe68afd3d8898cca69a0900df4f949008dbcd3f633b6c49ed85d6c2ebbe9463"
+          },
+          {
+            "wave": 29,
+            "lane": "007-snapback-custom-wallpaper-commissions",
+            "source": "d",
+            "recordSha256": "e47fb2966ff74c9bc92e269ab73ab19897c266e2ea7d2f8ca2caf990cf439ccf"
+          },
+          {
+            "wave": 29,
+            "lane": "008-snapback-log-home-chinking-repairs",
+            "source": "d",
+            "recordSha256": "2ff5dae2135c514814a654a1227a3ba4e8a144ab16020cd797d96002828a4ba6"
+          },
+          {
+            "wave": 29,
+            "lane": "009-snapback-antique-doll-restorations",
+            "source": "d",
+            "recordSha256": "5a70d7f0396a7926f9a3c8de3419ec9d49ff2b3bbe65b553d271e80af4146698"
+          },
+          {
+            "wave": 29,
+            "lane": "010-snapback-via-ferrata-guided-climbs",
+            "source": "d",
+            "recordSha256": "59c09c5f4f7aae83997efb165ec706ac3965906745d57b0f8b9373111e4692eb"
+          },
+          {
+            "wave": 29,
+            "lane": "011-snapback-home-battery-installs",
+            "source": "d",
+            "recordSha256": "04d2cb8cb30bf52cdf43534c4f234170b6392cd38f0c64c082441076d8f45468"
+          },
+          {
+            "wave": 29,
+            "lane": "012-snapback-architectural-rendering-jobs",
+            "source": "d",
+            "recordSha256": "3985f73c20700bc7ac4d11eb93b9a660ff88d48d583df69c8071890e576f9020"
+          },
+          {
+            "wave": 29,
+            "lane": "013-snapback-lifting-sling-inspections",
+            "source": "d",
+            "recordSha256": "4e29ad3b1418102fe7ff16b46cc485835bdbf23a033e7ff62886eda17ffee91f"
+          },
+          {
+            "wave": 29,
+            "lane": "014-snapback-holiday-light-installations",
+            "source": "d",
+            "recordSha256": "9a3ef665d59d4afdc115357be7141610172ff2045acbd43b27f6a607f3406a03"
+          },
+          {
+            "wave": 29,
+            "lane": "015-snapback-mobility-scooter-rentals",
+            "source": "d",
+            "recordSha256": "84d3145f51ecb810ae83d2395c7034dbe5873bd285bc32a74e08c1ac02d248e7"
+          },
+          {
+            "wave": 29,
+            "lane": "016-snapback-vintage-tractor-restorations",
+            "source": "d",
+            "recordSha256": "9c6cf6cb3b83e4ca598872e80a0bba59330979e371e51feeb81aa7a965bd2da2"
+          },
+          {
+            "wave": 29,
+            "lane": "017-snapback-mobile-bartending-bookings",
+            "source": "d",
+            "recordSha256": "ae28b033eb9fa38c3354f12d75002b1da9d529c65aac6a76457e870bd8201b87"
+          },
+          {
+            "wave": 29,
+            "lane": "018-snapback-poultry-flock-vaccinations",
+            "source": "local-tail",
+            "recordSha256": "1c91c853f7b797f37e410c845c56bca2046defd4bdfaed476bdd60f22d914e26"
+          },
+          {
+            "wave": 29,
+            "lane": "019-snapback-mature-tree-transplants",
+            "source": "d",
+            "recordSha256": "60f2e31e5b09d49d8786edeca33df9aa8f1aba16b18e9fdcd8ec4141741b47a2"
+          },
+          {
+            "wave": 29,
+            "lane": "020-snapback-snowshoe-guided-hikes",
+            "source": "local-tail",
+            "recordSha256": "cce1432e2d9334988955d29ba53c509aa5df009839df8b9f4bb8514efb93150c"
+          },
+          {
+            "wave": 29,
+            "lane": "021-snapback-cotton-gin-runs",
+            "source": "d",
+            "recordSha256": "cc617a15c19e0749349901a4e43c1ecf17a6ebf1e1764f045c1a69078caa4918"
+          },
+          {
+            "wave": 29,
+            "lane": "022-snapback-custom-wetsuit-fittings",
+            "source": "d",
+            "recordSha256": "1c430e06d39ff90173ce1fa133804fd2c1c4d9a095942656346ce2cbd3d0b134"
+          },
+          {
+            "wave": 29,
+            "lane": "023-snapback-rv-roof-repairs",
+            "source": "d",
+            "recordSha256": "98340542cdeb23a125863319a61efeec8802a5e3bbc0e7f05495e33a4a9e4956"
+          },
+          {
+            "wave": 29,
+            "lane": "024-snapback-safe-moving-jobs",
+            "source": "local-tail",
+            "recordSha256": "8df30ea185d6883d68a77eebdacea700992dfe4b956b0aee6b5d9c6d872851ad"
+          },
+          {
+            "wave": 29,
+            "lane": "025-snapback-boating-license-exams",
+            "source": "local-tail",
+            "recordSha256": "b727e5adfbcc7b4fb7696dd262b9ffa0afce3e90b714ff1f4c50f2c14ddbed34"
+          },
+          {
+            "wave": 29,
+            "lane": "026-snapback-brass-instrument-repairs",
+            "source": "local-tail",
+            "recordSha256": "fa57343caf822b7df070bb764876cf7e57bdee4d8537405ac7a586b8c1e84817"
+          },
+          {
+            "wave": 29,
+            "lane": "027-snapback-haunted-house-set-builds",
+            "source": "local-tail",
+            "recordSha256": "467db51512f3540232952793871ca524558ab106a55b05dc03b53a5399391fb1"
+          },
+          {
+            "wave": 29,
+            "lane": "028-snapback-garden-fountain-restorations",
+            "source": "local-tail",
+            "recordSha256": "4dd9308842ee12000ebb24163092cc5b90144d3b4ff9d1f5816198e437803148"
+          },
+          {
+            "wave": 29,
+            "lane": "029-snapback-aircraft-ferry-flights",
+            "source": "local-tail",
+            "recordSha256": "976d458ac6c525c10c8480caa978bc9d827b9d734514f6784faedcb5bac0afe8"
+          },
+          {
+            "wave": 29,
+            "lane": "030-snapback-ground-radar-surveys",
+            "source": "local-tail",
+            "recordSha256": "a1f81e3b19ab99d9dda3347338d7eff8e5478e4392634a50be4b04cf663516f7"
+          },
+          {
+            "wave": 29,
+            "lane": "031-snapback-dryer-vent-cleanings",
+            "source": "local-tail",
+            "recordSha256": "3be2b5b2061d59a33118406383bf1a610e479510b3808ba16c291f51b4e7d720"
+          },
+          {
+            "wave": 29,
+            "lane": "032-snapback-assisted-living-placements",
+            "source": "local-tail",
+            "recordSha256": "14692047dfab687825f544af3c01fcd591f2a595af6d2950a4fe65c3e1a58799"
+          },
+          {
+            "wave": 29,
+            "lane": "033-snapback-tennis-court-resurfacing",
+            "source": "local-tail",
+            "recordSha256": "0424c771761644c411432db678ba1367fead12f8d573d59c5ecd39ffb29cc9de"
+          },
+          {
+            "wave": 29,
+            "lane": "034-snapback-fountain-pen-restorations",
+            "source": "local-tail",
+            "recordSha256": "9a63acc599be8c1d1fa746e4b174174414531ed8d73718d220bbf97e2d17ae35"
+          },
+          {
+            "wave": 29,
+            "lane": "035-snapback-fur-cleaning-batches",
+            "source": "local-tail",
+            "recordSha256": "ef688aaee55ac4d4443e9b26b661ef3fbe7c9a77c873193c0fecb5b13e7337c0"
+          },
+          {
+            "wave": 29,
+            "lane": "036-snapback-wax-figure-commissions",
+            "source": "local-tail",
+            "recordSha256": "6353e8ea9ba4791566c0a78a22b5cdd401041b3e24a45fc19b5d994cda741c83"
+          },
+          {
+            "wave": 29,
+            "lane": "037-snapback-bespoke-hat-commissions",
+            "source": "local-tail",
+            "recordSha256": "87a86421422a1fb6b78305adc69421dedb04b4afdbb9d1252fe36f25c414ec3c"
+          },
+          {
+            "wave": 29,
+            "lane": "038-snapback-toner-cartridge-deliveries",
+            "source": "local-tail",
+            "recordSha256": "05c8d86c624baa5de4f9c095d79ed7805cada701f12e5591fcea959f1de68dac"
+          },
+          {
+            "wave": 29,
+            "lane": "039-snapback-koi-breeder-reservations",
+            "source": "local-tail",
+            "recordSha256": "0ddc1e3d7dbd71e2457b1376aa7a60c5e9e212b0d2d584af83031422afcf4394"
+          },
+          {
+            "wave": 29,
+            "lane": "040-snapback-outboard-motor-repairs",
+            "source": "local-tail",
+            "recordSha256": "190f7910cd668d8e85f9967581e4bcb62cb4a8726ad78eea1ec1270a533b171e"
+          },
+          {
+            "wave": 29,
+            "lane": "041-snapback-gramophone-restorations",
+            "source": "local-tail",
+            "recordSha256": "74be340bf75c63a11fc3270acd4e42c90d0b348fd8607f3b67de62b7aed8cac3"
+          },
+          {
+            "wave": 29,
+            "lane": "042-snapback-vintage-guitar-consignments",
+            "source": "local-tail",
+            "recordSha256": "6fe87f04535b560c5dd01023a2ade7973b8b13070df2fd5505c0245ba592e913"
+          },
+          {
+            "wave": 29,
+            "lane": "043-snapback-playground-safety-inspections",
+            "source": "local-tail",
+            "recordSha256": "c077fd455142ca09a81f4767a164a2cf82f2a9154d9ae668c1b7a2a43abf9ff0"
+          },
+          {
+            "wave": 29,
+            "lane": "044-snapback-wooden-deck-refinishing",
+            "source": "local-tail",
+            "recordSha256": "47693cddd6835dd3fe97f47c581d21785c4c64cc8f2a4e4151a1c858def32c51"
+          },
+          {
+            "wave": 29,
+            "lane": "045-snapback-geothermal-loop-installs",
+            "source": "local-tail",
+            "recordSha256": "ea53cd9c3490642a66d7faf6334ac36d60d90051d8665b733f204d998a9d621f"
+          },
+          {
+            "wave": 29,
+            "lane": "046-snapback-furnace-repair-calls",
+            "source": "local-tail",
+            "recordSha256": "e7f1d2ae902bbda1f5594343af5529132417b072913ea408b161c301a51b8031"
+          },
+          {
+            "wave": 29,
+            "lane": "047-snapback-henna-artist-bookings",
+            "source": "local-tail",
+            "recordSha256": "55fb0222d8f88f6143e96eb67bd7c0eb49a7bb37ac0046377707f335b5762671"
+          },
+          {
+            "wave": 29,
+            "lane": "048-snapback-pergola-builds",
+            "source": "local-tail",
+            "recordSha256": "61d8f79b5e85df74b7f0e349546145fac8334cd2c8e02d509a0ba3ba3b093628"
+          },
+          {
+            "wave": 29,
+            "lane": "049-snapback-string-quartet-bookings",
+            "source": "local-tail",
+            "recordSha256": "a200999220d55d94e9d3395eb832337c8ff20473e97a79d433f3ea182008ea82"
+          },
+          {
+            "wave": 29,
+            "lane": "050-snapback-home-generator-servicing",
+            "source": "local-tail",
+            "recordSha256": "2c8c9d2b65478e33d743a0ee91b0d38a5967ac6074f3f6b5a06a9ee59f375905"
+          }
+        ],
+        "scope": "Every selected case retains its actual command attempts, verdicts and failures unchanged. Incomplete test campaigns remain incomplete; no parent run is relabeled PASS. Entire declared waves, no omitted cases."
+      }
+    }
+  ],
+  "scope": "All phases are actual command attempts on copied schemas. Original interrupted runs and any incomplete test subcampaigns remain separately recorded; no parent run is relabeled PASS."
+}

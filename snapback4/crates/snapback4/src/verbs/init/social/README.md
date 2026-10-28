@@ -308,3 +308,8 @@ The template intentionally permits text messages without photos. Optional photo
 arguments and optional photo columns need no security acknowledgment. If your
 application requires evidence, declare that independent intent and enforce it
 before creating the parent.
+
+New Expo starters keep a patched configuration merger in `toolchain/deepmerge`,
+selected by a local dependency override. Commit that directory with the app.
+Existing apps keep their files; `snapback4 init --expo --skip-existing` can add
+the patch, and refuses a conflicting override or modified patch file.

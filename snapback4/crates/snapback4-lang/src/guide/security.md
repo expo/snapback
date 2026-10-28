@@ -421,6 +421,25 @@ N_CONSTANT_APPROVAL: Creation stores a constant true approval/payment flag. A tr
 
 N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a stricter decision mutation. Apply the decision authority to every path reaching that state; write independent transition intent and run test.
 
+
+A sibling's source guards can also supply an advisory question about an actual
+committed old/next edge: a literal writer can bypass a sibling step, or a caller
+can jump from a declared default directly to a value another operation requires.
+The card names the actual operation, caller, edge and source sibling. Enum list
+order does not declare a workflow. A question remains advisory until the author
+states intent; full source premises and replay remain in review/JSON.
+For an intended order, enforce the allowed edges with named update images or
+program guards, and state independent intent:
+
+```quarry
+table transitionBatches:
+  stage: enum('finished', 'inspection', 'cleaning') default 'inspection'
+  read <- allow
+  insert <- .stage = 'inspection'
+  update (old, next) <- old.stage = next.stage or (old.stage = 'inspection' and next.stage = 'cleaning') or (old.stage = 'cleaning' and next.stage = 'finished')
+  online only
+```
+
 ### N_STALE_CREATION_CHECK
 
 N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that a later literal-state transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and non-state payload edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. Any literal enum destination distinct from its default creation state can raise this question, including filled; no approval-word list determines eligibility. True approval flags also qualify.
@@ -475,7 +494,7 @@ N_RELEASE_CREATE_COVERAGE: The local successful-check source baseline cannot be 
 
 N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This advisory question asks whether that asymmetry is deliberate; an example of broader creation does not establish unwanted authority. One matching `invariant T.c update only P` declares the intended edit boundary; a column `write <- P` enforces its authority at creation too. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
 
-N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. To freeze approved evidence use `immutable photo when .approved = true` from the complete rule recipe. This is a specification question, never a proof or a new gate.
+N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. To freeze approved evidence use `immutable photo when .approved = true` from the complete rule recipe. This is a specification question, never a proof or a new gate. An authored column `update only` policy answers an inferred approval-input freeze for that column; it does not waive authored assertions, language enforcement or a guard observed on another path.
 
 ### N_CHILD_EVIDENCE_PRESENCE
 
@@ -637,6 +656,31 @@ CALLER`, followed by the printed audience/effect rationale. An invalid answer
 prints the current redacted replay and records no decisions. Complex guard
 histories and unsupported evidence shapes remain coverage gaps.
 
+### Approval acts and history questions
+
+N_APPROVAL_PATH identifies a related completion operation that proceeds without
+a receipt checked by a parent operation. N_CALLER_HISTORY asks whether a caller
+ordinal selecting approval must instead come from stored same-person history.
+N_LATEST_SUBJECT asks whether an approval selected by an older parent may still
+authorize another sitting. These are advisory questions. Default check/deploy
+shows a question when a current admitted-call replay supplies its witness;
+JSON retains the actual caller, arguments, initialization and old/new images.
+An acknowledgment must address that exact witness and intended effect.
+Enforce a narrower specification in the operation and declare independent intent.
+
+### Assignment scope questions
+
+N_ASSIGNMENT_SCOPE asks whether a whole-role caller should read only assigned
+resources or any resource. A current authored query must actually disclose the
+protected payload; a reference or policy image alone is insufficient. When a
+required principal column models the staff assignment, JSON retains the actual
+other assignee and caller membership. When no such assignment is modeled, the
+question says so without inventing an assignee. These are advisory questions.
+Scope the role branch to the specification's assignment, state independent read
+intent, or acknowledge the exact witness and intended global audience.
+
+### Advisory guard precision
+
 Guard precision: advisory read checks expand bounded read-only role helpers and
 retain raw versus caller-filtered witness polarity. A prior live role snapshot
 can answer a read question; a later guard cannot authorize an earlier lookup.
@@ -658,3 +702,34 @@ this omits a review question and does not prove the safety of imported rows.
 Precision omits advisory hypotheses only. An independent current bounded replay
 retains a witnessed question even when source facts answer its advisory form.
 It never promotes that question to a gate or trusts a cached witness.
+
+## Evidence and time anchors (SEC13)
+
+Optional media and a separately attached child can leave a parent without
+photos or an agreement. Default witnessed questions show an admitted creation
+or transition and its missing evidence. A required child field does not require
+a child row. If the specification requires the upload, require the argument and
+create the linked evidence atomically, or check its presence at the relevant
+boundary. Deliberate draft states and optional attachments may remain optional.
+
+### N_MOVABLE_TIME_ANCHOR
+
+N_MOVABLE_TIME_ANCHOR means a stored time used to measure a window has an edit
+path. Preserve an immutable original date, prevent edits after dependent records
+exist, or re-check affected windows. This is a specification question, not proof
+that every moved date violates a window; only a current admitted net change
+appears by default. Acknowledgment requires the current witness and intended effect.
+
+### N_EVENT_TIME_ANCHOR
+
+N_EVENT_TIME_ANCHOR means a guard checks booking-time now while the operation
+stores a separate caller event time. Check the event time against the selected
+stored anchor when the specification governs the sitting time; retain now for
+an intentional booking-time policy. This is a specification question; missing
+or null anchors and invalid old events cannot supply a new-event witness.
+
+These are specification questions, not inferred obligations or security proofs.
+Only current replayed behavior appears by default. Unsupported cases remain in
+`check --review --json`; they cannot be acknowledged without an evaluable replay.
+An optional acknowledgment must name the current witness, explicitly permit its
+operation and caller, and give the intended audience or effect rationale.

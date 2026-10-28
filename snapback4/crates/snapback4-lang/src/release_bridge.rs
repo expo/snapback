@@ -34,7 +34,17 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             table_names.insert(prior.clone(),new.clone());
         }
     }
+    let authority=align_current_schema(&before_schema,target,&after_schema,current,&table_names).ok();
     let after_schema=after_schema.with_table_names(&table_names).ok();
+    // @ref LLP 3000.000.000.003#3-one-release-evolution — a release tightening field writes registers current guarded source for old clients.
+    if before_schema.tables.iter().any(|(name,old)|authority.as_ref().and_then(|s|s.table(name)).is_some_and(|new|
+        new.column_writes.iter().any(|(field,rule)|{
+            let implies=|prior:&snapback4_core::schema::RuleExpr|prior==rule||*prior==snapback4_core::schema::RuleExpr::Deny||*rule==snapback4_core::schema::RuleExpr::Allow;
+            old.columns.contains_key(field)&&!old.column_writes.get(field).is_some_and(implies)
+                &&!(implies(&old.rules.insert)&&implies(&old.rules.update))
+        })
+        ||new.frozen_columns.iter().any(|(field,rule)|old.columns.contains_key(field)&&old.frozen_columns.get(field)!=Some(rule)))) {return true;}
+
     let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
     let tables=docs.iter().flat_map(|d|&d.tables).collect::<Vec<_>>();
     let mut aliases=tables.iter().filter_map(|t|t.renamed_from.as_ref().map(|old|(t.name.clone(),old.clone()))).collect::<BTreeMap<_,_>>();
@@ -47,7 +57,7 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             for col in &old.columns {
                 let Some(candidate)=next.columns.iter().find(|c|c.name==col.name||c.renamed_from.as_ref()==Some(&col.name)||col.renamed_from.as_ref()==Some(&c.name))else{continue};
                 let scalar=!matches!(&col.type_.kind,TypeKind::Ref{..}|TypeKind::List{..}|TypeKind::Image{..}|TypeKind::File{..}|TypeKind::Video{..});
-                if scalar&&after_schema.as_ref().is_some_and(|s|s.downfills.iter().any(|d|d.table==old.name&&d.outputs.contains(&col.name))){continue;}
+                if scalar&&after_schema.as_ref().is_some_and(|s|s.downfills.iter().any(|d|!d.name.starts_with("$rename:")&&d.table==old.name&&d.outputs.contains(&col.name))){continue;}
                 let mut from=candidate.type_.clone();let mut to=col.type_.clone();normalize(&mut from,&aliases);normalize(&mut to,&aliases);
                 if !crate::client_contracts::accepts(&crate::types::scalar_to_arg(&from),&crate::types::scalar_to_arg(&to)){return true}
             }
@@ -102,6 +112,7 @@ pub fn same_data_and_intent(target:&[(String,String)],current:&[(String,String)]
 
 pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let mut bridge=loosen_inner(target,current);
+    super::release_bridge_results::preserve(target,&mut bridge);
     for diagnostic in &mut bridge.diagnostics {
         if diagnostic.site.line==0 {
             let docs=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();

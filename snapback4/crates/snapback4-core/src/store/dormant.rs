@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value NOT IN ('snapback4-release-store-6','snapback4-release-store-7','snapback4-release-store-8','snapback4-release-store-9','snapback4-release-store-10')", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value NOT IN ('snapback4-release-store-6','snapback4-release-store-7','snapback4-release-store-8','snapback4-release-store-9','snapback4-release-store-10','snapback4-release-store-11')", [VERSION])?;
     Ok(())
 }
 
@@ -42,7 +42,7 @@ pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-10"|"snapback4-release-store-9"|"snapback4-release-store-8"|"snapback4-release-store-2"|"snapback4-release-store-6"|super::backfills::VERSION)))
+    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-11"|"snapback4-release-store-10"|"snapback4-release-store-9"|"snapback4-release-store-8"|"snapback4-release-store-2"|"snapback4-release-store-6"|super::backfills::VERSION)))
 }
 
 fn authoritative(table: &Table, column: &str) -> bool {

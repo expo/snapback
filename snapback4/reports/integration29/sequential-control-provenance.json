@@ -1,0 +1,8 @@
+{
+  "source": "90769931be75aa0ea827750b357130c41dc8de31",
+  "patchSha256": "e3a655929e9b4389a8a387e08b742e13cfcbb7d9b748c937e1cc028c7038201d",
+  "method": "Final merged rules including independently reviewed intent repair. External control disables batch compilation (including Time), concurrency, advice/report reuse and asset-byte cache. Search budgets, rules and fixture constructor remain identical. Independent source archive and target; shipping source/binary never edited.",
+  "testFixtureSupplement": "strengthened independent authored-history test, same runtime repair",
+  "rustToolchain": "snapback4/rust-toolchain.toml, Rust1.97.0",
+  "binarySha256": "594c8d976ab8f333200b79a6161e85ce5b64b4995fc51e1734f36f62cdde2bcc"
+}

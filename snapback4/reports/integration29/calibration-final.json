@@ -1,0 +1,1570 @@
+{
+  "calibrationSha256": {
+    "30": "12009da8c8ba4ada449cfc4b64c9d62a9fc410f790cb98cad5bdae49ec7942db",
+    "31": "2b28a5a6fca9a7f8c09b9711a0df7fcd0fd2b4f343647b02e7d1786fd91bea5f",
+    "32": "ecd1bc01a14277b76f91386f415df726bba2684918bd88ca0bb09ddfdc2868f4",
+    "33": "a259e48231ab536fe720b2686096de1c3034d2d20aa95e35c40b2b598f6e0aa7"
+  },
+  "method": "Every calibrated Snapback M, including inherited wave31 M, assessed against its actual operation/material/role/old-new condition. Reuses SEC11b exact matcher for30/31; SEC13 source-qualified targets for32. Unrelated findings do not count. Wave33 is included when its calibration exists; carried effects retain the same exact matcher.",
+  "wave33CalibrationPresent": true,
+  "assessments": [
+    {
+      "wave": 30,
+      "lane": "002",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The front desk opens each fitting with a scan of the pediatrician's referral and the quoted helmet fee.",
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "referralScan"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TEXT_EVIDENCE",
+          "operation": "openFitting",
+          "viewer": "account:security-roles-frontdesk-0",
+          "decision": "ba3ddf3cf663e9c4c9e64b94071c18be3d9d1afe9a751d43b089223c6a7aa4cf",
+          "witness": "0cdb2aa4c32c5c18c84e42592abf450da5199e60cac57fa37d2be01e464a1bff",
+          "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "004",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The family's phone number, care needs and price on a job are visible only to that job's case coordinator and the company owner.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "privateDetail"
+        ],
+        "term": "careNeeds",
+        "viewerRole": "coordinator",
+        "assignment": true
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_ASSIGNMENT_SCOPE",
+          "operation": "privateDetail",
+          "viewer": "account:security-roles-coordinator-1",
+          "decision": "76625d0d11d8c8724784f8caa9a24ddcba37fee5d85169ff86a59387c094f372",
+          "witness": "8a98f7b1c89c06a4b2274c0b597747a262b60dc8061d5d8d12983faf1bfb86ad",
+          "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "006",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The customer has 30 days after return to report a drag fault for a free re-service.",
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "010",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "A trip cancelled for high water may be rebooked within 12 months or refunded.",
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_GUARD_NOT_CONSUMED",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 165
+          },
+          "message": "rebookTrip: saw `((trips[trip]) ! else NOT_FOUND.cancelledAt != null and now <= (trips[trip]) ! else NOT_FOUND.cancelledAt + 31536000000); ((trips[trip]) ! else NOT_FOUND.status = 'cancelled_high_water'); (tripDate > now); exists roles[viewer, role = 'office']`; not proved: unchanged trips.status cannot authorize a repeated trips transition at schema.q:165:10"
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "014",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The client's phone number, venue contract and fee on a project are visible only to that project's lead and the company owner.",
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ",
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "project",
+          "board"
+        ],
+        "term": "clientPhone",
+        "viewerRole": "lead"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_ASSIGNMENT_SCOPE",
+          "operation": "board",
+          "viewer": "account:security-roles-lead-0",
+          "decision": "7222b3acaa526f264fa4fcc7b4bb373259ddeea52b875d57f831f099fc016153",
+          "witness": "eaa350af1d8ae457f86aa5ecc6fa7281da2511fb76a0f4e298221c72e283e16c",
+          "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "018",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "Only the lead pruner can approve pruning an orchard under a fire blight quarantine, recording the inspector's permit and the extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_PATH",
+          "operation": "pruneTouchup",
+          "viewer": "account:security-roles-pruner-0",
+          "decision": "3cfb3e94240e367abce90f7dde8f880db314fd89f7f8c16f9d4502765024b02d",
+          "witness": "fdcde66eccdc53cf358cee397be239a4209c6aae96c59856170a34a2254c0cc5",
+          "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "A candidate who fails may retest within 30 days at half price; only the school manager can approve a retest beyond the second attempt, recording the reason and ",
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CALLER_HISTORY",
+          "operation": "logExam",
+          "viewer": "account:security-roles-registrar-0",
+          "decision": "600c2e7c1f534cd116ff02dfba06f61f02fac3671cf14957d3fdd6596800c382",
+          "witness": "47081ec5227cc44a14553eed37da7e96e1ff4d4b58309c618d2cc1dd5bbf31ab",
+          "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the school manager can approve a retest beyond the second attempt, recording the reason and the instructor\u2019s recommendation.",
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_LATEST_SUBJECT",
+          "operation": "logExam",
+          "viewer": "account:security-roles-registrar-0",
+          "decision": "b9d8e7734358038aa8075635806681b357e0880711df3d032d5a5da017165501",
+          "witness": "c9e32839e1ca86f341d39e13a05713d6716947ccc0d2d3bf2f079e03e5b49c4e",
+          "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The dispatcher opens each study with the sound recording files and the quoted price.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "term": "recordings"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "openStudy",
+          "viewer": "account:security-roles-dispatcher-0",
+          "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+          "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+          "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Jobs move from booked to measured, reviewed and reported.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ],
+        "viewerRole": "engineer",
+        "oldTruth": {
+          "status": "measured"
+        },
+        "truth": {
+          "status": "reported"
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TRANSITION_BYPASS",
+          "operation": "publishReport",
+          "viewer": "account:security-roles-engineer-0",
+          "decision": "659781d2dccefcef431e82202580e29adde0499151fbbe3d94346b55d3628b38",
+          "witness": "78411a77d30fc62a64904706492a1e19570aacbd3ec7ed4a75fac5b40909ae05",
+          "candidate": "question: studies.status: publishReport can bypass sibling markReviewed's measured -> reviewed step; must reported require reviewed?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "Only the company owner can approve coating over a slab the customer signed off as damp, recording the customer's consent.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "operation": "advanceJob",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+          "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+          "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "The estimator opens each job with before photos of every crack and oil stain and the quoted price.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "operation": "acceptQuote",
+          "viewer": "account:security-roles-customer-0",
+          "decision": "f5eb435de0a8d47a53ff8d3e522fa7c3985c6812251e11bf09ed65bb03368456",
+          "witness": "a5d9224734e746c8dd78b0c97087e65d20d1fe8db233862aa2a71ece729d15df",
+          "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "035",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "Batches move from inspection through cleaning, flameproofing and pleating before being finished.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "advanceStage"
+        ],
+        "viewerRole": "cleaner",
+        "oldTruth": {
+          "stage": "inspection"
+        },
+        "truth": {
+          "stage": "finished"
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TRANSITION_BYPASS",
+          "operation": "advanceStage",
+          "viewer": "account:security-roles-cleaner-0",
+          "decision": "2056b3ebc232075e8535ea9bbd7024e9f4f63f05c38dfdca60a5981725085244",
+          "witness": "06079f4a022ad75a6f056e15610f64d0a978e5696d6d0ab9bfe1885eb86ae5a2",
+          "candidate": "question: batches.stage: advanceStage accepts a caller-selected stage; sibling markReady requires finished; must intermediate declared values have explicit transitions?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "038",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "An unpaid delivery older than 30 days stops further standing deliveries; only the account manager can approve an emergency delivery for an account with a past-d",
+      "match": {
+        "codes": [
+          "N_DUPLICABLE_GUARD"
+        ]
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "002",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the front desk may add, replace or remove referral scans; the clinic manager, orthotists and parents may not.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openFitting"
+        ],
+        "term": "referralScan"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openFitting",
+          "viewer": "account:security-roles-manager-0",
+          "decision": "50df22ae6adac889cb20409d267a90c6f60bc249c948a58b747ba503affd1ee5",
+          "witness": "8063a6d2f8b4d53f9ef263cf5611683fc7d1891f16fddf70b0cedb05ea81029e",
+          "candidate": "invariant fittings.referralScan write only ((exists roles[viewer, role = 'frontdesk']) and ((exists roles[viewer, role = 'frontdesk']) or (exists roles[viewer, role = 'orthotist']) or (exists roles[viewer, role = 'manager'])))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "004",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The family's phone number, care needs and price on a job are visible only to that job's case coordinator and the company owner.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "privateDetail"
+        ],
+        "term": "careNeeds",
+        "viewerRole": "coordinator",
+        "assignment": true
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_ASSIGNMENT_SCOPE",
+          "operation": "privateDetail",
+          "viewer": "account:security-roles-coordinator-1",
+          "decision": "329c9cd71523a4bd49c84666b86aa717efe0ca9d90c779e9ce99130177f97cad",
+          "witness": "d4f5c572375124d9100b9ea4517ce557937d6ce741909535b9e510f8f519ee28",
+          "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "006",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The customer has 30 days after return to report a drag fault for a free re-service.",
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "A trip cancelled for high water may be rebooked within 12 months or refunded.",
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_GUARD_NOT_CONSUMED",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 168
+          },
+          "message": "rebookTrip: saw `((trips[trip]) ! else NOT_FOUND.cancelledAt != null and now <= (trips[trip]) ! else NOT_FOUND.cancelledAt + 31536000000); ((trips[trip]) ! else NOT_FOUND.status = 'cancelled_high_water'); (tripDate > now); exists roles[viewer, role = 'office']`; not proved: unchanged trips.status cannot authorize a repeated trips transition at schema.q:168:10"
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the head guide may move a trip into or out of equipped; other guides, booking office staff and guests may not.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS",
+          "N_EDIT_AFTER_APPROVAL"
+        ],
+        "ops": [
+          "cancelHighWater"
+        ],
+        "oldValues": [
+          "equipped"
+        ]
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The client's phone number, venue contract and fee are visible only to that project's lead and the company owner.",
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ",
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "project",
+          "board"
+        ],
+        "term": "clientPhone",
+        "viewerRole": "lead"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_ASSIGNMENT_SCOPE",
+          "operation": "board",
+          "viewer": "account:security-roles-lead-0",
+          "decision": "f0933a7a5b4a78cb958a961afeaf6056828b1f928fa88ee1f0a8defb13e13423",
+          "witness": "3bbd6c0ea955ad99557182f7524120bea9a4a6fbd94b84faa01754a976bfafab",
+          "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F3",
+      "inherited": null,
+      "calibration": "Only the project lead may add, replace or remove entrance photos.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "setEntrancePhoto"
+        ],
+        "term": "entrancePhoto",
+        "effect": "update"
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F4",
+      "inherited": null,
+      "calibration": "Only the project lead may add, replace or remove entrance photos; the company owner may not.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openProject"
+        ],
+        "term": "entrancePhoto"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openProject",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "aa49173147faa3176a87941d4467a22f645a174b51003c760865bf5c868b41a2",
+          "witness": "080f07ca26d90f2a611a966ab85283eaf29025a35a690e5d6c7c2706c47b08b5",
+          "candidate": "invariant projects.entrancePhoto write only ((exists roles[viewer, role = 'lead']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'installer'])))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "018",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "Only the lead pruner can approve pruning an orchard under a fire blight quarantine, recording the inspector permit and extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_PATH",
+          "operation": "pruneTouchup",
+          "viewer": "account:security-roles-pruner-0",
+          "decision": "5e974b7efb19da108561675a3c632c3882f2f40818be33ce7773a0f1b494d3c1",
+          "witness": "075487e6878c024fa4f1d12413433251352aff8add9b9d5814cc2839f49a51a2",
+          "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "019",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "Only the coordinator may add, change or remove the quoted price; the company owner may see it but cannot change it.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openMove"
+        ],
+        "term": "price"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openMove",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+          "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+          "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "A candidate who fails may retest within 30 days at half price; only the school manager can approve a retest beyond the second attempt.",
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CALLER_HISTORY",
+          "operation": "logExam",
+          "viewer": "account:security-roles-registrar-0",
+          "decision": "0261f1d777ddaf11270005f2d5df864b47a9bad6c7caad4557fb572966afe701",
+          "witness": "dd56d60e013d1d779e67a9bc2ec1cf9446af49b51ad905638d40bbf44cac99f6",
+          "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F2",
+      "inherited": "medium",
+      "calibration": "Only the school manager can approve a retest beyond the second attempt, recording the reason and the instructor's recommendation.",
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_LATEST_SUBJECT",
+          "operation": "logExam",
+          "viewer": "account:security-roles-registrar-0",
+          "decision": "073ff1d84a9ffb7d0bf5a78df8b3ebe8fbf14785464c73342973505a345c0add",
+          "witness": "75092b01f80acb290c0576341ea9a8827369e0ce06f377378824c6b6b47ead4f",
+          "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "030",
+      "finding": "F2",
+      "inherited": "medium",
+      "calibration": "Jobs move from booked to measured, reviewed and reported.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ],
+        "viewerRole": "engineer",
+        "oldTruth": {
+          "status": "measured"
+        },
+        "truth": {
+          "status": "reported"
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TRANSITION_BYPASS",
+          "operation": "publishReport",
+          "viewer": "account:security-roles-engineer-0",
+          "decision": "659781d2dccefcef431e82202580e29adde0499151fbbe3d94346b55d3628b38",
+          "witness": "78411a77d30fc62a64904706492a1e19570aacbd3ec7ed4a75fac5b40909ae05",
+          "candidate": "question: studies.status: publishReport can bypass sibling markReviewed's measured -> reviewed step; must reported require reviewed?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "Only the company owner can approve coating over a slab the customer signed off as damp, recording the customer's consent.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "operation": "advanceJob",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+          "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+          "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F2",
+      "inherited": "medium",
+      "calibration": "The estimator opens each job with before photos of every crack and oil stain and the quoted price; v2 places those photos in surface surveys.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "operation": "acceptQuote",
+          "viewer": "account:security-roles-customer-0",
+          "decision": "1407d395c8ccaf167b418b4be244103f1364fe162c462362cb4146c0028a3dc7",
+          "witness": "e1d1127e3405fead1d21559d06168b102884e34bba318deb6b2f83905dbc8fea",
+          "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "035",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "Cleaning orders move from inspection through cleaning, flameproofing and pleating before being finished; all workroom steps stay unchanged in v2.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "advanceStage"
+        ],
+        "viewerRole": "cleaner",
+        "oldTruth": {
+          "stage": "inspection"
+        },
+        "truth": {
+          "stage": "finished"
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TRANSITION_BYPASS",
+          "operation": "advanceStage",
+          "viewer": "account:security-roles-cleaner-0",
+          "decision": "fee38387c852f23a130a293acce31f2e2474dfbe5002fe7acf43a80c22f48626",
+          "witness": "2a15dc83219c00c087209123b06489e020e5a58de85d6f64617175e8cb3ce35a",
+          "candidate": "question: cleaningOrders.stage: advanceStage accepts a caller-selected stage; sibling markReady requires finished; must intermediate declared values have explicit transitions?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "004",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The case coordinator opens each move with photos of every room and the quoted price.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "ops": [
+          "addRoom"
+        ],
+        "term": ".photo",
+        "truth": {
+          "photo": null
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "addRoom",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "c0635e5997c941794799932fcecff2b317ba93e7d1d4acf6c31de10558e7cbee",
+          "witness": "db5991cbb343cfcb9a67e29c0258e7e8d11f2270a275e8bfb9c4654274465894",
+          "candidate": "invariant rooms.addRoom only (.photo != null)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "004",
+      "finding": "F3",
+      "inherited": null,
+      "calibration": "A final settling-in visit is due within ten days of the move.",
+      "match": {
+        "codes": [
+          "N_MOVABLE_TIME_ANCHOR"
+        ],
+        "ops": [
+          "updateMove"
+        ],
+        "term": "moveDate"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_MOVABLE_TIME_ANCHOR",
+          "operation": "updateMove",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "484734cb61ec98ce6b944eee5a31ecd6bbc0631cf22d87f9e1f1db218e88a1e6",
+          "witness": "f7a44ed4385873b752c3c98568d1fd41cf81768241c8a5db9b62870e89873681",
+          "candidate": "invariant moves.moveDate updateMove only deny",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "017",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The booking desk opens each party with a photo of the client's signed safety agreement and the quoted price per child.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "ops": [
+          "openParty"
+        ],
+        "term": "safetyAgreement"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "openParty",
+          "viewer": "account:security-roles-booking-0",
+          "decision": "5a9c4f51f2ed28269e52d9c6df005d583869450149d9195460dd27ada36df908",
+          "witness": "34a8ac4d6b536d1df9e77bab047f0a6fde1aa61e0127d757ba2e012899854a98",
+          "candidate": "invariant parties.openParty only (.safetyAgreement != null)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "018",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "Only the lead arborist can approve treating trees inside a wood quarantine zone, recording the forestry permit and the extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED",
+          "N_APPROVAL_PATH",
+          "N_DERIVED_WRITE_AUTHORITY"
+        ],
+        "ops": [
+          "addTree"
+        ]
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/schema.q/trees/inQuarantine/update/bd2ffb3ea18852b83711745b334791b92d5cdf827ccfa41160b50ed58a9ef250",
+            "line": 177
+          },
+          "message": "trees.inQuarantine update: derived candidate update only old.approved != true or next.approved != true; a replayed violation needs a specification decision"
+        },
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/sibling-approval/a3c0624aa29470a0bfc8714466bfd6c63cfe520144c39d60c7e7377f890de337/schema.q",
+            "line": 162
+          },
+          "message": "trees.state update: inferred effect prerequisite (.state != 'injected' or (not .inQuarantine or .approved)); judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision"
+        },
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/sibling-approval/641c310da803124c137679d6569fafa614156150f6e9fb0a48c3cba9f48b4ae3/schema.q",
+            "line": 188
+          },
+          "message": "trees.state update: inferred effect prerequisite (.state != 'retreated' or (not .inQuarantine or .approved)); judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision"
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "025",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "A candidate who fails may retest within 30 days at half price.",
+      "match": {
+        "codes": [
+          "N_EVENT_TIME_ANCHOR"
+        ],
+        "ops": [
+          "bookExam"
+        ],
+        "term": "scheduledAt"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_EVENT_TIME_ANCHOR",
+          "operation": "bookExam",
+          "viewer": "account:security-roles-registrar-0",
+          "decision": "a504bc6aa02a1ca252fe3c7ed3a2f55c1a844f30ea158d850e39c4894ffe6e84",
+          "witness": "16f8163ad3d6a2ffb7a25ad1815cc0d32a71f4c928921fe94591f9dc80ee0a14",
+          "candidate": "invariant exams.scheduledAt bookExam only (not (.bookedAt <= (exams[id = (progress[candidate = .candidate]).latest]).completedAt + 2592000000) or .scheduledAt <= (exams[id = (progress[candidate = .candidate]).latest]).completedAt + 2592000000)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "029",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "A move delayed by weather may be rescheduled within 60 days of its booked date.",
+      "match": {
+        "codes": [
+          "N_MOVABLE_TIME_ANCHOR"
+        ],
+        "ops": [
+          "reschedule"
+        ],
+        "term": "scheduledAt"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_MOVABLE_TIME_ANCHOR",
+          "operation": "reschedule",
+          "viewer": "account:security-roles-office-1",
+          "decision": "9ac768848ab60b0c36255e3598396b65689161eb9fabd3cf30670d8aad67b384",
+          "witness": "44c46adbcf563e07b0171d8d414ac06d461752c66483f6207a47069f8f2ee5c7",
+          "candidate": "invariant moves.scheduledAt reschedule only deny",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "033",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The estimator opens each job with before photos of every chip and rust stain and the quoted price.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "openJob"
+        ],
+        "term": "jobPhotos"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "operation": "openJob",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "6612155d8718e8b5bb422da458ac57e69055bc4986507ebce190623de80f7671",
+          "witness": "85f519a25c11baff60a6ae48a111a16affbe074ef9d677a68a7b487a566667ca",
+          "candidate": "invariant jobs.openJob only (count(jobPhotos[job = .id]) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "036",
+      "finding": "F1",
+      "inherited": null,
+      "calibration": "The design must be approved at least 60 days before the team's ring ceremony or the order is cancelled with the deposit kept.",
+      "match": {
+        "codes": [
+          "N_SWEEP_ONLY_DEADLINE",
+          "N_TIME_TRANSITION",
+          "N_TRANSITION_BYPASS"
+        ],
+        "term": "ceremonyAt"
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 33,
+      "lane": "004",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The case coordinator opens each move with photos of every room and the quoted price.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "ops": [
+          "addRoom"
+        ],
+        "term": ".photo",
+        "truth": {
+          "photo": null
+        }
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "addRoom",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "c0635e5997c941794799932fcecff2b317ba93e7d1d4acf6c31de10558e7cbee",
+          "witness": "db5991cbb343cfcb9a67e29c0258e7e8d11f2270a275e8bfb9c4654274465894",
+          "candidate": "invariant rooms.addRoom only (.photo != null)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "004",
+      "finding": "F3",
+      "inherited": "medium",
+      "calibration": "A final settling-in visit is due within ten days of the move.",
+      "match": {
+        "codes": [
+          "N_MOVABLE_TIME_ANCHOR"
+        ],
+        "ops": [
+          "updateMove"
+        ],
+        "term": "moveDate"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_MOVABLE_TIME_ANCHOR",
+          "operation": "updateMove",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "484734cb61ec98ce6b944eee5a31ecd6bbc0631cf22d87f9e1f1db218e88a1e6",
+          "witness": "f7a44ed4385873b752c3c98568d1fd41cf81768241c8a5db9b62870e89873681",
+          "candidate": "invariant moves.moveDate updateMove only deny",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "004",
+      "finding": "F4",
+      "inherited": null,
+      "calibration": "Give each move its own safety briefings, attached to that move, and move its hazard notes into them. Further briefings may be added as hazards are found.",
+      "match": {
+        "notModeled": "No current finding links legacy addHazard writes to briefing body contents. Generic grant/read advice is unrelated."
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "reason": "No current finding links legacy addHazard writes to briefing body contents. Generic grant/read advice is unrelated."
+    },
+    {
+      "wave": 33,
+      "lane": "017",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The booking desk opens each party with a photo of the client's signed safety agreement and the quoted price per child.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "ops": [
+          "openParty"
+        ],
+        "term": "safetyAgreement"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "openParty",
+          "viewer": "account:security-roles-booking-0",
+          "decision": "10e4eb790c75001d6236ab8129faf02b5cdf8d650f81160c0384c84bb6658396",
+          "witness": "96c2d2db783edc5bc6a0f05d5d0dc420cbe92548453973a3216958f2aa95e474",
+          "candidate": "invariant parties.openParty only (.safetyAgreement != null)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "017",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the booking desk and company owner may change the allergy preparation label; presenters and clients cannot.",
+      "match": {
+        "notModeled": "No current allergyPrep authority finding. The updateShow N_EDIT_AFTER_APPROVAL note concerns venuePhotos, which is not the calibrated field."
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "reason": "No current allergyPrep authority finding. The updateShow N_EDIT_AFTER_APPROVAL note concerns venuePhotos, which is not the calibrated field."
+    },
+    {
+      "wave": 33,
+      "lane": "017",
+      "finding": "F3",
+      "inherited": null,
+      "calibration": "Each party must have Review allergy notes when any allergy notes have been written, and No allergy notes recorded when there are none.",
+      "match": {
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ],
+        "ops": [
+          "setAllergyPrep"
+        ],
+        "term": "allergyPrep",
+        "truth": {
+          "allergyPrep": "No allergy notes recorded"
+        },
+        "notNull": [
+          "allergyNotes"
+        ]
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 1,
+            "file": "$derived/label-consistency/f22e7502e5583fea2c9fe5b489146a86bd2e24f39ed6ae06284263a719dbf29b/schema.q",
+            "line": 136
+          },
+          "message": "parties.always: derived candidate always only (.allergyPrep = ('Review allergy notes' if .allergyNotes != null else 'No allergy notes recorded')); a replayed violation needs a specification decision"
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "017",
+      "finding": "F4",
+      "inherited": null,
+      "calibration": "Parties without allergy notes must receive No allergy notes recorded, updated whenever their allergy notes change.",
+      "match": {
+        "notModeled": "The current label-consistency candidate uses allergyNotes != null and agrees with the empty-string bug; it does not ask whether blank notes count as absent."
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "reason": "The current label-consistency candidate uses allergyNotes != null and agrees with the empty-string bug; it does not ask whether blank notes count as absent."
+    },
+    {
+      "wave": 33,
+      "lane": "018",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "Only the lead arborist can approve treating trees inside a wood quarantine zone, recording the forestry permit and the extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED",
+          "N_APPROVAL_PATH",
+          "N_DERIVED_WRITE_AUTHORITY"
+        ],
+        "ops": [
+          "addTree"
+        ]
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/schema.q/trees/inQuarantine/update/bd2ffb3ea18852b83711745b334791b92d5cdf827ccfa41160b50ed58a9ef250",
+            "line": 185
+          },
+          "message": "trees.inQuarantine update: derived candidate update only old.approved != true or next.approved != true; a replayed violation needs a specification decision"
+        },
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/sibling-approval/a3c0624aa29470a0bfc8714466bfd6c63cfe520144c39d60c7e7377f890de337/schema.q",
+            "line": 170
+          },
+          "message": "trees.state update: inferred effect prerequisite (.state != 'injected' or (not .inQuarantine or .approved)); judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision"
+        },
+        {
+          "code": "N_DERIVED_WRITE_AUTHORITY",
+          "site": {
+            "col": 3,
+            "file": "$derived/sibling-approval/641c310da803124c137679d6569fafa614156150f6e9fb0a48c3cba9f48b4ae3/schema.q",
+            "line": 196
+          },
+          "message": "trees.state update: inferred effect prerequisite (.state != 'retreated' or (not .inQuarantine or .approved)); judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision"
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "019",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the coordinator may add, change or clear a move\u2019s quoted price; the company owner cannot.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "bookMove"
+        ],
+        "term": "priceCents",
+        "viewerRole": "owner",
+        "notNull": [
+          "priceCents"
+        ]
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 86
+          },
+          "message": "bookMove: moves.balanceCents,priceCents can be supplied at insert/upsert without the edit restriction of setPrice: exists roles[viewer, role = 'coordinator'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'handler']); creation admission: (exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'owner']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator'])"
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "025",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "A candidate who fails may retest within 30 days at half price.",
+      "match": {
+        "codes": [
+          "N_EVENT_TIME_ANCHOR"
+        ],
+        "ops": [
+          "bookExam"
+        ],
+        "term": "scheduledAt"
+      },
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_EVENT_TIME_ANCHOR",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 138
+          },
+          "message": "bookPilotAssessment: the guard uses now against pilotAssessments.completedAt, while pilotAssessments.scheduledAt stores caller event time scheduledAt; should that event time satisfy the window instead? Observed guard: (now <= (pilotAssessments[(progress[candidate]).latest]) ! else NOT_FOUND.completedAt + 2592000000)"
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "029",
+      "finding": "F2",
+      "inherited": "medium",
+      "calibration": "A weather-delayed move may be rescheduled within 60 days of its booked date.",
+      "match": {
+        "codes": [
+          "N_MOVABLE_TIME_ANCHOR"
+        ],
+        "ops": [
+          "reschedule"
+        ],
+        "term": "scheduledAt"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_MOVABLE_TIME_ANCHOR",
+          "operation": "reschedule",
+          "viewer": "account:security-roles-office-0",
+          "decision": "46b6a799376443d2fba2a55d3af9349561bbac4498c572e2d9b53ba89c621733",
+          "witness": "ac869d04dde37ea06979e25a1bea84d4a81d7f862f85cfe8dca1d97fac553f45",
+          "candidate": "invariant moves.scheduledAt reschedule only deny",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "033",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The estimator opens each job with before photos of every chip and rust stain; v2 keeps photo requirements unchanged.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "openJob"
+        ],
+        "term": "jobPhotos"
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "operation": "openJob",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "0a127ad8516bf30ea712b4e9eb8f48ddcad26d92ab7f01dfcb60fff19928b6bf",
+          "witness": "d21a8d614dbb36faa90e26b721b6925182815e6990c2be5416984eb67f38a84f",
+          "candidate": "invariant jobs.openJob only (count(jobPhotos[job = .id]) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "033",
+      "finding": "F2",
+      "inherited": null,
+      "calibration": "Only the estimator may add, change or remove a quoted price; customers and crews cannot.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT",
+          "N_RELEASE_CREATE_AUTHORITY"
+        ],
+        "ops": [
+          "openJob"
+        ],
+        "term": "priceCents",
+        "viewerRole": "crew",
+        "notNull": [
+          "priceCents"
+        ]
+      },
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openJob",
+          "viewer": "account:security-roles-crew-1",
+          "decision": "ff830855e097e334a14da56e59e2306696a472bd78a34cec23c8e222b51be11d",
+          "witness": "327cdb9254e819ce656f591fac8b3b3f3185f7071cf183e267a6c20e8b57602c",
+          "candidate": "invariant jobs.priceCents write only ((exists roles[viewer, role = 'owner']) and allow)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 33,
+      "lane": "033",
+      "finding": "F3",
+      "inherited": null,
+      "calibration": "The customer accepts the quote within 14 days; v2 permits saving a job before its price is quoted, while keeping quote acceptance unchanged.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED",
+          "N_APPROVAL_PATH",
+          "N_DERIVED_WRITE_AUTHORITY"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ],
+        "term": "priceCents",
+        "truth": {
+          "priceCents": null
+        }
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 33,
+      "lane": "036",
+      "finding": "F1",
+      "inherited": "medium",
+      "calibration": "The design must be approved at least 60 days before the team's ring ceremony or the order is cancelled with the deposit kept.",
+      "match": {
+        "codes": [
+          "N_SWEEP_ONLY_DEADLINE",
+          "N_TIME_TRANSITION",
+          "N_TRANSITION_BYPASS"
+        ],
+        "term": "ceremonyAt"
+      },
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    }
+  ],
+  "summary": {
+    "30": {
+      "total": 14,
+      "visible": 11,
+      "categories": {
+        "witnessed question on default verdict": 10,
+        "nothing": 2,
+        "advisory only": 1,
+        "gated with witness": 1
+      }
+    },
+    "31": {
+      "total": 16,
+      "visible": 12,
+      "categories": {
+        "witnessed question on default verdict": 11,
+        "nothing": 3,
+        "advisory only": 1,
+        "gated with witness": 1
+      }
+    },
+    "32": {
+      "total": 8,
+      "visible": 6,
+      "categories": {
+        "witnessed question on default verdict": 6,
+        "advisory only": 1,
+        "nothing": 1
+      }
+    },
+    "33": {
+      "total": 15,
+      "visible": 6,
+      "categories": {
+        "witnessed question on default verdict": 6,
+        "nothing": 5,
+        "advisory only": 4
+      }
+    }
+  }
+}

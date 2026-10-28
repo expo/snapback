@@ -1,0 +1,28 @@
+{
+  "base": "23272b660cc8b47b03348b0496207db10f2059b3",
+  "diffSha256": "c71074cc49de01f024dda23ec9d6184ee3f389f2e2236dd81e43bac2f0c8abdb",
+  "promptSha256": "ca2a8a4f061949662a53ec86cdf585ed58fd87e1d2728bd14b0e3292e6ab3abf",
+  "files": {
+    "llp/3000.011.003.000-offline-ready-application-starters.rfc.md": "2f5613afcc336eece617834c6430b7c7bc98a13ee72f369552007ae5609eb630",
+    "snapback4/JOURNAL.md": "55ecb25e05144c47a28849ba1bb735d505b8fc25dd07ae9b059203e07ff931a4",
+    "snapback4/crates/snapback4/src/verbs/init.rs": "144cee9266dac82d43201aac6c1ec04d87abba0ab6235df151ae843bc8703e7a",
+    "snapback4/crates/snapback4/src/verbs/init/social/README.md": "e0f23f317d98cb13f93211f6640fc2d344da6edc3844bc2329be32dbb4944fe7",
+    "snapback4/crates/snapback4/src/verbs/init/starter/expo/README.home.md": "5374678044612120a296ed3d2c7d7958472521cc04579d78205bf63f05c6a1ff",
+    "snapback4/crates/snapback4/src/verbs/init/starter/expo/README.md": "91732e02bf718867c0f9729100c473390bd2f0fba3d08e5dd531f08cb34cf5ed",
+    "snapback4/packages/snapback4-darwin-arm64/THIRD-PARTY-NOTICES": "5d1fd2aa409a2d71799b862f805de2051361d3dcf6b6aed1b98dd5800f2ab9cf",
+    "snapback4/packages/snapback4-linux-x64/THIRD-PARTY-NOTICES": "949f08944dd9fdccd4c6b1a05aa4bcc30a17142bff7661c058bfe8e5fa412c48",
+    "snapback4/packages/snapback4/CHANGELOG.md": "dceb9e446a499117b1c4a49a76a33fbdcb2c032def9f99bca7fd99ba9fdf4864",
+    "snapback4/crates/snapback4/src/verbs/init/expo_toolchain.rs": "174a84bf86d01129553e41b857f95b0dfda34c9cb5fbc9218ac4614b416eaae1",
+    "snapback4/crates/snapback4/src/verbs/init/toolchain/deepmerge/LICENSE": "6cfc4687cb2f2d86f4a77e6b526290d3878e5e512f3fec2f4cb36a9cb36f798b",
+    "snapback4/crates/snapback4/src/verbs/init/toolchain/deepmerge/README.md": "bf8d48170b6bd7680784b9dc110cc75f169fd6e754599f0feb69afda52ef6b80",
+    "snapback4/crates/snapback4/src/verbs/init/toolchain/deepmerge/index.cjs": "4bb437b3e6973433d5fc793c01fbc0a2a771050eea27f33450af1c1145d00dfd",
+    "snapback4/crates/snapback4/src/verbs/init/toolchain/deepmerge/index.d.ts": "146ba4b99c5feb82663e17a671bf9f53bb39c704cd76345d6c5a801c26372f44",
+    "snapback4/crates/snapback4/src/verbs/init/toolchain/deepmerge/package.json": "8f76dc966aedab6a8d910baa9836a178e34daa16a95d3345f899f816c6cbce41",
+    "snapback4/packages/snapback4/test/expo-toolchain.test.mjs": "5e4ce9152760fe7648e0087786618a6b0a06686a2d3b9e5cc66d414597b3526f"
+  },
+  "models": [
+    "muse-spark-1.3-contributor/high",
+    "fresh codex gpt-6.1-sol/high"
+  ],
+  "scope": "Fresh repair-only review; no prior review transcripts; tests run separately."
+}

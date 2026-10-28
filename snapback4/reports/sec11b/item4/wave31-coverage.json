@@ -1,0 +1,860 @@
+{
+  "calibrationSha256": "2b28a5a6fca9a7f8c09b9711a0df7fcd0fd2b4f343647b02e7d1786fd91bea5f",
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+  "assessments": [
+    {
+      "wave": 31,
+      "lane": "002",
+      "finding": "F2",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openFitting"
+        ],
+        "term": "referralScan"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 60
+            },
+            "message": "openFitting: fittings.referralScan can be supplied at insert/upsert without the edit restriction of setReferralScan: exists roles[viewer, role = 'frontdesk'] and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']); creation admission: (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager'])"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 60
+            },
+            "message": "openFitting: fittings.referralScan can be supplied at insert/upsert without the edit restriction of setReferralScan: exists roles[viewer, role = 'frontdesk'] and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']); creation admission: (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager'])"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "004",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "privateDetail"
+        ],
+        "term": "careNeeds",
+        "viewerRole": "coordinator",
+        "assignment": true
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "privateDetail",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "329c9cd71523a4bd49c84666b86aa717efe0ca9d90c779e9ce99130177f97cad",
+            "witness": "d4f5c572375124d9100b9ea4517ce557937d6ce741909535b9e510f8f519ee28",
+            "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "privateDetail",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "329c9cd71523a4bd49c84666b86aa717efe0ca9d90c779e9ce99130177f97cad",
+            "witness": "d4f5c572375124d9100b9ea4517ce557937d6ce741909535b9e510f8f519ee28",
+            "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "006",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F2",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS",
+          "N_EDIT_AFTER_APPROVAL"
+        ],
+        "ops": [
+          "cancelHighWater"
+        ],
+        "oldValues": [
+          "equipped"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "logTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.trip can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.canSwim can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 138
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 141
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 159
+            },
+            "message": "cancelHighWater: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 174
+            },
+            "message": "refundTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "logTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.trip can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.canSwim can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 138
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 141
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 159
+            },
+            "message": "cancelHighWater: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 174
+            },
+            "message": "refundTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ",
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "project",
+          "board"
+        ],
+        "term": "clientPhone",
+        "viewerRole": "lead"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "board",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "084ee6247ae990894d5966b6d0d6224d752d5df7cb878f6422933c480a8bf434",
+            "witness": "cc2a491b82ce739eb0988a7885b2e5c0d50c442e5eb42ff595aa882cab14f564",
+            "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "board",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "084ee6247ae990894d5966b6d0d6224d752d5df7cb878f6422933c480a8bf434",
+            "witness": "cc2a491b82ce739eb0988a7885b2e5c0d50c442e5eb42ff595aa882cab14f564",
+            "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F3",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "setEntrancePhoto"
+        ],
+        "term": "entrancePhoto",
+        "effect": "update"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F4",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openProject"
+        ],
+        "term": "entrancePhoto"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 91
+            },
+            "message": "openProject: projects.entrancePhoto can be supplied at insert/upsert without the edit restriction of setEntrancePhoto: exists roles[viewer, role = 'lead'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']); creation admission: (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'])"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 91
+            },
+            "message": "openProject: projects.entrancePhoto can be supplied at insert/upsert without the edit restriction of setEntrancePhoto: exists roles[viewer, role = 'lead'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']); creation admission: (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'])"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "018",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "826b49235c545b199e8e8d460e3920b153dae039b4e559afaa521d4da0997971",
+            "witness": "02c4eb8dbe4264e4e0629970ad77f91b9bb7c898e1da3701fe6b9d1acb3e86f9",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "826b49235c545b199e8e8d460e3920b153dae039b4e559afaa521d4da0997971",
+            "witness": "02c4eb8dbe4264e4e0629970ad77f91b9bb7c898e1da3701fe6b9d1acb3e86f9",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "019",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openMove"
+        ],
+        "term": "price"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "openMove",
+            "viewer": "account:security-roles-owner-1",
+            "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+            "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+            "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "openMove",
+            "viewer": "account:security-roles-owner-1",
+            "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+            "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+            "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "9f5d3d54f9612e6225a96564ceda061f0d35c49beea36031022eedd4bee40b6a",
+            "witness": "bad986ab484e49efe6c8d0d01692bb7d2b8be5587a82c1132360f734ca270ee8",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "9f5d3d54f9612e6225a96564ceda061f0d35c49beea36031022eedd4bee40b6a",
+            "witness": "bad986ab484e49efe6c8d0d01692bb7d2b8be5587a82c1132360f734ca270ee8",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F2",
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "073ff1d84a9ffb7d0bf5a78df8b3ebe8fbf14785464c73342973505a345c0add",
+            "witness": "75092b01f80acb290c0576341ea9a8827369e0ce06f377378824c6b6b47ead4f",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "073ff1d84a9ffb7d0bf5a78df8b3ebe8fbf14785464c73342973505a345c0add",
+            "witness": "75092b01f80acb290c0576341ea9a8827369e0ce06f377378824c6b6b47ead4f",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "030",
+      "finding": "F2",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ],
+        "viewerRole": "engineer",
+        "oldTruth": {
+          "status": "measured"
+        },
+        "truth": {
+          "status": "reported"
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TRANSITION_BYPASS",
+            "operation": "publishReport",
+            "viewer": "account:security-roles-engineer-0",
+            "decision": "659781d2dccefcef431e82202580e29adde0499151fbbe3d94346b55d3628b38",
+            "witness": "78411a77d30fc62a64904706492a1e19570aacbd3ec7ed4a75fac5b40909ae05",
+            "candidate": "question: studies.status: publishReport can bypass sibling markReviewed's measured -> reviewed step; must reported require reviewed?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+            "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+            "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F2",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "49b59367c234fad9a772de6f4302921d7dd7f4812ac5dcc6fa61943ad87cdd1a",
+            "witness": "8fc5742f1a91d025c881437abbbd4a89c22ddc6cc58bf1640447dd80b42d4e68",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "49b59367c234fad9a772de6f4302921d7dd7f4812ac5dcc6fa61943ad87cdd1a",
+            "witness": "8fc5742f1a91d025c881437abbbd4a89c22ddc6cc58bf1640447dd80b42d4e68",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "035",
+      "finding": "F1",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "advanceStage"
+        ],
+        "viewerRole": "cleaner",
+        "oldTruth": {
+          "stage": "inspection"
+        },
+        "truth": {
+          "stage": "finished"
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TRANSITION_BYPASS",
+            "operation": "advanceStage",
+            "viewer": "account:security-roles-cleaner-0",
+            "decision": "fee38387c852f23a130a293acce31f2e2474dfbe5002fe7acf43a80c22f48626",
+            "witness": "2a15dc83219c00c087209123b06489e020e5a58de85d6f64617175e8cb3ce35a",
+            "candidate": "question: cleaningOrders.stage: advanceStage accepts a caller-selected stage; sibling markReady requires finished; must intermediate declared values have explicit transitions?",
+            "gated": false
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "before": {
+      "advisory only": 4,
+      "witnessed question on default verdict": 7,
+      "nothing": 4,
+      "gated with witness": 1
+    },
+    "after": {
+      "advisory only": 4,
+      "witnessed question on default verdict": 9,
+      "nothing": 2,
+      "gated with witness": 1
+    }
+  }
+}

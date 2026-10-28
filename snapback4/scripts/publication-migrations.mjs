@@ -1,6 +1,7 @@
 // @ref LLP 3000.000.000.002#5-evidence — execute the installed guide's persistent production lifecycle verbatim.
 import assert from "node:assert/strict";
 import { proveRollInstalled } from "./publication-roll.mjs";
+import { proveREL3 } from "./publication-rel3.mjs";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -35,6 +36,7 @@ export async function proveMigrations(client, platform, directory) {
     await run(process.execPath,["day-two-production.mjs"]);
     await run(process.execPath,["day-two-production.mjs"]);
     const roll=await proveRollInstalled(cwd,binary,run);
-    return {roll,status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
+    const rel3=await proveREL3(cwd);
+    return {roll,rel3,status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
   } finally { rmSync(cwd,{recursive:true,force:true}); }
 }

@@ -53,6 +53,11 @@ impl SourceMap {
         self.expressions.insert(expr.site().to_string(), (expr.clone(), text, grouped, first.site.clone()));
     }
 
+    pub(crate) fn expression_source(&self, expr:&Expr)->Option<(&crate::Site,&str)> {
+        let (syntax,text,_,start)=self.expressions.get(&expr.site().to_string())?;
+        (syntax==expr).then_some((start,text.as_str()))
+    }
+
     pub(crate) fn get(&self, expr: &Expr) -> Option<(String, bool)> {
         let (syntax, text, grouped, _) = self.expressions.get(&expr.site().to_string())?;
         // A planner may reuse a site while changing the expression.

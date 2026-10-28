@@ -23,9 +23,10 @@ impl AdoptionReport {
     // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — current dormant storage is counted by unit; samples never mix units.
     pub fn dormant(items: &[super::DormantItem]) -> String {
         let mut counts = [0u64; 3];
+        let mut preimages=0u64;
         let mut samples = std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
         for item in items {
-            if item.kind=="backfill" {continue;}
+            if item.kind=="backfill" {preimages+=item.rows;continue;}
             let (slot, label) = match item.kind.as_str() {
                 "column" => (1, format!("cells {}", item.path)),
                 "index" => (2, format!("entries {}", item.path.split('.').next().unwrap_or(&item.path))),
@@ -35,7 +36,8 @@ impl AdoptionReport {
             if !item.sample_ids.is_empty() { samples.entry(label).or_default().extend(item.sample_ids.iter().cloned()); }
         }
         let labelled = samples.into_iter().map(|(label, ids)| format!("{label} [{}]", ids.into_iter().take(5).collect::<Vec<_>>().join(", "))).collect::<Vec<_>>();
-        format!("{} {}, {} {}, {} index {} dormant{}", counts[0], if counts[0] == 1 { "row" } else { "rows" }, counts[1], if counts[1] == 1 { "cell" } else { "cells" }, counts[2], if counts[2] == 1 { "entry" } else { "entries" },
+        format!("{} {}, {} {}, {} index {} dormant{}{}", counts[0], if counts[0] == 1 { "row" } else { "rows" }, counts[1], if counts[1] == 1 { "cell" } else { "cells" }, counts[2], if counts[2] == 1 { "entry" } else { "entries" },
+            if preimages==0{String::new()}else{format!("; {preimages} preimages retained")},
             if labelled.is_empty() { String::new() } else { format!("; samples: {}", labelled.join("; ")) })
     }
     pub fn compact(&self)->String {

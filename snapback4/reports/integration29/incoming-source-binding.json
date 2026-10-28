@@ -1,0 +1,33 @@
+{
+  "merge": "f1a4576202c4a32b8601aa9d698d0614749257da",
+  "incoming": "6d658dbc40c35a2e6ba94337c997a70823786e8b",
+  "base": "aeb6fd4c19d88d6c9d0028149764598d99365037",
+  "files": {
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_grant_tests.rs": "2d8b8e49e7e9f10af40456532bf78cb53538aa61dcb436a083bb32bf4d4cc36c",
+    "snapback4/crates/snapback4/tests/store_handle_census.rs": "f75d4ef2b52f4eae45bffc354d126b2d8dcc249e0a6e655e74059101f8bfe84d",
+    "snapback4/packages/snapback4/test/retained-history.test.mjs": "46bce8f1557d17bb05e09a8437e6ad00b6ad4ab71638ed443c31eaa3fefcbdd0"
+  },
+  "productionDelta": [],
+  "resolutions": "Journal concatenated; precise-capture predicate kept integration side; no-progress assertion retained; both independent malformed/capture regressions retained, incoming malformed case now asserts fail-closed panic instead of accepting partial bindings. No security-seam resolution.",
+  "checks": {
+    "census": {
+      "passed": 9,
+      "failed": 0
+    },
+    "retainedHistory": {
+      "passed": 78,
+      "failed": 0
+    },
+    "realPG16": {
+      "passed": 1,
+      "failed": 0,
+      "closedNs": 1107015430,
+      "maxCandidateWaitNs": 1055852,
+      "privateClusterStopped": true
+    },
+    "clockModel": {
+      "passed": 10,
+      "failed": 0
+    }
+  }
+}

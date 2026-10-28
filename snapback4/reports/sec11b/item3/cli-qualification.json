@@ -1,0 +1,45 @@
+{
+  "receipts": [
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item3-cli-unit.log",
+      "sha256": "910b8132f3a5ef98d0e8ecd8c955b8db6701522baaca00cc80ac85c34e682f81",
+      "targets": 1,
+      "passed": 55,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item3-cli-integration.log",
+      "sha256": "4bef59417c2015cfdac2149f932a78791a5d6a6992d08f6f60cd19523bc46cee",
+      "targets": 5,
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item3-format-unit.log",
+      "sha256": "2aa0e39a72af0d33fd9891e4c7aa5af0538bde9ecaa7f39fa4789d7cf0066cfa",
+      "targets": 1,
+      "passed": 55,
+      "failed": 1,
+      "ignored": 0
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item3-format-reviewed-retry.log",
+      "sha256": "ac3e80dfeb0b1060c74a69985106bf28ec6cb7b45e880886383a1073ed2bb08d",
+      "targets": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item3-format-partial-qualified.log",
+      "sha256": "f1d4b498e5d953b9799d3b4b3065a67da13e0e0071a576cfe2660dafc5011b1e",
+      "targets": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "scope": "Original assignment unit/integration runs pass. Formatting rerun:55 pass and1 file-not-found failure; same exact test passes isolated304.24s with no source change. A concurrent test-binary rebuild replaced the executable while the evidence recorder fingerprints current_exe, the likely cause; original failed receipt retained. No concurrent rebuild during retry. Partial renderer replay is a separate468-schema check, not final800 qualification."
+}

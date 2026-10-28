@@ -2,7 +2,6 @@
 //! statement list that expressions may hoist temporaries into, reads that
 //! choose their index, writes that read their target once, and shapes that
 //! become bounded loops. Refusals carry verified repairs or prose guidance.
-
 use super::catalog::{Catalog, TableInfo};
 use crate::ast::{self, Expr as A, Literal, ObjectField, ProgramKind, ReadExpr, ShapeField, Stmt as S, WriteOp};
 use crate::diag::{Diagnostic, Fallible, Site, ambiguous, name_rewrite, placement, type_error, unbound_loop, unknown, unsupported};
@@ -11,8 +10,8 @@ use crate::types::Ty;
 use snapback4_core::ir::{self, BinaryOp, Bound, Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Merge, MergeLane, Order, Program, Read, Recurse, Scan, SortKey, Stmt, UnaryOp};
 use snapback4_core::value::Value;
 use std::collections::BTreeMap;
-
 mod control;
+mod result_aliases;
 mod read_diagnostics;
 mod job_reads;
 mod pure_calls;
@@ -177,7 +176,6 @@ struct LoopTransfers {
     breaks: Vec<BTreeMap<String, Binding>>,
     continues: Vec<BTreeMap<String, Binding>>,
 }
-
 const MAX_EXPANSION_DEPTH: u32 = 8;
 const MENTION_MAX: u32 = 64;
 
@@ -1019,15 +1017,12 @@ impl<'a> Binder<'a> {
     }
 
     /// Build the object of a shape over a focal row variable.
-    fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        self.shape_object_filtered(row_var, row_ty, fields, site, out, None)
-    }
-
     fn shape_object_filtered(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body, domain: Option<&A>) -> Fallible<(Expr, Ty)> {
         objects::explicit_fields(fields.iter().filter_map(|f| match f {
             ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
             _ => None,
         }))?;
+        self.check_result_aliases(&row_ty,fields)?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         // @ref LLP 3000.007#10 — the focal row is a lexical snapshot too;

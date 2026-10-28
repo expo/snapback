@@ -1,0 +1,136 @@
+{
+  "run": {
+    "generated": 2000,
+    "compiled": 2000,
+    "by_oracle": {
+      "meter": {
+        "attempted": 53329,
+        "passed": 6831,
+        "unsupported": {
+          "examined-opening-no-position": 1535,
+          "heap_bytes-unwind-no-continuation": 14065,
+          "mutation-not-a-read": 369,
+          "output_bytes-refusal-no-continuation": 1388,
+          "return-not-pageable": 4202,
+          "rule_probes-opening-no-position": 163,
+          "steps-refusal-no-continuation": 21804,
+          "steps-unwind-no-continuation": 2729,
+          "timed-search-no-continuation": 36,
+          "uncut-refusal": 207
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "repeat": {
+        "attempted": 2000,
+        "passed": 2000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "rewrite-commute": {
+        "attempted": 2000,
+        "passed": 303,
+        "unsupported": {
+          "rewrite-not-applicable": 1697
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 157
+      },
+      "rewrite-declarations": {
+        "attempted": 2000,
+        "passed": 2000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "rewrite-identity": {
+        "attempted": 2000,
+        "passed": 276,
+        "unsupported": {
+          "rewrite-not-applicable": 1724
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 276
+      },
+      "rewrite-lazy-and": {
+        "attempted": 2000,
+        "passed": 112,
+        "unsupported": {
+          "rewrite-not-applicable": 1888
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 112
+      },
+      "rewrite-lazy-or": {
+        "attempted": 2000,
+        "passed": 132,
+        "unsupported": {
+          "rewrite-not-applicable": 1868
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 132
+      },
+      "rewrite-let": {
+        "attempted": 2000,
+        "passed": 2000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 2000
+      },
+      "timed-search-future-absence": {
+        "attempted": 36,
+        "passed": 36,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      }
+    },
+    "runtime_refused_unexpected": {},
+    "seconds": 24.467915756,
+    "seed": 0,
+    "cases": 2000
+  },
+  "lean": {
+    "generated": 2000,
+    "compiled": 2000,
+    "by_oracle": {
+      "lean": {
+        "attempted": 2000,
+        "passed": 1658,
+        "unsupported": {
+          "call-max": 36,
+          "call-min": 21,
+          "call-sum": 26,
+          "index-computed-or-words": 46,
+          "loop": 54,
+          "now": 7,
+          "page-compound-where-branches": 1,
+          "page-static-key-expression": 4,
+          "prelude-now": 18,
+          "shape": 111
+        },
+        "disagreeing": 18,
+        "signatures": {
+          "lean--continuation-next--next~no-next": 5,
+          "lean--next--next~no-next": 8,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 5
+        },
+        "meter_fields_omitted": 0
+      }
+    },
+    "runtime_refused_unexpected": {},
+    "seconds": 11.754174647,
+    "seed": 0,
+    "cases": 2000
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "originalUnitBinary": {
+    "passed": 143,
+    "failed": 1,
+    "seconds": 168.87,
+    "failure": "future_payment_can_be_replayed_against_clock_intent; stopped early (time)"
+  },
+  "exactRetry": {
+    "passed": 1,
+    "failed": 0,
+    "seconds": 1.29,
+    "sourceUnchanged": true
+  },
+  "sourceMatchesCommit": "1f9b2610d3",
+  "sourceSha256": "a0f97e3f91570a9c7d2703939d1cb88578c3ffaf72396ee84f72efbddc32bf0a",
+  "scope": "Original unit receipt remains FAIL; exact named retry resolves its wall-deadline failure. Not a claim that the still-running whole language command completed."
+}

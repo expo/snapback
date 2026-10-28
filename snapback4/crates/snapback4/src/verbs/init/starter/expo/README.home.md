@@ -49,3 +49,8 @@ TOOLCHAIN
 - Shapes most apps need (roles, two parties, booking, schedules):
   `npx snapback4 guide recipes`; one screen of forms: `guide cheatsheet`.
 - A complete multi-screen example: `npx snapback4 init <dir> --expo --template chat`.
+
+New Expo starters keep a patched configuration merger in `toolchain/deepmerge`,
+selected by a local dependency override. Commit that directory with the app.
+Existing apps keep their files; `snapback4 init --expo --skip-existing` can add
+the patch, and refuses a conflicting override or modified patch file.

@@ -243,12 +243,22 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let test=release_notice(project,bound,sources,options);
     let advice=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count();
     let witnessed=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count();
-    notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)",enforced_text(&report,bound).replacen("check:","security:",1)));
-    if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&if review{format!("\n  {test}")}else{format!("; {test}")});}
-    notice.push('\n');
+    let mut summary=format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)",enforced_text(&report,bound).replacen("check:","security:",1));
+    let visible_test=review||test.contains("run `snapback4 test")||test.contains("FAILED");
+    if visible_test {summary.push_str(&if review{format!("\n  {test}")}else{format!("; {test}")});}
+    summary.push('\n');
+    let start=notice.len();
+    append_deploy_language_summary(&mut notice,&summary,&scoped_dispositions,review);
+    if notice.len()==start&&visible_test {notice.push_str(&format!("  {test}\n"));}
     let gates=dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count();
     let verdict=format!("security FIX {authored_fixes}; {gates} gates; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review");
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
+}
+// @ref LLP 3000.036.004.003#assignment-questions — the new factual card replaces positive feature counts only; verdicts, failures and test status stay visible.
+// @ref LLP 3000.036.004.004#transition-questions — committed transition cards share the new-tier presentation budget.
+pub(super) fn append_deploy_language_summary(notice:&mut String,summary:&str,dispositions:&[super::security_reviews::Disposition],review:bool){
+    let compact_question=dispositions.iter().any(|d|(d.code=="N_ASSIGNMENT_SCOPE"||d.code=="N_TRANSITION_BYPASS"&&d.witness.as_ref().is_some_and(|w|w["questionKind"]=="declared-transition"))&&!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some());
+    if review||!compact_question||dispositions.iter().any(|d|d.gated&&!d.acknowledged){notice.push_str(summary);}
 }
 fn age(timestamp:Option<i64>,now:i64)->String{
     timestamp.map(|t|format!("at {t} ms since Unix epoch, age {}s",now.saturating_sub(t).max(0)/1000)).unwrap_or_else(||"time/age unknown (legacy record)".into())

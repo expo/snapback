@@ -1,0 +1,21 @@
+{
+  "complete": true,
+  "initialCases": 56,
+  "initialPassed": 54,
+  "initialFailed": 2,
+  "initialLog": "toolchain-init-rust.log",
+  "originalExit": 101,
+  "focusedReruns": [
+    {
+      "name": "toolchain-init-overrides",
+      "exit": 0
+    },
+    {
+      "name": "toolchain-init-budget",
+      "exit": 0
+    }
+  ],
+  "currentUnitLog": "toolchain-init-unit.log",
+  "currentTenCaseLog": "toolchain-direct-node.log",
+  "meaning": "The original failed56-case receipt is retained. All54unchanged cases passed, including the full residency calibration. Two legitimate stale override/inventory expectations were updated without raising the30application-file ceiling, and both focused reruns pass. Current10-case product/custody tests and initializer unit subset pass on the final runtime code."
+}

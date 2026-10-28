@@ -1,0 +1,11 @@
+--- original/snapback/schema.q
++++ fixed/snapback/schema.q
+@@ -116,7 +116,7 @@
+ mutation publishReport(study: studies, body: text 1..5000, quoteAmount: money USD):
+   s = studies[study] ! else NOT_FOUND
+   require exists roles[principal = viewer, role = 'engineer'] or exists roles[principal = viewer, role = 'service_manager'] else NOT_AUTHOR
+-  require s.status = 'measured' or s.status = 'reviewed' else BAD_STATUS
++  require s.status = 'reviewed' else BAD_STATUS
+   require s.measuredAt != null else NOT_MEASURED
+   require quoteAmount >= 0 else BAD_QUOTE
+   late = now > s.measuredAt + 5d

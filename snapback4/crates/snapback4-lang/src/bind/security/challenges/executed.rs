@@ -107,9 +107,26 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
         }
     }}
     for inv in bound.invariants.iter().filter(|inv|!matches!(inv.target.as_str(),"read"|"always")&&inv.operation.as_ref().is_none_or(|op|op==&p.name)) {
+        let anchor_entries=inv.site.file.starts_with("$derived/sec13-anchor/").then(||std::sync::Arc::new(std::sync::Mutex::new(BTreeMap::<String,Option<Value>>::new())));
         for word in super::super::effects(inv) {
             let transition=super::super::derived::transition(inv);
-            let mut boundary=transition.map(|(bypass,prerequisite)|{
+            let mut boundary=if inv.site.file.starts_with("$derived/sec13-anchor/") {
+                let table=inv.table.clone();let column=inv.column.clone();let entries=anchor_entries.as_ref().unwrap().clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,_,_,_,_|{
+                    let column=column.as_ref()?;let row=next.or(old)?;let id=row.field("id").ok()?;
+                    let mut entries=entries.lock().expect("anchor entry snapshot");
+                    let entry=entries.entry(serde_json::to_string(id).ok()?).or_insert_with(||rows.get(&table).into_iter().flatten().find(|r|r.field("id").ok()==Some(id)).and_then(|r|r.field(column).ok()).cloned());
+                    let (Some(Value::Int(initial)),Value::Int(next))=(entry.as_ref(),next?.field(column).ok()?)else{return None;};
+                    Some(initial==next)
+                })))
+            }else if inv.site.file.starts_with("$derived/sec13-event/") {
+                let predicate=inv.syntax.clone();let schema=bound.schema.clone();let table=inv.table.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_,next,viewer,now,_,_|{
+                    let next=next?;let mut effective=rows.clone();let population=effective.entry(table.clone()).or_default();
+                    population.retain(|r|r.field("id").ok()!=next.field("id").ok());population.push(next.clone());
+                    super::super::concrete::evaluate(predicate.as_ref()?,next,&effective,&schema,viewer,&table,now)
+                })))
+            }else{transition.map(|(bypass,prerequisite)|{
                 let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let history=history.clone();let sibling=inv.site.file.contains("/sibling-approval/");
                 snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let (Some(old),Some(next))=(old,next)else{return None;};
@@ -136,7 +153,17 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     let old=old?;let row=if let Some(next)=next&&references.iter().any(|reference|next.field(reference).ok().is_some_and(|id|*id!=Value::Null&&old.field(reference).ok()!=Some(id))){next}else{old};
                     super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now)
                 })))
-            }else{None});
+            }else if inv.site.file.contains("/sec11-transition/"){
+                let inv=inv.clone();let schema=bound.schema.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,site|{
+                    super::super::derived::transition_question_judgment(&inv,old,next?,rows,&schema,viewer,now,site)
+                })))
+            }else if inv.site.file.contains("/sec11-approval-latest/")||inv.site.file.contains("/sec11-approval-path/"){
+                let inv=inv.clone();let schema=bound.schema.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{
+                    super::super::derived::approval_question_judgment(&inv,old,next?,rows,&schema,args,viewer,now,site)
+                })))
+            }else{None})};
             let mut concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
                 let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
                 snapback4_core::engine::fixture_trace::ConcretePredicate(std::sync::Arc::new(move |rows,row,viewer,now|{
@@ -192,6 +219,29 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
 fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
     if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){return contract.judge(observation.old.as_ref()?,after);}
     let Some(predicate)=&inv.syntax else{return observation.allowed;};
+    // @ref LLP 3000.036.004.004#transition-questions — a transient or expired edge cannot commission a transition question.
+    if inv.site.file.starts_with("$derived/sec11-transition/") {
+        let observed=observation.next.as_ref()?;let column=inv.column.as_ref()?;
+        let row=after.get(&inv.table)?.iter().find(|row|row.field("id").ok()==observed.field("id").ok())?;
+        if row.field(column).ok()!=observed.field(column).ok()||bound.schema.tables[&inv.table].expired(row,now){return None;}
+        return observation.allowed;
+    }
+    // @ref LLP 3000.036.004.001#sec13-required-evidence-and-time-anchors — initialization and same-value edits do not witness a moved anchor.
+    if inv.site.file.starts_with("$derived/sec13-anchor/") {
+        if observation.allowed!=Some(false){return observation.allowed;}
+        let column=inv.column.as_ref()?;
+        let (Value::Int(old),Value::Int(next))=(observation.old.as_ref()?.field(column).ok()?,observation.next.as_ref()?.field(column).ok()?)else{return None;};
+        let observed=observation.next.as_ref()?;
+        let committed=after.get(&inv.table)?.iter().find(|r|r.field("id").ok()==observed.field("id").ok())?;
+        if committed.field(column).ok()!=Some(&Value::Int(*next))||bound.schema.tables[&inv.table].expired(committed,now){return None;}
+        return (old!=next).then_some(false);
+    }
+    if inv.site.file.starts_with("$derived/sec13-event/") {
+        let next=observation.next.as_ref()?;let column=inv.column.as_ref()?;
+        let committed=after.get(&inv.table)?.iter().find(|r|r.field("id").ok()==next.field("id").ok())?;
+        if committed.field(column).ok()!=next.field(column).ok()||bound.schema.tables[&inv.table].expired(committed,now){return None;}
+        return observation.allowed;
+    }
     // @ref LLP 3000.036.004.001#question-candidates — absence questions require the observed image and predicate to survive commit.
     if inv.site.file.starts_with("$derived/sec11-absence/") {
         let observed=observation.next.as_ref()?;
@@ -671,3 +721,33 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
     let source="table docs:\n  approved: bool default true\n  read <- allow\n  online only\ntable routeLogs:\n  doc: docs\n  authorizationRouteUpdatedAt: time ?\n  read <- allow\n  delete <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved and exists routeLogs[doc = doc] where .authorizationRouteUpdatedAt != null else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs,route: routeLogs):\n  delete routeLogs[route]\n  return insert effects {doc}\n";
     let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=|table:&str,value:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&value).unwrap();engine.seed_at([("docs".into(),row("docs",serde_json::json!({"id":"d","approved":true}))),("routeLogs".into(),row("routeLogs",serde_json::json!({"id":"r","doc":"d","authorizationRouteUpdatedAt":123})))],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,replay_ids::context("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("route".into(),Value::Id("r".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(false)),"{observations:?}");
 }}
+
+#[cfg(test)]mod sec13_boundary_tests {
+ use super::*;
+ fn record(fields:&[(&str,Value)])->Value{Value::Row(fields.iter().map(|(k,v)|(k.to_string(),v.clone())).collect())}
+ fn judgment(source:&str,marker:&str,column:&str,rows:Vec<(String,Value)>,args:BTreeMap<String,Value>)->Vec<Option<bool>> {
+  let mut bound=crate::compile(&[("schema.q".into(),source.into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+  bound.invariants[0].site.file=format!("$derived/{marker}/test");bound.invariants[0].column=Some(column.into());
+  let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();engine.seed_at(rows,NOW).unwrap();
+  let p=&bound.programs[0].program;let trace=trace(&bound,p,&engine);
+  let outcome=engine.mutate(&p.name,None,Context::new("actor",args).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(outcome.state,snapback4_core::WriteState::Sent{..}));
+  let observations=trace.take();assert!(!observations.is_empty());let after=readback(&engine).unwrap();
+  observations.iter().filter(|o|o.site==bound.invariants[0].site.to_string()).map(|o|lifecycle_judgment(&bound,&bound.invariants[0],o,&observations,&after,"actor",NOW)).collect()
+ }
+ #[test]fn atomic_anchor_restoration_is_not_movement(){
+  let source="table tasks:\n  at: time\n  read <- allow\n  update <- allow\n  online only\nmutation edit(task: tasks, at: time):\n  t = tasks[task] ! else MISSING\n  update tasks[task] {at}\n  update tasks[task] {at: t.at}\n  return null\ninvariant tasks.edit only deny\n";
+  let rows=vec![("tasks".into(),record(&[("id",Value::Id("task".into())),("at",Value::Int(NOW))]))];let args=BTreeMap::from([("task".into(),Value::Id("task".into())),("at".into(),Value::Int(NOW+86_400_000))]);
+  assert!(judgment(source,"sec13-anchor","at",rows.clone(),args.clone()).iter().all(|v|*v!=Some(false)));
+  let moving=source.replace("  update tasks[task] {at: t.at}\n","");
+  assert!(judgment(&moving,"sec13-anchor","at",rows,args).contains(&Some(false)));
+ }
+ #[test]fn an_old_invalid_event_cannot_refute_an_admitted_repair(){
+  let source="table anchors:\n  at: time\n  read <- allow\n  online only\ntable events:\n  anchor: anchors\n  scheduledAt: time\n  read <- allow\n  update <- allow\n  online only\nmutation edit(event: events, scheduledAt: time):\n  e = events[event] ! else MISSING\n  a = anchors[e.anchor] ! else MISSING\n  require now <= a.at + 1d else CLOSED\n  require scheduledAt <= a.at + 1d else LATE\n  return update events[event] {scheduledAt}\ninvariant events.edit only not (now <= .anchor.at + 1d) or .scheduledAt <= .anchor.at + 1d\n";
+  let rows=vec![("anchors".into(),record(&[("id",Value::Id("anchor".into())),("at",Value::Int(NOW))])),("events".into(),record(&[("id",Value::Id("event".into())),("anchor",Value::Id("anchor".into())),("scheduledAt",Value::Int(NOW+2*86_400_000))]))];
+  let args=BTreeMap::from([("event".into(),Value::Id("event".into())),("scheduledAt".into(),Value::Int(NOW+86_400_000))]);
+  assert!(judgment(source,"sec13-event","scheduledAt",rows.clone(),args).iter().all(|v|*v!=Some(false)));
+  let unsafe_source=source.replace("  require scheduledAt <= a.at + 1d else LATE\n","");
+  let args=BTreeMap::from([("event".into(),Value::Id("event".into())),("scheduledAt".into(),Value::Int(NOW+2*86_400_000+1))]);
+  assert!(judgment(&unsafe_source,"sec13-event","scheduledAt",rows,args).contains(&Some(false)));
+ }
+}

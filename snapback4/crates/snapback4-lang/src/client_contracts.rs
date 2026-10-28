@@ -98,6 +98,25 @@ fn result(ty: &Ty, bound: &Bound) -> String {
     }
 }
 
+/// Property paths exposed to a frozen reader; this does not infer UI control flow.
+pub fn result_fields(ty: &Ty, bound: &Bound) -> BTreeMap<String,String> {
+    fn walk(ty:&Ty,bound:&Bound,prefix:&str,out:&mut BTreeMap<String,String>) {
+        let child=|name:&str|if prefix.is_empty(){name.to_owned()}else{format!("{prefix}.{name}")};
+        match ty {
+            Ty::Row(name)|Ty::WriteRow(name)=>if let Some(table)=bound.schema.public_projection().table(name) {
+                out.insert(child("id"),"id".into());
+                for (name,kind) in &table.columns {if !table.engine_field(name) {out.insert(child(name),format!("{kind:?};omittable={}",table.read_optional(name)));}}
+            },
+            Ty::Page(name,_)=>walk(&Ty::Row(name.clone()),bound,&format!("{prefix}[]"),out),
+            Ty::Collection(item,_)|Ty::List(item,_)=>walk(item,bound,&format!("{prefix}[]"),out),
+            Ty::Optional(item)|Ty::Omittable(item)=>{out.insert(format!("{prefix}?"),result(ty,bound));walk(item,bound,prefix,out);},
+            Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>for(name,ty)in fields{walk(ty,bound,&child(name),out);},
+            _=>{out.insert(prefix.into(),result(ty,bound));},
+        }
+    }
+    let mut out=BTreeMap::new();walk(ty,bound,"",&mut out);out
+}
+
 fn refusals(p: &BoundProgram) -> Vec<String> {
     fn walk(v: &serde_json::Value, out: &mut Vec<String>) {
         match v {
@@ -182,6 +201,15 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
         let action_change=action_result_change(old.schema.action_specs.get(name).and_then(|s|s.returns.as_ref()),new.schema.action_specs.get(name).and_then(|s|s.returns.as_ref()));
         let typed_change=result_change(&before.result,&after.result,old,new);
         let change=combine([action_change,typed_change],false);
+        let frozen=result_fields(&before.result,old);let served=result_fields(&after.result,new);
+        let aliases=new.result_aliases.get(name);
+        if change==ResultChange::Changed || aliases.is_some() {
+            let reads=frozen.keys().filter(|path|!path.ends_with('?')).cloned().collect::<Vec<_>>();
+            let missing=reads.iter().filter(|path|!served.contains_key(*path)).cloned().collect::<Vec<_>>();
+            let covered=aliases.into_iter().flat_map(|a|a.iter()).filter(|(alias,_)|reads.iter().any(|path|[alias.to_string(),format!("[].{alias}")].iter().any(|prefix|path==prefix||path.starts_with(&format!("{prefix}."))||path.starts_with(&format!("{prefix}[]")))&&served.contains_key(path))).map(|(alias,current)|format!("covered by alias {name}.{alias} = {current}")).collect::<Vec<_>>();
+            lines.push(format!("{prefix}: RESULT REVIEW: frozen result reads [{}]; missing fields [{}]{}",reads.join(", "),missing.join(", "),if covered.is_empty(){String::new()}else{format!("; {}",covered.join("; "))}));
+        }
+
         match change {
             ResultChange::Additive=>lines.push(format!("{prefix}: RESULT NOTE: result shape added fields while preserving prior fields and domains; old clients may ignore the additions")),
             ResultChange::Changed=>lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients")),

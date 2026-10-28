@@ -1,0 +1,9 @@
+{
+  "diffSha256": "cd693c0885e8db4a4e71086973be7cbfc651182327029b19526bcb248c2dc92c",
+  "promptSha256": "50ce6afd1e4ff7a8e6c4c82bd34d81626f7d766c6d0a552f9da3f3ab7219fe4e",
+  "scope": "Only stale initializer fixture expectations plus exact licensed dependency accounting; runtime source unchanged from round3.",
+  "files": {
+    "llp/3000.011.003.000-offline-ready-application-starters.rfc.md": "57d0d078030dc825738a5ef968f2014742def8d8c9f1afc20c40c51fe73bd768",
+    "snapback4/crates/snapback4/tests/init.rs": "23bbceab6810e128b47270aa7094ae2403d5d4834c4eec515a40f0d2bbb3ce8b"
+  }
+}

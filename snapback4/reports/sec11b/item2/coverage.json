@@ -1,0 +1,2800 @@
+{
+  "method": "Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.",
+  "assessments": [
+    {
+      "wave": 26,
+      "lane": "002",
+      "finding": "F1",
+      "pattern": "time-rule-misencoded",
+      "calibration": "orderGarment compares calendar month numbers (`month(now) - month(f.prescriptionDate) <= 6`, schema.q:94): an April prescription orders in late October. Real; no note; 0.4.40 test with clock intent 0 witnesses",
+      "match": {
+        "codes": [
+          "N_CALENDAR_DURATION"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_CALENDAR_DURATION",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 95
+            },
+            "message": "orderGarment: month() arithmetic retains the year but drops day-of-month precision; is this a month bucket or an exact anniversary window?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_CALENDAR_DURATION",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 95
+            },
+            "message": "orderGarment: month() arithmetic retains the year but drops day-of-month precision; is this a month bucket or an exact anniversary window?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "008",
+      "finding": "F1",
+      "pattern": "child-transition-ignores-parent-state",
+      "calibration": "advanceWall (schema.q:146-151) never checks jobs.status; crew plaster walls on an unaccepted estimate. Real; 0.4.40 test with one line: 10 witnesses",
+      "match": {
+        "ops": [
+          "advanceWall"
+        ],
+        "site": "/parent-state/",
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "advanceWall",
+            "viewer": "account:security-roles-crew-0",
+            "decision": "555f6b505e56116182aef5640f719c455978ed6f9db878a581e853b95d7b5523",
+            "witness": "06e1992fa2d68dffbb3f9d1cf11b914174fdcbb97956894e2a37bcbd8d3c40aa",
+            "candidate": "invariant walls.stage update only (.job.status = 'accepted' or .job.status = 'in_progress')",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+              "line": 151
+            },
+            "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+            "operation": "advanceWall"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "advanceWall",
+            "viewer": "account:security-roles-crew-0",
+            "decision": "555f6b505e56116182aef5640f719c455978ed6f9db878a581e853b95d7b5523",
+            "witness": "06e1992fa2d68dffbb3f9d1cf11b914174fdcbb97956894e2a37bcbd8d3c40aa",
+            "candidate": "invariant walls.stage update only (.job.status = 'accepted' or .job.status = 'in_progress')",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+              "line": 151
+            },
+            "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+            "operation": "advanceWall"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "008",
+      "finding": "F2",
+      "pattern": "parent-completion-ignores-children",
+      "calibration": "finishJob (schema.q:153-157) ignores wall stages, opening the 60-day free-repair window before any final coat. Convex 008 F4 is the same rule. Real; 0.4.40 test with one line: 1 witness",
+      "match": {
+        "ops": [
+          "finishJob"
+        ],
+        "site": "/child-stage/",
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "finishJob",
+            "viewer": "account:security-roles-crew-0",
+            "decision": "304d73a7c06bb396daf9ea01a8f83d8979a624d3f0eca02dfdc52540c5b96fcf",
+            "witness": "28deb67470121dcdedb2fbff79de87df0f5fd19b78d94016428b11100666d921",
+            "candidate": "invariant jobs.status update only (.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+              "line": 157
+            },
+            "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+            "operation": "finishJob"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "finishJob",
+            "viewer": "account:security-roles-crew-0",
+            "decision": "304d73a7c06bb396daf9ea01a8f83d8979a624d3f0eca02dfdc52540c5b96fcf",
+            "witness": "28deb67470121dcdedb2fbff79de87df0f5fd19b78d94016428b11100666d921",
+            "candidate": "invariant jobs.status update only (.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+              "line": 157
+            },
+            "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+            "operation": "finishJob"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "018",
+      "finding": "F1",
+      "pattern": "approval-sibling-path-bypass",
+      "calibration": "addScan requires approvals[visit] on a restricted herd (schema.q:180-181), addRescan (:184-191) does not; an ordinary scanner records a rescan without lead approval. Staff bypass -> M. 0.4.40: no note, test 0 in 7,230 (history reach)",
+      "match": {
+        "ops": [
+          "addRescan"
+        ],
+        "site": "/sibling-approval/",
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "addRescan",
+            "viewer": "account:security-roles-scanner-0",
+            "decision": "b6020d4d85e60dc6701f54a9974ef3b83b28f05473c814743490d6b29d0b2778",
+            "witness": "85a1ec2bf1a60084d21c402e88518b26d0b1abe6588619dec261e3748ac4a943",
+            "candidate": "invariant rescans.insert only (not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+              "line": 182
+            },
+            "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+            "operation": "addRescan"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "addRescan",
+            "viewer": "account:security-roles-scanner-0",
+            "decision": "b6020d4d85e60dc6701f54a9974ef3b83b28f05473c814743490d6b29d0b2778",
+            "witness": "85a1ec2bf1a60084d21c402e88518b26d0b1abe6588619dec261e3748ac4a943",
+            "candidate": "invariant rescans.insert only (not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+              "line": 182
+            },
+            "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+            "operation": "addRescan"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "020",
+      "finding": "F1",
+      "pattern": "approval-not-enforced",
+      "calibration": "advanceStatus (schema.q:104-109) ignores routeApproved for crossesPrivateLand; approveRoute only sets the flag. Handler bypass -> M. 0.4.40 N_APPROVAL_NOT_ENFORCED fires at :108 (advice); one line + test: 127 witnesses",
+      "match": {
+        "ops": [
+          "advanceStatus"
+        ],
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "truth": {
+          "crossesPrivateLand": true
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "treks.routeApproved: a modeled advanceStatus effect can proceed without reading this recorded approval"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "treks.routeApproved: a modeled advanceStatus effect can proceed without reading this recorded approval"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "024",
+      "finding": "F1",
+      "pattern": "required-evidence-optional-text",
+      "calibration": "photoTable/photoSlate/photoStair are `text <=500 ?` (schema.q:38-40), optional in createMove (:90-93); no upload at all. Like wave-24 008 F1. No note fires on text columns on 0.4.39 or 0.4.40; one `always` line + test: 153 witnesses, no gate (not media)",
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "photo"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "94b30f97ecb2b3abfe04dbffefc3dbe6768189ae61704407274d8d34604f69fe",
+            "witness": "3a78f656dde810906360ac45194925eeb9894be89c1ed5ab2540e725501d3a62",
+            "candidate": "question: is moves.photoSlate deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "b71ea4d0bd8d017a7cc9d6659922ed915ca9ea7ceac66556e857bcf00c2bd215",
+            "witness": "0e2a91dae6bfe2853a8161de09a8d4e026e0b4a75afb648c5fc4882d7519c9c6",
+            "candidate": "question: is moves.photoStair deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "a18de7f44a2a1d0bb6a3a013873ed5ac4c653af37e7ae3311beb65eef3c4b4a1",
+            "witness": "3023e4b76c0d9b88653c134e565720707a654d71fe3f0a65a78eec32cec82d32",
+            "candidate": "question: is moves.photoTable deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "94b30f97ecb2b3abfe04dbffefc3dbe6768189ae61704407274d8d34604f69fe",
+            "witness": "3a78f656dde810906360ac45194925eeb9894be89c1ed5ab2540e725501d3a62",
+            "candidate": "question: is moves.photoSlate deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "b71ea4d0bd8d017a7cc9d6659922ed915ca9ea7ceac66556e857bcf00c2bd215",
+            "witness": "0e2a91dae6bfe2853a8161de09a8d4e026e0b4a75afb648c5fc4882d7519c9c6",
+            "candidate": "question: is moves.photoStair deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "createMove",
+            "viewer": "account:security-roles-surveyor-1",
+            "decision": "a18de7f44a2a1d0bb6a3a013873ed5ac4c653af37e7ae3311beb65eef3c4b4a1",
+            "witness": "3023e4b76c0d9b88653c134e565720707a654d71fe3f0a65a78eec32cec82d32",
+            "candidate": "question: is moves.photoTable deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "025",
+      "finding": "F1",
+      "pattern": "guard-not-consumed-insert",
+      "calibration": "retest (schema.q:166-174) never consumes the failed prior exam, so retesting attempt 1 twice yields a second attempt-2 without manager approval. Same hole as F2 (attempts not counted per candidate). Registrar bypass -> M. N_GUARD_NOT_CONSUMED skips insert transitions (lifecycle.rs:78)",
+      "match": {
+        "ops": [
+          "retest"
+        ],
+        "site": "/repeat-create/",
+        "codes": [
+          "N_GUARD_NOT_CONSUMED",
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "retest",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "a7b089fa2a05d4403098739dde1cf097e0056b28e728113e72a198c353ee8392",
+            "witness": "b76ab8c236c8f0439be01c1215c33c26a85d33af653306d1de8abbc940d9f1c2",
+            "candidate": "invariant exams.insert only (.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+              "line": 174
+            },
+            "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+            "operation": "retest"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "retest",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "a7b089fa2a05d4403098739dde1cf097e0056b28e728113e72a198c353ee8392",
+            "witness": "b76ab8c236c8f0439be01c1215c33c26a85d33af653306d1de8abbc940d9f1c2",
+            "candidate": "invariant exams.insert only (.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+              "line": 174
+            },
+            "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+            "operation": "retest"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "025",
+      "finding": "F2",
+      "pattern": "approval-sibling-path-bypass",
+      "calibration": "logExam (schema.q:129-132) opens a new attempt-1 exam for a candidate with two failures; only retest checks approvals. Same hole as F1, second path -> M (count the hole once)",
+      "match": {
+        "ops": [
+          "logExam"
+        ],
+        "site": "/approval-history/",
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "5627761418fca770833bcb8c2bbdbe14a24f6c143d25007eebe4aff51eb2da6f",
+            "witness": "3ebe591237e1207a39cd3540a1d3d327288cfc628f19d6676a697ed5d55b4d5c",
+            "candidate": "invariant exams.insert only (count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+              "line": 174
+            },
+            "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+            "operation": "logExam"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "5627761418fca770833bcb8c2bbdbe14a24f6c143d25007eebe4aff51eb2da6f",
+            "witness": "3ebe591237e1207a39cd3540a1d3d327288cfc628f19d6676a697ed5d55b4d5c",
+            "candidate": "invariant exams.insert only (count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+              "line": 174
+            },
+            "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+            "operation": "logExam"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "031",
+      "finding": "F1",
+      "pattern": "window-base",
+      "calibration": "scheduleCleaning bounds scheduledAt by now+180d (schema.q:78), not restaurants.dueAt; planner schedules past the due date without an extension. Same as wave-24 031 F1. Codex lane. 0.4.40 N_DEPENDENT_WINDOW fires at :79 (advice); one line + test: 1 witness",
+      "match": {
+        "codes": [
+          "N_DEPENDENT_WINDOW"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_DEPENDENT_WINDOW",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 79
+            },
+            "message": "scheduleCleaning: bounds cleanings.scheduledAt against now but does not compare dependent restaurants.dueAt; which deadline is the specification's window base? (name-based question)"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_DEPENDENT_WINDOW",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 79
+            },
+            "message": "scheduleCleaning: bounds cleanings.scheduledAt against now but does not compare dependent restaurants.dueAt; which deadline is the specification's window base? (name-based question)"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "033",
+      "finding": "F1",
+      "pattern": "approval-not-invalidated",
+      "calibration": "approveSeal inspects customerConsent (schema.q:158-163) but signFailing (:151-155) can withdraw consent afterwards and ownerApproved stays true; crew then seals. 0.4.40 derived approve/edit contracts skip Bool inputs (derived.rs:75). N_APPROVAL_NOT_ENFORCED at :148 is misdirected. One line + test: 8 witnesses",
+      "match": {
+        "ops": [
+          "signFailing"
+        ],
+        "term": "customerConsent",
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "signFailing",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "3855bc23f9f5b0c5dc1a9ec20e03f06ba6702f63792008ea053276fe6cb6a3e0",
+            "witness": "118c0af01625f3fd7253e905126514f1dc2d177d9a16cb695abefc62a4938650",
+            "candidate": "invariant jobs.customerConsent update only old.ownerApproved != true or next.ownerApproved != true",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+              "line": 163
+            },
+            "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+            "operation": "signFailing"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "signFailing",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "3855bc23f9f5b0c5dc1a9ec20e03f06ba6702f63792008ea053276fe6cb6a3e0",
+            "witness": "118c0af01625f3fd7253e905126514f1dc2d177d9a16cb695abefc62a4938650",
+            "candidate": "invariant jobs.customerConsent update only old.ownerApproved != true or next.ownerApproved != true",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+              "line": 163
+            },
+            "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+            "operation": "signFailing"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "033",
+      "finding": "F2",
+      "pattern": "child-evidence-not-required",
+      "calibration": "openJob takes no photos; acceptQuote/advanceStatus never require photos[job] (schema.q:134-148, :166-175). Same as wave-24 033 F1. 0.4.40 N_CHILD_EVIDENCE_PRESENCE fires at :148 (advice); one line + test: 36 witnesses",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceStatus"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "b0af40402539fa1e24a28cbc990eb8316c466d902680bdfce3e8725033b05a26",
+            "witness": "1b2f7ddf3d47a1ffa6d20a0b938025dc8d874dc8d85568d621f975ac51c9d4ff",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          },
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "d61f8e25afa1af3506520ca3f13086b6568864f5308fdf71334416f4305131d5",
+            "witness": "de23c7221707d940213e2c8d83ea7838019a044a3c107d39e7200fb7dc41cc8a",
+            "candidate": "invariant jobs.acceptQuote only (count(reports[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "b0af40402539fa1e24a28cbc990eb8316c466d902680bdfce3e8725033b05a26",
+            "witness": "1b2f7ddf3d47a1ffa6d20a0b938025dc8d874dc8d85568d621f975ac51c9d4ff",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          },
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "d61f8e25afa1af3506520ca3f13086b6568864f5308fdf71334416f4305131d5",
+            "witness": "de23c7221707d940213e2c8d83ea7838019a044a3c107d39e7200fb7dc41cc8a",
+            "candidate": "invariant jobs.acceptQuote only (count(reports[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "036",
+      "finding": "F1",
+      "pattern": "approval-not-enforced",
+      "calibration": "advanceStage (schema.q:110-128) never requires modelApprovedAt; the 60-day cancellation runs only inside approveModel (:98-105). Worker bypass -> M. N_APPROVAL_NOT_ENFORCED is Bool-only (lifecycle.rs:46); 0.4.40 test does not cover advanceStage (multiple target writes)",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceStage"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 116
+            },
+            "message": "castings.modelApprovedAt: a modeled advanceStage effect can proceed without reading this recorded approval"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 116
+            },
+            "message": "castings.modelApprovedAt: a modeled advanceStage effect can proceed without reading this recorded approval"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "045",
+      "finding": "F1",
+      "pattern": "reason-whitespace",
+      "calibration": "decideClaim accepts a whitespace crew-lead assessment (`text 1..N` counts spaces; schema.q:152-160). Same scale as Convex 009 F3, 024 F5, 044 F5 (whitespace reasons, M)",
+      "match": {
+        "prevented": "Inherited visible-text minimum rejects the calibrated whitespace input; no new SEC11 prevention claim."
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "reason": "No current finding/witness; the calibrated input is already rejected by inherited language semantics.",
+        "inheritedLanguagePrevention": "Inherited visible-text minimum rejects the calibrated whitespace input; no new SEC11 prevention claim.",
+        "targetVisible": false,
+        "evidence": []
+      },
+      "after": {
+        "category": "nothing",
+        "reason": "No current finding/witness; the calibrated input is already rejected by inherited language semantics.",
+        "inheritedLanguagePrevention": "Inherited visible-text minimum rejects the calibrated whitespace input; no new SEC11 prevention claim.",
+        "targetVisible": false,
+        "evidence": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "046",
+      "finding": "F1",
+      "pattern": "approval-not-enforced",
+      "calibration": "approveBackup only inserts backupApprovals (schema.q:154-158); installPart (:144-147) takes any part name, so a plumber installs a backup pump with no approval or consent. Trusted-staff bypass -> M (wave-24 036 F2 rule). Approval is a table, so N_APPROVAL_NOT_ENFORCED cannot fire (lifecycle.rs:46)",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED",
+          "N_APPROVAL_INFORMATIONAL"
+        ],
+        "ops": [
+          "installPart"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_INFORMATIONAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 158
+            },
+            "message": "backupApprovals.approvedAt: informational record; no operation models the approved act, so there is no inferred pending-effect gate"
+          },
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 158
+            },
+            "message": "backupApprovals.job: a separately authorized approval for jobs is recorded but a modeled effect does not require it"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_APPROVAL_INFORMATIONAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 158
+            },
+            "message": "backupApprovals.approvedAt: informational record; no operation models the approved act, so there is no inferred pending-effect gate"
+          },
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 158
+            },
+            "message": "backupApprovals.job: a separately authorized approval for jobs is recorded but a modeled effect does not require it"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "049",
+      "finding": "F1",
+      "pattern": "media-carries-private-fields",
+      "calibration": "contract image (schema.q:34) has no column read rule, so every DJ (:38) fetches the signed scan whose text carries the phone/price/deposit the column rules hide (:25-27). The couple's own read is d. Spec names the scan's opening, not its audience -> M, not H. Convex 049 F4 (DJ gets phone/price in a mutation return) is a direct field leak (H). One line + 0.4.40 test: 12 witnesses",
+      "match": {
+        "codes": [
+          "N_MEDIA_PRIVATE_FIELDS"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_MEDIA_PRIVATE_FIELDS",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 34
+            },
+            "message": "bookings.contract: media has a broader audience than deposit, phone, price; can this scan expose those private fields?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_MEDIA_PRIVATE_FIELDS",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 34
+            },
+            "message": "bookings.contract: media has a broader audience than deposit, phone, price; can this scan expose those private fields?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "011",
+      "finding": "F1",
+      "pattern": "approval-not-enforced-bool",
+      "calibration": "recordInstallation (schema.q:113-119) never reads indoorMount/indoorApproved; approveIndoorMount (:135-141) only records. An electrician installs indoors without the owner's approval (staff bypass = M). The builder acknowledged the 0.4.41 approval question as 'not a gate on work progress' (security-reviews.json)",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "recordInstallation"
+        ],
+        "truth": {
+          "indoorMount": true,
+          "indoorApproved": false
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "recordInstallation",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "425aff363b07b4922ee00bf1c73aba2cb220d74ce3bd3552f0cad08aa61d7679",
+            "witness": "6164502a648141b373411e153b97c89571ed807738fd708e17123d7422bd32ca",
+            "candidate": "invariant installs.recordInstallation only (not .indoorMount or .indoorApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "recordInstallation",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "425aff363b07b4922ee00bf1c73aba2cb220d74ce3bd3552f0cad08aa61d7679",
+            "witness": "6164502a648141b373411e153b97c89571ed807738fd708e17123d7422bd32ca",
+            "candidate": "invariant installs.recordInstallation only (not .indoorMount or .indoorApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "011",
+      "finding": "F2",
+      "pattern": "unvalidated-principal-argument",
+      "calibration": "openInstall (schema.q:93-95) stores any principal as homeowner; the coordinator names itself and accepts its own quote (acceptQuote :97-103). The builder acknowledged N_ARGUMENT_GRANT with 'a mis-addressed quote can never be accepted', which is false",
+      "match": {
+        "codes": [
+          "N_ARGUMENT_GRANT"
+        ],
+        "term": "homeowner"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ARGUMENT_GRANT",
+            "operation": "startWiring",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "30d2be30c1aff43063dd62518f9186914dd92ad3a42f86f061bb0fcedd70c17c",
+            "witness": "6b4c8349341f41357b9a89bc346214f2ce5e697e6f3a8025f4ca20b31f92c7eb",
+            "candidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ARGUMENT_GRANT",
+            "operation": "startWiring",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "30d2be30c1aff43063dd62518f9186914dd92ad3a42f86f061bb0fcedd70c17c",
+            "witness": "6b4c8349341f41357b9a89bc346214f2ce5e697e6f3a8025f4ca20b31f92c7eb",
+            "candidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "013",
+      "finding": "F1",
+      "pattern": "approval-not-enforced-table",
+      "calibration": "requestLift (schema.q:129-134) checks only inspection age; the chief's returns table (:65-77, returnToService :120-125) is read by nothing, so a repaired sling lifts with no chief approval. Wave-26 046 shape (approval table)",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED",
+          "N_APPROVAL_INFORMATIONAL"
+        ],
+        "ops": [
+          "requestLift"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "013",
+      "finding": "F2",
+      "pattern": "guard-on-one-path-only",
+      "calibration": "the >10-year chain proof-test prerequisite is on logInspection (:91) but advanceSling (:104-109) moves received->examined without it. Sibling-path shape (wave-26 018 F1)",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS",
+          "N_DERIVED_WRITE_AUTHORITY"
+        ],
+        "ops": [
+          "advanceSling"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "019",
+      "finding": "F1",
+      "pattern": "approval-on-one-path-setter",
+      "calibration": "setAccount (schema.q:40-43) upserts balance, so a dispatcher zeroes an existing balance: a write-off without the owner's writeOff (:66-72) or its audit row. The builder acknowledged the create/edit question as 'distinct creation vs forgiveness authority is intended'; the upsert is also an edit",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "setAccount"
+        ],
+        "term": "balance",
+        "decrease": "balance"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "setAccount",
+            "viewer": "account:security-roles-dispatcher-1",
+            "decision": "9a765bc557bd921ac8f6c54b97f175c890e93245e76920d9f94895127e2b4e12",
+            "witness": "85ad07edfcc624dd07c1a7524532fdb9486dee95823fd1de9580f830163c0acf",
+            "candidate": "invariant accounts.balance write only ((exists roles[viewer, role = 'owner']) and ((exists roles[viewer, role = 'dispatcher']) or (exists roles[viewer, role = 'owner'])))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "setAccount",
+            "viewer": "account:security-roles-dispatcher-1",
+            "decision": "9a765bc557bd921ac8f6c54b97f175c890e93245e76920d9f94895127e2b4e12",
+            "witness": "85ad07edfcc624dd07c1a7524532fdb9486dee95823fd1de9580f830163c0acf",
+            "candidate": "invariant accounts.balance write only ((exists roles[viewer, role = 'owner']) and ((exists roles[viewer, role = 'dispatcher']) or (exists roles[viewer, role = 'owner'])))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "019",
+      "finding": "F2",
+      "pattern": "state-machine",
+      "calibration": "advanceMove (schema.q:136-144) takes any status: booked->planted and planted->booked accepted. Convex state-machine holes are M (wave 26)",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "advanceMove"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "023",
+      "finding": "F1",
+      "pattern": "evidence-as-text",
+      "calibration": "photo1/photo2 are `text <=500 format url ?` (schema.q:44-45, openJob :60-62): the required roof photos are optional URLs, no upload. Wave-26 024 F1 shape",
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "photo"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openJob",
+            "viewer": "account:security-roster-dispatcher-1",
+            "decision": "3cc685c52cb96749027f248cd5dc3b8a898a1d0fb714a64573feb7c4de9c289d",
+            "witness": "6db176719810871f258e5045d1f0e64ac085c1705a7f46958d804e654b050240",
+            "candidate": "question: is jobs.photo1 deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openJob",
+            "viewer": "account:security-roster-dispatcher-1",
+            "decision": "eb87a9086ef09f721183301463f707b187381985334fb394e3faae03a2f43cf8",
+            "witness": "5d14b3f26565edc5f5af78c458e73822de9bbfbdc4be545ebd1ccdac3d7c8fd2",
+            "candidate": "question: is jobs.photo2 deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openJob",
+            "viewer": "account:security-roster-dispatcher-1",
+            "decision": "3cc685c52cb96749027f248cd5dc3b8a898a1d0fb714a64573feb7c4de9c289d",
+            "witness": "6db176719810871f258e5045d1f0e64ac085c1705a7f46958d804e654b050240",
+            "candidate": "question: is jobs.photo1 deliberately text rather than a verified upload?",
+            "gated": false
+          },
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openJob",
+            "viewer": "account:security-roster-dispatcher-1",
+            "decision": "eb87a9086ef09f721183301463f707b187381985334fb394e3faae03a2f43cf8",
+            "witness": "5d14b3f26565edc5f5af78c458e73822de9bbfbdc4be545ebd1ccdac3d7c8fd2",
+            "candidate": "question: is jobs.photo2 deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "024",
+      "finding": "F1",
+      "pattern": "dependent-window",
+      "calibration": "scheduleVisit (schema.q:139-143) does not bound scheduledAt by movedAt + 60d; completion is checked only against a caller-supplied completedAt (:150-151), so the 60-day rule is never structurally enforced. Wave-24/26 031 F1 precedent (M)",
+      "match": {
+        "codes": [
+          "N_DEPENDENT_WINDOW"
+        ],
+        "ops": [
+          "scheduleVisit"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "036",
+      "finding": "F1",
+      "pattern": "approval-not-invalidated",
+      "calibration": "changeLikeness (schema.q:94-99) replaces likenessScan during clay_sculpt and leaves likenessApproved/At set; advanceStage (:113-120) then molds the unapproved replacement after the 60-day cutoff. Wave-26 033 F1 shape (approval invalidation), on a media input",
+      "match": {
+        "codes": [
+          "N_DERIVED_WRITE_AUTHORITY",
+          "N_EDIT_AFTER_APPROVAL"
+        ],
+        "ops": [
+          "changeLikeness"
+        ],
+        "term": "likenessScan"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "changeLikeness",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "bbfa2389370d52026be4822758650b081f712d93649d7fb379a0db369dc76147",
+            "witness": "c4616a1df369723e6a4b2afc88ef36c7cd6d571c90a855a1454359703f64ce1e",
+            "candidate": "invariant figures.likenessScan update only old.likenessApproved != true or next.likenessApproved != true",
+            "gated": false
+          },
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "changeLikeness",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "505da39a988a8089bbb06bdfd4b812f8bbeec9d131f454e1f78dda4055c5155b",
+            "witness": "dc1dc5df84cfce27c082a08845be427b6d907ae63267c92e2fff86a5acefae8b",
+            "candidate": "invariant figures.likenessScan update only old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+              "line": 90
+            },
+            "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+            "operation": "changeLikeness"
+          },
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+              "line": 90
+            },
+            "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+            "operation": "changeLikeness"
+          }
+        ]
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "changeLikeness",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "bbfa2389370d52026be4822758650b081f712d93649d7fb379a0db369dc76147",
+            "witness": "c4616a1df369723e6a4b2afc88ef36c7cd6d571c90a855a1454359703f64ce1e",
+            "candidate": "invariant figures.likenessScan update only old.likenessApproved != true or next.likenessApproved != true",
+            "gated": false
+          },
+          {
+            "code": "N_DERIVED_WRITE_AUTHORITY",
+            "operation": "changeLikeness",
+            "viewer": "account:security-roles-coordinator-0",
+            "decision": "505da39a988a8089bbb06bdfd4b812f8bbeec9d131f454e1f78dda4055c5155b",
+            "witness": "dc1dc5df84cfce27c082a08845be427b6d907ae63267c92e2fff86a5acefae8b",
+            "candidate": "invariant figures.likenessScan update only old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+            "gated": false
+          }
+        ],
+        "productionFixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+              "line": 90
+            },
+            "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+            "operation": "changeLikeness"
+          },
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+              "line": 90
+            },
+            "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+            "operation": "changeLikeness"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "046",
+      "finding": "F1",
+      "pattern": "blank-text",
+      "calibration": "consent: text 1..500 (:87) counts non-whitespace (core validate.rs:146) but U+200B is a format character, not White_Space, so an invisible consent approves a replacement. Wave-26 045 F1 shape",
+      "match": {
+        "prevented": "Inherited Unicode visible-text minimum rejects the calibrated U+200B consent; no new SEC11 prevention claim."
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "reason": "No current finding/witness; the calibrated input is already rejected by inherited language semantics.",
+        "inheritedLanguagePrevention": "Inherited Unicode visible-text minimum rejects the calibrated U+200B consent; no new SEC11 prevention claim.",
+        "targetVisible": false,
+        "evidence": []
+      },
+      "after": {
+        "category": "nothing",
+        "reason": "No current finding/witness; the calibrated input is already rejected by inherited language semantics.",
+        "inheritedLanguagePrevention": "Inherited Unicode visible-text minimum rejects the calibrated U+200B consent; no new SEC11 prevention claim.",
+        "targetVisible": false,
+        "evidence": []
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "047",
+      "finding": "F1",
+      "pattern": "evidence-as-text",
+      "calibration": "trialPhotos: [text <=500] <=8 ? (schema.q:25, openBooking :82-85): the required trial photos are an optional text list; omitted, null and [] accepted",
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "trialPhotos"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openBooking",
+            "viewer": "account:security-roles-manager-0",
+            "decision": "6669f2d325502fa9a5c154089a27f89986a65dc196d224905c2259814211257d",
+            "witness": "c5ddd0a0d3b9e4ad981fa9fece246fed4abbe28d72a715ee47fa7f5c935cbb8e",
+            "candidate": "question: is bookings.trialPhotos deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openBooking",
+            "viewer": "account:security-roles-manager-0",
+            "decision": "6669f2d325502fa9a5c154089a27f89986a65dc196d224905c2259814211257d",
+            "witness": "c5ddd0a0d3b9e4ad981fa9fece246fed4abbe28d72a715ee47fa7f5c935cbb8e",
+            "candidate": "question: is bookings.trialPhotos deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 28,
+      "lane": "050",
+      "finding": "F1",
+      "pattern": "dependent-window",
+      "calibration": "openVisit (schema.q:77-82) checks now <= lastServiceAt + 365d but not scheduledAt, so a visit is booked 394 days after the last service. Wave-26 031 F1 shape (window base)",
+      "match": {
+        "codes": [
+          "N_DEPENDENT_WINDOW"
+        ],
+        "ops": [
+          "openVisit"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "002",
+      "finding": "F1",
+      "pattern": "required-upload-optional-text",
+      "calibration": "The front desk opens each fitting with a scan of the pediatrician's referral and the quoted helmet fee.",
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "referralScan"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openFitting",
+            "viewer": "account:security-roles-manager-1",
+            "decision": "ee6821b03be74cb8dd27e95d20e80d69c05ab310f5ddd777f9732836edc53842",
+            "witness": "04c09c06b8177236b643aaac15e2b0a994b3b82136c9af01c315b51ad0d88775",
+            "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openFitting",
+            "viewer": "account:security-roles-manager-1",
+            "decision": "ee6821b03be74cb8dd27e95d20e80d69c05ab310f5ddd777f9732836edc53842",
+            "witness": "04c09c06b8177236b643aaac15e2b0a994b3b82136c9af01c315b51ad0d88775",
+            "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "004",
+      "finding": "F1",
+      "pattern": "assignment-scoped-read-role-wide",
+      "calibration": "The family's phone number, care needs and price on a job are visible only to that job's case coordinator and the company owner.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "006",
+      "finding": "F1",
+      "pattern": "entitlement-not-carried",
+      "calibration": "The customer has 30 days after return to report a drag fault for a free re-service.",
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "010",
+      "finding": "F1",
+      "pattern": "entitlement-not-consumed",
+      "calibration": "A trip cancelled for high water may be rebooked within 12 months or refunded.",
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 117
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 165
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 117
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 165
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "014",
+      "finding": "F1",
+      "pattern": "assignment-scoped-read-role-wide",
+      "calibration": "The client's phone number, venue contract and fee on a project are visible only to that project's lead and the company owner.",
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ"
+        ],
+        "term": "clientPhone"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_ROLE_WIDE_READ",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 31
+            },
+            "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_ROLE_WIDE_READ",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 31
+            },
+            "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "018",
+      "finding": "F1",
+      "pattern": "guard-on-one-path-only",
+      "calibration": "Only the lead pruner can approve pruning an orchard under a fire blight quarantine, recording the inspector's permit and the extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "7fbe02ddcb3a705ef6def317d37eeeac2657f40e961b8e9fbd767e8fdc839a8d",
+            "witness": "ba05c57ae54b546f6085dc9e958edd5eadf803fb9add44e6860d99a3f0961efb",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F1",
+      "pattern": "caller-asserted-counter",
+      "calibration": "A candidate who fails may retest within 30 days at half price; only the school manager can approve a retest beyond the second attempt, recording the reason and ",
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "ec4e8594ceefe12be86dc00f739321040b00fa639f55bfaddef4651f49617c31",
+            "witness": "f6f1e62699f1e4bfcc24747f8fc7d1e7b475a91f0bc108f0b84493c80a7f894a",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F2",
+      "pattern": "approval-not-bound-to-subject",
+      "calibration": "Only the school manager can approve a retest beyond the second attempt, recording the reason and the instructor\u2019s recommendation.",
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "b9d8e7734358038aa8075635806681b357e0880711df3d032d5a5da017165501",
+            "witness": "c9e32839e1ca86f341d39e13a05713d6716947ccc0d2d3bf2f079e03e5b49c4e",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F1",
+      "pattern": "required-upload-optional",
+      "calibration": "The dispatcher opens each study with the sound recording files and the quoted price.",
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "term": "recordings"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_OPTIONAL_EVIDENCE",
+            "operation": "openStudy",
+            "viewer": "account:security-roles-dispatcher-0",
+            "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+            "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+            "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_OPTIONAL_EVIDENCE",
+            "operation": "openStudy",
+            "viewer": "account:security-roles-dispatcher-0",
+            "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+            "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+            "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F2",
+      "pattern": "state-machine",
+      "calibration": "Jobs move from booked to measured, reviewed and reported.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F1",
+      "pattern": "approval-not-enforced-bool",
+      "calibration": "Only the company owner can approve coating over a slab the customer signed off as damp, recording the customer's consent.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+            "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+            "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F2",
+      "pattern": "required-evidence-child-optional",
+      "calibration": "The estimator opens each job with before photos of every crack and oil stain and the quoted price.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "6c4bb61bebfbec0a42553157b3eba50002932a5a82b02210d00e96a7e12be4d7",
+            "witness": "37d03596bb8d44392a67f5821ad4996024683aee98ddb95b04a6908123d2e996",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "6c4bb61bebfbec0a42553157b3eba50002932a5a82b02210d00e96a7e12be4d7",
+            "witness": "37d03596bb8d44392a67f5821ad4996024683aee98ddb95b04a6908123d2e996",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "035",
+      "finding": "F1",
+      "pattern": "state-machine",
+      "calibration": "Batches move from inspection through cleaning, flameproofing and pleating before being finished.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "finishBatch"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "038",
+      "finding": "F1",
+      "pattern": "guard-scoped-to-duplicable-row",
+      "calibration": "An unpaid delivery older than 30 days stops further standing deliveries; only the account manager can approve an emergency delivery for an account with a past-d",
+      "match": {
+        "codes": [
+          "N_DUPLICABLE_GUARD"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "002",
+      "finding": "F2",
+      "pattern": "create-path-admits-excluded-role",
+      "calibration": "Only the front desk may add, replace or remove referral scans; the clinic manager, orthotists and parents may not.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openFitting"
+        ],
+        "term": "referralScan"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 60
+            },
+            "message": "openFitting: fittings.referralScan can be supplied at insert/upsert without the edit restriction of setReferralScan: exists roles[viewer, role = 'frontdesk'] and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']); creation admission: (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager'])"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 60
+            },
+            "message": "openFitting: fittings.referralScan can be supplied at insert/upsert without the edit restriction of setReferralScan: exists roles[viewer, role = 'frontdesk'] and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']); creation admission: (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager'])"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "004",
+      "finding": "F1",
+      "pattern": "assignment-scoped-read-role-wide",
+      "calibration": "The family's phone number, care needs and price on a job are visible only to that job's case coordinator and the company owner.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "006",
+      "finding": "F1",
+      "pattern": "entitlement-not-carried",
+      "calibration": "The customer has 30 days after return to report a drag fault for a free re-service.",
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F1",
+      "pattern": "entitlement-not-consumed",
+      "calibration": "A trip cancelled for high water may be rebooked within 12 months or refunded.",
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F2",
+      "pattern": "excluded-role-reaches-transition",
+      "calibration": "Only the head guide may move a trip into or out of equipped; other guides, booking office staff and guests may not.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS",
+          "N_EDIT_AFTER_APPROVAL"
+        ],
+        "ops": [
+          "cancelHighWater"
+        ],
+        "oldValues": [
+          "equipped"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "logTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.trip can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.canSwim can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 138
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 141
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 159
+            },
+            "message": "cancelHighWater: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 174
+            },
+            "message": "refundTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 108
+            },
+            "message": "logTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.trip can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 118
+            },
+            "message": "addGuest: bookings.canSwim can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 138
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 5,
+              "file": "schema.q",
+              "line": 141
+            },
+            "message": "advanceTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 159
+            },
+            "message": "cancelHighWater: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 168
+            },
+            "message": "rebookTrip: trips.rapidClass can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          },
+          {
+            "code": "N_EDIT_AFTER_APPROVAL",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 174
+            },
+            "message": "refundTrip: trips.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F1",
+      "pattern": "assignment-scoped-read-role-wide",
+      "calibration": "The client's phone number, venue contract and fee are visible only to that project's lead and the company owner.",
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ"
+        ],
+        "term": "clientPhone"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_ROLE_WIDE_READ",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 31
+            },
+            "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_ROLE_WIDE_READ",
+            "site": {
+              "col": 3,
+              "file": "schema.q",
+              "line": 31
+            },
+            "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F3",
+      "pattern": "assignment-scoped-write-role-wide",
+      "calibration": "Only the project lead may add, replace or remove entrance photos.",
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "setEntrancePhoto"
+        ],
+        "term": "entrancePhoto",
+        "effect": "update"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F4",
+      "pattern": "create-path-admits-excluded-role",
+      "calibration": "Only the project lead may add, replace or remove entrance photos; the company owner may not.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openProject"
+        ],
+        "term": "entrancePhoto"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 91
+            },
+            "message": "openProject: projects.entrancePhoto can be supplied at insert/upsert without the edit restriction of setEntrancePhoto: exists roles[viewer, role = 'lead'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']); creation admission: (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'])"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 91
+            },
+            "message": "openProject: projects.entrancePhoto can be supplied at insert/upsert without the edit restriction of setEntrancePhoto: exists roles[viewer, role = 'lead'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']); creation admission: (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'])"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "018",
+      "finding": "F1",
+      "pattern": "guard-on-one-path-only",
+      "calibration": "Only the lead pruner can approve pruning an orchard under a fire blight quarantine, recording the inspector permit and extra fee.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "826b49235c545b199e8e8d460e3920b153dae039b4e559afaa521d4da0997971",
+            "witness": "02c4eb8dbe4264e4e0629970ad77f91b9bb7c898e1da3701fe6b9d1acb3e86f9",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "019",
+      "finding": "F1",
+      "pattern": "create-path-admits-excluded-role",
+      "calibration": "Only the coordinator may add, change or remove the quoted price; the company owner may see it but cannot change it.",
+      "match": {
+        "codes": [
+          "N_INSERT_WRITE_INTENT"
+        ],
+        "ops": [
+          "openMove"
+        ],
+        "term": "price"
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "openMove",
+            "viewer": "account:security-roles-owner-1",
+            "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+            "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+            "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_INSERT_WRITE_INTENT",
+            "operation": "openMove",
+            "viewer": "account:security-roles-owner-1",
+            "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+            "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+            "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F1",
+      "pattern": "caller-asserted-counter",
+      "calibration": "A candidate who fails may retest within 30 days at half price; only the school manager can approve a retest beyond the second attempt.",
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "9f5d3d54f9612e6225a96564ceda061f0d35c49beea36031022eedd4bee40b6a",
+            "witness": "bad986ab484e49efe6c8d0d01692bb7d2b8be5587a82c1132360f734ca270ee8",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "025",
+      "finding": "F2",
+      "pattern": "approval-not-bound-to-subject",
+      "calibration": "Only the school manager can approve a retest beyond the second attempt, recording the reason and the instructor's recommendation.",
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "073ff1d84a9ffb7d0bf5a78df8b3ebe8fbf14785464c73342973505a345c0add",
+            "witness": "75092b01f80acb290c0576341ea9a8827369e0ce06f377378824c6b6b47ead4f",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "030",
+      "finding": "F2",
+      "pattern": "state-machine",
+      "calibration": "Jobs move from booked to measured, reviewed and reported.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F1",
+      "pattern": "approval-not-enforced-bool",
+      "calibration": "Only the company owner can approve coating over a slab the customer signed off as damp, recording the customer's consent.",
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+            "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+            "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "033",
+      "finding": "F2",
+      "pattern": "required-evidence-child-optional",
+      "calibration": "The estimator opens each job with before photos of every crack and oil stain and the quoted price; v2 places those photos in surface surveys.",
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "49b59367c234fad9a772de6f4302921d7dd7f4812ac5dcc6fa61943ad87cdd1a",
+            "witness": "8fc5742f1a91d025c881437abbbd4a89c22ddc6cc58bf1640447dd80b42d4e68",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "49b59367c234fad9a772de6f4302921d7dd7f4812ac5dcc6fa61943ad87cdd1a",
+            "witness": "8fc5742f1a91d025c881437abbbd4a89c22ddc6cc58bf1640447dd80b42d4e68",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 31,
+      "lane": "035",
+      "finding": "F1",
+      "pattern": "state-machine",
+      "calibration": "Cleaning orders move from inspection through cleaning, flameproofing and pleating before being finished; all workroom steps stay unchanged in v2.",
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "finishBatch"
+        ]
+      },
+      "sourceHashMatches": true,
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    }
+  ],
+  "summary": {
+    "26": {
+      "before": {
+        "advisory only": 6,
+        "gated with witness": 6,
+        "witnessed question on default verdict": 2,
+        "nothing": 1
+      },
+      "after": {
+        "advisory only": 6,
+        "gated with witness": 6,
+        "witnessed question on default verdict": 2,
+        "nothing": 1
+      }
+    },
+    "28": {
+      "before": {
+        "gated with witness": 2,
+        "witnessed question on default verdict": 4,
+        "nothing": 6
+      },
+      "after": {
+        "gated with witness": 2,
+        "witnessed question on default verdict": 4,
+        "nothing": 6
+      }
+    },
+    "30": {
+      "before": {
+        "witnessed question on default verdict": 3,
+        "nothing": 8,
+        "advisory only": 2,
+        "gated with witness": 1
+      },
+      "after": {
+        "witnessed question on default verdict": 6,
+        "nothing": 5,
+        "advisory only": 2,
+        "gated with witness": 1
+      }
+    },
+    "31": {
+      "before": {
+        "advisory only": 5,
+        "nothing": 8,
+        "witnessed question on default verdict": 2,
+        "gated with witness": 1
+      },
+      "after": {
+        "advisory only": 5,
+        "nothing": 5,
+        "witnessed question on default verdict": 5,
+        "gated with witness": 1
+      }
+    }
+  }
+}

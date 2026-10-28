@@ -1,0 +1,44 @@
+{
+  "deltas": [
+    {
+      "wave": 31,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "beforeFixes": [
+        {
+          "site": {
+            "col": 7,
+            "file": "$derived/schema.q/mascotCommissions/quoteCents/update/40a608b01b14e1c0d35aa83326121f9874bfb48f10770a3f5d86fbbab19d30ca",
+            "line": 110
+          },
+          "predicate": "old.approvalDeadline = null or next.approvalDeadline = null",
+          "operation": "updateQuote"
+        }
+      ],
+      "afterFixes": []
+    },
+    {
+      "wave": 33,
+      "lane": "036-snapback-championship-ring-orders",
+      "beforeExit": 1,
+      "afterExit": 0,
+      "beforeFixes": [
+        {
+          "site": {
+            "col": 10,
+            "file": "$derived/schema.q/orders/designScan/update/fb16518f018a78c464601004c5caeb613d4b768d0fa6787d10aa5ed6658da990",
+            "line": 98
+          },
+          "predicate": "old.designApprovedAt = null or next.designApprovedAt = null",
+          "operation": "setDesignScan"
+        }
+      ],
+      "afterFixes": []
+    }
+  ],
+  "replayed": 2,
+  "reused": 978,
+  "method": "Affected-scope reuse: exact compiler-derived contract/note and authored-intent payload equality for 978 unchanged inputs. Two changed inputs rerun cold default check/JSON check/default deploy/JSON deploy on final native, same private source/fixture/predecessor protocol. Original failed980 survey retained.",
+  "binarySha256": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62"
+}

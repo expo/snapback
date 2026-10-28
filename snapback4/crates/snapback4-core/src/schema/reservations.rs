@@ -94,7 +94,9 @@ fn row_price(schema: &Schema, m: &Maintain, recipients: u64) -> Price {
 pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
     let table = schema.table(source)?;
     let mut plan = WriteReservation::default();
-    plan.server_only = !table.column_writes.is_empty() || !table.frozen_columns.is_empty();
+    // @ref LLP 3000.000.000.003#2-frozen-result-fields — a denied immutable receipt anchor has fixed work and no business write audience.
+    let result_anchor=|column:&str|schema.extractions.iter().any(|e|e.child==source&&e.result_column()==column&&e.has_result_anchor(table));
+    plan.server_only = table.column_writes.keys().any(|column|!result_anchor(column)) || !table.frozen_columns.is_empty();
     let mut birth = [0; 7];
     for m in schema.maintains.iter().filter(|m| m.private.as_ref().is_some_and(|owner| owner.table == source)) {
         birth[2] += 1;

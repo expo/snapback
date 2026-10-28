@@ -56,7 +56,17 @@ pub(super) fn at(dir:&Path,release:u64)->Result<Value,String> {
 pub(super) fn print(value:&Value) {
     println!("target row shape: {} (release {})",if value["matchesTarget"]==true{"preserved"}else{"CHANGED"},value["target"]);
     for diff in value["differences"].as_array().into_iter().flatten() {
-        println!("  {}: expected {}; serves {}",diff["operation"].as_str().unwrap_or("?"),diff["expected"],diff["served"]);
+        fn fields(value:&Value,path:&str,out:&mut std::collections::BTreeMap<String,Value>){
+            if let Some(row)=value.get("row").and_then(Value::as_object){for(name,value)in row{fields(value,&if path.is_empty(){name.clone()}else{format!("{path}.{name}")},out);}}
+            else if let Some((kind,inner))=["page","list","nullable","omittable"].iter().find_map(|kind|value.get(*kind).map(|v|(*kind,v))){
+                fields(inner,&format!("{path}{}",if kind=="page"||kind=="list"{"[]"}else{"?"}),out);
+            }else{out.insert(path.into(),value.clone());}
+        }
+        let mut expected=std::collections::BTreeMap::new();let mut served=std::collections::BTreeMap::new();
+        fields(&diff["expected"],"",&mut expected);fields(&diff["served"],"",&mut served);
+        let names=expected.keys().chain(served.keys()).collect::<std::collections::BTreeSet<_>>();
+        let changed=names.into_iter().filter(|name|expected.get(*name)!=served.get(*name)).cloned().collect::<Vec<_>>();
+        println!("  {}: changed result fields [{}]{}; full domains in rowShape.differences (--json)",diff["operation"].as_str().unwrap_or("?"),changed.iter().take(12).cloned().collect::<Vec<_>>().join(", "),if changed.len()>12{format!("; {} more",changed.len()-12)}else{String::new()});
     }
     for child in value["children"].as_array().into_iter().flatten() {
         println!("  child {} of {} serves columns {}",child["child"],child["parent"],child["columns"]);

@@ -1,0 +1,23 @@
+{
+  "wave": 30,
+  "lane": "033-snapback-garage-floor-coatings",
+  "sourceSha256": "aecca6627a94824947263446c037ccceda69a96717a6320ff1e09af081c6b4d7",
+  "code": "N_APPROVAL_NOT_ENFORCED",
+  "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+  "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+  "operation": "advanceJob",
+  "classification": "real applicable approval bypass; carried gate, no new gate family",
+  "evidence": {
+    "oldStatus": "booked",
+    "nextStatus": "grinding",
+    "dampSigned": true,
+    "dampApproved": false
+  },
+  "handReview": "The customer signed damp consent. advanceJob admits booked -> grinding without the separately recorded owner approval. This is the calibrated coating operation, not the customer acceptQuote call earlier in history.",
+  "repair": "require not j.dampSigned or j.dampApproved else DAMP_APPROVAL_REQUIRED",
+  "fixForward": "The guard removes the targeted gate; unchanged app acceptance passes all 66 checks.",
+  "rawStaticNote": "The inherited static note names acceptQuote; the actual candidate, compact summary, witness operation and last history step all identify advanceJob. No credit is taken for acceptQuote as the governed act.",
+  "gatePresentation": "The existing approval gate renderer names the concrete witness operation advanceJob (decisions.rs render); acceptQuote remains only in the raw static source hypothesis, not the gate title.",
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+  "scope": "All50 wave30 schemas completed on item4 native binary; this is the sole review gate. Actual approval bypass remains applicable, new transition/assignment questions remain advisory. Prior033 guard repair and unchanged66-check app acceptance retained, not claimed rerun for item4."
+}

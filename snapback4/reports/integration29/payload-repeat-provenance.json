@@ -1,0 +1,7 @@
+{
+  "actualMethod": "Two independent cold copies of identical source/fixtures, using candidate-final-0.4.45 for BOTH labels. The copied strict comparator retains its generic control-method text in the untouched output; the equal SHA-256 values and this provenance identify the actual unchanged-executable protocol.",
+  "originalComparatorExit": 1,
+  "fullPayloadQualified": false,
+  "noScalarNormalization": true,
+  "decisionWitnessTierVerdictMismatches": 0
+}

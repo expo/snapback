@@ -3,6 +3,8 @@
 use super::*;
 #[path = "extraction_each.rs"]
 mod each;
+#[path="extraction_results.rs"]
+mod results;
 use crate::{
     meter::{Ceilings, Cut, Meter},
     schema::{ColumnType, Extraction},
@@ -402,7 +404,7 @@ pub(super) fn transition(
                     "extraction must remove the source asset column; one asset cannot have two active homes",
                 ));
             }
-            if !asset(kind)&&(!parent.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields} if fields.contains(source)))||matches!(kind,ColumnType::Ref{..}|ColumnType::Optional(_))){return Err(refuse("extraction scalar copies require immutable source fields without reference/captured authority"))}
+            if !asset(kind)&&(!parent.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields} if fields.contains(source)))||matches!(kind,ColumnType::Ref{..}|ColumnType::Optional(_))){return Err(refuse(format!("extraction {}.{source} → {}.{dest}: scalar copies require immutable source fields without reference/captured authority; retain {}.{} and read the original {} reference through it (guide evolution)",e.parent,e.child,e.child,e.reference,source)))}
         }
         if e.each { if resume_each {each::resume(tx,e,parent,child,&key,report)?;}else{each::forward(tx,e,parent,child,&key,report)?;} continue; }
         super::activation::walk(tx, pt, |id, mut row| {
@@ -489,6 +491,7 @@ pub(super) fn transition(
             e.child
         ));
     }
+    results::populate(tx,next,report)?;
     tx.set_meta("activation_population", "true")?;
     Ok(())
 }

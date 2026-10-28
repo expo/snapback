@@ -11,6 +11,17 @@ pub struct Extraction {
     pub fields: BTreeMap<String, String>,
 }
 impl Extraction {
+    /// Compiler-generated guarded-view identity cell; no payload duplication.
+    pub fn result_column(&self)->String{format!("rollbackParent_{}",self.child)}
+    /// Exact protected metadata contract; business column gates never acquire this exemption.
+    pub fn has_result_anchor(&self,child:&Table)->bool{
+        let column=self.result_column();
+        !self.each &&child.columns.get(&column)==Some(&ColumnType::Optional(Box::new(ColumnType::Ref{table:self.parent.clone()})))
+            &&child.column_writes.get(&column)==Some(&RuleExpr::Deny)
+            &&child.on_delete.get(&column).is_none_or(|action|*action==references::OnDelete::Keep)
+            &&child.constraints.iter().any(|c|matches!(c,Constraint::Immutable{fields}if fields.contains(&column)))
+            &&child.indexes.values().any(|i|i.unique&&i.is_plain()&&i.columns()==vec![column.clone()])
+    }
     /// Closed payload-domain inclusion, shared by forward admission and reverse-source proof.
     // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — inclusion of collection bounds never invents or coerces a value.
     pub fn payload_accepts(source: &ColumnType, destination: &ColumnType) -> bool {
@@ -76,7 +87,7 @@ impl Extraction {
             }
         }
         if !self.fields.keys().any(|c| asset(&child.columns[c])) {
-            return Err("extraction needs at least one mapped image/file column".into());
+            return Err("extract is asset-only: map at least one image/file/video column; for a scalar split use a named backfill/down and an authored child-writing mutation (guide evolution)".into());
         }
         if child.columns.iter().any(|(c, k)| {
             c != &self.reference

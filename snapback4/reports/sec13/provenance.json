@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-27",
+  "launchBase": "0681306baa",
+  "mergedOriginMain": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "semanticQualification": "8dbe6d517c",
+  "sourceReviews": "llp/reviews/3000.036.004.001-sec13-*-r4.md",
+  "displayReviews": "llp/reviews/3000.036.004.001-sec13-*-r5.md",
+  "rawEvidenceRoot": "/home/ccheever/sb4-loop/reports/sec13",
+  "baselineRetries": "before800-composed/composition.json preserves two baseline watchdog retries; original results unchanged",
+  "scope": "check-only survey; no posttest/deployment survey claim; Linux only; no publication; no push"
+}

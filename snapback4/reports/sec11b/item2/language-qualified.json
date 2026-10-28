@@ -1,0 +1,11 @@
+{
+  "originalExit": 101,
+  "targets": 195,
+  "originalPassed": 2854,
+  "originalFailed": 1,
+  "ignored": 16,
+  "failedCases": [
+    "test definitions::w11_every_registered_code_quotes_its_definition ... FAILED"
+  ],
+  "resolution": "Only missing new-code definition/action test pins. 85034827d8 adds those test-only entries; the exact named guide regression then passes. Production source unchanged. Original full receipt remains FAIL, not relabeled."
+}

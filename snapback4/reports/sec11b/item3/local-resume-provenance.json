@@ -1,0 +1,621 @@
+{
+  "source": "/home/ccheever/sb4-loop/reports/sec11b/item3-survey-original24",
+  "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "resumedRows": [
+    {
+      "wave": 30,
+      "lane": "008-snapback-brick-repointing-jobs",
+      "sha256": "85b114e76ec7951fbee40bc324d99d291858a6cc40de58b7d9aef9d29b85f7bf"
+    },
+    {
+      "wave": 26,
+      "lane": "030-snapback-thermal-imaging-surveys",
+      "sha256": "1863404efaab225d5089bc84a9ba29dab2e0dd33b78197b8655dbf9fd61d8951"
+    },
+    {
+      "wave": 28,
+      "lane": "013-snapback-lifting-sling-inspections",
+      "sha256": "60ec4b92071ebc205868e44306f8a4fc1a990d41c1b49043426d8ca86b223d33"
+    },
+    {
+      "wave": 30,
+      "lane": "038-snapback-welding-gas-deliveries",
+      "sha256": "89385d4e367aacc3e95090316c95949123cf93341405df3a36af35954e2f8463"
+    },
+    {
+      "wave": 30,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "sha256": "9034b103ec66811db805fa33004ae2cd7368146ba0005c1d6bce6081529568ea"
+    },
+    {
+      "wave": 26,
+      "lane": "005-snapback-neon-sign-commissions",
+      "sha256": "24c29c4768afda028746711fdd206384836b2fddc86c5bd788379e3444046dd6"
+    },
+    {
+      "wave": 26,
+      "lane": "046-snapback-sump-pump-repairs",
+      "sha256": "37c20618ebbe4e7d97999c78d06baa7f1d904084e38d1d64dd60aa6900ff1edd"
+    },
+    {
+      "wave": 26,
+      "lane": "031-snapback-ice-machine-cleanings",
+      "sha256": "7effae86bc723b4dc62968a1b551adf218ee00edddc9373fff3c655400bf5f27"
+    },
+    {
+      "wave": 26,
+      "lane": "011-snapback-water-softener-installs",
+      "sha256": "afe4f78ff44318ca4c386580cec45d7990c05086ffd64c1a5231123434a3736b"
+    },
+    {
+      "wave": 26,
+      "lane": "048-snapback-shade-sail-installs",
+      "sha256": "f9ad5972cd86daf5975a9ca324ab2cf0a4945b0c26695e87e1c5a95517c862ca"
+    },
+    {
+      "wave": 26,
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "sha256": "7410c69cef8429c85b3f0c16a0547e20ba9d9251557e3babdff8ecde6801d8a3"
+    },
+    {
+      "wave": 28,
+      "lane": "012-snapback-architectural-rendering-jobs",
+      "sha256": "e11153eeb2af6daa5317e21507552dea24a0fcb0a80a6ce416640a90669399d0"
+    },
+    {
+      "wave": 26,
+      "lane": "017-snapback-personal-chef-bookings",
+      "sha256": "b544acb894ee3dcce52b4b99e92ffa3f4fd03511e5932765715513c0ff323b67"
+    },
+    {
+      "wave": 26,
+      "lane": "002-snapback-compression-garment-fittings",
+      "sha256": "2181c58cb9e0249df90078f415157c18a23b697ead42fa86c51101df65837c25"
+    },
+    {
+      "wave": 30,
+      "lane": "019-snapback-pet-relocation-flights",
+      "sha256": "37b1464897a5374c395e31c6925941eb9c0cb9eb60b49ec6af81c6be61d3359f"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "sha256": "aecca6627a94824947263446c037ccceda69a96717a6320ff1e09af081c6b4d7"
+    },
+    {
+      "wave": 26,
+      "lane": "029-snapback-boat-delivery-voyages",
+      "sha256": "4170d3bd5a80d187ad66be1e6eb32a5bad206857c1c4885545a6bea88c167f32"
+    },
+    {
+      "wave": 28,
+      "lane": "002-snapback-scleral-lens-fittings",
+      "sha256": "0a45f74896c12320fa65c0e7e63933ead29d138de19ffd5efd535e981776e55c"
+    },
+    {
+      "wave": 28,
+      "lane": "023-snapback-rv-roof-repairs",
+      "sha256": "be1968646832f218f429cd344e94b1a452076349260060f5ab395ed2a25052b6"
+    },
+    {
+      "wave": 26,
+      "lane": "015-snapback-camera-lens-rentals",
+      "sha256": "ea03ca2ff90ade069a2de4792942f98d1c085cf888ce174da19b7483aea19f6f"
+    },
+    {
+      "wave": 30,
+      "lane": "004-snapback-accessible-home-remodels",
+      "sha256": "7575c2ecbacea7dd0df0515c664dbbc6e5061e388830a0ea9b0d6c6510a5d023"
+    },
+    {
+      "wave": 30,
+      "lane": "049-snapback-wedding-officiant-bookings",
+      "sha256": "1058d9ba764619debc97dc8d7b5ad2872f59ef3902457a41268a998fdfe8d76c"
+    },
+    {
+      "wave": 30,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "sha256": "e37d0da0b6dbe98b6ef59c66cd35b8321082d1f18137121c81f6210c3ab042a8"
+    },
+    {
+      "wave": 26,
+      "lane": "047-snapback-makeup-artist-bridal-bookings",
+      "sha256": "5b0816e9fe19a76f8f2691fb97e2ce9db1b60bf20e613620332eb548f7bd99ff"
+    },
+    {
+      "wave": 26,
+      "lane": "035-snapback-sheepskin-tannery-orders",
+      "sha256": "01d9a65e1cb020d198fe2322839384f2cb1cfa3d6e4999c8b6bef79600fb7115"
+    },
+    {
+      "wave": 26,
+      "lane": "036-snapback-bronze-statue-casting",
+      "sha256": "a31a094e048c389b4a2876d1b80f5be020c2ce991462ccc599c5786b542fecec"
+    },
+    {
+      "wave": 26,
+      "lane": "027-snapback-exhibit-stand-builds",
+      "sha256": "20cb1c9829a52ff6ca1ef35dd058baf94f1b772a0fbbfe141d6bca70811c6e78"
+    },
+    {
+      "wave": 30,
+      "lane": "016-snapback-fire-engine-restorations",
+      "sha256": "7307875657cfd49990c23b45f81caa58f73d62a1fb7a254fa9e5bdec4f204dee"
+    },
+    {
+      "wave": 30,
+      "lane": "005-snapback-spiral-staircase-commissions",
+      "sha256": "e16c687e6fd6abd71581bb60fa49e156fb12ecfe50865e630fc9d89dd4f6a0ff"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "sha256": "2c2291b716f699e4b0e367b4fae916cb727a2947d0ee261682e6773bf9fa4938"
+    },
+    {
+      "wave": 30,
+      "lane": "015-snapback-baby-gear-rentals",
+      "sha256": "08c469077e6cc78d7e5d0399aa583599e3e1d15579410261068e26b46555c03c"
+    },
+    {
+      "wave": 30,
+      "lane": "035-snapback-drapery-cleaning-batches",
+      "sha256": "ee74bc980be3140808afbf8be878bc7d9164ae33087befaa5bf2383584512ffe"
+    },
+    {
+      "wave": 30,
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "sha256": "a4d7b15f8375580e1426eeb1e7465ff60e5a3d6fbd0d7196d39a3ef06ea83a79"
+    },
+    {
+      "wave": 26,
+      "lane": "041-snapback-espresso-machine-repairs",
+      "sha256": "01dcae8543c00f6188424e900650bf7ad868bfd8587582ff4d530032e59df056"
+    },
+    {
+      "wave": 30,
+      "lane": "029-snapback-enclosed-car-shipping",
+      "sha256": "adb24dcc37e5a6c50ffb35a3f1119297da9fa23e6036f8bf16138ec93de0b8d1"
+    },
+    {
+      "wave": 30,
+      "lane": "048-snapback-treehouse-builds",
+      "sha256": "878ac8cced8f6ec359390f34031ab02b25e27f164bdb445dcb4df4513b85278c"
+    },
+    {
+      "wave": 26,
+      "lane": "043-snapback-roof-inspection-certificates",
+      "sha256": "ffb3083ceb8dc341de6b978b8b81eb5cc0f12b5e8dd0c87ba0c4cfeaf38841bd"
+    },
+    {
+      "wave": 26,
+      "lane": "023-snapback-paintless-dent-repairs",
+      "sha256": "4dfba4d59d81cb89dcb639c7ee714f7e26be9f5b6251b07172e6e6dd8b9eb252"
+    },
+    {
+      "wave": 26,
+      "lane": "024-snapback-billiard-table-relocations",
+      "sha256": "925f8faf758c6ca13eb8f77230d36446b8e0fa867cf50a99b25f0258ae755810"
+    },
+    {
+      "wave": 30,
+      "lane": "018-snapback-orchard-pruning-visits",
+      "sha256": "a35c590182c612e5d917919c133b207a7e281f20d6611467d4845e3c3314596a"
+    },
+    {
+      "wave": 26,
+      "lane": "013-snapback-parachute-repack-logs",
+      "sha256": "c37c83eba2c9b4e0db49fece9a74938a5c365ba62f49f426c82ed5620e9df1f7"
+    },
+    {
+      "wave": 26,
+      "lane": "021-snapback-olive-oil-press-runs",
+      "sha256": "0676ce3c29a932e5883668c722fda8a2014cfb6c887268bfd79b5f534279f635"
+    },
+    {
+      "wave": 30,
+      "lane": "044-snapback-sash-window-restorations",
+      "sha256": "43e19f1cefb48717ed2b78881f1ccd79e4fbd4216d89ea060c9cf1adf2848ef6"
+    },
+    {
+      "wave": 26,
+      "lane": "032-snapback-service-dog-placements",
+      "sha256": "e26b736bb3c455be9ae698fe0a357ef3ea46b7301e4ea3be538d8073554275c8"
+    },
+    {
+      "wave": 30,
+      "lane": "030-snapback-acoustic-noise-studies",
+      "sha256": "444433f15a82fdd1657b2e55f9cad2120d20859a65070110a597740a44f2f2c9"
+    },
+    {
+      "wave": 30,
+      "lane": "031-snapback-cooling-tower-cleanings",
+      "sha256": "cfa661d60506b892e98ce0b22f2b5cb7572c72525bd47eeb25777fca8d4c8cfe"
+    },
+    {
+      "wave": 26,
+      "lane": "012-snapback-wedding-video-edits",
+      "sha256": "5e07d2437ddea3c1c1cb9917da59698430651171472c19fe1937ac7a84ab26b0"
+    },
+    {
+      "wave": 26,
+      "lane": "007-snapback-custom-fragrance-commissions",
+      "sha256": "98667e0090a099a81cce1f74ebc32dc81616eaea2598a365359cae44c68a9fcb"
+    },
+    {
+      "wave": 28,
+      "lane": "015-snapback-mobility-scooter-rentals",
+      "sha256": "e0bbe115a3fc3f838148b2222ebc538c94a993136bcab15f97320746ec0c4ca5"
+    },
+    {
+      "wave": 28,
+      "lane": "008-snapback-log-home-chinking-repairs",
+      "sha256": "0199aa841fce1b89d8fe70d30a2a8a32ec0c114b859fb69fc0b2e1a3d81ca968"
+    },
+    {
+      "wave": 28,
+      "lane": "016-snapback-vintage-tractor-restorations",
+      "sha256": "36880ed63c13fd090b859a11156e8d94f5049a58f76e435a7753e5456f25fd5f"
+    },
+    {
+      "wave": 30,
+      "lane": "003-snapback-music-box-restorations",
+      "sha256": "fe70a34128f9351a9a6548caacbeb7115a92592347c6f3d593611fbeef095590"
+    },
+    {
+      "wave": 30,
+      "lane": "023-snapback-gutter-repair-calls",
+      "sha256": "0b1b6874b2a99b75c4cb765c803c4629800a4eb27eb7db7818f88ef63c3357c9"
+    },
+    {
+      "wave": 28,
+      "lane": "031-snapback-dryer-vent-cleanings",
+      "sha256": "27ed0710deef46d9f042c6cfd69847c4d00ba2fa24cd238066ef90ec49ce9572"
+    },
+    {
+      "wave": 28,
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "sha256": "5ebcfbfffce47d4da7219d1b097cba85cc4f185786013abcfe3d27ce51f3a1b5"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "sha256": "62ef92d4fbaa3ad991a1e073166b6c5873743ed2b189452a4bd784854249ef0b"
+    },
+    {
+      "wave": 26,
+      "lane": "022-snapback-ski-boot-fittings",
+      "sha256": "b076c2ee98559404247c4bec0b6cf6382547eafec252b4ae0c394e649ed47413"
+    },
+    {
+      "wave": 26,
+      "lane": "014-snapback-home-staging-projects",
+      "sha256": "ea7d9bb9ae228f3e502c50894b773ab5d17045c1774021118401f8ec468e5307"
+    },
+    {
+      "wave": 28,
+      "lane": "007-snapback-custom-wallpaper-commissions",
+      "sha256": "96278f18f4c7a65468a9af60d95fbe48880ef95fb4daeca48a8415b41365ad1e"
+    },
+    {
+      "wave": 30,
+      "lane": "026-snapback-film-camera-repairs",
+      "sha256": "1654c8fa2b724aade17ae625114dbb07ec36179288e92da9f5113d5b4c303562"
+    },
+    {
+      "wave": 30,
+      "lane": "017-snapback-petting-zoo-parties",
+      "sha256": "bd8b18238dc2b9074dbb459e3e88c38f2a53de2be665e62af37f5c08f2bd4e37"
+    },
+    {
+      "wave": 30,
+      "lane": "022-snapback-motorcycle-leathers-fittings",
+      "sha256": "a0a7e74f1ffbea61e8e75a746fb30675aeff10279b81ed42c7b55545491b7ca7"
+    },
+    {
+      "wave": 30,
+      "lane": "014-snapback-balloon-decor-installs",
+      "sha256": "fa9dec04559bb40592d9ae5458277ddaa760a75057e42a55b944f590dbec6854"
+    },
+    {
+      "wave": 30,
+      "lane": "020-snapback-fat-bike-tours",
+      "sha256": "c1490baccb940afb11f1ffcfac589a272f710d43231c3aa9951486053e60c4df"
+    },
+    {
+      "wave": 28,
+      "lane": "009-snapback-antique-doll-restorations",
+      "sha256": "53038d51cd53103a1d4ca36521b28cb7a7f91feafdf2e70aebe0feb4a361ab72"
+    },
+    {
+      "wave": 26,
+      "lane": "037-snapback-bespoke-shoe-commissions",
+      "sha256": "509d9c7f2035468d6c26c87bd007e1afe1a304ac539b2057ee2a3feb0cb1c807"
+    },
+    {
+      "wave": 26,
+      "lane": "028-snapback-chandelier-restorations",
+      "sha256": "cb08c495b198472cd884291bf44840cfa28d41effdf85e088203070c65381902"
+    },
+    {
+      "wave": 26,
+      "lane": "034-snapback-luxury-watch-servicing",
+      "sha256": "6757181e00411e97a24fb4afc753b2d4af320bb388b2a08732f7aa9f7d77bb64"
+    },
+    {
+      "wave": 26,
+      "lane": "038-snapback-water-cooler-deliveries",
+      "sha256": "780962f30e4bbff009964d7ef81cada8d09086d46228cdce6c24d6acf2e350e2"
+    },
+    {
+      "wave": 28,
+      "lane": "038-snapback-toner-cartridge-deliveries",
+      "sha256": "7d984dfa69d9e36652868d63f9cf5c74cf37d33639b1871bf073bf9804b54960"
+    },
+    {
+      "wave": 30,
+      "lane": "013-snapback-ladder-safety-inspections",
+      "sha256": "61528f318cd31e202f31ed3358d1e53055d0c992884520329c42aab643808f09"
+    },
+    {
+      "wave": 28,
+      "lane": "001-snapback-barometer-restorations",
+      "sha256": "589f6a4a7b100f1719c33ef1ee2c8f561715f0bcf8e798b930c66cf6aec1ab3c"
+    },
+    {
+      "wave": 28,
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "sha256": "dcc3c49d9567c073904cb0ca91d3681c5b31cd00f1bd49db4aca270aed563138"
+    },
+    {
+      "wave": 26,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "sha256": "21a67bdd843ee33d539ee52df2970ccd84631aeeb24c1641c9d40a282e945492"
+    },
+    {
+      "wave": 30,
+      "lane": "037-snapback-bespoke-glove-commissions",
+      "sha256": "d3ec6feae98f854aa33c6c3a00364c5120bb431b4c5f16c988fce9d9ea36bf0c"
+    },
+    {
+      "wave": 28,
+      "lane": "005-snapback-wrought-iron-gate-commissions",
+      "sha256": "5864ada8fdba9d2539ff8ee34531d4e3fc0a2842bd35bfd08a2669019d9e1a67"
+    },
+    {
+      "wave": 26,
+      "lane": "049-snapback-wedding-dj-bookings",
+      "sha256": "3b4c171310ce8bb73121a8e9ae7df590c042963821f7fa9205796f6153c3530c"
+    },
+    {
+      "wave": 28,
+      "lane": "043-snapback-playground-safety-inspections",
+      "sha256": "6585dd5d86a52a68b8ec85f2ef68b3907434f5c2c598f2fea404a32571d7c01f"
+    },
+    {
+      "wave": 30,
+      "lane": "039-snapback-parrot-chick-reservations",
+      "sha256": "fcc7b925ca80d5d25e39d95af03c27776b38b4336df651e019c7ddc66db2e5fe"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "sha256": "b316a75e226990ad7dca291b9d34a1461ae69a0a56317eaa1704408ff711055c"
+    },
+    {
+      "wave": 28,
+      "lane": "021-snapback-cotton-gin-runs",
+      "sha256": "6762639e25937004a3968cc3e6c1eb1fa3105d4bb1b82cb43107a509f526b0da"
+    },
+    {
+      "wave": 30,
+      "lane": "042-snapback-sports-memorabilia-consignments",
+      "sha256": "50d2e1e1a1c24e4b2e461de13222a85484b5ef2a3603f5f48adac3197dfdce54"
+    },
+    {
+      "wave": 26,
+      "lane": "009-snapback-painting-conservation-treatments",
+      "sha256": "db9e328d2aff92f4dab52298b1c906453bee329f62f9bda4b045cd2ca698531b"
+    },
+    {
+      "wave": 26,
+      "lane": "019-snapback-horse-transport-bookings",
+      "sha256": "6a1ec8a4f66fd053c9de5bd1ebd021d7f981e8a432c73863c16ead46c98fe12f"
+    },
+    {
+      "wave": 26,
+      "lane": "042-snapback-classic-car-consignments",
+      "sha256": "2b381a12e48838e2d3ffd05a9b938abb9f64bfb0abba2d35baeebe89afcc89c9"
+    },
+    {
+      "wave": 28,
+      "lane": "032-snapback-assisted-living-placements",
+      "sha256": "dfeec40ee0f14603b9b3f613e597ca986d120fd01f7dc80ff69fec312d72dfd1"
+    },
+    {
+      "wave": 30,
+      "lane": "047-snapback-live-wedding-painters",
+      "sha256": "62f883fde2fb1526d9db0c76f255dc34c0e4687de81966cdff67532d12b4efbd"
+    },
+    {
+      "wave": 30,
+      "lane": "024-snapback-home-gym-installs",
+      "sha256": "c458ddfbe0522e5ecc4f2c1739457958d01f5f14544e12b90751040b25f4fa3f"
+    },
+    {
+      "wave": 28,
+      "lane": "006-snapback-binocular-overhaul-jobs",
+      "sha256": "5981385b37cebe3b4825a4fddbf7638c7bc23ebc021b24a811fe4b7a04aef732"
+    },
+    {
+      "wave": 30,
+      "lane": "009-snapback-antique-globe-restorations",
+      "sha256": "778a561e5b0bcd393f27e7e1f86f5391a5f5b580364797eb65a0c1d02ef171c5"
+    },
+    {
+      "wave": 28,
+      "lane": "022-snapback-custom-wetsuit-fittings",
+      "sha256": "c0a20e978d56c1326a2aab4e14ae8722b07ca1ab791e619a4d03f5f6345bf499"
+    },
+    {
+      "wave": 26,
+      "lane": "020-snapback-llama-trekking-trips",
+      "sha256": "b858f88a3cf9a1dfe97301ef67d3bb58eb2ee28f046ef48f06cbda5a747cdd85"
+    },
+    {
+      "wave": 30,
+      "lane": "010-snapback-whitewater-rafting-trips",
+      "sha256": "dda8f617f089cf08b02c3d62af17bf349086b2521cd1a540d2b88973dce91fb3"
+    },
+    {
+      "wave": 28,
+      "lane": "019-snapback-mature-tree-transplants",
+      "sha256": "458845cb8a3c16768ca3940258337c185db503429187afff060532cbd9a11cfa"
+    },
+    {
+      "wave": 30,
+      "lane": "046-snapback-walk-in-cooler-repairs",
+      "sha256": "5046fbdfd4f06347e74914631410b9e3618ef060662609bf289f29f46b890650"
+    },
+    {
+      "wave": 26,
+      "lane": "045-snapback-storm-shelter-installs",
+      "sha256": "0b2bbdf528d296c72f7b6fef6ac03e6123e199c22a111687baa27799244a9685"
+    },
+    {
+      "wave": 26,
+      "lane": "004-snapback-hoarding-cleanout-jobs",
+      "sha256": "2cb602e950deffe5580da831fd6e376ff953e78596a338c79545ab2e2e325d88"
+    },
+    {
+      "wave": 28,
+      "lane": "030-snapback-ground-radar-surveys",
+      "sha256": "9a15d1150f6e506edb57bdc156740b3e20877d975180099b4d3bb27e419c99e7"
+    },
+    {
+      "wave": 28,
+      "lane": "014-snapback-holiday-light-installations",
+      "sha256": "ada1ce3f1b2a85a02879e35db05148e2e9e06f0fd2e00f66be5de4e9b674f14b"
+    },
+    {
+      "wave": 30,
+      "lane": "040-snapback-snowmobile-repairs",
+      "sha256": "a3848965adc6819f490040ab6d056a7360f17cf5b5633e5bf8d7738a03d4a97d"
+    },
+    {
+      "wave": 30,
+      "lane": "043-snapback-pool-fence-inspections",
+      "sha256": "7f00bcbba772ff8689f1b1e925c9b45c8e60d127cb0f837d12d3c9ea17aa98e5"
+    },
+    {
+      "wave": 30,
+      "lane": "012-snapback-animated-explainer-videos",
+      "sha256": "d53e00eac82b7fc5bf02596408f23f70077252956daafd0b20da5ffd11c6a0c4"
+    },
+    {
+      "wave": 26,
+      "lane": "006-snapback-microscope-overhaul-jobs",
+      "sha256": "f89f589b1fa9c4d68e4e806e8921165f3418d04076d1d24e12f08af01256c4d1"
+    },
+    {
+      "wave": 26,
+      "lane": "016-snapback-vintage-motorcycle-restorations",
+      "sha256": "99d4e7467af87a608f2637187e653a6556fa8cf583a3c00646f3bac53a43674e"
+    },
+    {
+      "wave": 30,
+      "lane": "027-snapback-museum-diorama-builds",
+      "sha256": "b53a0c8e24b4a3b6fbb89463b49f64db3acdbd960aada546524b353d1a7df9a2"
+    },
+    {
+      "wave": 30,
+      "lane": "034-snapback-vintage-handbag-restorations",
+      "sha256": "c4da7156477246053d779d515c3061e3398caf4e2f95b384edf1acd0fe9ef3f3"
+    },
+    {
+      "wave": 26,
+      "lane": "044-snapback-yacht-varnish-refinishing",
+      "sha256": "3c5c843415de5c0cf1448d5bfd13732dfd9b6dd9da7ffa0400687c2f6b5c4e1f"
+    },
+    {
+      "wave": 26,
+      "lane": "040-snapback-lawn-mower-repairs",
+      "sha256": "647eb14c4d9eb87b2e69c6fd770e0a568fbd74fab0df1a4e19b9dc6391ef396b"
+    },
+    {
+      "wave": 30,
+      "lane": "041-snapback-steamer-trunk-restorations",
+      "sha256": "5589571d720a73e3a4d5a8e005aff1afcc438331cd7b57d7009875a11aa6d3ce"
+    },
+    {
+      "wave": 28,
+      "lane": "004-snapback-smoke-damage-cleanups",
+      "sha256": "c2a1cbd088ab562faff1ccbdd2c3ba0d5d517c76ebde9ad68f08e14999b80e6d"
+    },
+    {
+      "wave": 30,
+      "lane": "007-snapback-tile-mosaic-commissions",
+      "sha256": "599d3208c164c363198f8857f798a63fe95013c385fa324b977c3547fbf5887b"
+    },
+    {
+      "wave": 30,
+      "lane": "006-snapback-fishing-reel-servicing",
+      "sha256": "c3df822afe624ea8aa70fe1d99d3b48dcdad7636844e2c62000e70f97a714e1f"
+    },
+    {
+      "wave": 26,
+      "lane": "050-snapback-hot-tub-servicing-visits",
+      "sha256": "65e5b8383d71b5c5fdbb42622bd8e8fb37374c3d6f1a8b57b01cbaaaeffbf00a"
+    },
+    {
+      "wave": 26,
+      "lane": "003-snapback-vintage-amplifier-repairs",
+      "sha256": "16dbe7168af12be1df304fe1cb16c0cb0a3b70c11bfaeb6d870c871755ea32ec"
+    },
+    {
+      "wave": 30,
+      "lane": "021-snapback-rice-mill-lots",
+      "sha256": "128f325257dcefa0d49081273db7b6efa51b9759486232ccbcc2f4a5c0fc57ff"
+    },
+    {
+      "wave": 30,
+      "lane": "011-snapback-wood-stove-installs",
+      "sha256": "3c4122c4a992a25648cf5d7a2003320a0ff34dc3e7e08ae7de46de9c0703d74c"
+    },
+    {
+      "wave": 30,
+      "lane": "025-snapback-chainsaw-safety-certifications",
+      "sha256": "a158805636666c7562b6b2898c1c2afed6e8011278bc3c59d80715e98a4b74c0"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "sha256": "7831c89e12a191e46587e6be1d20b332c692171aaa163f00b5539d23581963d6"
+    },
+    {
+      "wave": 30,
+      "lane": "050-snapback-grain-dryer-servicing",
+      "sha256": "08c9676fa20f3eec7ed9f038bb9d6e30a569570aada665ad6d99d4d1840bd137"
+    },
+    {
+      "wave": 30,
+      "lane": "028-snapback-lamp-post-restorations",
+      "sha256": "7a8d55e31e9d14c19a082f8698d691fede6d4ca96ea4303c456de9379c65f160"
+    },
+    {
+      "wave": 30,
+      "lane": "001-snapback-weathervane-restorations",
+      "sha256": "4aa539e365f717b429d6342706be212e8df450a0fb974f0b035b7c80e7c836d8"
+    },
+    {
+      "wave": 26,
+      "lane": "039-snapback-dog-breeder-litter-reservations",
+      "sha256": "857c78dd5dbcca2b342762947b6c70edb3d222154b4e3df49ee040e09d1bf303"
+    },
+    {
+      "wave": 30,
+      "lane": "032-snapback-private-school-placements",
+      "sha256": "82fe393be5017c8503b13d054a373a9f8e73045be4c7ba3a835e413fbb5b9715"
+    }
+  ]
+}

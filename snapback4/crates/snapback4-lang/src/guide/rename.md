@@ -99,3 +99,27 @@ Save the example as `rename.mjs` beside an installed Snapback package and run
 `node rename.mjs`. It uses a fresh temporary deployment, real persisted rows,
 a service-authorized edit, and two rollback/forward cycles. It also checks a
 v2-born row. Its temporary files and owned server are removed on completion.
+
+A scalar rename may widen its domain in the same release, for example
+`title: text <=160 renamed from label` after `label: text <=80`. Default rollback
+registers a widened view when new values need it; preview before selecting exact
+source. Narrowing or changed meaning still needs an explicit typed transform.
+
+A frozen UI reading `list()[0].label` can keep that property with
+`alias result list.label = title` beside the current `list` query. It adds the old
+property to each returned row while retaining `title`, paging, row metadata and
+current column authorization. It also works on nullable rows and object results.
+Use one declaration per property, in the endpoint's module; operation aliases
+inherit it. Unknown source fields, collisions and scalar results refuse at check.
+RESULT REVIEW names the frozen property paths and says `covered by alias` for
+these declarations; value domains, nullable fields and behavior still need review.
+
+If an older runtime recorded a same-release rollback and forward now refuses,
+keep a backup and restart serve with the corrected CLI. Preview
+`snapback4 rollback DIR --to latest --exact --check`, then run the same command
+without `--check`. A validated native down receipt repairs the damaged forward
+bookkeeping without deleting history. Missing computed evidence cannot certify
+external dependencies (including file reads); conflicting or unverifiable
+dependencies still refuse. An edited old projection still refuses:
+use the named row and old operation (or an authorized bridge) to resolve it. For
+new transform meaning, use a fresh declaration name; pruning never resets it.

@@ -1,0 +1,54 @@
+{
+  "replays": [
+    {
+      "lane": "030",
+      "binarySha256": "2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac",
+      "fixedSchemaSha256": "c0bb13bb9fa639c327e365b14cfdde2d95b92040ca98b19e5c15800f12f67de8",
+      "acceptanceSha256": "856fefeed9417f175a2df4d4d4df7d073de2ee801e86c522313aaef1ff1405ab",
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "completion": "acceptance: all assertions held",
+        "assertionsOrChecks": null,
+        "privateLogRetained": true
+      },
+      "originalAcceptanceUnchanged": false,
+      "untouchedAcceptance": {
+        "exit": 1,
+        "completion": null,
+        "assertionsOrChecks": null,
+        "privateLogRetained": true
+      },
+      "acceptanceAdjustment": "Retain late-report positive assertions; explicitly deny unreviewed B, then review B before advancing the clock. Original bypass expectation retained as a failed run."
+    },
+    {
+      "lane": "035",
+      "binarySha256": "2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac",
+      "fixedSchemaSha256": "155bae4efe45843e53285bbf842b6b4e3c3d3381589f2d4c3f7d241d21b4cfa4",
+      "acceptanceSha256": "52158886b4b256a3b56e46552a7431aa885f8b9f7dfce9802eff4ea305498542",
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "completion": "acceptance passed: 133 checks",
+        "assertionsOrChecks": 133,
+        "privateLogRetained": true
+      },
+      "originalAcceptanceUnchanged": true
+    },
+    {
+      "lane": "018",
+      "binarySha256": "2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac",
+      "fixedSchemaSha256": "8ad72ddff420ccd1b07070df55c4ace87cc32dd218cb1a85d361dee4490e4aee",
+      "acceptanceSha256": "f7819fa98ce2328157ec71f682cd6665c441dd8cde164a5aa4ab0ee54d87562a",
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "completion": "acceptance: all checks passed",
+        "assertionsOrChecks": null,
+        "privateLogRetained": true
+      },
+      "originalAcceptanceUnchanged": true
+    }
+  ],
+  "scope": "Actual copied-schema app acceptance replays; private logs retained outside git."
+}

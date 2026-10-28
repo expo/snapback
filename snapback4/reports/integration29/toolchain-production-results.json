@@ -1,0 +1,10 @@
+[
+  {
+    "name": "toolchain-manifest",
+    "exit": 0
+  },
+  {
+    "name": "toolchain-production",
+    "exit": 0
+  }
+]
