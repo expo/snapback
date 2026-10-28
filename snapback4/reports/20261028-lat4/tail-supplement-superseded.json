@@ -1,0 +1,495 @@
+{
+  "qualification": false,
+  "completedPairs": 35,
+  "setupErrors": [],
+  "verdictOrMessageDifferences": [
+    {
+      "wave": 32,
+      "lane": "013-snapback-life-jacket-inspections",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 0,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 32,
+      "lane": "013-snapback-life-jacket-inspections",
+      "script": "probe:serve/client:calls",
+      "beforeCode": 1,
+      "afterCode": 0,
+      "sameOperativeMessages": false
+    },
+    {
+      "wave": 32,
+      "lane": "014-snapback-ceiling-draping-installs",
+      "script": "frontend:proof",
+      "beforeCode": 1,
+      "afterCode": 0,
+      "sameOperativeMessages": false
+    }
+  ],
+  "declaredLingeringDiagnosticOccurrences": {
+    "before": 0,
+    "after": 0
+  },
+  "LAT3TargetLanes": [
+    "002-snapback-breast-prosthesis-fittings",
+    "003-snapback-slot-machine-restorations",
+    "005-snapback-library-ladder-commissions",
+    "006-snapback-turntable-servicing",
+    "007-snapback-garden-design-commissions",
+    "008-snapback-retaining-wall-repairs",
+    "009-snapback-tapestry-conservation",
+    "010-snapback-tandem-paragliding-flights",
+    "011-snapback-heat-pump-installs",
+    "012-snapback-picture-book-illustration",
+    "013-snapback-life-jacket-inspections",
+    "014-snapback-ceiling-draping-installs",
+    "015-snapback-camping-gear-rentals",
+    "016-snapback-stagecoach-restorations",
+    "018-snapback-ash-tree-injections",
+    "021-snapback-cacao-fermentary-lots",
+    "022-snapback-custom-corset-fittings",
+    "023-snapback-shower-enclosure-repairs",
+    "024-snapback-home-sauna-installs",
+    "025-snapback-drone-pilot-certifications",
+    "026-snapback-vintage-synthesizer-repairs",
+    "027-snapback-animatronic-figure-builds",
+    "028-snapback-bandstand-restorations",
+    "029-snapback-grand-piano-moves",
+    "030-snapback-wireless-site-surveys",
+    "031-snapback-kitchen-hood-cleanings",
+    "032-snapback-executive-search-placements",
+    "034-snapback-baseball-glove-restorations",
+    "035-snapback-choir-robe-cleaning",
+    "036-snapback-championship-ring-orders",
+    "037-snapback-custom-cowboy-boots",
+    "038-snapback-dry-ice-deliveries",
+    "039-snapback-goat-kid-reservations"
+  ],
+  "LAT3TargetCoverage": {
+    "expected": 33,
+    "observed": 5,
+    "matchedPassing": 5,
+    "nonPassing": []
+  },
+  "tables": {
+    "all": {
+      "acceptance": {
+        "seconds": {
+          "before": {
+            "n": 10,
+            "median": 8.1563300259877,
+            "p90": 22.111947724130005,
+            "max": 24.020158502971753
+          },
+          "after": {
+            "n": 10,
+            "median": 7.504114103852771,
+            "p90": 11.339672334957868,
+            "max": 15.645494994008914
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 10,
+            "median": 3.9174213660541666,
+            "p90": 6.63810114198049,
+            "max": 8.317650360130004
+          },
+          "after": {
+            "n": 10,
+            "median": 2.7099887009303343,
+            "p90": 3.224560091039166,
+            "max": 3.8126998658027413
+          }
+        }
+      },
+      "day2:proof": {
+        "seconds": {
+          "before": {
+            "n": 5,
+            "median": 117.33557532913983,
+            "p90": 142.17587636807002,
+            "max": 142.17587636807002
+          },
+          "after": {
+            "n": 5,
+            "median": 74.22249055397697,
+            "p90": 129.88517887308262,
+            "max": 129.88517887308262
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 5,
+            "median": 96.61827496507001,
+            "p90": 135.3221304191485,
+            "max": 135.3221304191485
+          },
+          "after": {
+            "n": 5,
+            "median": 68.80892763988082,
+            "p90": 129.88444411108262,
+            "max": 129.88444411108262
+          }
+        }
+      },
+      "frontend:proof": {
+        "seconds": {
+          "before": {
+            "n": 8,
+            "median": 18.555615426506847,
+            "p90": 33.78446739399806,
+            "max": 33.78446739399806
+          },
+          "after": {
+            "n": 8,
+            "median": 12.23923642898444,
+            "p90": 20.962764048948884,
+            "max": 20.962764048948884
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 8,
+            "median": 10.79219687047804,
+            "p90": 14.201099179011104,
+            "max": 14.201099179011104
+          },
+          "after": {
+            "n": 8,
+            "median": 10.47995632099546,
+            "p90": 12.110726585948884,
+            "max": 12.110726585948884
+          }
+        }
+      },
+      "probe:serve/client:calls": {
+        "seconds": {
+          "before": {
+            "n": 9,
+            "median": 9.734554111026227,
+            "p90": 23.465426489012316,
+            "max": 23.465426489012316
+          },
+          "after": {
+            "n": 9,
+            "median": 7.578978673089296,
+            "p90": 22.865024853032082,
+            "max": 22.865024853032082
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 9,
+            "median": 9.733758739026227,
+            "p90": 23.464626861012317,
+            "max": 23.464626861012317
+          },
+          "after": {
+            "n": 9,
+            "median": 7.578499154089296,
+            "p90": 22.864677482032082,
+            "max": 22.864677482032082
+          }
+        }
+      }
+    },
+    "LAT3-day2-33": {
+      "day2:proof": {
+        "seconds": {
+          "before": {
+            "n": 5,
+            "median": 117.33557532913983,
+            "p90": 142.17587636807002,
+            "max": 142.17587636807002
+          },
+          "after": {
+            "n": 5,
+            "median": 74.22249055397697,
+            "p90": 129.88517887308262,
+            "max": 129.88517887308262
+          }
+        },
+        "withoutPreflightSeconds": {
+          "before": {
+            "n": 5,
+            "median": 96.61827496507001,
+            "p90": 135.3221304191485,
+            "max": 135.3221304191485
+          },
+          "after": {
+            "n": 5,
+            "median": 68.80892763988082,
+            "p90": 129.88444411108262,
+            "max": 129.88444411108262
+          }
+        }
+      }
+    }
+  },
+  "clientCallPairs": 9,
+  "clientCallRecords": 622,
+  "clientCallDifferences": [],
+  "missingClientCallVectors": [],
+  "tails": {
+    "completedSuites": 69,
+    "overOneSecond": {
+      "before": 0,
+      "after": 0
+    },
+    "postCompletionSeconds": {
+      "before": {
+        "n": 34,
+        "median": 0.0,
+        "p90": 0.011,
+        "max": 0.025
+      },
+      "after": {
+        "n": 35,
+        "median": 0.001,
+        "p90": 0.001,
+        "max": 0.002
+      }
+    }
+  },
+  "postReportObservations": {
+    "before": {
+      "processes": 34,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 32,
+        "median": 0.1295,
+        "p90": 0.189,
+        "max": 0.249
+      }
+    },
+    "after": {
+      "processes": 35,
+      "overOneSecond": 0,
+      "seconds": {
+        "n": 35,
+        "median": 0.0,
+        "p90": 0.0,
+        "max": 0.001
+      }
+    }
+  },
+  "commands": {
+    "before": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 29,
+          "median": 5.721,
+          "p90": 30.295,
+          "max": 31.954
+        },
+        "outsideSecuritySeconds": {
+          "n": 29,
+          "median": 2.14879923,
+          "p90": 7.6204045690000015,
+          "max": 13.947892536000001
+        },
+        "count": 29
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 79,
+          "median": 0.143,
+          "p90": 0.49,
+          "max": 0.59
+        },
+        "outsideSecuritySeconds": {
+          "n": 79,
+          "median": 0.143,
+          "p90": 0.49,
+          "max": 0.59
+        },
+        "count": 79
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 1.412,
+          "p90": 2.983,
+          "max": 2.983
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 1.412,
+          "p90": 2.983,
+          "max": 2.983
+        },
+        "count": 4
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 11,
+          "median": 1.498,
+          "p90": 4.453,
+          "max": 6.577
+        },
+        "outsideSecuritySeconds": {
+          "n": 11,
+          "median": 1.498,
+          "p90": 4.453,
+          "max": 6.577
+        },
+        "count": 11
+      },
+      "dev": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 2.968,
+          "p90": 8.756,
+          "max": 8.756
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 2.968,
+          "p90": 8.756,
+          "max": 8.756
+        },
+        "count": 6
+      },
+      "data": {
+        "wallSeconds": {
+          "n": 60,
+          "median": 0.019,
+          "p90": 0.034,
+          "max": 0.066
+        },
+        "outsideSecuritySeconds": {
+          "n": 60,
+          "median": 0.019,
+          "p90": 0.034,
+          "max": 0.066
+        },
+        "count": 60
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 40,
+          "median": 0.0285,
+          "p90": 0.089,
+          "max": 0.095
+        },
+        "outsideSecuritySeconds": {
+          "n": 40,
+          "median": 0.0285,
+          "p90": 0.089,
+          "max": 0.095
+        },
+        "count": 40
+      }
+    },
+    "after": {
+      "deploy": {
+        "wallSeconds": {
+          "n": 32,
+          "median": 3.2295,
+          "p90": 8.993,
+          "max": 13.919
+        },
+        "outsideSecuritySeconds": {
+          "n": 32,
+          "median": 0.23132544950000056,
+          "p90": 0.6274211309999997,
+          "max": 1.1079929469999996
+        },
+        "count": 32
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 82,
+          "median": 0.094,
+          "p90": 0.195,
+          "max": 0.216
+        },
+        "outsideSecuritySeconds": {
+          "n": 82,
+          "median": 0.094,
+          "p90": 0.195,
+          "max": 0.216
+        },
+        "count": 82
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 0.17700000000000002,
+          "p90": 0.31,
+          "max": 0.31
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 0.17700000000000002,
+          "p90": 0.31,
+          "max": 0.31
+        },
+        "count": 4
+      },
+      "rollback": {
+        "wallSeconds": {
+          "n": 11,
+          "median": 0.294,
+          "p90": 0.605,
+          "max": 0.644
+        },
+        "outsideSecuritySeconds": {
+          "n": 11,
+          "median": 0.294,
+          "p90": 0.605,
+          "max": 0.644
+        },
+        "count": 11
+      },
+      "dev": {
+        "wallSeconds": {
+          "n": 6,
+          "median": 2.1915,
+          "p90": 8.575,
+          "max": 8.575
+        },
+        "outsideSecuritySeconds": {
+          "n": 6,
+          "median": 2.1915,
+          "p90": 8.575,
+          "max": 8.575
+        },
+        "count": 6
+      },
+      "data": {
+        "wallSeconds": {
+          "n": 60,
+          "median": 0.0185,
+          "p90": 0.031,
+          "max": 0.039
+        },
+        "outsideSecuritySeconds": {
+          "n": 60,
+          "median": 0.0185,
+          "p90": 0.031,
+          "max": 0.039
+        },
+        "count": 60
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 40,
+          "median": 0.015,
+          "p90": 0.043,
+          "max": 0.045
+        },
+        "outsideSecuritySeconds": {
+          "n": 40,
+          "median": 0.015,
+          "p90": 0.043,
+          "max": 0.045
+        },
+        "count": 40
+      }
+    }
+  }
+}
