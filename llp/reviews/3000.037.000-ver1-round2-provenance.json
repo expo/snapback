@@ -1,0 +1,8 @@
+{
+  "models": {
+    "codex": "gpt-6.1-sol high fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high; completed: password README and changed next-steps golden"
+  },
+  "brief": "Current product diff and LLP 3000.037.000 section 14; no edits or qualification.",
+  "codexFindings": "caller-death custody and adapted README wording; fixed with owned worker/parent watcher and explicit conditional wording"
+}
