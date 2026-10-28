@@ -38,9 +38,9 @@ test('awaited unref work and cleanup remain live until both settle',async()=>{
   assert.equal(result.code,0);assert.equal(result.stdout,'tested\ncleaned\n');assert.equal(result.stderr,'');assert.ok(result.ms>=200);
 });
 
-test('failed suites retain native multiline rendering and explicit status',async()=>{
+test('failed suites retain native multiline rendering and native throw status',async()=>{
   const result=await run(`process.exitCode=7;throw Error('E_MULTILINE: first\\nsecond');`);
-  assert.equal(result.code,7);assert.match(result.stderr,/node:internal\/modules\/run_main/);
+  assert.equal(result.code,1);assert.match(result.stderr,/node:internal\/modules\/run_main/);
   assert.match(result.stderr,/Error: E_MULTILINE: first\nsecond/);
   assert.equal((result.stderr.match(/Error: E_MULTILINE: first/g)??[]).length,1);
 });

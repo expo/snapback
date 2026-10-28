@@ -22,7 +22,7 @@ export async function runProofSuite(suite) {
   const running = setInterval(() => {}, 0x7fff_ffff);
   let failed = false, failure;
   try { await suite(); }
-  catch (error) { failed = true; failure = error; if (!process.exitCode) process.exitCode = 1; }
+  catch (error) { failed = true; failure = error; process.exitCode = 1; }
   finally { clearInterval(running); }
   await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
   // Let completed I/O callbacks close their handles before diagnosing residue.
@@ -44,7 +44,7 @@ export async function runProofSuite(suite) {
       await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
       process.exit(code);
     });
-    process.once('exit', () => { clearImmediate(fallback); process.exitCode = code; });
+    process.once('exit', () => clearImmediate(fallback));
     throw failure;
   }
   process.exit(code);
