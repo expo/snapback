@@ -158,6 +158,8 @@ pub struct Shared {
     #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
+    pub read_index_validation: WorkHook,
+    #[cfg(test)]
     pub adoption_committed: WorkHook,
     #[cfg(test)]
     pub clock_advanced: WorkHook,
@@ -368,7 +370,7 @@ const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 const CLASSES: usize = 8;
 
-struct RequestAdmission { limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
+struct RequestAdmission { #[cfg(test)] ri_timer_spawn: WorkHook, #[cfg(test)] ri_fail_timer: std::sync::atomic::AtomicBool, limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], ri: std::sync::OnceLock<Result<Arc<read_index::Queue>, ()>>, #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64, #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64, short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
 
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — viewers' waits and workers' claims are separate classes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -392,7 +394,7 @@ impl RequestAdmission {
         Self {
             limits: [REQUEST_WORKERS, MUTATION_WORKERS, SYNC_WORKERS, capacity.long_waits, ROUTE_WORKERS, REGISTRY_WORKERS, VERIFIER_WORKERS, capacity.claim_waits],
             pool_refusals: long_waits::PoolRefusals::new(capacity),
-            workers: Default::default(), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
+            workers: Default::default(), ri: Default::default(), #[cfg(test)] ri_timer_spawn: Mutex::new(None), #[cfg(test)] ri_fail_timer: std::sync::atomic::AtomicBool::new(false), #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64::new(8000), #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64::new(0), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
             routes: AtomicUsize::new(0), registries: AtomicUsize::new(0), verifiers: AtomicUsize::new(0), claims: AtomicUsize::new(0),
             refused: Default::default(), undelivered: Default::default(),
         }
@@ -419,6 +421,11 @@ impl RequestAdmission {
         Some(RequestPermit { admission: self.clone(), class })
     }
 }
+
+#[path = "serve_read_index.rs"]
+mod read_index;
+#[path = "serve_queries.rs"]
+mod queries;
 
 #[path = "request_workers.rs"]
 mod request_workers;
@@ -458,13 +465,18 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         return;
     };
     let deadline = (class == RequestClass::Short).then(|| request_workers::deadline(&request, SHORT_REQUEST_DEADLINE));
+    #[cfg(test)]
+    let deadline = if class==RequestClass::Short && admission.ri_deadline_micros.load(Ordering::Relaxed)>0 {
+        Some(deadline.unwrap().min(request.accepted_at()+Duration::from_micros(admission.ri_deadline_micros.load(Ordering::Relaxed))))
+    } else {deadline};
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
-    let job: Box<dyn FnOnce() + Send> = Box::new(move || { let _permit = permit;
+    let lane=Arc::new(read_index::Resume {shared: shared.clone(), admission: admission.clone(), _permit: permit, deadline});
+    let job: Box<dyn FnOnce() + Send> = Box::new(move || {
         // Intake time survives the queue; neither execution nor body reading
         // receives a renewed lease. Refuse without draining an expired body.
         if class == RequestClass::Short && pending.request.as_ref().is_some_and(|r| r.accepted_at().elapsed() >= SHORT_REQUEST_DEADLINE || r.body_deadline().is_some_and(|at| Instant::now() >= at)) { return; }
         let request = pending.take();
-        let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
+        let run = || { if let Some(sample) = sample { sample.run(|| handle_resumable(request, &shared, lane)); } else { handle_resumable(request, &shared, lane); } };
         if let Some(trace) = trace { trace.run(run); } else { run(); } });
     if let Err(error) = admission.workers[class as usize].submit_until(admission.limit(class), builder, deadline, job) {
         snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
@@ -849,7 +861,15 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
     if refusal.retryable { 503 } else if matches!(refusal.code.as_str(), "E_ID_REUSED" | "E_DELIVERY_BINDING") { 200 } else { 500 }
 }
 
-fn handle(mut request: Request, shared: &Shared) {
+#[cfg(test)]
+fn handle(request: Request, shared: &Arc<Shared>) {
+    let admission=Arc::new(RequestAdmission::new(&crate::host_limits::Capacity::default()));
+    let permit=admission.acquire(request_class(&request,shared)).unwrap();
+    let deadline=Some(request_workers::deadline(&request,SHORT_REQUEST_DEADLINE));
+    let resume=Arc::new(read_index::Resume {shared:shared.clone(),admission,_permit:permit,deadline});
+    handle_resumable(request,shared,resume);
+}
+fn handle_resumable(mut request: Request, shared: &Shared, resume: Arc<read_index::Resume>) {
     #[cfg(test)]
     let _round_trips = tests::round_trip_tests::request_scope(shared);
     // @ref LLP 3000.000.000#93-http-admission-and-reporting — lookup, decode and execution share the admitted release.
@@ -1178,213 +1198,9 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             if ephemeral { return ephemeral::serve(request, shared, &op, &body, (principal, credential_kind, scope)); }
             let manifest = if scope == snapback4_core::identity::SessionScope::Read { snapback4_core::engine::DeliveryManifest::Skip } else { snapback4_core::engine::DeliveryManifest::Build };
-            let presence_of = |engine: &Engine, name: &str| engine.schema().operations.get(name).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
-            let viewer = principal.clone();
             let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now())).with_request_credential(&credential_kind).with_revision_cache(!shared.personas && !shared.staging);
             if path.starts_with("/q/") {
-                let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
-                if provenance { context = context.with_row_provenance(); }
-                let retained: Option<Vec<String>> = match payload.get("searchRetained") {
-                    Some(value) => match serde_json::from_value(value.clone()) {
-                        Ok(ids) => Some(ids),
-                        Err(_) => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetained must be a page of IDs")),
-                    },
-                    None => None,
-                };
-                if let Some(value) = payload.get("searchRetainedOrder") {
-                    let order: Vec<i64> = match value.as_array().and_then(|values| values.iter().map(snapback4_core::search_decoration::order_key).collect()) {
-                        Some(order) => order,
-                        None => return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "searchRetainedOrder must contain integer ordering keys")),
-                    };
-                    if retained.as_ref().is_none_or(|ids| ids.len() != order.len()) {
-                        return operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", "retained search ordering keys require matching candidate IDs"));
-                    }
-                    context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
-                }
-                let (settlement_started, mut handoffs) = (Instant::now(), 0);
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = loop {
-                let reader = if handoffs == 0 { shared.reader() } else { shared.reader_after_handoff() };
-                let evaluated = match reader {
-                    Ok((epoch, mut reader)) => {
-                        #[cfg(test)] test_work(&shared.query_wait);
-                        let admission = match session_identity::Admission::capture(&request, shared) { Ok(value) => value, Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) };
-                        let persona = admission.persona(shared, &reader);
-                        let expected = (principal.clone(), credential_kind.clone(), scope);
-                        // Take identity from the same reader that evaluates the query,
-                        // never from an engine that may have replaced it meanwhile.
-                        let context = match query_readers::query_context(&reader, shared, &op, &args_json, context.clone()) { Ok(context) => context, Err(_) => return operation_request::query_argument_refusal(request, shared, op.clone(), args_json.clone(), context.clone()) };
-                        let reads_presence = presence_of(&reader, &op);
-                        let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
-                        let query_generation = reader.generation();
-                        let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
-                        let scopes = read_scopes::dependencies(&reader, &op, &context);
-                        trace::mark("query_start");
-                        let mut metadata = None;
-                        let (outcome, cut, current) = reader.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
-                            let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_bound_facts(shared, &expected, &facts, persona, None))?;
-                                Ok((facts.store_id, head))
-                            });
-                            let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
-                            metadata = Some(authority); result
-                        });
-                        let metadata = head::query_response_head(&mut reader, metadata, &outcome);
-                        if let Err(why) = &metadata && why.code == "E_GENERATION" {
-                            if handoffs < 2 { handoffs += 1; continue; }
-                            // @ref LLP 3000.018#3.2 — a refused query has no complete answer or certified cut.
-                            // RT3b generation refusals remain metadata-free after handoff exhaustion.
-                            return respond_timed(request, shared, 503, latency::Unobserved(json!({"denied":why,"complete":false})));
-                        }
-                        trace::mark("query_end");
-                        let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        if outcome.is_ok() && metadata.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
-                    },
-                    // Only memory stores lack detached readers by construction.
-                    Err(error) if !shared.memory_store() => {
-                        if matches!(error.underlying(), snapback4_core::RuntimeError::Generation(_)) && handoffs < 2 {
-                            handoffs += 1;
-                            continue;
-                        }
-                        let why = error.refusal();
-                        let reply = if why.code == "E_GENERATION" { json!({"denied":why,"complete":false}) } else { json!({"denied":why}) };
-                        return respond_timed(request, shared, 503, latency::Unobserved(reply));
-                    }
-                    Err(_) => {
-                        let admission = session_identity::Admission::capture(&request, shared);
-                        let (op, context, retained, args_json) = (op.clone(), context.clone(), retained.clone(), args_json.clone());
-                        let refused = (op.clone(), args_json.clone(), context.clone());
-                        let credential_kind = credential_kind.clone();
-                        let result = shared.engine.attempt(move |engine, shared| {
-                            let admission = admission?;
-                            let persona = admission.persona(shared, engine);
-                            let expected = (context.viewer.clone(), credential_kind, scope);
-                        let reads_presence = presence_of(engine, &op);
-                        let mut context = context.clone();
-                        context = query_readers::query_context(engine, shared, &op, &args_json, context)?;
-                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine); }
-                        let query_generation = engine.generation();
-                        let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
-                        let scopes = read_scopes::dependencies(engine, &op, &context);
-                        let mut metadata = None;
-                        let (outcome, cut, current) = engine.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
-                            let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_bound_facts(shared, &expected, &facts, persona, None))?;
-                                Ok((facts.store_id, head))
-                            });
-                            let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
-                            metadata = Some(authority); result
-                        });
-                        let metadata = head::query_response_head(engine, metadata, &outcome);
-                        let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
-                        Ok::<_, Refusal>((outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths))
-                        });
-                        match result { Ok(value) => value, Err(why) if matches!(why.code.as_str(), "E_INPUT" | "E_OP") => return operation_request::query_argument_refusal(request, shared, refused.0, refused.1, refused.2), Err(why) => return respond_timed(request, shared, 401, json!({"denied":why})) }
-
-                    },
-                };
-                if evaluated.0.as_ref().is_err_and(|error| error.code == "E_GENERATION") && handoffs < 2 {
-                    handoffs += 1;
-                    continue;
-                }
-                if let Some((table, id)) = evaluated.0.as_ref().ok().and_then(|outcome| outcome.pending_opening.as_ref()) {
-                    if settlement_started.elapsed() >= Duration::from_secs(30) || crate::lifecycle::stopping() {
-                        let mut why = Refusal::new("E_QUERY_RETRY", "client", "timed disclosure did not settle within the query wait; retry the query").guide("client");
-                        why.retryable = true;
-                        return respond_timed(request, shared, 503, json!({"denied":why}));
-                    }
-                    let (table, id, requested) = (table.clone(), id.clone(), context.now);
-                    let result = shared.engine.attempt(move |engine, shared| {
-                        let now = engine.materialize_time_audience_at(&table, &id, requested.unwrap_or_else(|| shared.now()))?;
-                        shared.refresh_time_audience_clock(engine, now);
-                        shared.durable_committed(engine);
-                        Ok::<_, snapback4_core::RuntimeError>(())
-                    });
-                    if let Err(error) = result { return respond_timed(request, shared, 503, json!({"denied":error.refusal()})); }
-                    if let Err(why) = session_identity::principal_of(&request, shared) {
-                        return respond_timed(request, shared, 401, json!({"denied":why}));
-                    }
-                    std::thread::yield_now();
-                    continue;
-                }
-                break evaluated;
-                };
-                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => {
-                    let status = operation_request::authority_status(&why, 503);
-                    let reply = if why.code == "E_GENERATION" { json!({"denied":why,"complete":false}) } else { json!({"denied":why}) };
-                    respond_timed(request, shared, status, latency::Unobserved(reply)); return;
-                } };
-                match outcome {
-                    Ok(outcome) => {
-                        #[derive(serde::Serialize)]
-                        struct QueryReply<'a> {
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            scopes: &'a Option<Json>,
-                            #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
-                            search_scopes: &'a Option<Vec<String>>,
-                            #[serde(rename = "searchRows", skip_serializing_if = "Option::is_none")]
-                            search_rows: Option<wire::Plain<'a>>,
-                            #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
-                            search_current: &'a Option<Vec<String>>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
-                            generation: u64,
-                            complete: bool,
-                            cut: Option<snapback4_core::engine::ReadCut>,
-                            data: wire::QueryData<'a>,
-                            next: &'a Option<String>,
-                            #[serde(rename = "nextExpiry")]
-                            next_expiry: Option<i64>,
-                            #[serde(rename = "decorationPaths", skip_serializing_if = "Option::is_none")]
-                            decoration_paths: Option<Vec<Vec<String>>>,
-                            #[serde(rename = "decorationExpiry", skip_serializing_if = "Option::is_none")]
-                            decoration_expiry: Option<Option<i64>>,
-                            seq: u64,
-                            store_id: String,
-                            tables: &'a [String],
-                            viewer: &'a str,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            meter: Option<Json>,
-                            #[serde(rename = "rowProvenance", skip_serializing_if = "Option::is_none")]
-                            row_provenance: Option<wire::Plain<'a>>,
-                            #[serde(skip_serializing_if = "Option::is_none")]
-                            refresh: Option<u64>,
-                        }
-                        impl latency::Reply for QueryReply<'_> { fn generation(&self)->Option<u64>{Some(self.generation)} }
-                        // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
-                        let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
-                        // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
-                        let meter = shared.personas.then(|| {
-                            if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { snapback4_core::diagnostic!("{line}"); }
-                            let m = outcome.metered;
-                            let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
-                            let mut meter = json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut });
-                            if let Some(delivery) = &outcome.delivery_meter { meter["delivery"] = json!(delivery); }
-                            meter
-                        });
-                        if outcome.unavailable {
-                            let mut reply = json!({ "loading": true, "generation": query_generation, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
-                            if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
-                            if let Some(meter) = meter { reply["meter"] = meter; }
-                            if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
-                            respond_timed(request, shared, 200, reply);
-                        } else {
-                            let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { scopes: &scopes, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, search_rows: outcome.search_rows.as_ref().map(wire::Plain), delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::QueryData(&outcome), next: &outcome.next, next_expiry: outcome.next_expiry, decoration_expiry: decoration_paths.is_some().then_some(outcome.decoration_expiry), decoration_paths, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
-                        }
-                    }
-                    Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
-                        // @ref LLP 3000.018#3.2 — a refusal names its evaluation cut so a client
-                        // can order it against a remembered answer; its head now shares that snapshot.
-                        if let Some(cut) = cut { reply["seq"] = json!(cut); }
-                        // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
-                        if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
-                        respond_timed(request, shared, if refusal.retryable || refusal.code == "E_GENERATION" { 503 } else if refusal.code=="E_INPUT" && refusal.family=="input" {400} else {200}, reply);
-                    }
-                }
+                queries::start(request, shared, resume, op, principal, credential_kind, scope, payload, args_json, context, manifest);
             } else {
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {

@@ -8,6 +8,7 @@ pub fn serve(
     inherited: Option<std::net::TcpListener>,
     capacity: crate::host_limits::Capacity,
 ) -> Result<(), String> {
+    trace::install_parser_clock();
     let dev = matches!(mode, Mode::Dev { .. });
     let mut startup = crate::serve_output::Startup::new(!dev);
     macro_rules! startup_note { ($($arg:tt)*) => { startup.line(format!($($arg)*)) }; }
@@ -290,6 +291,8 @@ pub fn serve(
         poll_notified: Mutex::new(None),
         #[cfg(test)]
         query_wait: Mutex::new(None),
+        #[cfg(test)]
+        read_index_validation: Mutex::new(None),
         #[cfg(test)]
         adoption_committed: Mutex::new(None),
         #[cfg(test)]

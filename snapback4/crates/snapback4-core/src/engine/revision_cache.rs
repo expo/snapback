@@ -14,6 +14,11 @@ use std::{
 const PROCESS_BYTES: usize = 512 << 20;
 static PROCESS_USED: AtomicUsize = AtomicUsize::new(0);
 type Key = [u8; 32];
+#[path = "revision_cache_read_index.rs"]
+mod read_index;
+#[path = "revision_cache_park.rs"]
+mod park;
+pub use park::{ReadIndexCandidate, ReadIndexProof, ReadIndexValidation};
 
 /// Hard limits include bookkeeping, candidate references and reserved fills.
 // @ref LLP 3000.009.001.000.002#4.5 — entry/byte/fill/per-principal bounds and process-wide retention accounting.
@@ -39,6 +44,9 @@ impl Default for Limits {
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Stats {
     pub hits: u64,
+    pub read_index_rounds: u64,
+    pub read_index_reads: u64,
+    pub read_index_hits: u64,
     pub g6_hits: u64,
     pub sqlite_hits: u64,
     pub g6_hit_stall_ns: u64,
@@ -182,6 +190,8 @@ impl State {
     }
 }
 pub(crate) struct Cache {
+    read_index: read_index::ReadIndex,
+    read_index_hits: AtomicU64,
     limits: Limits,
     budget: Arc<Budget>,
     bookkeeping: OnceLock<Option<Reservation>>,
@@ -222,6 +232,12 @@ impl Cache {
         // Conservative reservation covers both bounded maps/trees, owner counts,
         // keys, Arc/control blocks and allocator overhead, even at sparse occupancy.
         Self {
+            read_index: {
+                let ri = read_index::ReadIndex::default();
+                ri.enabled.store(crate::store_port::g5_read_index_enabled(), Ordering::Relaxed);
+                ri
+            },
+            read_index_hits: AtomicU64::new(0),
             limits,
             budget,
             bookkeeping: OnceLock::new(),
@@ -360,6 +376,9 @@ impl Cache {
     pub(crate) fn stats(&self) -> Stats {
         Stats {
             hits: self.hits.load(Ordering::Relaxed),
+            read_index_rounds: self.read_index.rounds.load(Ordering::Relaxed),
+            read_index_reads: self.read_index.reads.load(Ordering::Relaxed),
+            read_index_hits: self.read_index_hits.load(Ordering::Relaxed),
             g6_hits: self.g6_hits.load(Ordering::Relaxed),
             sqlite_hits: self.sqlite_hits.load(Ordering::Relaxed),
             g6_hit_stall_ns: self.g6_hit_stall_ns.load(Ordering::Relaxed),
@@ -667,6 +686,7 @@ impl Engine {
         manifest: DeliveryManifest,
         digest: &str,
         snapshot: &mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
+        parked: Option<ReadIndexProof>,
     ) -> (
         Result<QueryOutcome, Refusal>,
         Option<u64>,
@@ -690,9 +710,12 @@ impl Engine {
         } else {
             self.cache_key(name, &context, retained, manifest, digest)
         };
-        let (candidate, admit) = key
+        let (mut candidate, admit) = key
             .map(|(key, _)| cache.lookup(key))
             .unwrap_or((None, false));
+        if let Some(proof) = &parked
+            && Arc::ptr_eq(&proof.cache, &cache) && key.map(|v|v.0) == Some(proof.key)
+        { candidate = Some(proof.entry.clone()); }
         if let Some(entry) = candidate {
             // @ref LLP 3000.009.001.000.002#sqlite-local-hits — an exclusive flock survives pauses; a stable complete revision certifies the frozen authority facts.
             if self.store.sqlite_cache_revision() == Some(entry.stamp.revision) {
@@ -776,6 +799,32 @@ impl Engine {
                 Ok(None)
             } else {
                 (|| {
+                    // Each caller enrolls after invocation; the round closes
+                    // before its leader sends a fresh implicit transaction.
+                    // Revision equality covers session and rule changes too.
+                    if cache.read_index.enabled.load(Ordering::Relaxed)
+                        && self.store.read_index_eligible()
+                        && grant.as_ref().is_none_or(|g| !g.configured.load(Ordering::Acquire) && !g.revoked.load(Ordering::Acquire) && !g.uncertain.load(Ordering::Acquire))
+                        && let Some(stamp) = match &parked {
+                            Some(proof) if Arc::ptr_eq(&proof.cache, &cache) && key.map(|v|v.0) == Some(proof.key) => proof.validation.as_ref().map(|v|v.0.clone()),
+                            Some(_) => None,
+                            None => None,
+                        }
+                    {
+                        if stamp != entry.stamp { return Ok(None); }
+                        let tx = self.store.cached_authority_snapshot(digest, entry.facts.clone())?;
+                        snapshot(&tx, stamp.head)?;
+                        tx.rollback()?;
+                        if !self.store.read_index_eligible()
+                            || grant.as_ref().is_some_and(|g| g.uncertain.load(Ordering::Acquire) || g.revoked.load(Ordering::Acquire)) {
+                            return Ok(None);
+                        }
+                        let mut outcome = entry.outcome.clone();
+                        outcome.cache_lifetime = entry.lifetime.clone();
+                        outcome.seq = stamp.head;
+                        cache.read_index_hits.fetch_add(1, Ordering::Relaxed);
+                        return Ok(Some(outcome));
+                    }
                     let Some(tx) = self.store.result_validation_snapshot(digest)? else {
                         return Ok(None);
                     };

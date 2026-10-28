@@ -110011,3 +110011,163 @@ The packed security consumer follows README → start → workflow and checks in
 Clean publication preparation exposed a real TOK3 digest-generation ordering defect: full-reference output was written before its dist/guide-api directory existed. Create that home before generating any card, preserving read-only --check and all digest/budget assertions. Repeat the actual clean client preparation to verify the fix; warm builds are insufficient evidence for this failure.
 
 The complete retained latency matrix measured warm default check at 2.590 s, over the 2.5 s bar despite all other bars passing. Reuse pure canonical declaration/source-note analysis once per immutable security report input, preserving the source coverage union and final note ordering while leaving all concrete work and authority untouched. Preserve the failed matrix, remeasure the new production executable, and compare against the old uncached sequential report before making a latency or identity claim.
+
+
+### 2026-10-28 — G5R clock-free read-index prototype and diagnostic
+
+Author-commissioned `SNAPBACK4_G5_READ_INDEX=1` remains default off. One fresh
+independent owner/metadata statement certifies a bounded round enrolled before
+submission; exact revision equality certifies frozen authority and results,
+and Rust resolves each caller. Later arrivals need a later round. No grant,
+new connection or freshness-clock assumption is added. Stage E stays on gated
+G5; Stage R needs its own W/two-image composition. The Review design extends
+LLP 3000.009.001.000.002 §4.2.
+
+Core 881 pass; RI-on cache/G6/D 40 pass; final RI witnesses 5 pass; socket
+transport 7 pass; CLI round trips 10 pass. Four broad parallel CLI timing/
+admission failures pass scoped serial reruns and remain disclosed. Witnesses
+include a foreign commit ACK after an old snapshot but before read invocation,
+RYW, takeover, uncertainty, malformed owner facts, deadlines, unwind and caps.
+
+The full native million-message fixture completes. A conservative 60 GiB guard
+stops the first controller before timing; owned artifacts are pruned and PG
+stopped. The shared filesystem later recovers, so the preserved fixture is
+resumed under the same guard. Final evidence has 126 primary windows and 30
+retained/excluded warm-W1 pilot windows. W2/A at 8,000/s changes 1.0020 →
+0.1693 SQL/ACK and valid sampled PG CPU 718.4 → 93.6 µs/ACK. But RI fails the
+strict-above-8,000 delayed W2/W3 rungs: holding the 30 execution workers through
+proof waiting exposes a new residence bound. Short-window dispatch tails are
+non-monotonic, and 33 CPU windows are invalid rather than imputed. No default
+competitive win is claimed. W4's twelve windows have zero errors and 43,200
+cohort ACKs with exact counter deltas; no RI write statement/flight is added.
+
+All rates, pilots, limits, source/executable provenance and cleanup receipts are
+in `reports/20261027-g5-readindex/REPORT.md`. Private port-55731 PG is stopped
+and its fixture retained. No push, stash or Git-config change.
+
+
+## 2026-10-28 — G5R2: clock-free RI continuations outside execution workers
+
+The author-commissioned 450a lane starts from `08a9731b59` in `sb4-g5r2`.
+Eligible HTTP reads retain a charged immutable candidate and bounded socket
+admission, return their reader/publication lease, and park without an execution
+worker or PG custody. A 200 microsecond collection timer pipelines two flights;
+8 ms proof-wait expiry resumes ordinary G5 under the original request deadline.
+A monotonic enrollment receipt rejects earlier completed proofs, and candidate
+probing preserves two-observation cold-fill probation. Authority, RYW,
+uncertainty and the Stage R/E exclusions remain as LLP 3000.009.001.000.002 §4.2
+states. The flag remains default off.
+
+Core 881 and serial CLI 674 pass. Private cache/grant/coordinator 42, final
+core witnesses 3, HTTP continuation witnesses 3 and CLI round-trip group 11
+pass. A held HTTP witness accounts legitimate cache-lock fallback rather than
+requiring every try-lock probe to park. Ref-check passes. The root inventory
+checker retains unrelated Snapback 1 generated-output/removal-ledger failures;
+Snapback 4 changed no diagnostics-registry production root. The report records
+setup exclusions, exact scope and receipts. Release/S1 measurement follows;
+no default promotion, publication, push or 450b access is claimed here.
+
+
+## 2026-10-28 — G5R2: preserve original deadline and continuation loop budgets
+
+The continuation now carries the exact dispatch deadline, settlement start
+and spent generation handoffs, so parser-phase advancement or resume cannot
+renew an admitted request. A fourth private-PG HTTP witness expires a 30 ms
+original request while its five-second validation wait is held; all four
+HTTP witnesses pass. The final narrow run uses an unoptimized debug test
+profile; the prior broad core/CLI checks retain their normal profile.
+
+The native S1 seed helper's lockfile is aligned with the current workspace
+core and compatible dependency pins. Public index metadata is refreshed in a
+lane-owned Cargo home because the shared sparse index is stale/read-only;
+no Cargo configuration or credentials are copied. Only owned stopped test
+PG data and debug artifacts are pruned before release measurement.
+
+
+## 2026-10-28 — G5R2: 450a read-index qualification and remaining generator tail
+
+The clock-free parked continuation completes 198 native S1 one-host primary
+windows on 450a, million-message fixture, cap 32, 128 readers, A/B directional
+delays 250/500 µs, rotating arms and three repetitions. RI passes every
+W2/W3 A/B window through 11,313/s: the highest rung is 3/3 in all four cells,
+with worst p99 29.360/38.666/25.706/45.941 ms. That clears the supplied Convex
+pins by 41.4% for W2/A, W2/B and W3/A and 100.0% for W3/B. Both W3 16,000/s
+cells fail for all arms. W1 remains cold and its higher-rung RI tails do not
+improve; all its 8,000/s windows pass. Read pass counts: G5 9/60, RI 44/60,
+G6 43/60. Every failed repetition remains in the report.
+
+All 18 W4/A 800/2,262/s windows pass with 826,733 exactly reconciled cohort
+ACKs. RI's 2,262/s median PG CPU is 244.2 versus G5's 244.6 µs/ACK; no write
+SLO regression is observed. Native untraced clocks put W3 16,000/s generator
+CPU near its two logical-CPU cap, with dispatch p99 dominating the observed
+tail. Six high-rate all-request traces overload their synchronous JSON log
+writer and remain diagnostic only. Six additional 1,000/s diagnostic windows
+pass; conditional parked sample p99 is 2.038/2.093 ms for W2/B and W3/B, with
+separate parser, lookup, query and encode CPU clocks.
+
+The report includes full p50/p99, PG CPU and SQL tables, all windows, clock
+limits, reproduction and digest/custody receipts. All owned runtime PIDs are
+stopped; the private million-message fixture is retained without a postmaster
+PID file. Temporarily evicted historical artifacts in this lane are restored;
+old SPR releases/fixtures and 450b are untouched. The flag stays default off
+and the LLP subsection stays Review. See
+[Round 2](./reports/20261027-g5-readindex/REPORT.md#round-2-primary-result--450a-2026-10-28).
+
+
+## 2026-10-28 — G5RF: fix round 1; clock-free Postgres read default
+
+Both blind reviews of `0769bf5239` returned READY WITH CHANGES and found no
+stale-read counterexample under the supported revision-writer contract. The
+required changes are implemented and the RI subsection is Accepted as the
+Postgres default: unset or `SNAPBACK4_G5_READ_INDEX=1` enables HTTP batching;
+`=0` retains ordinary G5, and malformed settings refuse. Configured G6 bypasses
+RI before HTTP parking; Sol's HTTP finding and Grok's engine fast-path finding
+were both correct. Timer creation is fallible with original permit/deadline
+fallback, idle waits use a condvar, and direct engine APIs no longer enter the
+blocking coordinator. One publication-mode predicate rejects E/W/R raw-head
+proofs; RFC 003 §14 requires W-bound V integration before R and RI compose.
+The guide and LLP distinguish fill-time SessionFacts certification by unified
+revision from G5's per-digest projection reread; revision-less raw `_sessions`
+edits are outside that contract. Startup and doctor distinguish configured
+owner-local batching from persisted grant evidence, including both flags on.
+
+All 15 RI witnesses pass, including injected timer-start failure, G6 precedence,
+blocking API bypass and saved-proof rejection in publication-prefix mode.
+Core all-target/doc tests and 43 private-PG cache tests pass. The broad CLI
+suite's three red targets pass on targeted rerun after dependency/helper
+preconditions and moving private RI fixture access behind the test port; the
+ordinary per-request SQL ratchet explicitly selects G5 off mode. Ref-check is
+green; diagnostics regeneration has no diff. Root inventories retain an
+unrelated guide-manifest failure from missing generated Snapback 1/Contract
+artifacts and package links.
+
+Two short local W2/A 8,000/s repetitions, default versus off, show batching
+engaged: SQL/cohort ACK is about 0.515 versus 1.009, with zero errors and 32
+connections. Default p99 is 61.309/49.676 ms versus off 42.828/38.044 ms; the
+first default window fails its SLO. This shared-host sanity is not a new
+performance qualification. Full dispositions, all windows, validation details
+and cleanup are in [the fix-round report](./reports/20261027-g5-readindex/FIXROUND1.md).
+Only owned private clusters on 55771/55772/55773 were used; their data is
+retained with no live postmasters. Local commit only; no push.
+
+
+## 2026-10-28 — G5RF2: publication mode across warm HTTP pools
+
+The delta review of `c890e2af67` returned Sol READY and Grok NOT READY. Grok
+found that a later owner publication-mode change missed readers and factories
+already copied into the HTTP pool. Publication mode now lives in one private
+owner-shared atomic, inherited by detached readers, factories, writer slots and
+replacements. Enrollment, SQL validation and saved-proof consumption consult
+it; consumption rechecks after the authority callback. The HTTP witness builds
+the full pool under SynchronousHead, captures proofs, flips the owner, and checks
+both an idle reader and a factory-made reader. RFC 003 §14 records that Stage R
+must preserve this shared state and implement W-bound V before reopening RI.
+
+Grok also found a pre-existing process-wide RI disable after one socket refresh.
+Refresh now revokes only a configured G6 epoch; with G6 off, RI reconnects,
+rebinds and validates fresh owner/stamp SQL without poisoning the shared latch.
+Terminal lease release/revocation and commit uncertainty keep their existing
+checks. Real backend-termination and authority-callback witnesses cover those
+distinctions. Dispositions and verification are in
+`reports/20261027-g5-readindex/FIXROUND2.md`. No Stage R composition, publication
+or new performance qualification is claimed.

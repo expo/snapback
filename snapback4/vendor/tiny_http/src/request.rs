@@ -49,6 +49,7 @@ use chunked_transfer::Decoder;
 /// If you want to build fake requests to test your server, use [`TestRequest`](crate::test::TestRequest).
 pub struct Request {
     accepted_at: std::time::Instant,
+    parser_cpu_ns: Option<u64>,
     cleanup_guard: Option<Box<dyn Send>>,
     // where to read the body from
     data_reader: Option<Box<dyn Read + Send + 'static>>,
@@ -304,6 +305,7 @@ where
 
     Ok(Request {
         accepted_at,
+        parser_cpu_ns: None,
         cleanup_guard: None,
         data_reader: Some(reader),
         response_writer: Some(Box::new(writer) as Box<dyn Write + Send + 'static>),
@@ -357,6 +359,12 @@ impl Request {
 
     /// When the parsed HTTP request was accepted, before body prebuffering.
     pub fn accepted_at(&self) -> std::time::Instant { self.accepted_at }
+
+    /// Explicit local qualification only; header/body parser CPU excludes idle I/O wait.
+    pub fn parser_cpu_ns(&self) -> Option<u64> { self.parser_cpu_ns }
+    pub(crate) fn with_parser_cpu(mut self, start: Option<u64>) -> Self {
+        self.parser_cpu_ns=start.and_then(|start| parser_cpu()?.checked_sub(start));self
+    }
 
     /// Original absolute body deadline, including time queued by the host.
     pub fn body_deadline(&self) -> Option<std::time::Instant> {
@@ -797,3 +805,9 @@ mod tests {
         }
     }
 }
+
+// The host supplies an opt-in clock, keeping this crate free of unsafe code.
+static PARSER_CPU_CLOCK: std::sync::OnceLock<fn()->Option<u64>> = std::sync::OnceLock::new();
+/// Install a local qualification clock before accepting connections.
+pub fn set_parser_cpu_clock(clock:fn()->Option<u64>) {let _=PARSER_CPU_CLOCK.set(clock);}
+pub(crate) fn parser_cpu()->Option<u64> {PARSER_CPU_CLOCK.get().and_then(|clock|clock())}

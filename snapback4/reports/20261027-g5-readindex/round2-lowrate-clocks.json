@@ -1,0 +1,197 @@
+{
+  "fixture_rows": 1000000,
+  "pilot": false,
+  "raw_out": "/tmp/sb4-g5r2-clocks2",
+  "method": "s1-onehost.py lifecycle/fixture/quiet gate/affinity/SLO; fixed interleaved G5, RI, G6; 3 repetitions",
+  "warmup_ms": 10000,
+  "duration_ms": 4000,
+  "runs": [
+    {
+      "diagnostic": true,
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "g5",
+      "p50_ms": 2.217983,
+      "p99_ms": 2.803711,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 496.4285714285714,
+      "pg_cpu_us_per_measured_ack": 512.4999999999997,
+      "sql_per_cohort_ack": 1.0417857142857143,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.089727,
+      "service_p99_ms": 2.762751
+    },
+    {
+      "diagnostic": true,
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "ri",
+      "p50_ms": 2.181119,
+      "p99_ms": 2.701311,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 464.2857142857143,
+      "pg_cpu_us_per_measured_ack": 437.5,
+      "sql_per_cohort_ack": 1.0411428571428571,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.100415,
+      "service_p99_ms": 2.654207
+    },
+    {
+      "diagnostic": true,
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "g6",
+      "p50_ms": 2.164735,
+      "p99_ms": 2.430975,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 442.8571428571428,
+      "pg_cpu_us_per_measured_ack": 339.9999999999999,
+      "sql_per_cohort_ack": 0.9833571428571428,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.044927,
+      "service_p99_ms": 2.406399
+    },
+    {
+      "diagnostic": true,
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "ri",
+      "p50_ms": 2.189311,
+      "p99_ms": 2.578431,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 467.85714285714266,
+      "pg_cpu_us_per_measured_ack": 417.49999999999864,
+      "sql_per_cohort_ack": 1.0412857142857144,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.044991,
+      "service_p99_ms": 2.555903
+    },
+    {
+      "diagnostic": true,
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "g6",
+      "p50_ms": 0.270847,
+      "p99_ms": 0.347391,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 70.00000000000028,
+      "pg_cpu_us_per_measured_ack": 2.4999999999995026,
+      "sql_per_cohort_ack": 0.08042857142857143,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.023935,
+      "service_p99_ms": 0.327935
+    },
+    {
+      "diagnostic": true,
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "repeat": -2,
+      "arm": "g5",
+      "p50_ms": 2.314239,
+      "p99_ms": 2.723839,
+      "errors": 0,
+      "scheduled": 4000,
+      "success": 4000,
+      "slo_pass": true,
+      "achieved_per_s": 1000.0,
+      "pg_cpu_us_per_cohort_ack": 836.4285714285714,
+      "pg_cpu_us_per_measured_ack": 852.5000000000009,
+      "sql_per_cohort_ack": 1.0412142857142856,
+      "cohort_acks": 14000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 0.025647,
+      "service_p99_ms": 2.691071
+    }
+  ],
+  "provenance": {
+    "source_commit": "a93cd8e434e7166a9b30fdfe63b91c4a5678339c",
+    "binary_sha256": "7b21464d64835e1f2c607b9a81a7991d25221372245548ba48f4ea0d02345c9d",
+    "target_binary_sha256": {
+      "snapback": "6e5570687b07321d289bb6b0271b1fdd0b70e0f038421a02a55d341d04c819fd",
+      "seed": "bb7fb677ecf7dabf5b3f90e2ee76d7c11f2e9cb0cf297811291b630d1d579a45"
+    },
+    "pg_cores": "0-2,6-8",
+    "app_cores": "3-4,9-10",
+    "load_cores": "5,11"
+  },
+  "seed": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "final_seed": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "cleanup": {
+    "still_running": [],
+    "pidfile_absent": true,
+    "private_root": "/tmp/s1c-n_78brx0",
+    "home_free_bytes": 28166656000
+  }
+}

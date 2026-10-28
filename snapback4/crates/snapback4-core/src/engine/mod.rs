@@ -873,7 +873,7 @@ impl Engine {
         digest: &str, mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
     ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
         #[cfg(feature="postgres")]
-        {return self.query_cached_request(name,context,retained,manifest,digest,&mut snapshot);}
+        {return self.query_cached_request(name,context,retained,manifest,digest,&mut snapshot,None);}
         #[cfg(not(feature="postgres"))]
         {
         let (mut cut, mut current) = (None, None);

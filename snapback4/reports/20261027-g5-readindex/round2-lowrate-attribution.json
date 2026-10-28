@@ -1,0 +1,1188 @@
+{
+  "note": "Separate traced diagnostic cohorts include warm-up and drain; stage quantiles are not additive or a matched per-request decomposition of primary p99. Native CPU window values are retained independently of whole-cohort PG CPU.",
+  "cohorts": [
+    {
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "arm": "g5",
+      "slo_pass": true,
+      "p99_ms": 2.803711,
+      "dispatch_p99_ms": 0.089727,
+      "service_p99_ms": 2.762751,
+      "generator_cpu_cores": 0.30767423706807995,
+      "server_cpu_cores": 0.9330283774503564,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.018716,
+          "p99_ms": 0.028664,
+          "mean_ms": 0.019292505685856432
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.014327,
+          "p99_ms": 0.035337,
+          "mean_ms": 0.016235534044065386
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.030047,
+          "p99_ms": 1.889304,
+          "mean_ms": 0.06631147938877044
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.001954,
+          "p99_ms": 0.002815,
+          "mean_ms": 0.0018655521677327647
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.001763,
+          "p99_ms": 0.002575,
+          "mean_ms": 0.001700128500355366
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 1.820585,
+          "p99_ms": 2.226884,
+          "mean_ms": 1.8271915180525942
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.307968,
+          "p99_ms": 0.417694,
+          "mean_ms": 0.2825917880597015
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.024286,
+          "p99_ms": 0.04747,
+          "mean_ms": 0.02206253724235963
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.024296,
+          "p99_ms": 0.047459,
+          "mean_ms": 0.02205817882018479
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.034615,
+          "p99_ms": 0.046939,
+          "mean_ms": 0.032258701350390905
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 1.988473,
+          "p99_ms": 3.739776,
+          "mean_ms": 2.021309497157072
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.028674,
+          "p99_ms": 0.043621,
+          "mean_ms": 0.0274515144989339
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.451779,
+          "p99_ms": 0.59171,
+          "mean_ms": 0.4177858622601279
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "worker_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "prepare": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "write": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "server_response": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "parser_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "active_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        }
+      }
+    },
+    {
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "arm": "ri",
+      "slo_pass": true,
+      "p99_ms": 2.701311,
+      "dispatch_p99_ms": 0.100415,
+      "service_p99_ms": 2.654207,
+      "generator_cpu_cores": 0.3124730126026116,
+      "server_cpu_cores": 0.8899231398922383,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.017463,
+          "p99_ms": 0.027172,
+          "mean_ms": 0.017801114285714285
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.013366,
+          "p99_ms": 0.025689,
+          "mean_ms": 0.014550077683013503
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.027903,
+          "p99_ms": 1.874918,
+          "mean_ms": 0.0636035275764037
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.013595,
+          "p99_ms": 0.020508,
+          "mean_ms": 0.012923879388770433
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.013525,
+          "p99_ms": 0.020418,
+          "mean_ms": 0.01285887711442786
+        },
+        "park_and_resume_queue": {
+          "n": 916,
+          "p50_ms": 1.836996,
+          "p99_ms": 2.038397,
+          "mean_ms": 1.831134385371179
+        },
+        "resume_admission": {
+          "n": 916,
+          "p50_ms": 0.000641,
+          "p99_ms": 0.000972,
+          "mean_ms": 0.0006070272925764193
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 1.772163,
+          "p99_ms": 2.174154,
+          "mean_ms": 1.6683607765458421
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.284424,
+          "p99_ms": 0.402725,
+          "mean_ms": 0.25811662452025586
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.024145,
+          "p99_ms": 0.050626,
+          "mean_ms": 0.021590323454157782
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.024186,
+          "p99_ms": 0.050695,
+          "mean_ms": 0.021628815565031982
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.034385,
+          "p99_ms": 0.046688,
+          "mean_ms": 0.03113234015636105
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 1.951663,
+          "p99_ms": 3.690684,
+          "mean_ms": 1.9841945124378109
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.02645,
+          "p99_ms": 0.043101,
+          "mean_ms": 0.025001522956645345
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.43103,
+          "p99_ms": 0.596879,
+          "mean_ms": 0.39811134520255864
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 916,
+          "p50_ms": 0.017062,
+          "p99_ms": 0.024887,
+          "mean_ms": 0.01692762772925764
+        },
+        "worker_queue": {
+          "n": 916,
+          "p50_ms": 0.012845,
+          "p99_ms": 0.023495,
+          "mean_ms": 0.012779878820960698
+        },
+        "prepare": {
+          "n": 916,
+          "p50_ms": 0.024496,
+          "p99_ms": 0.033433,
+          "mean_ms": 0.023222215065502184
+        },
+        "lookup_wall": {
+          "n": 916,
+          "p50_ms": 0.014637,
+          "p99_ms": 0.020308,
+          "mean_ms": 0.01388471615720524
+        },
+        "lookup_cpu": {
+          "n": 916,
+          "p50_ms": 0.014567,
+          "p99_ms": 0.020197,
+          "mean_ms": 0.013819510917030568
+        },
+        "park_and_resume_queue": {
+          "n": 916,
+          "p50_ms": 1.836996,
+          "p99_ms": 2.038397,
+          "mean_ms": 1.831134385371179
+        },
+        "resume_admission": {
+          "n": 916,
+          "p50_ms": 0.000641,
+          "p99_ms": 0.000972,
+          "mean_ms": 0.0006070272925764193
+        },
+        "query_wall": {
+          "n": 916,
+          "p50_ms": 0.028414,
+          "p99_ms": 0.038833,
+          "mean_ms": 0.026224575327510918
+        },
+        "query_cpu": {
+          "n": 916,
+          "p50_ms": 0.028444,
+          "p99_ms": 0.038873,
+          "mean_ms": 0.02625157423580786
+        },
+        "encode_wall": {
+          "n": 916,
+          "p50_ms": 0.007344,
+          "p99_ms": 0.011101,
+          "mean_ms": 0.006940161572052401
+        },
+        "encode_cpu": {
+          "n": 916,
+          "p50_ms": 0.007384,
+          "p99_ms": 0.011081,
+          "mean_ms": 0.006973758733624454
+        },
+        "write": {
+          "n": 916,
+          "p50_ms": 0.034826,
+          "p99_ms": 0.044624,
+          "mean_ms": 0.03172307751091703
+        },
+        "server_response": {
+          "n": 916,
+          "p50_ms": 2.028018,
+          "p99_ms": 2.210263,
+          "mean_ms": 2.0027142991266373
+        },
+        "parser_cpu": {
+          "n": 916,
+          "p50_ms": 0.02727,
+          "p99_ms": 0.039604,
+          "mean_ms": 0.025964289301310044
+        },
+        "active_cpu": {
+          "n": 916,
+          "p50_ms": 0.164378,
+          "p99_ms": 0.202649,
+          "mean_ms": 0.14910391266375547
+        }
+      }
+    },
+    {
+      "workload": "W2",
+      "link": "B",
+      "rate": 1000,
+      "arm": "g6",
+      "slo_pass": true,
+      "p99_ms": 2.430975,
+      "dispatch_p99_ms": 0.044927,
+      "service_p99_ms": 2.406399,
+      "generator_cpu_cores": 0.30749613275027216,
+      "server_cpu_cores": 0.9599879266349959,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.018756,
+          "p99_ms": 0.028243,
+          "mean_ms": 0.0191171012793177
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.014578,
+          "p99_ms": 0.024817,
+          "mean_ms": 0.015686102842928217
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.029706,
+          "p99_ms": 1.900786,
+          "mean_ms": 0.06609367398720682
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.001973,
+          "p99_ms": 0.002816,
+          "mean_ms": 0.0019434734896943851
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.001774,
+          "p99_ms": 0.002585,
+          "mean_ms": 0.0017680755508173419
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 1.794706,
+          "p99_ms": 2.136974,
+          "mean_ms": 1.6984259598436389
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.304851,
+          "p99_ms": 0.417842,
+          "mean_ms": 0.28540177334754796
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.024716,
+          "p99_ms": 0.048252,
+          "mean_ms": 0.022533171997157073
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.024757,
+          "p99_ms": 0.048321,
+          "mean_ms": 0.02257594186211798
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.034936,
+          "p99_ms": 0.046729,
+          "mean_ms": 0.033282778749111584
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 1.960951,
+          "p99_ms": 3.743053,
+          "mean_ms": 1.8940415240938167
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.028153,
+          "p99_ms": 0.043542,
+          "mean_ms": 0.02783903304904051
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.451096,
+          "p99_ms": 0.596709,
+          "mean_ms": 0.4226586911869225
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "worker_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "prepare": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "write": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "server_response": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "parser_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "active_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        }
+      }
+    },
+    {
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "arm": "ri",
+      "slo_pass": true,
+      "p99_ms": 2.578431,
+      "dispatch_p99_ms": 0.044991,
+      "service_p99_ms": 2.555903,
+      "generator_cpu_cores": 0.2978366218819693,
+      "server_cpu_cores": 0.8009052016994134,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.013776,
+          "p99_ms": 0.023545,
+          "mean_ms": 0.015156773987206823
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.01106,
+          "p99_ms": 0.019918,
+          "mean_ms": 0.012001945060412224
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.026671,
+          "p99_ms": 1.987741,
+          "mean_ms": 0.06630414548685146
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.012534,
+          "p99_ms": 0.019437,
+          "mean_ms": 0.011949496375266525
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.012433,
+          "p99_ms": 0.019326,
+          "mean_ms": 0.011863557711442787
+        },
+        "park_and_resume_queue": {
+          "n": 13551,
+          "p50_ms": 1.795718,
+          "p99_ms": 2.09291,
+          "mean_ms": 1.7905469578628883
+        },
+        "resume_admission": {
+          "n": 13551,
+          "p50_ms": 0.000501,
+          "p99_ms": 0.000941,
+          "mean_ms": 0.0005307683565788503
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 0.022562,
+          "p99_ms": 2.916548,
+          "mean_ms": 0.13690577732764747
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.022572,
+          "p99_ms": 0.649177,
+          "mean_ms": 0.045907456147832267
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.004599,
+          "p99_ms": 0.020849,
+          "mean_ms": 0.0055339298507462685
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.004609,
+          "p99_ms": 0.020759,
+          "mean_ms": 0.005552421748400853
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.022382,
+          "p99_ms": 0.041158,
+          "mean_ms": 0.025804419118692253
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 1.940221,
+          "p99_ms": 4.921593,
+          "mean_ms": 2.0315507925373133
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.021911,
+          "p99_ms": 0.036599,
+          "mean_ms": 0.02208737157071784
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.126737,
+          "p99_ms": 0.768661,
+          "mean_ms": 0.15355949047619047
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 13551,
+          "p50_ms": 0.014066,
+          "p99_ms": 0.023144,
+          "mean_ms": 0.014537099107076968
+        },
+        "worker_queue": {
+          "n": 13551,
+          "p50_ms": 0.011212,
+          "p99_ms": 0.019276,
+          "mean_ms": 0.011409654711829385
+        },
+        "prepare": {
+          "n": 13551,
+          "p50_ms": 0.02645,
+          "p99_ms": 0.039054,
+          "mean_ms": 0.024774695520625785
+        },
+        "lookup_wall": {
+          "n": 13551,
+          "p50_ms": 0.012774,
+          "p99_ms": 0.019437,
+          "mean_ms": 0.011996573315622464
+        },
+        "lookup_cpu": {
+          "n": 13551,
+          "p50_ms": 0.012673,
+          "p99_ms": 0.019326,
+          "mean_ms": 0.011912042358497528
+        },
+        "park_and_resume_queue": {
+          "n": 13551,
+          "p50_ms": 1.795718,
+          "p99_ms": 2.09291,
+          "mean_ms": 1.7905469578628883
+        },
+        "resume_admission": {
+          "n": 13551,
+          "p50_ms": 0.000501,
+          "p99_ms": 0.000941,
+          "mean_ms": 0.0005307683565788503
+        },
+        "query_wall": {
+          "n": 13551,
+          "p50_ms": 0.021792,
+          "p99_ms": 0.035667,
+          "mean_ms": 0.022471711903180577
+        },
+        "query_cpu": {
+          "n": 13551,
+          "p50_ms": 0.021821,
+          "p99_ms": 0.035747,
+          "mean_ms": 0.02246219555752343
+        },
+        "encode_wall": {
+          "n": 13551,
+          "p50_ms": 0.004539,
+          "p99_ms": 0.009178,
+          "mean_ms": 0.005251410597003911
+        },
+        "encode_cpu": {
+          "n": 13551,
+          "p50_ms": 0.004558,
+          "p99_ms": 0.009177,
+          "mean_ms": 0.0052698907829680465
+        },
+        "write": {
+          "n": 13551,
+          "p50_ms": 0.023013,
+          "p99_ms": 0.041208,
+          "mean_ms": 0.025990806139768282
+        },
+        "server_response": {
+          "n": 13551,
+          "p50_ms": 1.933558,
+          "p99_ms": 2.28724,
+          "mean_ms": 1.9407867054829901
+        },
+        "parser_cpu": {
+          "n": 13551,
+          "p50_ms": 0.023533,
+          "p99_ms": 0.036599,
+          "mean_ms": 0.02224044660910634
+        },
+        "active_cpu": {
+          "n": 13551,
+          "p50_ms": 0.115357,
+          "p99_ms": 0.194434,
+          "mean_ms": 0.12988573374658696
+        }
+      }
+    },
+    {
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "arm": "g6",
+      "slo_pass": true,
+      "p99_ms": 0.347391,
+      "dispatch_p99_ms": 0.023935,
+      "service_p99_ms": 0.327935,
+      "generator_cpu_cores": 0.23974887925058183,
+      "server_cpu_cores": 0.6543146496213796,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.016462,
+          "p99_ms": 0.023274,
+          "mean_ms": 0.017158187846481876
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.013476,
+          "p99_ms": 0.021711,
+          "mean_ms": 0.014267687917555082
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.027813,
+          "p99_ms": 2.017602,
+          "mean_ms": 0.06983116737739872
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.001924,
+          "p99_ms": 0.002365,
+          "mean_ms": 0.0018914941009239518
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.001743,
+          "p99_ms": 0.002154,
+          "mean_ms": 0.0017143542288557214
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 0.024617,
+          "p99_ms": 3.396766,
+          "mean_ms": 0.14808182466240227
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.024716,
+          "p99_ms": 0.813194,
+          "mean_ms": 0.052820223738450606
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.006392,
+          "p99_ms": 0.020899,
+          "mean_ms": 0.006608874413646056
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.006412,
+          "p99_ms": 0.020939,
+          "mean_ms": 0.006627724591329069
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.030097,
+          "p99_ms": 0.050335,
+          "mean_ms": 0.03080574918265814
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 0.148561,
+          "p99_ms": 5.069206,
+          "mean_ms": 0.3152324213219616
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.022251,
+          "p99_ms": 0.037731,
+          "mean_ms": 0.023258830561478323
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.126216,
+          "p99_ms": 0.967093,
+          "mean_ms": 0.15659904243070363
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "worker_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "prepare": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "write": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "server_response": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "parser_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "active_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        }
+      }
+    },
+    {
+      "workload": "W3",
+      "link": "B",
+      "rate": 1000,
+      "arm": "g5",
+      "slo_pass": true,
+      "p99_ms": 2.723839,
+      "dispatch_p99_ms": 0.025647,
+      "service_p99_ms": 2.691071,
+      "generator_cpu_cores": 0.2600653991650985,
+      "server_cpu_cores": 0.7301836207327767,
+      "traced_queries": 14070,
+      "phases": {
+        "intake": {
+          "n": 14070,
+          "p50_ms": 0.017062,
+          "p99_ms": 0.025729,
+          "mean_ms": 0.01793329275053305
+        },
+        "worker_queue": {
+          "n": 14070,
+          "p50_ms": 0.013365,
+          "p99_ms": 0.161345,
+          "mean_ms": 0.017880442146410803
+        },
+        "prepare": {
+          "n": 14070,
+          "p50_ms": 0.032221,
+          "p99_ms": 1.950746,
+          "mean_ms": 0.0702305513148543
+        },
+        "lookup_wall": {
+          "n": 14070,
+          "p50_ms": 0.002064,
+          "p99_ms": 0.002805,
+          "mean_ms": 0.0019391583511016346
+        },
+        "lookup_cpu": {
+          "n": 14070,
+          "p50_ms": 0.001853,
+          "p99_ms": 0.002565,
+          "mean_ms": 0.0017556983653162757
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 14070,
+          "p50_ms": 1.99537,
+          "p99_ms": 3.164007,
+          "mean_ms": 1.9791770960909738
+        },
+        "query_cpu": {
+          "n": 14070,
+          "p50_ms": 0.068549,
+          "p99_ms": 0.727043,
+          "mean_ms": 0.08810885238095238
+        },
+        "encode_wall": {
+          "n": 14070,
+          "p50_ms": 0.006653,
+          "p99_ms": 0.020719,
+          "mean_ms": 0.006624265884861407
+        },
+        "encode_cpu": {
+          "n": 14070,
+          "p50_ms": 0.006682,
+          "p99_ms": 0.020799,
+          "mean_ms": 0.006639538877043355
+        },
+        "write": {
+          "n": 14070,
+          "p50_ms": 0.033273,
+          "p99_ms": 0.041068,
+          "mean_ms": 0.030220531769722815
+        },
+        "server_response": {
+          "n": 14070,
+          "p50_ms": 2.140143,
+          "p99_ms": 5.053367,
+          "mean_ms": 2.1531040523809524
+        },
+        "parser_cpu": {
+          "n": 14070,
+          "p50_ms": 0.02675,
+          "p99_ms": 0.036158,
+          "mean_ms": 0.02439562935323383
+        },
+        "active_cpu": {
+          "n": 14070,
+          "p50_ms": 0.18634,
+          "p99_ms": 0.870924,
+          "mean_ms": 0.19483668905472637
+        }
+      },
+      "parked_subset": {
+        "intake": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "worker_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "prepare": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "lookup_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "park_and_resume_queue": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "resume_admission": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "query_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_wall": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "encode_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "write": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "server_response": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "parser_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        },
+        "active_cpu": {
+          "n": 0,
+          "p50_ms": null,
+          "p99_ms": null,
+          "mean_ms": null
+        }
+      }
+    }
+  ],
+  "primary": []
+}

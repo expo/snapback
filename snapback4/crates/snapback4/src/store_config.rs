@@ -38,6 +38,11 @@ impl StoreConfig {
         let Some(url) = url else {
             return Ok(None);
         };
+        match std::env::var("SNAPBACK4_G5_READ_INDEX") {
+            Ok(v) if v == "0" || v == "1" => (),
+            Err(std::env::VarError::NotPresent) => (),
+            _ => return Err(input("SNAPBACK4_G5_READ_INDEX must be 0 or 1")),
+        }
         if options.flags.contains_key("store") {
             return Err(input(
                 "--store and --store-url/SNAPBACK4_STORE_URL conflict",
@@ -207,8 +212,13 @@ impl StoreConfig {
         if !lease.lock().unwrap_or_else(|p| p.into_inner()).renew().map_err(redact)? || deadline.expired() {
             return Err("E_STORE_OWNERSHIP: acquisition expired before startup".into());
         }
-        // Opt in only when the operator can guarantee these bounds across the
-        // configured database and every lossless failover. Unset stays on G5.
+        let ri=snapback4_core::store_port::g5_read_index_enabled();
+        if ri && !self.early_lock_release {
+            owner.read_cache_tier = "G5 read-index (Postgres default; owner-local HTTP batches, fresh coalesced validation; failure resumes ordinary G5)".into();
+        } else {
+            owner.read_cache_tier = snapback4_core::store_port::g5_read_cache_tier(if self.early_lock_release {"commit=early; RI bypassed"} else {"SNAPBACK4_G5_READ_INDEX=0"});
+        }
+        // G6 remains opt-in under the operator's clock/writer guarantees.
         match std::env::var("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS") {
             Ok(value) => {
                 let parsed = (|| {
@@ -226,7 +236,7 @@ impl StoreConfig {
                     .unwrap_or_else(|p| p.into_inner())
                     .enable_read_grant(bounds)
                     .map_err(redact)?;
-                owner.read_cache_tier = snapback4_core::store_port::g6_read_cache_tier(bounds.rate_ppm as u64, bounds.forward_jump.as_millis() as u64);
+                owner.read_cache_tier = format!("{}; RI {} while G6 is configured; ordinary G5 fallback", snapback4_core::store_port::g6_read_cache_tier(bounds.rate_ppm as u64, bounds.forward_jump.as_millis() as u64), if ri {"requested, bypassed"} else {"disabled"});
             }
             Err(std::env::VarError::NotPresent) => {}
             Err(std::env::VarError::NotUnicode(_)) => {
@@ -556,5 +566,30 @@ mod ff2_tests {
             error.contains("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS"),
             "{error}"
         );
+    }
+}
+
+
+#[cfg(test)]
+mod g5rf_tests {
+    use super::*;
+    #[test]
+    fn g5rf_read_index_default_off_and_invalid_configuration() {
+        const CHILD: &str="SNAPBACK4_G5RF_CONFIG_CHILD";
+        if let Ok(case)=std::env::var(CHILD) {
+            let options=Options {positionals:Vec::new(),json:false,flags:[("store-url".into(),"postgres://app@/db?host=%2Ftmp&schema=app&ha=none".into())].into()};
+            let config=StoreConfig::resolve(&options);
+            if case=="invalid" || case=="nonutf8" {assert!(config.err().unwrap().contains("SNAPBACK4_G5_READ_INDEX must be 0 or 1"));}
+            else {assert!(config.unwrap().is_some());assert_eq!(snapback4_core::store_port::g5_read_index_enabled(),case!="off");}
+            return;
+        }
+        for (case,value) in [("default",None),("off",Some("0")),("on",Some("1")),("invalid",Some("true")),("nonutf8",None)] {
+            let mut child=std::process::Command::new(std::env::current_exe().unwrap());
+            child.args(["--exact","store_config::g5rf_tests::g5rf_read_index_default_off_and_invalid_configuration","--nocapture"]).env(CHILD,case).env_remove("SNAPBACK4_G5_READ_INDEX").env_remove("SNAPBACK4_STORE_URL");
+            if let Some(value)=value {child.env("SNAPBACK4_G5_READ_INDEX",value);}
+            #[cfg(unix)] if case=="nonutf8" {use std::os::unix::ffi::OsStringExt;child.env("SNAPBACK4_G5_READ_INDEX",std::ffi::OsString::from_vec(vec![0xff]));}
+            #[cfg(not(unix))] if case=="nonutf8" {continue;}
+            let out=child.output().unwrap();assert!(out.status.success(),"{case}: {}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
+        }
     }
 }

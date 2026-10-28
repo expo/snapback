@@ -1477,3 +1477,7 @@ mod committer_tests;
 
 #[path = "../tests/serve_authority/mod.rs"]
 mod authority_boundary_tests;
+
+#[cfg(feature="postgres")]
+#[path="../tests/serve_postgres/read_index.rs"]
+mod read_index_tests;

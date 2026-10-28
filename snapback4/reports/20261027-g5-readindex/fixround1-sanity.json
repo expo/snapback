@@ -1,0 +1,125 @@
+{
+  "fixture_rows": 32768,
+  "method": "local sanity: W2/A 8000/s default (unset) versus off, two repetitions; 32768-message fixture",
+  "warmup_ms": 2000,
+  "duration_ms": 5000,
+  "runs": [
+    {
+      "diagnostic": false,
+      "workload": "W2",
+      "link": "A",
+      "rate": 8000,
+      "repeat": 0,
+      "arm": "default",
+      "p50_ms": 1.807359,
+      "p99_ms": 61.308927,
+      "errors": 0,
+      "scheduled": 40000,
+      "success": 40000,
+      "slo_pass": false,
+      "achieved_per_s": 8000.0,
+      "pg_cpu_us_per_cohort_ack": 208.74999999999997,
+      "pg_cpu_us_per_measured_ack": 162.5,
+      "sql_per_cohort_ack": 0.5151428571428571,
+      "cohort_acks": 56000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 45.318143,
+      "service_p99_ms": 15.941631
+    },
+    {
+      "diagnostic": false,
+      "workload": "W2",
+      "link": "A",
+      "rate": 8000,
+      "repeat": 0,
+      "arm": "g5",
+      "p50_ms": 1.430527,
+      "p99_ms": 42.827775,
+      "errors": 0,
+      "scheduled": 40000,
+      "success": 40000,
+      "slo_pass": true,
+      "achieved_per_s": 8000.0,
+      "pg_cpu_us_per_cohort_ack": 414.99999999999994,
+      "pg_cpu_us_per_measured_ack": null,
+      "sql_per_cohort_ack": 1.0085892857142857,
+      "cohort_acks": 56000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 26.853375,
+      "service_p99_ms": 13.598719
+    },
+    {
+      "diagnostic": false,
+      "workload": "W2",
+      "link": "A",
+      "rate": 8000,
+      "repeat": 1,
+      "arm": "g5",
+      "p50_ms": 1.397759,
+      "p99_ms": 38.043647,
+      "errors": 0,
+      "scheduled": 40000,
+      "success": 40000,
+      "slo_pass": true,
+      "achieved_per_s": 8000.0,
+      "pg_cpu_us_per_cohort_ack": 425.8928571428573,
+      "pg_cpu_us_per_measured_ack": 445.2499999999997,
+      "sql_per_cohort_ack": 1.0084642857142858,
+      "cohort_acks": 56000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 22.216703,
+      "service_p99_ms": 13.099007
+    },
+    {
+      "diagnostic": false,
+      "workload": "W2",
+      "link": "A",
+      "rate": 8000,
+      "repeat": 1,
+      "arm": "default",
+      "p50_ms": 1.779711,
+      "p99_ms": 49.676287,
+      "errors": 0,
+      "scheduled": 40000,
+      "success": 40000,
+      "slo_pass": true,
+      "achieved_per_s": 8000.0,
+      "pg_cpu_us_per_cohort_ack": 213.39285714285694,
+      "pg_cpu_us_per_measured_ack": 156.25,
+      "sql_per_cohort_ack": 0.5143392857142857,
+      "cohort_acks": 56000,
+      "connections": [
+        32,
+        32
+      ],
+      "dispatch_p99_ms": 33.980415,
+      "service_p99_ms": 14.958591
+    }
+  ],
+  "scope": "Local Linux sanity of the uncommitted G5RF delta on 0769bf5239; shared host, short windows; no new qualification. All repetitions retained.",
+  "provenance": {
+    "source_commit": "0769bf5239d66c38b2b2abed0f19ad110f9c6334",
+    "binary_sha256": "ebe48304289d5740157f5d238486cfe8344a58aa2905abf603cc8798f522c9a9",
+    "target_binary_sha256": {
+      "snapback": "22d04792a4b50e8bdc21a2ade16082840cb63810ded216b6f3b4559b8e7ac653",
+      "seed": "90e32cb3bf1c0480eb2c95b5e7bbf084c64cc1a01388bc5bb908c5e534b76cd6"
+    },
+    "pg_cores": "0-2,6-8",
+    "app_cores": "3-4,9-10",
+    "load_cores": "5,11"
+  },
+  "cleanup": {
+    "still_running": [],
+    "pidfile_absent": true,
+    "home_free_bytes": 100645830656
+  }
+}

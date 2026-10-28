@@ -56,6 +56,27 @@ fn record(c: &mut postgres::Client) {
 fn fixture_owned() -> (Engine, String, String, StoreLease, postgres::Client) {
     owned(Duration::from_secs(30))
 }
+#[test]
+#[ignore="private PG16"]
+fn g5rf2_configured_g6_socket_refresh_still_revokes() {
+    let (owner,d,v,mut lease,mut control)=fixture_owned();
+    let mut reader=owner.reader().unwrap();
+    let expected=warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+    let grant=reader.store.read_grant().unwrap();
+    assert!(grant.configured.load(Ordering::Acquire));
+    assert!(!grant.revoked.load(Ordering::Acquire));
+    let pid:i32=reader.store_mut().test_postgres_handle_mut().store.get_mut().client.independent("SELECT pg_backend_pid()",&[]).unwrap()[0].get(0);
+    assert!(control.query_one("SELECT pg_terminate_backend($1)",&[&pid]).unwrap().get::<_,bool>(0));
+    let until=std::time::Instant::now()+Duration::from_secs(5);
+    while !reader.store_mut().test_postgres_handle_mut().store.get_mut().client.is_closed() {
+        assert!(std::time::Instant::now()<until,"terminated G6 reader never closed");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(read(&mut reader,&d,&v,"W1",false,SessionScope::Full,1001).unwrap(),expected);
+    assert!(grant.revoked.load(Ordering::Acquire),"configured G6 still loses its SQL-free epoch on refresh");
+    assert!(grant.deadline().is_none());
+    assert!(lease.release().unwrap());
+}
 fn actual_hit(r: &mut Engine, d: &str, v: &str, name: &str, scope: SessionScope) -> QueryOutcome {
     let out = warm(r, d, v, name, scope);
     let before = r.revision_cache_stats();
