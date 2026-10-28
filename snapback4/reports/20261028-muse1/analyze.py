@@ -1,14 +1,16 @@
-import sys,runpy,json,collections,statistics,pathlib
-sys.path.insert(0,'/home/ccheever/sb4-loop/wave34r1-repro/tx')
-agg=runpy.run_path('/home/ccheever/sb4-loop/wave34r1-repro/tx/agg.py')
-calls=runpy.run_path('/home/ccheever/sb4-loop/wave34r1-repro/tx/scripts/calls.py')
-docs=runpy.run_path('/home/ccheever/sb4-loop/wave34r1-repro/tx/scripts/docs.py')
+import sys,runpy,json,collections,statistics,pathlib,os
+SOURCE=os.environ.get("TX_SOURCE",os.path.expanduser("~/sb4-loop/wave34r1-repro/tx"))
+RESULTS=os.environ.get("MUSE1_ANALYSIS","/tmp/muse1-analysis")
+sys.path.insert(0,SOURCE)
+agg=runpy.run_path(SOURCE+'/agg.py')
+calls=runpy.run_path(SOURCE+'/scripts/calls.py')
+docs=runpy.run_path(SOURCE+'/scripts/docs.py')
 
 A=json.load(open('/home/ccheever/sb4-loop/bakeoff/next37/wave34r2/assignments.json'))
 rows=[]
 for a in A:
  r={'id':a['id'],'n':a['n'],'model':a['model'],'frontend':a['frontend']}
- for label,root in [('before','/tmp/muse1-analysis/r1'),('after','/tmp/muse1-analysis/r2')]:
+ for label,root in [('before',RESULTS+'/r1'),('after',RESULTS+'/r2')]:
   d=json.load(open(f"{root}/{a['id']}.json")); x=agg['lane_agg'](d['sessions']); p,cy=calls['lane_calls'](d,'snapback'); dd=docs['lane_docs'](d)
   x.update(purpose=p,cycles=cy,docs=dd)
   feats=collections.defaultdict(lambda:collections.Counter())
@@ -24,7 +26,7 @@ for a in A:
      for k,v in [('tools',1),('chars',t['len'] or 0),('tokens',t['tok'] or 0),('input_cost',t['cost'] or 0),('seconds',t['sec'] or 0)]:feats[name][k]+=v
   x['features']=feats;r[label]=x
  rows.append(r)
-json.dump(rows,open('/tmp/muse1-analysis/paired.json','w'),indent=2)
+json.dump(rows,open(RESULTS+'/paired.json','w'),indent=2)
 for model in ['muse','codex']:
  rs=[r for r in rows if r['model']==model];print('\nMODEL',model,len(rs))
  for key in ['N','sumC','span','tool','model']:

@@ -39,7 +39,13 @@ All script/acceptance reads grow 3,937 → 17,092 entering tokens and
 and 0.438M repeated tokens; generated API reads add only 168 entering and
 0.064M repeated tokens. Model-authored output and the extra calls also compound
 all earlier context: these file-attribution figures do not sum to the full
-7.149M increase by themselves. Codex's post-schema lookup calls fall 5.5 → 4.2;
+7.149M increase by themselves. Muse's pooled mean context/call rises
+99,289 → 136,400 tokens. A symmetric arithmetic split attributes 3.135M (44%)
+of the extra input to call count and 4.014M (56%) to mean-context growth;
+this is an accounting identity, not causal identification. The parser's
+repeated model-output component grows 2.736M → 5.508M and initial-context
+component 3.146M → 4.029M (the initial context itself stays ~33.17k).
+Codex's post-schema lookup calls fall 5.5 → 4.2;
 its scaffold reading is about one tool per lane, supporting retention of an
 available helper rather than deleting it.
 
@@ -74,7 +80,9 @@ Concrete mechanisms, checked against source and per-call traces:
   on every invocation; no incremental proof claim should be invented.
 * Muse waiting tool time rises despite fewer calls: lengthy browser repairs and
   repeated complete proof execution remain. Direct verify mentions account for
-  only ~1.5k entering tokens / 0.11M repeated input per lane; the large default
+  only ~1.5k entering tokens / 0.11M repeated input per lane in tools whose
+  retained commands mention verify (a lower bound: compound writes/run commands
+  can hide its name or output); the large default
   packet and its required completion dominate direct reading growth.
 
 Decision: retain `npm run verify` and its cleanup/first-red/bounded output gains.
