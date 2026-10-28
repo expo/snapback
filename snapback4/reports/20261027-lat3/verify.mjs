@@ -15,17 +15,27 @@ const names=['proof','proof-contract','proof-fixtures','staging','production-sta
 // Keep only names which exist in the selector's own selected client inventory.
 const files=plan.clientFiles.filter(path=>names.some(name=>path.endsWith(`/${name}.test.mjs`))).map(path=>path.slice('snapback4/'.length));
 for(const required of names.slice(0,13))if(!files.some(path=>path.endsWith(`/${required}.test.mjs`)))throw Error('missing scoped file '+required);
-// The root LLP edit also selects legacy Snapback 1 guide/generated inventories.
-// Their inputs are unchanged and they are outside the explicit Snapback 4 fence
-// (same scoped policy as reports/sec11-latency/tools/affected-scoped.mjs).
-const omitted=new Set(['client-models','diagnostics','guide','inventories']);
-const omittedSteps=plan.steps.filter(step=>omitted.has(step.id)).map(step=>step.id);
-plan.steps=plan.steps.filter(step=>!omitted.has(step.id));
+// Report/provenance leaves fail broad to seven whole Rust crates as well.
+// Only a generated language-guide leaf changes; retain its actual guide target,
+// not the prohibited full crate/device/model/fixture batteries. Legacy Snapback
+// 1 generated/guide inventories are outside the explicit fence, as in SEC11L.
+const allowed=new Set(['install-client','build-cli','build-wasm','build-client',
+ 'typecheck:snapback4','rust:snapback4-lang','rust:snapback4-lang:guide',
+ 'client-tests','docs-budget','packaged-docs','ref-check','selector-tests']);
+const omittedSteps=plan.steps.filter(step=>!allowed.has(step.id)).map(step=>step.id);
+const fullRustPackages=[...plan.rustPackages];
+const replacedSteps=[];
+plan.steps=plan.steps.filter(step=>allowed.has(step.id)).map(step=>{
+ if(step.id!=='rust:snapback4-lang')return step;
+ replacedSteps.push('rust:snapback4-lang -> rust:snapback4-lang:guide');
+ return {...step,id:'rust:snapback4-lang:guide',argv:['cargo','test','--no-fail-fast','-p','snapback4-lang','--test','guide','--','--test-threads=4']};
+});
 const step=plan.steps.find(step=>step.id==='client-tests');
 step.argv=['node','scripts/run-client-tests.mjs','1','files',...files];
 step.fileRequires=Object.fromEntries(files.map(path=>[path,step.fileRequires[path]??[]]));
 plan.clientFiles=plan.clientFiles.filter(path=>names.some(name=>path.endsWith(`/${name}.test.mjs`)));
-plan.scopeOverride={reason:'User forbids the complete client pool; common proof imports conservatively reach every client file.',fullSelectorPlanExecuted:false,qualification:false,selectedClientFiles:files,omittedSteps,legacyRoot:'Snapback 1 diagnostic/guide/generated inventories have unchanged semantic inputs and are outside the Snapback 4 fence. Snapback 4 guide target, packaged docs, docs budget, builds and root ref-check retained.'};
+plan.rustPackages=['snapback4-lang'];
+plan.scopeOverride={reason:'User forbids whole Rust/client pools; common proof imports and report/provenance leaves fail broad.',fullSelectorPlanExecuted:false,qualification:false,selectedClientFiles:files,fullRustPackages,rustTargets:{'snapback4-lang':['guide']},omittedSteps,replacedSteps,legacyRoot:'Snapback 1 diagnostic/guide/generated inventories have unchanged semantic inputs and are outside the Snapback 4 fence. Snapback 4 guide target, packaged docs, docs budget, builds, selector tests and root ref-check retained.'};
 const result=await runPlan(plan,{root});
 console.log(JSON.stringify({receiptPath:result.receiptPath,ok:result.receipt.ok,scopeOverride:plan.scopeOverride}));
 process.exitCode=result.receipt.ok?0:1;

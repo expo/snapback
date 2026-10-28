@@ -49,8 +49,9 @@ labels. It preserves operative errors, assertions, deadlines and app call
 sites. Raw logs remain private and separate from the normalized comparison.
 
 `verify.mjs` retains the selector's complete plan, then replaces its conservative
-449-file client closure with the named proof/browser/accounts/starter and
-dispatch consumers required by this change. It retains Snapback 4 guide tests,
+449-file client closure and seven-whole-Rust-crate expansion with the named
+proof/browser/accounts/starter and dispatch consumers and actual language guide
+target required by this change. It retains Snapback 4 guide tests, selector tests,
 docs checks, builds and root ref-check. Legacy Snapback 1 guide/generated/
 diagnostic inventories have unchanged inputs and are omitted under the explicit
 fence, as in SEC11L's scoped runner. Every omission is recorded. This disclosed
