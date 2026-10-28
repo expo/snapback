@@ -33,6 +33,15 @@ fn round_trips_sqlite() {
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn round_trips_postgres() {
+    // @ref LLP 3000.009.001.000.002#g5-read-index-validation — RI validators run outside per-request SQL custody; this ratchet retains the ordinary G5 control.
+    if std::env::var("SNAPBACK4_G5_READ_INDEX").as_deref()!=Ok("0") {
+        let out=std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored","--exact","serve::tests::round_trip_tests::round_trips_postgres","--nocapture"])
+            .env("SNAPBACK4_G5_READ_INDEX","0").output().unwrap();
+        assert!(out.status.success(),"{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
+        assert!(String::from_utf8_lossy(&out.stdout).contains("1 passed"));
+        return;
+    }
     run(true);
 }
 

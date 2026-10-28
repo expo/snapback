@@ -162,19 +162,40 @@ Managed storage refuses foreign triggers, rewrite rules or row security with `E_
 
 Runtime DDL on managed relations while serving is explicitly outside the store fence model. Owner/head locks do not prevent external DDL, and admission does not poll catalogs on each request. Doctor and the next open, activation or connection replacement detect such changes.
 
-For a single-owner Linux Postgres deployment, zero-flight revision-cache hits are opt-in through `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms`. These numbers declare a guarantee: during any grant, database time advances at most `(1 + rate_ppm/1000000) * CLOCK_BOOTTIME_elapsed + forward_jump_ms`, including suspend and every supported failover. They are not tuning estimates. For example, `1000,250` declares a maximum 0.1% relative rate excess and 250 ms cumulative forward adjustment; the three-second grant gets a local deadline below 2.747 s. Use this only when the deployment guarantees those bounds and all writers run the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover or mixed versions, and do not use it across VM pause/migration longer than the lease. Explicit malformed or non-UTF-8 bounds refuse startup. The ordinary one-statement G5 validation remains the default. Serve startup and doctor print cache diagnostics. Serve reports its local startup tier; doctor reports the owner's persisted grant and clock declaration, with local activity explicitly unconfirmed: reconnect or local revocation can fall back to G5 before the persisted grant expires. Doctor does not use its own environment for that status. Opt-in is the default posture even with `ha=none`. Revisit default-on only after the roughly one-second G6 stall is explained, G5-versus-G6 write cost is measured, a durable compatibility marker makes pre-G6 binaries refuse grant-enabled stores, and Snapback can witness the clock contract instead of assuming it. A grant hit rechecks bearer authority and expiry with a fresh clock. Every local commit invalidates revision equality. Grant loss falls back to database reads; unknown COMMIT stops cached reads and new writers until fenced reacquisition with a fresh process/epoch. Graceful release drains cached reads first.
+For a single-owner Linux Postgres deployment, zero-flight revision-cache hits are opt-in through `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms`. These numbers declare a guarantee: during any grant, database time advances at most `(1 + rate_ppm/1000000) * CLOCK_BOOTTIME_elapsed + forward_jump_ms`, including suspend and every supported failover. They are not tuning estimates. For example, `1000,250` declares a maximum 0.1% relative rate excess and 250 ms cumulative forward adjustment; the three-second grant gets a local deadline below 2.747 s. Use this only when the deployment guarantees those bounds and all writers run the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover or mixed versions, and do not use it across VM pause/migration longer than the lease. Explicit malformed or non-UTF-8 bounds refuse startup. Clock-free G5 read-index batching is the Postgres HTTP default; `SNAPBACK4_G5_READ_INDEX=0` selects ordinary per-hit G5 validation. Serve startup and doctor print cache diagnostics. Serve reports its local startup tier; doctor reports the owner's persisted grant and clock declaration, with local activity explicitly unconfirmed: reconnect or local revocation can fall back to G5 before the persisted grant expires. Doctor does not use its own environment for that status and cannot infer owner-local RI batching or its off switch from persisted state. Opt-in is the default posture even with `ha=none`. Revisit default-on only after the roughly one-second G6 stall is explained, G5-versus-G6 write cost is measured, a durable compatibility marker makes pre-G6 binaries refuse grant-enabled stores, and Snapback can witness the clock contract instead of assuming it. A grant hit rechecks bearer authority and expiry with a fresh clock. Every local commit invalidates revision equality. Grant loss falls back to database reads; unknown COMMIT stops cached reads and new writers until fenced reacquisition with a fresh process/epoch. Graceful release drains cached reads first.
 
 
-For an experimental clock-free G5 tier, set `SNAPBACK4_G5_READ_INDEX=1`.
-The default is off (`0` or unset); malformed values refuse Postgres configuration.
-Eligible hits share a fresh store-wide revision/owner validation statement
-started after each participating request arrived. Reads arriving during a
-validation wait for the next one. Exact revision equality and per-request
-authority/expiry checks still apply; every changed revision misses. This may
-reduce PG CPU at the cost of additional waiting. It adds no grant or connection.
-`commit=early` retains ordinary D-gated G5 validation. G6, when explicitly
-configured, still takes precedence. This experimental tier is not a performance
-or publication qualification; see LLP 3000.009.001.000.002 §4.2.
+Clock-free G5 read-index batching is the default for eligible Postgres serving
+reads: `SNAPBACK4_G5_READ_INDEX` unset or `=1` enables it, `=0` selects ordinary
+G5, and other values refuse Postgres configuration. Eligible HTTP hits share a
+fresh store-wide revision/owner validation statement started after each
+participating request arrived. Reads arriving during a validation join the next
+batch. The wait retains socket admission but releases execution workers and
+reader loans. Timer-start failure, failed validation or the 8 ms proof-wait
+budget resumes ordinary G5 with the original admission and deadline. Direct
+blocking engine APIs always use ordinary G5 and never wait for an RI round.
+This adds no grant or connection. SQLite, memory, personas and staging retain
+their existing paths. `commit=early` uses ordinary D-gated G5; W/Stage R modes
+fail closed until RI integrates W-bound V and two-image fills. With both settings
+on, explicitly configured G6 bypasses RI enrollment entirely: live G6 hits
+schedule zero RI rounds; G6 misses use ordinary G5. Startup prints that combined
+mode; doctor distinguishes persisted grant evidence from unconfirmed owner-local
+batching. See LLP 3000.009.001.000.002 §4.2.
+
+RI compares the whole immutable fill stamp, including the unified revision, and
+uses fill-time `SessionFacts`; the shared Rust resolver rechecks each caller's
+authority and expiry. Ordinary per-read G5 rereads the digest's session projection.
+Their equivalence relies on **every in-contract authority writer bumping the
+unified revision in the same commit**: Postgres `identity.rs` inserts/updates,
+`authority.rs` session/family invalidation and `session_clock.rs`
+`set_clock_session` require the
+serialized head fence; `opening.rs` enables unified commits, and `store.rs`
+`Tx::commit` supplies the revision bump even for administrative writes. Raw SQL
+edits of `_sessions` (or other authority facts) that bypass those revisions are
+outside this contract, as for the G6/marker supported-binaries boundary. RI does
+not independently reread or version each digest's session rows. Every revision
+change misses; no cross-revision promotion is implied. This default decision is
+not a new performance or publication qualification.
 
 ## Clients across rollback (SQLite)
 Save versions/v1/schema.q (and any other .q modules with their original names) outside snapback/ and create `snapback/client-compatibility.json` containing `{"baseline":"versions/v1","since_release":2}`. `check`/`dev` emit added row/result fields as optional, labelled "Since release 2", retaining older result value domains. Required operation parameters remain required; only declared optional, defaulted or deprecated arguments may be omitted. Baseline generation warns about real old-client input breaks and changed/removed result domains; a declared table rename preserves reference input identity, and purely additive result fields print a RESULT NOTE. This is your release label, not server generation; ordinary types stay required without opt-in. Use `row.color ?? "none"` for the baseline fallback. Keep contemporary fixtures in versions/v1/fixtures/; deploy with `--schema versions/v1` and test with `--source versions/v1` (guide testing). Baselines resolve from the original project root, including saved-source deploys. `useRelease()` from snapback4/react follows the authenticated catalog even when query gates are closed: loading, denied, or `{generation, operations, tables}` with public argument/field shapes. Generated `api.op.available(release)` is false while unready or when name/kind/existing-argument signatures differ or the server adds a required argument; extra optional served parameters are compatible. This checks capability, not authorization or unchanged business semantics; still handle E_OP/E_INPUT and authored guard refusals when a switch races it. The SDK withdraws old metadata on observed generations, polls while subscribed, and returns loading offline/on catalog failure; account retirement/close withdraws it. Keep draft state above generation-sensitive read/action gates; remount only the gated children. Dormant means unavailable on this release, not deleted. Test v2 → v1 → v2 with one frontend: field fallbacks, missing operations, retained drafts and restored values. Alternatively check selected immutable source in a separate copy and rebuild its matching frontend. Preserve deployment source; Expo/Exact runtime changes also require a device rebuild.

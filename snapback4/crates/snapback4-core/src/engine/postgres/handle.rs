@@ -59,6 +59,7 @@ impl Handle {
         pool.set_durability(self.borrow()?.early_release.clone());
         let reader = Self::connect_reader(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone(), pool)?;
         reader.store.borrow_mut().read_grant=self.borrow()?.read_grant.clone();
+        reader.store.borrow_mut().read_publication=self.borrow()?.read_publication;
         reader.store.borrow_mut().early_release=self.borrow()?.early_release.clone();
         let after = reader.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
         if before != after { return Err(RuntimeError::Generation("reader store identity or generation changed; reopen".into())); }
@@ -84,6 +85,7 @@ impl Handle {
         pool.reserve_writer()?;
         let mut slot = Self::connect_owned(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone())?;
         slot.store.get_mut().read_grant = self.borrow()?.read_grant.clone();
+        slot.store.get_mut().read_publication = self.borrow()?.read_publication;
         slot.store.get_mut().early_release = self.borrow()?.early_release.clone();
         slot.store.get_mut().batch_ordinal = self.borrow()?.batch_ordinal.clone();
         slot.store.get_mut().client.writer_thread();
@@ -107,7 +109,7 @@ impl Handle {
         client.batch_execute(&format!("SET search_path={namespace},pg_catalog,pg_temp;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
         client.execute("SELECT set_config('application_name',$1,false)",&[&tag])?;
         let mut replacement=Store::new(client);
-        replacement.early_release=old.early_release.clone();replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
+        replacement.read_publication=old.read_publication;replacement.early_release=old.early_release.clone();replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
         replacement.read_sessions.set(old.read_sessions.get());replacement.read_grant=old.read_grant.clone();replacement.commit_warning=warning;replacement.batch_ordinal=old.batch_ordinal.clone();
         super::checks::load(&mut replacement)?;
         replacement.client.writer_thread();*old=replacement;Ok(())
@@ -116,6 +118,6 @@ impl Handle {
 
 impl Handle {
     pub(crate) fn sync_pipeline_slot(&mut self,other:&Self) {
-        let dst=self.store.get_mut();let src=other.store.borrow();dst.generation=src.generation;dst.read_sessions.set(src.read_sessions.get());dst.fence=src.fence.clone();
+        let dst=self.store.get_mut();let src=other.store.borrow();dst.read_publication=src.read_publication;dst.generation=src.generation;dst.read_sessions.set(src.read_sessions.get());dst.fence=src.fence.clone();
     }
 }

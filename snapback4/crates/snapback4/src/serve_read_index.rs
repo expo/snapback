@@ -13,26 +13,55 @@ mod enabled {
     type Validate = Arc<dyn Fn() -> Option<ReadIndexValidation> + Send + Sync>;
     struct Waiter { request: Request, candidate: ReadIndexCandidate, ready: Ready, resume: Arc<Resume>, until: Instant }
     struct Batch { waiters: Vec<Waiter>, opened: Instant }
-    struct State { pending: Batch, running: Vec<Arc<Mutex<Batch>>> }
-    pub(in crate::serve) struct Queue { state: Mutex<State>, changed: Condvar, validators: request_workers::Workers, validate: Validate }
+    struct State { pending: Batch, running: Vec<Arc<Mutex<Batch>>>, stopped: bool }
+    struct Schedule { state: Mutex<State>, changed: Condvar }
+    pub(in crate::serve) struct Queue { schedule: Arc<Schedule>, #[cfg(test)] ticks: AtomicUsize, validators: request_workers::Workers, validate: Validate }
     const COLLECT: Duration = Duration::from_micros(200);
     const WAIT: Duration = Duration::from_millis(8);
     impl Default for Batch { fn default()->Self { Self {waiters:Vec::new(),opened:Instant::now()} } }
     impl Queue {
         #[cfg(test)]
-        pub(in crate::serve) fn parked(&self)->usize {let state=lock(&self.state);state.pending.waiters.len()+state.running.iter().map(|b|lock(&**b).waiters.len()).sum::<usize>()}
+        pub(in crate::serve) fn parked(&self)->usize {let state=lock(&self.schedule.state);state.pending.waiters.len()+state.running.iter().map(|b|lock(&**b).waiters.len()).sum::<usize>()}
 
-        fn new(validate: Validate) -> Arc<Self> {
-            let queue=Arc::new(Self {state:Mutex::new(State {pending:Batch::default(),running:Vec::new()}),changed:Condvar::new(),validators:Default::default(),validate});
+        #[cfg(test)]
+        pub(in crate::serve) fn timer_ticks(&self)->usize {self.ticks.load(Ordering::Relaxed)}
+
+        fn new(validate: Validate, fail_spawn: bool) -> std::io::Result<Arc<Self>> {
+            let schedule=Arc::new(Schedule {state:Mutex::new(State {pending:Batch::default(),running:Vec::new(),stopped:false}),changed:Condvar::new()});
+            let queue=Arc::new(Self {schedule:schedule.clone(),#[cfg(test)] ticks:AtomicUsize::new(0),validators:Default::default(),validate});
             let weak=Arc::downgrade(&queue);
-            // A single timer services deadlines even if both PG flights stall.
+            // Failure caches an ordinary-G5 fallback for this admission owner.
+            if fail_spawn { return Err(std::io::Error::other("injected read-index timer spawn failure")); }
             std::thread::Builder::new().name("read-index-timer".into()).spawn(move || {
-                while let Some(queue)=weak.upgrade() { queue.tick(); }
-            }).expect("read-index timer");
-            queue
+                loop {
+                    let Some(queue)=weak.upgrade() else {break};
+                    queue.tick();
+                    // Waiting retains only the schedule, so Queue::drop can
+                    // wake and stop an idle timer when its owner disappears.
+                    drop(queue);
+                    let mut state=lock(&schedule.state);
+                    if state.stopped { break; }
+                    let mut wake=state.pending.waiters.iter().map(|w|w.until).min();
+                    for batch in &state.running {
+                        for w in &lock(&**batch).waiters {wake=Some(wake.map_or(w.until,|at|at.min(w.until)));}
+                    }
+                    if !state.pending.waiters.is_empty() && state.running.len()<2 {
+                        let collect=state.pending.opened+COLLECT;
+                        wake=Some(wake.map_or(collect,|at|at.min(collect)));
+                    }
+                    if let Some(wake)=wake {
+                        state=schedule.changed.wait_timeout(state,wake.saturating_duration_since(Instant::now())).unwrap_or_else(|p|p.into_inner()).0;
+                    } else {
+                        state=schedule.changed.wait(state).unwrap_or_else(|p|p.into_inner());
+                    }
+                    if state.stopped { break; }
+                }
+            })?;
+            Ok(queue)
         }
         fn tick(self: &Arc<Self>) {
-            let mut state=lock(&self.state);
+            #[cfg(test)] self.ticks.fetch_add(1,Ordering::Relaxed);
+            let mut state=lock(&self.schedule.state);
             let now=Instant::now();
             let mut expired=Vec::new();
             let mut sweep=|batch: &mut Batch| {
@@ -54,18 +83,15 @@ mod enabled {
                 if self.validators.submit_until(2,std::thread::Builder::new().name("read-index-flight".into()),None,Box::new(move|| {
                     let validation=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||(queue.validate)())).ok().flatten();
                     let waiters=std::mem::take(&mut lock(&*batch).waiters);
-                    { let mut state=lock(&queue.state);state.running.retain(|b|!Arc::ptr_eq(b,&batch)); }
-                    queue.changed.notify_one();
+                    { let mut state=lock(&queue.schedule.state);state.running.retain(|b|!Arc::ptr_eq(b,&batch)); }
+                    queue.schedule.changed.notify_one();
                     for waiter in waiters {Self::complete(waiter,validation.clone());}
                 })).is_err() {
                     let waiters=std::mem::take(&mut lock(&*failed_batch).waiters);
-                    lock(&self.state).running.retain(|b|!Arc::ptr_eq(b,&failed_batch));
+                    lock(&self.schedule.state).running.retain(|b|!Arc::ptr_eq(b,&failed_batch));
                     for waiter in waiters {Self::complete(waiter,None);}
                 }
             }
-            let state=lock(&self.state);
-            let delay=if state.pending.waiters.is_empty() {Duration::from_millis(1)} else {COLLECT};
-            drop(self.changed.wait_timeout(state,delay).unwrap_or_else(|p|p.into_inner()));
         }
         fn complete(waiter: Waiter, validation: Option<ReadIndexValidation>) {
             let Waiter {request,candidate,ready,resume,until}=waiter;
@@ -80,11 +106,20 @@ mod enabled {
             }));
         }
     }
+    impl Drop for Queue {
+        fn drop(&mut self) {
+            lock(&self.schedule.state).stopped=true;
+            self.schedule.changed.notify_one();
+        }
+    }
     impl Resume {
         pub(in crate::serve) fn park(self: &Arc<Self>, candidate: ReadIndexCandidate, request: Request, ready: Ready) {
             crate::release_requests::executed();
             let queue=self.admission.ri.get_or_init(|| {
                 let shared=Arc::downgrade(&self.shared);
+                #[cfg(test)] test_work(&self.admission.ri_timer_spawn);
+                #[cfg(test)] let fail_spawn=self.admission.ri_fail_timer.load(Ordering::Relaxed);
+                #[cfg(not(test))] let fail_spawn=false;
                 Queue::new(Arc::new(move|| {
                     let shared=shared.upgrade()?;
                     #[cfg(test)] test_work(&shared.read_index_validation);
@@ -92,16 +127,21 @@ mod enabled {
                     let proof=reader.validate_read_index();
                     lock(&shared.readers).put(&epoch,reader.into_inner());
                     proof
-                }))
+                }),fail_spawn).map_err(|_| ())
             });
             #[cfg(not(test))]
             let budget=WAIT;
             #[cfg(test)] let budget=Duration::from_micros(self.admission.ri_wait_micros.load(Ordering::Relaxed));
             let until=(Instant::now()+budget).min(self.deadline.unwrap_or_else(||request_workers::deadline(&request,SHORT_REQUEST_DEADLINE)));
-            let mut state=lock(&queue.state);
+            let waiter=Waiter {request,candidate,ready,resume:self.clone(),until};
+            let Ok(queue)=queue else {
+                Queue::complete(waiter,None);
+                return;
+            };
+            let mut state=lock(&queue.schedule.state);
             if state.pending.waiters.is_empty() {state.pending.opened=Instant::now();}
-            state.pending.waiters.push(Waiter {request,candidate,ready,resume:self.clone(),until});
-            drop(state);queue.changed.notify_one();
+            state.pending.waiters.push(waiter);
+            drop(state);queue.schedule.changed.notify_one();
         }
     }
 }

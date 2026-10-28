@@ -234,7 +234,7 @@ impl Cache {
         Self {
             read_index: {
                 let ri = read_index::ReadIndex::default();
-                ri.enabled.store(std::env::var("SNAPBACK4_G5_READ_INDEX").as_deref() == Ok("1"), Ordering::Relaxed);
+                ri.enabled.store(crate::store_port::g5_read_index_enabled(), Ordering::Relaxed);
                 ri
             },
             read_index_hits: AtomicU64::new(0),
@@ -686,7 +686,6 @@ impl Engine {
         digest: &str,
         snapshot: &mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
         parked: Option<ReadIndexProof>,
-        allow_blocking: bool,
     ) -> (
         Result<QueryOutcome, Refusal>,
         Option<u64>,
@@ -803,14 +802,11 @@ impl Engine {
                     // before its leader sends a fresh implicit transaction.
                     // Revision equality covers session and rule changes too.
                     if cache.read_index.enabled.load(Ordering::Relaxed)
-                        && self.store.durability().is_none()
-                        && grant.as_ref().is_none_or(|g| !g.revoked.load(Ordering::Acquire) && !g.uncertain.load(Ordering::Acquire))
+                        && self.store.read_index_eligible()
+                        && grant.as_ref().is_none_or(|g| !g.configured.load(Ordering::Acquire) && !g.revoked.load(Ordering::Acquire) && !g.uncertain.load(Ordering::Acquire))
                         && let Some(stamp) = match &parked {
                             Some(proof) if Arc::ptr_eq(&proof.cache, &cache) && key.map(|v|v.0) == Some(proof.key) => proof.validation.as_ref().map(|v|v.0.clone()),
                             Some(_) => None,
-                            None if allow_blocking => cache.read_index.validate(
-                                std::time::Instant::now() + std::time::Duration::from_secs(1),
-                                || self.store.read_index_validation()),
                             None => None,
                         }
                     {

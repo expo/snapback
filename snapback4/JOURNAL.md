@@ -109952,3 +109952,40 @@ PID file. Temporarily evicted historical artifacts in this lane are restored;
 old SPR releases/fixtures and 450b are untouched. The flag stays default off
 and the LLP subsection stays Review. See
 [Round 2](./reports/20261027-g5-readindex/REPORT.md#round-2-primary-result--450a-2026-10-28).
+
+
+## 2026-10-28 — G5RF: fix round 1; clock-free Postgres read default
+
+Both blind reviews of `0769bf5239` returned READY WITH CHANGES and found no
+stale-read counterexample under the supported revision-writer contract. The
+required changes are implemented and the RI subsection is Accepted as the
+Postgres default: unset or `SNAPBACK4_G5_READ_INDEX=1` enables HTTP batching;
+`=0` retains ordinary G5, and malformed settings refuse. Configured G6 bypasses
+RI before HTTP parking; Sol's HTTP finding and Grok's engine fast-path finding
+were both correct. Timer creation is fallible with original permit/deadline
+fallback, idle waits use a condvar, and direct engine APIs no longer enter the
+blocking coordinator. One publication-mode predicate rejects E/W/R raw-head
+proofs; RFC 003 §14 requires W-bound V integration before R and RI compose.
+The guide and LLP distinguish fill-time SessionFacts certification by unified
+revision from G5's per-digest projection reread; revision-less raw `_sessions`
+edits are outside that contract. Startup and doctor distinguish configured
+owner-local batching from persisted grant evidence, including both flags on.
+
+All 15 RI witnesses pass, including injected timer-start failure, G6 precedence,
+blocking API bypass and saved-proof rejection in publication-prefix mode.
+Core all-target/doc tests and 43 private-PG cache tests pass. The broad CLI
+suite's three red targets pass on targeted rerun after dependency/helper
+preconditions and moving private RI fixture access behind the test port; the
+ordinary per-request SQL ratchet explicitly selects G5 off mode. Ref-check is
+green; diagnostics regeneration has no diff. Root inventories retain an
+unrelated guide-manifest failure from missing generated Snapback 1/Contract
+artifacts and package links.
+
+Two short local W2/A 8,000/s repetitions, default versus off, show batching
+engaged: SQL/cohort ACK is about 0.515 versus 1.009, with zero errors and 32
+connections. Default p99 is 61.309/49.676 ms versus off 42.828/38.044 ms; the
+first default window fails its SLO. This shared-host sanity is not a new
+performance qualification. Full dispositions, all windows, validation details
+and cleanup are in [the fix-round report](./reports/20261027-g5-readindex/FIXROUND1.md).
+Only owned private clusters on 55771/55772/55773 were used; their data is
+retained with no live postmasters. Local commit only; no push.

@@ -12,10 +12,10 @@ sys.path.insert(0,str(SCRIPTS))
 spec=importlib.util.spec_from_file_location('s1_onehost',SCRIPTS/'s1-onehost.py')
 s1=importlib.util.module_from_spec(spec);spec.loader.exec_module(s1)
 
-def free(out,kind,minimum=24):
+def free(out,kind,minimum=60):
     n=shutil.disk_usage('/home').free
     s1.append(out/'disk-g5r2.jsonl',dict(time=time.time(),kind=kind,free_bytes=n))
-    if n<minimum*1024**3:raise RuntimeError(f'/home below {minimum} GiB: {n}')
+    if n<minimum*1000**3:raise RuntimeError(f'/home below {minimum} GB: {n}')
     return n
 
 def pg_cpu(pid):
@@ -43,12 +43,13 @@ def main():
     ap.add_argument('--warmup-ms',type=int,default=10000)
     ap.add_argument('--duration-ms',type=int,default=20000)
     ap.add_argument('--pilot',action='store_true')
+    ap.add_argument('--sanity-default',action='store_true',help='W2/A 8000/s default (unset) versus explicit off, two repetitions; local sanity only')
     ap.add_argument('--fixture-rows',type=int,default=1000000)
     ap.add_argument('--trace',action='store_true')
     ap.add_argument('--clock-diagnostics-from',type=Path,help='reuse only a stopped, custody-checked private campaign fixture for six 1000/s trace-only windows')
     args=ap.parse_args();os.umask(0o077)
     target=ROOT/'target/release'
-    a=SimpleNamespace(system='snapback',store='postgres',out=str(args.out),pg_bin='/home/ccheever/tools/pg16/usr/lib/postgresql/16/bin',pg_port=55743,
+    a=SimpleNamespace(system='snapback',store='postgres',out=str(args.out),pg_bin='/home/ccheever/tools/pg16/usr/lib/postgresql/16/bin',pg_port=55772 if args.sanity_default else 55743,
         pg_share='/home/ccheever/tools/pg16/usr/share/postgresql/16',pg_cores='0-2,6-8',app_cores='3-4,9-10',load_cores='5,11',
         harness=str(target/'sb4-scale-controls'),snapback_bin=str(target/'snapback4'),seed_bin=str(target/'sb4-postgres-scale-seed'),
         rows=args.fixture_rows,warmup_ms=args.warmup_ms,duration_ms=args.duration_ms,repeats=3,extra_read_rates=[],target='snapback',max_rate=16000,rates=[])
@@ -114,12 +115,12 @@ def main():
     stopped=threading.Event()
     def disk_monitor():
         while not stopped.wait(1):
-            try:free(r.out,'continuous',22)
+            try:free(r.out,'continuous')
             except Exception:
                 os.kill(os.getpid(),signal.SIGTERM);return
     watcher=threading.Thread(target=disk_monitor,daemon=True);watcher.start()
     signal.signal(signal.SIGTERM,lambda *_:(_ for _ in ()).throw(KeyboardInterrupt()))
-    runs=[];report=dict(fixture_rows=a.rows,pilot=args.pilot,raw_out=str(r.out),method='s1-onehost.py lifecycle/fixture/quiet gate/affinity/SLO; fixed interleaved G5, RI, G6; 3 repetitions',warmup_ms=a.warmup_ms,duration_ms=a.duration_ms,runs=runs)
+    runs=[];report=dict(fixture_rows=a.rows,pilot=args.pilot,raw_out=str(r.out),method='local sanity: W2/A 8000/s default (unset) versus off, two repetitions; 32768-message fixture' if args.sanity_default else 's1-onehost.py lifecycle/fixture/quiet gate/affinity/SLO; fixed interleaved G5, RI, G6; 3 repetitions',warmup_ms=a.warmup_ms,duration_ms=a.duration_ms,runs=runs)
     def save():args.result.write_text(json.dumps(report,indent=2)+'\n')
     try:
         r.start()
@@ -130,10 +131,11 @@ def main():
         cohorts=[(w,link,rate,rep) for rep in range(3) for w in ['W1','W2','W3'] for link in ['A','B'] for rate in ([8000,9514,11313,16000] if w=='W3' else [8000,9514,11313])]
         cohorts += [('W4','A',rate,rep) for rep in range(3) for rate in [800,2262]]
         cohorts += [('W2','B',11313,-1),('W3','B',16000,-1)]
+        if args.sanity_default:cohorts=[('W2','A',8000,rep) for rep in range(2)]
         if args.pilot:cohorts=[('W3','B',100,0),('W4','A',100,0)]
         if args.clock_diagnostics_from:cohorts=[('W2','B',1000,-2),('W3','B',1000,-2)]
         for index,(w,link,rate,rep) in enumerate(cohorts):
-            order=['g5','ri','g6'];order=order[index%3:]+order[:index%3]
+            order=['default','g5'] if args.sanity_default else ['g5','ri','g6'];order=order[index%len(order):]+order[:index%len(order)]
             for arm in order:
                 a.warmup_ms=2000 if rep==-1 else args.warmup_ms
                 a.duration_ms=4000 if rep==-1 else args.duration_ms
@@ -141,6 +143,7 @@ def main():
                 r.host_check(label);free(r.out,'cohort-'+label)
                 d=r.out/label;d.mkdir()
                 for k in ['SNAPBACK4_G5_READ_INDEX','SNAPBACK4_READ_GRANT_CLOCK_BOUNDS','SNAPBACK4_READ_TRACE','SNAPBACK4_READ_TRACE_ALL']:r.env.pop(k,None)
+                if arm=='g5':r.env['SNAPBACK4_G5_READ_INDEX']='0'
                 if arm=='ri':r.env['SNAPBACK4_G5_READ_INDEX']='1'
                 if arm=='g6':r.env['SNAPBACK4_READ_GRANT_CLOCK_BOUNDS']='1000,250'
                 if args.trace or rep<0:

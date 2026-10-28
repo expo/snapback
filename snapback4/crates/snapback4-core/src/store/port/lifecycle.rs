@@ -76,6 +76,13 @@ impl AnyStore {
         self.request_read_transaction(digest)
     }
     #[cfg(feature="postgres")]
+    pub(crate) fn read_index_eligible(&self)->bool {
+        match self {
+            Self::Postgres(PostgresStore(h)) => h.store.borrow().read_index_eligible(),
+            _ => false,
+        }
+    }
+    #[cfg(feature="postgres")]
     pub(crate) fn read_index_validation(&mut self)->Option<crate::engine::postgres::read_grant::Published> {
         if let Self::Postgres(PostgresStore(h))=self {
             return h.store.get_mut().read_index_validation().ok().flatten();

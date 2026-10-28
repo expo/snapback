@@ -1,5 +1,9 @@
 # G5R: clock-free coalesced validation
 
+Historical prototype/round-2 record. [G5RF fix round 1](./FIXROUND1.md)
+subsequently accepts RI as the Postgres default; the experimental/default-off
+descriptions below describe the original measured revisions.
+
 Experimental `SNAPBACK4_G5_READ_INDEX=1`, default off. The Review design is
 [LLP 3000.009.001.000.002 §4.2](../../../llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md#g5-read-index-validation).
 This lane uses a private PG16.15 cluster on port 55731 and the lane's own

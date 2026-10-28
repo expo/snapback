@@ -25,9 +25,8 @@ impl Engine {
     pub fn prepare_read_index(&self, name: &str, context: &Context, retained: Option<&[String]>, manifest: DeliveryManifest, digest: &str) -> Option<ReadIndexCandidate> {
         let cache = &self.revision_cache;
         if !cache.read_index.enabled.load(Ordering::Relaxed)
-            || !matches!(self.store, crate::store_port::AnyStore::Postgres(_))
-            || self.store.durability().is_some()
-            || self.store.read_grant().is_some_and(|g|g.revoked.load(Ordering::Acquire) || g.uncertain.load(Ordering::Acquire))
+            || !self.store.read_index_eligible()
+            || self.store.read_grant().is_some_and(|g|g.configured.load(Ordering::Acquire) || g.revoked.load(Ordering::Acquire) || g.uncertain.load(Ordering::Acquire))
         { return None; }
         let (key, _) = self.cache_key(name, context, retained, manifest, digest)?;
         // A candidate probe is not another request observation: only the
@@ -41,6 +40,7 @@ impl Engine {
     }
     /// The caller must detach/close enrollment before entering this function.
     pub fn validate_read_index(&mut self) -> Option<ReadIndexValidation> {
+        if !self.store.read_index_eligible() { return None; }
         self.revision_cache.read_index.rounds.fetch_add(1, Ordering::Relaxed);
         let cut=self.revision_cache.read_index.enrollments.load(Ordering::Acquire);
         self.store.read_index_validation().map(|stamp|ReadIndexValidation(stamp,Arc::downgrade(&self.revision_cache),cut))
@@ -50,7 +50,7 @@ impl Engine {
         &mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest,
         digest: &str, mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
     ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
-        self.query_cached_request(name, context, retained, manifest, digest, &mut snapshot, None, false)
+        self.query_cached_request(name, context, retained, manifest, digest, &mut snapshot, None)
     }
     #[cfg(feature = "server-search")]
     pub fn query_materialized_search_with_read_index(
@@ -58,6 +58,6 @@ impl Engine {
         digest: &str, proof: ReadIndexProof,
         mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
     ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
-        self.query_cached_request(name, context, retained, manifest, digest, &mut snapshot, Some(proof), false)
+        self.query_cached_request(name, context, retained, manifest, digest, &mut snapshot, Some(proof))
     }
 }

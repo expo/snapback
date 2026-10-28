@@ -138,6 +138,16 @@ pub(crate) mod change_evidence_tests;
 #[path = "store/port/evaluation.rs"]
 mod evaluation;
 
+/// Owner-local batching preference; only Postgres HTTP serving consults it.
+/// Configuration validation rejects malformed explicit settings before startup.
+pub fn g5_read_index_enabled() -> bool {
+    match std::env::var("SNAPBACK4_G5_READ_INDEX") {
+        Err(std::env::VarError::NotPresent) => true,
+        Ok(value) => value == "1",
+        Err(_) => false,
+    }
+}
+
 /// Operator-facing tier explanation; this does not authorize a cached read.
 // @ref LLP 3000.009.001.000.002#4.2 — G6 remains an explicit opt-in under the declared clock and writer contract.
 pub fn g5_read_cache_tier(reason: &str) -> String {

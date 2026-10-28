@@ -196,16 +196,9 @@ fn doctor_event_inventory_and_owner_cache_tier() {
             "DROP EVENT TRIGGER {event}; DROP EVENT TRIGGER {disabled}; DROP EVENT TRIGGER {all}"
         ),
     );
-    assert!(tier.starts_with("G5 revision cache (one validation statement per hit)"));
-    for word in [
-        "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms",
-        "single owner",
-        "every writer grant-aware",
-        "database time bounded as declared",
-        "VM pause/migration longer than the lease",
-    ] {
-        assert!(tier.contains(word), "{tier}");
-    }
+    assert!(tier.starts_with("persisted G5 revision cache"));
+    assert!(tier.contains("owner-local RI batching/disable/publication mode unconfirmed"),"{tier}");
+    assert!(tier.contains("Postgres HTTP default: coalesced validation"),"{tier}");
     let warning = warnings
         .iter()
         .find(|s| s.contains(&format!("\"name\":\"{event}\"")))
@@ -269,7 +262,7 @@ fn doctor_event_inventory_and_owner_cache_tier() {
             AnyStore::postgres_diagnostics(&url, &name)
                 .unwrap()
                 .0
-                .starts_with("G5 revision cache")
+                .starts_with("persisted G5 revision cache")
         );
     }
     #[cfg(not(target_os = "linux"))]

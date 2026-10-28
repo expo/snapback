@@ -93,6 +93,7 @@ try:
     assert proxy.poll() is None;time.sleep(.02)
    link_socket.unlink(missing_ok=True);link_socket.symlink_to(proxy_sock/link_socket.name)
    se=store_env(stable)
+   if arm=='g5':se['SNAPBACK4_G5_READ_INDEX']='0'
    if arm=='ri':se['SNAPBACK4_G5_READ_INDEX']='1'
    if arm=='g6':se['SNAPBACK4_READ_GRANT_CLOCK_BOUNDS']='1000,250'
    service=spawn([bin/'snapback4','serve',release,'--worker-state-dir',work/'workers','--port','0'],name+'-serve',e=se)

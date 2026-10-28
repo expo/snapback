@@ -4,10 +4,20 @@ use super::{store::Store, read_grant::{Published, PUBLICATION}};
 use crate::RuntimeError;
 
 impl Store {
+    /// The single RI eligibility predicate: enrollment, validation and proof use
+    /// all consult it. Future W/R modes must select PublishedPrefix, including
+    /// on readers and reconnect, until RI validates W-bound V.
+    pub(crate) fn read_index_eligible(&self) -> bool {
+        match self.read_publication {
+            super::store::ReadPublication::SynchronousHead => self.early_release.is_none(),
+            super::store::ReadPublication::PublishedPrefix => false,
+        }
+    }
+
     pub(crate) fn read_index_validation(&mut self) -> Result<Option<Published>, RuntimeError> {
         // Stage E snapshots must first acquire the certified D image. This
         // prototype deliberately leaves that path on its existing G5 check.
-        if self.early_release.is_some() || !self.client.is_reader() { return Ok(None); }
+        if !self.read_index_eligible() || !self.client.is_reader() { return Ok(None); }
         self.refresh_reader_connection()?;
         let expected = self.fence.clone();
         let sql = format!("SELECT p.*,o.store_id,o.token,o.holder,(SELECT value FROM _meta WHERE key='generation'),pg_catalog.current_setting('client_encoding') FROM ({PUBLICATION}) p CROSS JOIN _owner o WHERE o.singleton");

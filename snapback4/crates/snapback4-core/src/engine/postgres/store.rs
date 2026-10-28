@@ -77,7 +77,18 @@ pub(super) type CallCounter = Cell<u64>;
 pub(super) use crate::round_trips::CallCounter;
 
 
+/// All publication-prefix modes must select PublishedPrefix before admission.
+/// RI's raw-head proof is valid only in SynchronousHead mode.
+// @ref LLP 3000.009.001.000.000.003#5.1 — R must bind V from published W, never raw H.
+#[derive(Clone, Copy)]
+pub(crate) enum ReadPublication {
+    SynchronousHead,
+    #[allow(dead_code)] // Reserved fail-closed state for W/Stage R integration.
+    PublishedPrefix,
+}
+
 pub struct Store {
+    pub(crate) read_publication: ReadPublication,
     pub(crate) early_release: Option<std::sync::Arc<super::early_release::Durability>>,
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
@@ -106,7 +117,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { check_functions: RefCell::new(None), early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_publication: ReadPublication::SynchronousHead, check_functions: RefCell::new(None), early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.

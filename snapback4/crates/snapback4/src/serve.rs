@@ -370,7 +370,7 @@ const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 const CLASSES: usize = 8;
 
-struct RequestAdmission { limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], ri: std::sync::OnceLock<Arc<read_index::Queue>>, #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64, #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64, short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
+struct RequestAdmission { #[cfg(test)] ri_timer_spawn: WorkHook, #[cfg(test)] ri_fail_timer: std::sync::atomic::AtomicBool, limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], ri: std::sync::OnceLock<Result<Arc<read_index::Queue>, ()>>, #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64, #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64, short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
 
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — viewers' waits and workers' claims are separate classes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -394,7 +394,7 @@ impl RequestAdmission {
         Self {
             limits: [REQUEST_WORKERS, MUTATION_WORKERS, SYNC_WORKERS, capacity.long_waits, ROUTE_WORKERS, REGISTRY_WORKERS, VERIFIER_WORKERS, capacity.claim_waits],
             pool_refusals: long_waits::PoolRefusals::new(capacity),
-            workers: Default::default(), ri: Default::default(), #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64::new(8000), #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64::new(0), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
+            workers: Default::default(), ri: Default::default(), #[cfg(test)] ri_timer_spawn: Mutex::new(None), #[cfg(test)] ri_fail_timer: std::sync::atomic::AtomicBool::new(false), #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64::new(8000), #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64::new(0), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
             routes: AtomicUsize::new(0), registries: AtomicUsize::new(0), verifiers: AtomicUsize::new(0), claims: AtomicUsize::new(0),
             refused: Default::default(), undelivered: Default::default(),
         }
