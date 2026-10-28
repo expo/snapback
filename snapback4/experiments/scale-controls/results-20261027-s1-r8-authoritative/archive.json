@@ -1,0 +1,8 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-r8-authoritative-20261027.tar.gz",
+  "sha256": "e446edcd243b673261e91a8cafb704f238e55a64a22f0ece401b3bc19092ca99",
+  "bytes": 342193218,
+  "members": 6924,
+  "raw_trials": 188,
+  "raw_trials_histograms_cpu_samples_outside_git": true
+}

@@ -1,0 +1,61 @@
+{
+  "target": "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b",
+  "before_free_bytes": 33452462080,
+  "after_free_bytes": 34905243648,
+  "removed": [
+    {
+      "name": "snapback4-3b54c9b640aa2f97.d",
+      "bytes": 46739
+    },
+    {
+      "name": "libsnapback4_lang-4b2363c0c7f68811.rmeta",
+      "bytes": 7639928
+    },
+    {
+      "name": "libsnapback4_device.so",
+      "bytes": 130248744
+    },
+    {
+      "name": "libsnapback4_device.rlib",
+      "bytes": 48486672
+    },
+    {
+      "name": "libsnapback4_core-29655d5bffbcb154.rmeta",
+      "bytes": 22181381
+    },
+    {
+      "name": "libsnapback4_core-b303be2e82d990a1.rlib",
+      "bytes": 130713566
+    },
+    {
+      "name": "libsnapback4_lang-4b2363c0c7f68811.rlib",
+      "bytes": 201712634
+    },
+    {
+      "name": "snapback4-3b54c9b640aa2f97",
+      "bytes": 334296088
+    },
+    {
+      "name": "libsnapback4_core-29655d5bffbcb154.rlib",
+      "bytes": 214232180
+    },
+    {
+      "name": "libsnapback4_device.a",
+      "bytes": 347209962
+    },
+    {
+      "name": "libsnapback4_core-b303be2e82d990a1.rmeta",
+      "bytes": 15909043
+    },
+    {
+      "name": "snapback4",
+      "bytes": 334296088
+    },
+    {
+      "name": "snapback4.d",
+      "bytes": 100258
+    }
+  ],
+  "third_party_cache_retained": true,
+  "immutable_binary_copies_preserved": true
+}

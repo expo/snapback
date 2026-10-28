@@ -1,0 +1,88 @@
+[
+  {
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      2690,
+      3200,
+      3805
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W5-hot1-B",
+    "highest_passing_5of5": 2690,
+    "highest_passing_first3of3": 2690,
+    "rates_tested": [
+      2690,
+      3200,
+      3805
+    ]
+  },
+  {
+    "system": "r8",
+    "cell": "W5-hot1-A",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      3200,
+      2690,
+      3805
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W5-hot1-A",
+    "highest_passing_5of5": 3200,
+    "highest_passing_first3of3": 3200,
+    "rates_tested": [
+      3200,
+      2690,
+      3805
+    ]
+  },
+  {
+    "system": "r8",
+    "cell": "W4-disjoint-B",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      2690,
+      3200,
+      3805
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W4-disjoint-B",
+    "highest_passing_5of5": 2690,
+    "highest_passing_first3of3": 2690,
+    "rates_tested": [
+      2690,
+      3200,
+      3805
+    ]
+  },
+  {
+    "system": "r8",
+    "cell": "W4-disjoint-A",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      3805,
+      4525
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W4-disjoint-A",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      3805,
+      4525
+    ]
+  }
+]

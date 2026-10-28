@@ -1,0 +1,13 @@
+{
+  "overlapping_measurements": [],
+  "within_pre_service_quiet_gate": true,
+  "quiet_gate": {
+    "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+    "start": 1793140447.2121894,
+    "end": 1793140554.381461,
+    "consecutive_quiet_s": 10.216011315584183,
+    "samples": 105
+  },
+  "start": 1793140533.7428343,
+  "end": 1793140534.8502848
+}

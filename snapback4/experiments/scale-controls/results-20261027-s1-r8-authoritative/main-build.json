@@ -1,0 +1,27 @@
+{
+  "commit": "982e77a600987686239e8f8eb0157df2edb90457",
+  "command": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-j",
+    "6",
+    "-p",
+    "snapback4",
+    "--features",
+    "postgres"
+  ],
+  "target": "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b",
+  "status": 0,
+  "sha256": "092eb205f3148040499b30a550e312913558fc3d6e58b06e406541422e101304",
+  "source": "reused sb4-r0b worktree and target; local commits, unchanged product",
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "6",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"
+  }
+}
