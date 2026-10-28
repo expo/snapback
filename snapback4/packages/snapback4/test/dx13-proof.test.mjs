@@ -54,10 +54,12 @@ test('provision errors show merged argument shapes and actual parameters with op
  assert.match(error.message,/E_STAGING_PROVISION/);assert.match(error.message,/merged args/);assert.match(error.message,/mutation parameters: principal, role/);assert.ok(error.message.includes('extra')&&!error.message.includes('DX13-PRIVATE-SENTINEL'));return true;
  });}finally{await host.stop();}
 });
-test('starter installer emits elapsed progress during a silent install and preserves npm failure',{skip:process.platform==='win32'},async t=>{
+test('starter installer names its owned wait without polling and preserves a silent npm failure',{skip:process.platform==='win32'},async t=>{
  const cwd=scratch(t);mkdirSync(join(cwd,'bin'));
- const fake=join(cwd,'bin/npm');writeFileSync(fake,'#!/bin/sh\nsleep 11\nexit 7\n',{mode:0o755});
+ const fake=join(cwd,'bin/npm');writeFileSync(fake,'#!/bin/sh\necho run >> npm-runs\nsleep 11\nexit 7\n',{mode:0o755});
  const source=join(root,'crates/snapback4/src/verbs/init/install.mjs');
  const result=await command(process.execPath,[source],{cwd,env:{PATH:join(cwd,'bin')+':'+process.env.PATH},timeoutMs:20000,secret:true});
- assert.equal(result.code,7);assert.match(result.stderr,/Installing dependencies/);assert.match(result.stderr,/still running \(10s/);assert.match(result.stderr,/finished/);
+ assert.equal(result.code,7);assert.match(result.stderr,/frontend install: running/);assert.match(result.stderr,/install\.mjs --wait/);assert.match(result.stderr,/npm install finished \(exit 7\)/);
+ assert.equal(result.stderr.trim().split('\n').length,2,'one initial status and one completion, without periodic polling');
+ assert.equal(readFileSync(join(cwd,'npm-runs'),'utf8'),'run\n','one owned installation');
 });
