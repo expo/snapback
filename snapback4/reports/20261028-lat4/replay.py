@@ -35,7 +35,7 @@ def wrap_entries(dst,scripts,variant):
   result=subprocess.run(['node',str(HERE/'wrap.mjs'),str(target),'file:///tmp/lat4/observe-runner.mjs' if variant=='before' else 'snapback4/proof-runner'],capture_output=True,text=True)
   if result.returncode:raise RuntimeError('entry completion requires explicit adaptation: '+str(target.relative_to(dst))+': '+result.stderr[-300:])
   wrapped.append(json.loads(result.stdout))
- return [{'file':str(pathlib.Path(x['file']).relative_to(dst)),'awaitedEntries':x['awaitedEntries']} for x in wrapped]
+ return [{**x,'file':str(pathlib.Path(x['file']).relative_to(dst))} for x in wrapped]
 
 def run(dst,script,base,binary,slot,port=None):
  observer=base.with_suffix('.observer.jsonl');trace=base.with_suffix('.native.jsonl')
@@ -83,7 +83,9 @@ def run(dst,script,base,binary,slot,port=None):
  return result
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--slot',type=int);ap.add_argument('--waves',default='32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof');ap.add_argument('--candidate',type=pathlib.Path,required=True);ap.add_argument('--before-native',type=pathlib.Path,required=True);ap.add_argument('--after-native',type=pathlib.Path,required=True);a=ap.parse_args()
+ global SCRATCH
+ ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--slot',type=int);ap.add_argument('--out',type=pathlib.Path);ap.add_argument('--revision',type=int,default=1);ap.add_argument('--waves',default='32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof');ap.add_argument('--candidate',type=pathlib.Path,required=True);ap.add_argument('--before-native',type=pathlib.Path,required=True);ap.add_argument('--after-native',type=pathlib.Path,required=True);a=ap.parse_args()
+ SCRATCH=a.out or SCRATCH;SCRATCH.mkdir(parents=True,exist_ok=True)
  slot=a.worker if a.slot is None else a.slot
  cases=[(wave,p.parent)for wave in map(int,a.waves.split(','))for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{wave}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p)for w,p in cases if p.name[:3]in a.lanes.split(',')]
@@ -100,10 +102,12 @@ def main():
    entries={k:v for k,v in scripts.items()if k in wanted+['client:calls']}
    wrapped={v:wrap_entries(d,entries,v)for v,d in [('before',before),('after',after)]}
    for script in wanted:
-    row={'wave':wave,'lane':src.name,'script':script,'wrapped':wrapped,'beforeBinarySha256':hashlib.sha256(a.before_native.read_bytes()).hexdigest(),'afterBinarySha256':hashlib.sha256(a.after_native.read_bytes()).hexdigest()}
+    row={'wave':wave,'lane':src.name,'script':script,'measurementRevision':a.revision,'wrapped':wrapped,'beforeBinarySha256':hashlib.sha256(a.before_native.read_bytes()).hexdigest(),'afterBinarySha256':hashlib.sha256(a.after_native.read_bytes()).hexdigest()}
     for variant,dst,binary in ([('before',before,a.before_native),('after',after,a.after_native)]if i%2==0 else [('after',after,a.after_native),('before',before,a.before_native)]):
      key=script.replace(':','-')+'-'+variant;port=21120 if (wave in [32,33]and src.name.startswith('012-'))else 21280 if wave==34 and src.name.startswith('028-')else 21090 if wave==33 and src.name[:3]in ['009','035']else None
+     digest=lat3.client_digest(dst)
      row[variant]=run(dst,script,logs/key,binary,slot,port)
+     row[variant]['clientInputDigest']=digest;row[variant]['clientOutputDigest']=lat3.client_digest(dst)
     row['sameExit']=row['before']['code']==row['after']['code'];row['sameMessages']=row['before']['messages']==row['after']['messages']
     with (SCRATCH/f'results-{slot}.jsonl').open('a')as f:f.write(json.dumps(row)+'\n')
     print(wave,src.name,script,*[row[v]['code']for v in ['before','after']],*[round(row[v]['seconds'],3)for v in ['before','after']],row['sameMessages'],flush=True)
