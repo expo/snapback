@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+Reviewed all 15 authored resolutions (remerge-CONFLICT hunks) in the diff against e804cf6. No correctness or lost-intent issues found.
+
+What each resolution does, and why it holds:
+
+- [releases.rs](https://example.com) rollback: keeps `held["release"]` with the "no persisted live release…" error, drops both `owner.report_reclaim` and the `current(&dir, owner)` alternative. Correct on both counts: `report_reclaim` has no definition anywhere in the source tree at e804 (keeping it would not compile), and `current()`'s own documented contract says a filesystem pointer is source context only — deploy takes its predecessor from held store status, and deploy (line 429) and serve (line 859) still use `current()` where appropriate. The dropped SRV1 alternative would have let a source pointer establish a rollback predecessor, contradicting that invariant.
+- [main.rs](https://example.com): `deploy`/`rollback` go through `command_output::run`, `promote` stays direct. Preserves TOK2 output custody where required, no change to promote.
+- [verbs.rs](https://example.com) `data`: single shared `payload` for `--json`/evidence/state. Payload identity preserved.
+- [release_preview.rs](https://example.com): keeps `preflight: {order: [adoption, security]}` plus `enforce-security-after-adoption` with adoption-first failure labeling; the added `}` closes the block correctly. REL4 adoption-before-security intact.
+- [published.rs](https://example.com): union keeps both `generated/api.ts` and `.snapback4/last/<command>.txt`. Both custody lists survive.
+- [guide.rs](https://example.com) KEYWORDS and `card()`: union keeps `day2`, `workflow`, and `package-reference`. All budgets reachable.
+- [guide-api.mjs](https://example.com): `proof`/`client` lists are exact unions — every name from both sides present, none omitted; all four digest titles (production roster, witness, react ×2, probe) present in the resolved file.
+- [proof.ts](https://example.com) (both merges): unions keep `watchParent` (SRV1 lifetime), `uniqueName`/`freshUser`/`capacityAdvice`, plus failure-reporting/observation (refusal-first). Nothing dropped.
+- [proof-accounts.ts](https://example.com) (calls1): keeps both `capacityAdvice` and `proofRole`. The later lat3 drop of the static `rosterLock` import is safe: the only remaining use is a lazy dynamic `await import("./proof-roster-lock.ts")`, matching the lazy-dispatch seam.
+- [start.md](https://example.com) / [README.md](https://example.com): TOK3 rewrites win over DX16's versions. The only unique DX16 sentences (`--repeat`/`--full`) remain covered by the current guide framework (`pages.rs` template, `start.md:65`); the background-installer sentences were separately superseded by the foreground-install lane change. No in-scope intent lost.
+- No hunk touches campaign-engine files; per-finding tiers/IDs are untouched (LAT1 auto-merge only). Generated files and lane imports (CHANGELOG rewrite, install-text update) were not counted as resolutions.
+
+VERDICT: READY

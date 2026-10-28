@@ -1,0 +1,398 @@
+{
+  "binaries": {
+    "0.4.44": {
+      "path": "/home/ccheever/sb4-loop/reports/lat1/baseline-0.4.44",
+      "sha256": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf"
+    },
+    "0.4.45": {
+      "path": "/home/ccheever/sb4-loop/reports/integration29/candidate-release-0.4.45",
+      "sha256": "e5488d6298ab87783662a776eb2781a8d506ff0e1ee6b36e996a04332b61c43a"
+    },
+    "0.4.46": {
+      "path": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46",
+      "sha256": "f93da0d0e0fbb23337e986646d68393362133458f1e4d0af07ff991dc386e393"
+    }
+  },
+  "workers": 4,
+  "keys": [
+    {
+      "wave": 15,
+      "lane": "001-weld-coupon-quals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 15,
+      "lane": "034-day2-cla-signature-ledger",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 15,
+      "lane": "067-curfew-extension-requests",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "001-snapback-ferry-deck-manifest",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "017-snapback-trial-symptom-diary",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "033-snapback-compounding-dual-check",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "001-snapback-ferry-deck-manifest",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "017-snapback-trial-symptom-diary",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "033-snapback-compounding-dual-check",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "001-snapback-falconry-mews-weights",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "017-snapback-quarry-blast-notices",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "033-snapback-fencing-bout-pools",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "001-snapback-falconry-mews-weights",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "017-snapback-quarry-blast-notices",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "033-snapback-fencing-bout-pools",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "001-snapback-luthier-crack-repairs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "017-snapback-search-rescue-callouts",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "033-snapback-lead-service-swaps",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "001-snapback-luthier-crack-repairs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "017-snapback-search-rescue-callouts",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "033-snapback-lead-service-swaps",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "001-snapback-stained-glass-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "017-snapback-pawn-loan-tickets",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "033-snapback-kayak-livery-rentals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "001-snapback-stained-glass-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "017-snapback-pawn-loan-tickets",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "033-snapback-kayak-livery-rentals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "001-snapback-organ-pipe-voicing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "017-snapback-butcher-custom-orders",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "001-snapback-organ-pipe-voicing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "017-snapback-butcher-custom-orders",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "017-snapback-personal-chef-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "017-snapback-personal-chef-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "001-snapback-barometer-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "001-snapback-barometer-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "001-snapback-weathervane-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "017-snapback-petting-zoo-parties",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "001-snapback-weathervane-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "017-snapback-petting-zoo-parties",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "001-snapback-jukebox-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "014-snapback-ceiling-draping-installs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "027-snapback-animatronic-figure-builds",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "004-snapback-senior-downsizing-moves",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "017-snapback-science-show-parties",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "018-snapback-ash-tree-injections",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "019-snapback-exotic-bird-transport",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "025-snapback-drone-pilot-certifications",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "029-snapback-grand-piano-moves",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "cohort": "day2-nine",
+      "variant": ""
+    },
+    {
+      "wave": 33,
+      "lane": "033-snapback-bathtub-reglazing-jobs",
+      "cohort": "day2-nine",
+      "variant": "inv"
+    },
+    {
+      "wave": 33,
+      "lane": "036-snapback-championship-ring-orders",
+      "cohort": "day2-nine",
+      "variant": ""
+    }
+  ],
+  "method": "Paired adjacent binaries with rotating order per schema/mode; same four workers and window; cold then warm on the same independent source/JSONL copy. No phase tracing. Preview starts from a fresh matching-binary deployment of the predecessor; setup time is retained separately. No original stores opened."
+}

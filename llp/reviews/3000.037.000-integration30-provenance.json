@@ -1,0 +1,21 @@
+{
+  "source": "e804cf629242debdc890602fc07c8384e82ddf06",
+  "diffSha256": "a6694ae887c6b071f7a984bb9919d53cffea43492d0ebab9f9cbdef5049c3566",
+  "promptSha256": "fa9b715816f33f90a92f165c108eb4adba627ec271b4655040b40172ad3f3786",
+  "scope": "authored conflict resolutions on seams 1\u20133 only",
+  "round": 1,
+  "artifacts": {
+    "llp/reviews/3000.037.000-integration30-muse.txt": "05fff4fabfab1612256578b448cb2a0e75cfdc05cd11b06623d61fd1ceb40ba9",
+    "llp/reviews/3000.037.000-integration30-muse-transcript.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "llp/reviews/3000.037.000-integration30-codex.txt": "21b1ae8f19758fb80d94866eb678b986010c9891e554b3525b95079f0ed61282",
+    "llp/reviews/3000.037.000-integration30-codex-transcript.txt": "1cf1f4d978953ca34f6b5748189d796a0fbcac2ff3049624a5cc963359545be9"
+  },
+  "models": {
+    "muse": "muse-spark-1.3-contributor/high",
+    "codex": "gpt-6.1-sol/high fresh codex exec"
+  },
+  "verdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  }
+}

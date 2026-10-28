@@ -1,0 +1,515 @@
+commit 8325b57d638c37bde421183f069e8e0d7268ff22
+Merge: d2cee1e66c 5f217d19fb
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:21:54 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:21:54 2026 +0100
+
+    Merge branch 'sb4-b35-srv1' into sb4-loop
+    
+    # Conflicts:
+    #       snapback4/crates/snapback4/src/verbs/releases.rs
+    #       snapback4/packages/snapback4/CHANGELOG.md
+
+diff --git a/snapback4/crates/snapback4/src/verbs/releases.rs b/snapback4/crates/snapback4/src/verbs/releases.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs/releases.rs
+index adf1a24abb..afec8ce9f1 100644
+--- a/snapback4/crates/snapback4/src/verbs/releases.rs
++++ b/snapback4/crates/snapback4/src/verbs/releases.rs
+@@ -634,19 +634,10 @@ pub fn rollback(options: &Options) -> i32 {
+             let dir = existing_deployment(&directory(options)?)?;
+             let _command = command_lock(&dir)?;
+             let (_deployment, held) = activation_target(&dir)?;
+-<<<<<<< d2cee1e66c (Merge branch 'sb4-b35-rel4' into sb4-loop)
+-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
+             // A source pointer alone cannot establish a live rollback predecessor.
+             let active = held["release"].as_u64()
+                 .ok_or("no persisted live release; deploy its source once before rollback")?;
+-=======
+-            let active = if let Some(owner) = _deployment.as_ref() {
+-                current(&dir, owner)?
+-            } else {
+-                held["release"].as_u64()
+-            }
+-            .ok_or("no current release")?;
+->>>>>>> 5f217d19fb (Merge remote-tracking branch 'origin/main' into sb4-b35-srv1)
++
+             let revision = held["revision"].as_u64().unwrap_or(0);
+             let selected = options
+                 .flags
+
+commit 7f1351a99eef96fce31a14a8fc8ca4e0e540f54d
+Merge: 8325b57d63 ef697098f6
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:22:12 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:22:12 2026 +0100
+
+    Merge branch 'sb4-b35-dx16' into sb4-loop
+    
+    # Conflicts:
+    #       llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md
+    #       snapback4/JOURNAL.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_proof.md
+    #       snapback4/crates/snapback4/tests/init.rs
+    #       snapback4/packages/snapback4/CHANGELOG.md
+    #       snapback4/packages/snapback4/src/proof.ts
+
+diff --git a/snapback4/packages/snapback4/src/proof.ts b/snapback4/packages/snapback4/src/proof.ts
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/src/proof.ts
+index a0b5b4cbdc..25e1ca3415 100644
+--- a/snapback4/packages/snapback4/src/proof.ts
++++ b/snapback4/packages/snapback4/src/proof.ts
+@@ -1,10 +1,8 @@
+-<<<<<<< 8325b57d63 (Merge branch 'sb4-b35-srv1' into sb4-loop)
+ import { watchParent } from "./parent-lifetime.ts";
+-=======
+ export { uniqueName } from "./proof-fresh.ts";
+ export { freshUser, type FreshUserOptions } from "./proof-accounts.ts";
+ import { capacityAdvice } from "./proof-fresh.ts";
+->>>>>>> ef697098f6 (fix(snapback4): carry selected saved versions through the day-two handover)
++
+ import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
+ export { probeServeGuard } from "./proof-probe.ts";
+ export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
+
+commit ce0978b8d54dc9c761fe36df8e558d49cf923f6b
+Merge: 7f1351a99e 106274fe33
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:22:34 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:22:34 2026 +0100
+
+    Merge branch 'sb4-b35-tok3' into sb4-loop
+    
+    # Conflicts:
+    #       llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md
+    #       snapback4/crates/snapback4-lang/src/guide.rs
+    #       snapback4/crates/snapback4-lang/src/guide/api_proof.md
+    #       snapback4/crates/snapback4-lang/src/guide/start.md
+    #       snapback4/packages/snapback4/README.md
+    #       snapback4/packages/snapback4/scripts/guide-api.mjs
+
+diff --git a/snapback4/crates/snapback4-lang/src/guide.rs b/snapback4/crates/snapback4-lang/src/guide.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4-lang/src/guide.rs
+index 2b597942fe..13c4a845f4 100644
+--- a/snapback4/crates/snapback4-lang/src/guide.rs
++++ b/snapback4/crates/snapback4-lang/src/guide.rs
+@@ -69,11 +69,8 @@ mod indexes;
+ mod types;
+ pub use discovery::{bounded_default, reading_blocks, FULL_BYTES, FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
+ pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "day2", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
+-=======
+-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "workflow", "package-reference", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "day2", "workflow", "package-reference", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
++
+ 
+ // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
+ pub const ALIASES: &[(&str, &str)] = &[
+@@ -265,12 +262,10 @@ pub fn card(keyword: &str) -> Option<&'static str> {
+     Some(match keyword {
+         "security" => include_str!("guide/security.md"), 
+         "start" => start::card(),
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+         "day2" => include_str!("guide/day2.md"),
+-=======
+         "workflow" => include_str!("guide/workflow.md"),
+         "package-reference" => include_str!("guide/references.md"),
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++
+         "language" => LANGUAGE,
+         "ephemeral" => include_str!("guide/ephemeral.md"),
+         "wire" => include_str!("guide/wire.md"),
+diff --git a/snapback4/crates/snapback4-lang/src/guide/start.md b/snapback4/crates/snapback4-lang/src/guide/start.md
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4-lang/src/guide/start.md
+index 34f641d575..ba0cc73327 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/start.md
++++ b/snapback4/crates/snapback4-lang/src/guide/start.md
+@@ -1,20 +1,5 @@
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+-# Start: install, write the schema, check
+-
+-Read this card once. It replaces the README, cheatsheet and introductory card
+-tour. Before the first schema write, do NOT open --help, guide --list, guide
+-tasks, --sections, language, or declaration files. The schema and syntax below
+-are sufficient for a first compiling workflow. Write it now; do not read language --full, security --full,
+-dist/contract.d.ts or all the other cards first. Open at most the two or three
+-sections named below when your feature needs them. `--repeat` shows a card again;
+-`--full` lists sections in large references.
+-
+-## Install and choose a frontend
+-
+-Install the backend package first, separately from the frontend toolchain:
+-=======
+ # Start: install, choose a frontend, read one recipe
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++
+ 
+ ```sh
+ npm i snapback4
+diff --git a/snapback4/packages/snapback4/README.md b/snapback4/packages/snapback4/README.md
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/README.md
+index 23e3a6b1ef..e235bd072f 100644
+--- a/snapback4/packages/snapback4/README.md
++++ b/snapback4/packages/snapback4/README.md
+@@ -1,47 +1,8 @@
+ # Snapback 4
+ 
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+-Write a schema, rules and operations in Quarry; check generates typed client
+-handles. Use online React/Expo clients, or declare sync for offline tables.
+-
+-Install Snapback first so documentation is readable while the frontend installs:
+-
+-```sh
+-npm i snapback4
+-npx snapback4 guide start
+-npx snapback4 init . --web --online --password
+-```
+-
+-Read **guide start** once, then write the schema. It contains a complete
+-customer/staff workflow with private fields, upload evidence, deadlines and
+-approval. It replaces a README + cheatsheet + introductory card tour.
+-Do not read the full language/security cards or declaration files before coding.
+-Init prints a file map and starts frontend dependency installation in the
+-background. `node scripts/install.mjs --status` shows progress;
+-`node scripts/install.mjs --wait` waits once when you are ready to build.
+-Use `npm run probe:check` to verify a preview. probe:serve stays up until SIGTERM;
+-use `npm run probe:serve -- --hold` only when you intend to keep it serving.
+-
+-Exact signatures on demand: `npx snapback4 guide api client`, `guide api auth`,
+-`guide api proof`, `guide api generated`. Repeated project reads show only new
+-content; `--repeat` forces that read and `--full` lists bounded reference sections.
+-
+-Further reading when the task needs it:
+-
+-- `guide production`: one complete real-user provisioning/preview/production recipe.
+-- `guide uploads`: placement, same-image copies and authorized download handles.
+-- [Client and operations reference](./CLIENT-AND-OPERATIONS.md#your-first-working-account-screen): the optional
+-  account/avatar/thread walkthrough, client lifecycle, offline and operational detail.
+-- [Server reference](./SERVER.md): deployment and release lifecycle.
+-- [Offline uploads](./OFFLINE-UPLOADS.md), [Following adoption](./FOLLOWING-ADOPTION.md).
+-- [Changelog](./CHANGELOG.md); `guide changes` for version-specific changes.
+-
+-Requires Node 24.x. React and Playwright are optional peers; install them only
+-when using their respective client/proof surfaces.
+-=======
+ Run `npm i snapback4`, then run `npx snapback4 guide start` and `guide workflow`.
+ They cover the day-one app through acceptance; Node 24.x is required.
+ Do not tour declaration files, SERVER.md or CLIENT-AND-OPERATIONS.md to build.
+ Exact signatures when needed: `guide api react|client|auth|proof|generated`.
+ Operator/reference questions: `guide package-reference`; version notes: `guide changes`.
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++
+diff --git a/snapback4/packages/snapback4/scripts/guide-api.mjs b/snapback4/packages/snapback4/scripts/guide-api.mjs
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/scripts/guide-api.mjs
+index a8e53e9f2a..d0ccf31d48 100644
+--- a/snapback4/packages/snapback4/scripts/guide-api.mjs
++++ b/snapback4/packages/snapback4/scripts/guide-api.mjs
+@@ -10,16 +10,12 @@ const encoding = getEncoding('o200k_base');
+ // Names are the wave-34 React/observation/account grep targets. Never silently
+ // drop a requested declaration to fit: a new surface must earn its reading cost.
+ const modules = {
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+-  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','serveUntilSignal','probeServeGuard','deploy','cli','command','startStatic','withBrowser','renderedText','labelledControl','waitForFresh','exhaustPages','snapshotAll','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingSessions','DevHost','ServeHost','CliResult','ProvisionedSessions','StagingAccount','uniqueName','freshUser','FreshUserOptions'],
+-  client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Write','Signal','Cursor','AssetRead','Uploaded','settleMutation','Session','SignIn','Query','Mutation','MutateOptions','mintId','idFrom','Ready','SettledRead','Refusal','MutationPromise','UploadOptions'],
+-=======
+   app: ['createApp','AppOptions','AppAuth','AppAuthMethods','AuthSnapshot','AuthState','App','Online'],
+   witness: ['registerWebWitness','witnessForm','WitnessReason'],
+   react: ['AssetState','AuthSnapshot','AppProvider','useAuth','useAppReady','useSignedInViewer','useOnline','useQueryData','useQueryResult','useNow','useLink','useSaveAsset','useClient','useQuery','usePage','useMutation','useAsset','useUpload','ReadState','ReadHookOptions','PageHook','PagedQuery','WriteHook','MutationHook','UsePage','UseQuery','UseMutation','isFailed','sentResult'],
+-  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','DevHost','ServeHost','AdvanceOptions','serveUntilSignal','deploy','cli','CliResult','command','startStatic','withBrowser','renderedText','waitForFresh','waitForServer','fillRN','labelledControl','exhaustPages','snapshotAll','cleanup','bounded','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingAccount','StagingSessions','ProvisionedAccount'],
+-  client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Ready','Write','Signal','Cursor','AssetRead','Uploaded','UploadOptions','settleMutation','Session','SignIn','MutateOptions','Refusal'],
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','DevHost','ServeHost','AdvanceOptions','serveUntilSignal','deploy','cli','CliResult','command','startStatic','withBrowser','renderedText','waitForFresh','waitForServer','fillRN','labelledControl','exhaustPages','snapshotAll','cleanup','bounded','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingAccount','StagingSessions','ProvisionedAccount','probeServeGuard','ProvisionedSessions','uniqueName','freshUser','FreshUserOptions'],
++  client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Ready','Write','Signal','Cursor','AssetRead','Uploaded','UploadOptions','settleMutation','Session','SignIn','MutateOptions','Refusal','Query','Mutation','mintId','idFrom','SettledRead','MutationPromise'],
++
+   auth: ['signup','login','SignIn','Session','SignInOptions','guest','SessionStore','memorySessionStore','restoreSession','keepSession','forgetSession','logout','logoutAll','refreshSession','narrowSession'],
+ };
+ // First line in every shipped declaration. Apply before fingerprinting for stable
+@@ -66,13 +62,11 @@ function digest(module, names) {
+   const pieces = names.map(name => ({ name, text: declarations(name) }));
+   let title = `# API ${module}: exact signature digest\n\nImport from "snapback4/${module === 'witness' ? 'witness-web' : module}". Generated from dist declarations; types named below retain their declaration meaning.\n`;
+   if (module === 'client') title += 'observe returns getSnapshot/subscribe/close; query returns Read, mutate returns Write; asset returns a URL handle or denied. Upload each image column separately. sentResult is from snapback4/react or contract.\n';
+-<<<<<<< 7f1351a99e (Merge branch 'sb4-b35-dx16' into sb4-loop)
+   if (module === 'proof') title += 'Production: startServe(dir,{provisionUsers:{roles:{member:2,admin:2},provision:api.provision}}) returns host.sessions, shaped {member:[account,account],admin:[account,account]}. Account = {kind,role,email,password,principal,token,expiresAt}. Signup grants no role. The private persistent roster is production/proof-accounts/default.json (0600): {version:1,plan,entries:[{role,index,email,password,id,done,principal?,args?}]}; keep it with its store. provisionAccounts reuses this roster; freshUser creates an isolated proof identity instead. Read guide production --section "Serve script and reusable accounts" for partial-setup recovery; never read dist/proof.js.\n';
+-=======
+   if (module === 'witness') title += 'Browser probe after registration: window.__snapback4Witness.beginForm(name, expectedArgumentSubset, button); click that element; await window.__snapback4Witness.formResult(). For awaited uploads, call witnessForm synchronously in the clicked handler, then use its supplied mutate.\n';
+   if (module === 'react') title += 'There is no useApp hook: useClient/useAuth/useOnline select its arms. ';
+   if (module === 'react') title += 'ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.\n';
+->>>>>>> 106274fe33 (test(snapback4): record complete TOK3 sessions and missed performance targets)
++
+   if (module === 'proof') title += 'Use probe:check for verification; probe:serve stays up until SIGTERM (deliberate harness run: --hold).\n';
+   const render = entries => `${title}\n\`\`\`ts\n${entries.map(p => p.text).join('\n')}\n\`\`\`\n`;
+   let text = render(pieces);
+
+commit cbbac56eefa05acea513571dae70050d82f61bd4
+Merge: ce0978b8d5 e7bf28f5bf
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:22:52 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:22:52 2026 +0100
+
+    Merge branch 'sb4-b35-tok2' into sb4-loop
+    
+    # Conflicts:
+    #       llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_proof.md
+    #       snapback4/crates/snapback4-lang/tests/guide/published.rs
+    #       snapback4/crates/snapback4/src/main.rs
+    #       snapback4/crates/snapback4/src/verbs.rs
+    #       snapback4/crates/snapback4/src/verbs/release_preview.rs
+    #       snapback4/packages/snapback4/CHANGELOG.md
+    #       snapback4/packages/snapback4/bin/cli-commands.json
+
+diff --git a/snapback4/crates/snapback4-lang/tests/guide/published.rs b/snapback4/crates/snapback4-lang/tests/guide/published.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4-lang/tests/guide/published.rs
+index 2dcd3ce3fd..e6b5c25341 100644
+--- a/snapback4/crates/snapback4-lang/tests/guide/published.rs
++++ b/snapback4/crates/snapback4-lang/tests/guide/published.rs
+@@ -23,12 +23,10 @@ fn shipped_files() -> BTreeSet<String> {
+ // on repository files. Keep exact paths: accepting an entire src/ tree would
+ // admit the unshipped adoption instructions that prompted this regression.
+ const APP_FILES: &[&str] = &[
+-<<<<<<< ce0978b8d5 (Merge branch 'sb4-b35-tok3' into sb4-loop)
+     "../snapback/generated/api.ts",
+-=======
+     // Private CLI outputs, covered by the end-to-end output-custody tests.
+     ".snapback4/last/<command>.txt", ".snapback4/last/test.txt",
+->>>>>>> e7bf28f5bf (test(snapback4): record TOK2 measurements and migrate packed text consumers)
++
+     // The executable auth-card example and the installed social starter seed.
+     "seed.mjs", "scripts/seed.mjs", "placements.mjs",
+     "src/App.tsx", "scripts/staging.mjs", "scripts/probe-serve.mjs", "scripts/probe-check.mjs",
+diff --git a/snapback4/crates/snapback4/src/main.rs b/snapback4/crates/snapback4/src/main.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/main.rs
+index e767c42edb..46e4fe60ac 100644
+--- a/snapback4/crates/snapback4/src/main.rs
++++ b/snapback4/crates/snapback4/src/main.rs
+@@ -121,14 +121,10 @@ fn main() -> ExitCode {
+         }
+         "init" | "new" => verbs::init(&options),
+         "upgrade" => verbs::upgrade::run(&args[1..]),
+-<<<<<<< ce0978b8d5 (Merge branch 'sb4-b35-tok3' into sb4-loop)
+-        "deploy" => verbs::deploy(&options),
+-        "promote" => verbs::promote::run(&options),
+-        "rollback" => verbs::rollback(&options),
+-=======
+         "deploy" => command_output::run(verb, &options, || verbs::deploy(&options)),
+         "rollback" => command_output::run(verb, &options, || verbs::rollback(&options)),
+->>>>>>> e7bf28f5bf (test(snapback4): record TOK2 measurements and migrate packed text consumers)
++        "promote" => verbs::promote::run(&options),
++
+         "prune" => verbs::prune(&options),
+         "releases" => command_output::run(verb, &options, || verbs::releases(&options)),
+         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
+diff --git a/snapback4/crates/snapback4/src/verbs.rs b/snapback4/crates/snapback4/src/verbs.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs.rs
+index 2f8818bb86..b50700393c 100644
+--- a/snapback4/crates/snapback4/src/verbs.rs
++++ b/snapback4/crates/snapback4/src/verbs.rs
+@@ -924,11 +924,8 @@ pub fn data(options: &Options) -> i32 {
+             let payload = serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":if options.flags.contains_key("all") { serde_json::Value::Null } else { serde_json::json!(limit) }});
+             crate::command_output::summary(format!("data {table}: {} rows{}; {} dormant rows retained", rows.len(), if ephemeral { "; skipped: live serving memory only" } else if more { "; more available: use --all" } else { "; complete" }, sql::dormant_rows(&retained)));
+             if options.json {
+-<<<<<<< ce0978b8d5 (Merge branch 'sb4-b35-tok3' into sb4-loop)
+-                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":limit}));
+-=======
+                 println!("{payload}");
+->>>>>>> e7bf28f5bf (test(snapback4): record TOK2 measurements and migrate packed text consumers)
++
+             } else {
+                 crate::command_output::evidence(&payload);
+                 crate::command_output::state(payload);
+diff --git a/snapback4/crates/snapback4/src/verbs/release_preview.rs b/snapback4/crates/snapback4/src/verbs/release_preview.rs
+remerge CONFLICT (content): Merge conflict in snapback4/crates/snapback4/src/verbs/release_preview.rs
+index eeb29c05c5..71706689ce 100644
+--- a/snapback4/crates/snapback4/src/verbs/release_preview.rs
++++ b/snapback4/crates/snapback4/src/verbs/release_preview.rs
+@@ -251,13 +251,11 @@ pub(super) fn plan(
+         let dir=store_path.parent().ok_or("no deployment directory")?;
+         Some(super::release_shape::at(dir,release)?)
+     }else{None};
+-<<<<<<< ce0978b8d5 (Merge branch 'sb4-b35-tok3' into sb4-loop)
+     let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"preflight":{"order":["adoption","security"],"adoption":"ready"},"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+     if options.flags.contains_key("enforce-security-after-adoption") {
+         super::security::enforce_release(options.flags.get("security-summary"),options)
+             .map_err(|e|format!("{e}; adoption preflight: READY (first); first failure: security gate (second)"))?;
+-=======
+-    let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
++    }
+     if !options.flags.contains_key("validation-only") {
+         let verb = if options.flags.contains_key("deploy-direction") { "deploy" } else { "rollback" };
+         crate::command_output::summary(format!("{verb}: READY preview; release {release}, generation {}; live release unchanged",engine.generation()));
+@@ -280,7 +278,7 @@ pub(super) fn plan(
+         if !options.flags.contains_key("deploy-direction") {
+             crate::command_output::fact("next",format!("next: prove named refusals and affected lists/counts as real accounts before release {release}; --bridge <new-dir> saves the rollback checklist"));
+         }
+->>>>>>> e7bf28f5bf (test(snapback4): record TOK2 measurements and migrate packed text consumers)
++
+     }
+     if !options.json&&options.flags.contains_key("deploy-direction") && !options.flags.contains_key("validation-only") {
+         let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();
+
+commit 84e66e698432a0bf19fc707102591adbaafc1316
+Merge: cbbac56eef 272fe0f110
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:23:13 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:23:13 2026 +0100
+
+    Merge branch 'sb4-b35-calls1' into sb4-loop
+    
+    # Conflicts:
+    #       llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md
+    #       snapback4/JOURNAL.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_auth.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_client.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_proof.md
+    #       snapback4/packages/snapback4/CHANGELOG.md
+    #       snapback4/packages/snapback4/src/proof-accounts.ts
+    #       snapback4/packages/snapback4/src/proof.ts
+
+diff --git a/snapback4/packages/snapback4/src/proof-accounts.ts b/snapback4/packages/snapback4/src/proof-accounts.ts
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/src/proof-accounts.ts
+index 2f5b3113bc..dfea69892d 100644
+--- a/snapback4/packages/snapback4/src/proof-accounts.ts
++++ b/snapback4/packages/snapback4/src/proof-accounts.ts
+@@ -1,8 +1,6 @@
+-<<<<<<< cbbac56eef (Merge branch 'sb4-b35-tok2' into sb4-loop)
+ import { capacityAdvice } from "./proof-fresh.ts";
+-=======
+ import { proofRole } from "./proof-observation.ts";
+->>>>>>> 272fe0f110 (docs: record inherited Expo audit blocker from packed consumers)
++
+ import { rosterLock } from "./proof-roster-lock.ts";
+ import { identityRequest } from "./identity-request.ts";
+ import { randomUUID, randomBytes } from "node:crypto";
+diff --git a/snapback4/packages/snapback4/src/proof.ts b/snapback4/packages/snapback4/src/proof.ts
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/src/proof.ts
+index 3e4e0046bf..3a65abd58c 100644
+--- a/snapback4/packages/snapback4/src/proof.ts
++++ b/snapback4/packages/snapback4/src/proof.ts
+@@ -1,15 +1,13 @@
+-<<<<<<< cbbac56eef (Merge branch 'sb4-b35-tok2' into sb4-loop)
+ import { watchParent } from "./parent-lifetime.ts";
+ export { uniqueName } from "./proof-fresh.ts";
+ export { freshUser, type FreshUserOptions } from "./proof-accounts.ts";
+ import { capacityAdvice } from "./proof-fresh.ts";
+ 
+-=======
+ import { installProofFailureReporting, proofServerLog, forgetProofServerLog, reportProofFailure } from "./proof-failure.ts";
+ export { proofFailure, reportProofFailure } from "./proof-failure.ts";
+ installProofFailureReporting();
+ import { observeProofReply, observeRefusal } from "./proof-observation.ts";
+->>>>>>> 272fe0f110 (docs: record inherited Expo audit blocker from packed consumers)
++
+ import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
+ export { probeServeGuard } from "./proof-probe.ts";
+ export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
+
+commit 7d4a5093c205634d85095706e548a2eb46273637
+Merge: 84e66e6984 6a4ff32f9a
+Author:     Charlie Cheever <ccheever@firewoodagent.com>
+AuthorDate: Wed Oct 28 04:23:35 2026 +0100
+Commit:     Charlie Cheever <ccheever@firewoodagent.com>
+CommitDate: Wed Oct 28 04:23:35 2026 +0100
+
+    Merge branch 'sb4-b35-lat3' into sb4-loop
+    
+    # Conflicts:
+    #       snapback4/JOURNAL.md
+    #       snapback4/crates/snapback4-lang/src/guide/api_proof.md
+    #       snapback4/packages/snapback4/CHANGELOG.md
+    #       snapback4/packages/snapback4/src/proof-accounts.ts
+
+diff --git a/snapback4/packages/snapback4/src/proof-accounts.ts b/snapback4/packages/snapback4/src/proof-accounts.ts
+remerge CONFLICT (content): Merge conflict in snapback4/packages/snapback4/src/proof-accounts.ts
+index 626dec36b9..d1d17296ae 100644
+--- a/snapback4/packages/snapback4/src/proof-accounts.ts
++++ b/snapback4/packages/snapback4/src/proof-accounts.ts
+@@ -1,10 +1,7 @@
+-<<<<<<< 84e66e6984 (Merge branch 'sb4-b35-calls1' into sb4-loop)
+ import { capacityAdvice } from "./proof-fresh.ts";
+ import { proofRole } from "./proof-observation.ts";
+ 
+-import { rosterLock } from "./proof-roster-lock.ts";
+-=======
+->>>>>>> 6a4ff32f9a (bench(snapback4): bind late-main integration and reserve one consumer worker)
++
+ import { identityRequest } from "./identity-request.ts";
+ import { randomUUID, randomBytes } from "node:crypto";
+ import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, lstatSync, fsyncSync } from "node:fs";
+
+diff --git a/snapback4/crates/snapback4-lang/src/guide/start.md b/snapback4/crates/snapback4-lang/src/guide/start.md
+index ba0cc73327..c12e95b698 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/start.md
++++ b/snapback4/crates/snapback4-lang/src/guide/start.md
+@@ -15,7 +15,6 @@ Only after that first backend check, initialize the frontend:
+ 
+ ```sh
+ npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+-node scripts/install.mjs --wait                # join once before building
+ ```
+ 
+ Init keeps your schema and emits a generic Home plus a matching account plan.
+@@ -23,8 +22,8 @@ Build your screen and replace the marked proof assertions. Starting from a demo
+ instead means adapting it after the schema changes: `init --adapt --apply`
+ (preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+ All .q files share one namespace. Node 24.x is required.
+-If a tool host reaps the background installer, run `node scripts/install.mjs`
+-in the foreground rather than repeatedly polling a missing worker.
++Init waits for installation and returns its exit status. If explicitly deferred,
++run `node scripts/install.mjs --wait` once before building; do not poll.
+ 
+ ## Syntax and time essentials
+ 
+diff --git a/snapback4/packages/snapback4/CHANGELOG.md b/snapback4/packages/snapback4/CHANGELOG.md
+index ae43e4eade..97d2c97529 100644
+--- a/snapback4/packages/snapback4/CHANGELOG.md
++++ b/snapback4/packages/snapback4/CHANGELOG.md
+@@ -4,25 +4,15 @@
+ 
+ ### Guide changes
+ 
+-- `promote STAGING PRODUCTION` preserves password accounts, data, assets and release history in a new production deployment. Stop real-time staging first; preview with `promote STAGING PRODUCTION --check`. Users sign in again, devices reacquire, and inherited service credentials are revoked. Existing targets, live guest sessions, advanced clocks, unfinished work and production security refusals remain explicit.
+-
+-- Required-to-optional rollback views retain independent invariants. Intentional null hiding narrows the generated view and refuses null writes with `ROLLBACK_NULL`; forward keeps the nullable workflow. Deploy previews report unavailable hiding views separately, so their population-safety refusal cannot brick forward activation. The release card explains visible optional views and exact-source preview commands.
+-- `deploy --check` runs adoption preflight before enforcing security and labels the first failure. Global bare `cap N` survives rollback generation. `check` refuses an extraction's unmapped nonliteral defaults with the column and remedies; retired required-column refusals name the missing `down` outputs.
+-
+-- Serve follows parent and npm lifetime, including wrapper-only SIGTERM/SIGKILL; proof drivers reap owned hosts on SIGTERM/SIGINT/SIGHUP or parent death so pipes finish. Busy stores name holder PID, command, start time and liveness with `snapback4 stop <dir>` recovery; dead-holder records are reclaimed with a notice. Password starters add `prod:serve` and bounded `prod:check`; deliberate harness hold remains opt-in.
+-
+-- `guide day2` walks the release loop with change-specific routes, frozen v1 calls and production accounts. Large `--full` reads list bounded sections; rereads show new content only (`guide --repeat` forces a selection).
+-- `init --adapt --day2 --apply` freezes `v1/` with its own ESM package and checked API. Its runner accepts inline `CALLS_USERS` or a file path. `uniqueName` and `freshUser` isolate repeat proofs; capacity refusals give setup advice without retrying writes. The proof digest includes production helpers and roster/account shapes.
+-- Administrative `data --all` and `snapshotAll` include active and retained rows/cells, merged once per ID. Ephemeral tables still require a serving-memory read.
+-
+-- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores full output and `--json` keeps complete evidence. Serve startup retains URL/readiness identity. Proof checks report readiness, uptime, lock release and failures compactly, with complete JSON receipts on request. Check output budgets are unchanged.
+-
+-
+-- Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in the app's private install log; init owns one blocking install with bounded start/completion output, preserving its exit status. Explicit install joins print a single completion line.
+-
+-- Safe Quarry fix-its show the exact edited line and check --fix applies context-compiled edits with a source diff. Null defaults, arbitrary bounds and security rules remain manual. Proof failures lead with operation, role, refusal code, field and a likely fix, preserving the original assertion; uncorrelated request/server context is labelled explicitly.
+-- Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
+-
++- Existing app rows, accounts, releases and frozen v1 clients remain. Restart serving hosts after upgrading. Shared campaign fixtures, lazy replay IDs and ordered concurrent searches reduce check/deploy work while retaining security gates, witnessed questions, payloads and search budgets. No store migration beyond 0.4.45's fence is needed.
++- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores details and `--json` keeps complete evidence. Proof failures lead with operation, role, code, field and repair, retaining original assertions and exits.
++- `guide start` routes to one `guide workflow` app recipe; README is a pointer. `guide api` digests replace declaration tours; starter scripts mark business edit regions. Nullable conditions/arithmetic and required inserts have compiling examples. App-owned scripts stay owned by the app.
++- `guide day2` routes saved versions, preview, rollback, forward and frozen callers. Large `guide --full` reads list bounded sections; `guide --repeat` forces rereading. `init --adapt --day2 --apply` explicitly freezes checked v1 source/API. `uniqueName`/`freshUser` isolate reruns without retrying writes or raising caps.
++- Serve and proof hosts follow parent/npm lifetime and forward termination. Busy stores name the holder and `snapback4 stop <dir>` recovery. Password starters add `prod:serve` and bounded `prod:check`; existing scripts can adopt the production-card recipe. Init owns one foreground frontend install with private logs and propagates its status; explicit deferred installs need one join.
++- `promote STAGING PRODUCTION [--check]` copies stopped, real-time, quiescent SQLite staging into new production, retaining data/assets/password accounts/releases. Users sign in again, devices reacquire and inherited service credentials are revoked. Existing targets, live guests, unfinished work, advanced clocks and security refutations refuse with repairs.
++- Required-to-optional rollback views retain independent invariants. Intentional null hiding refuses null writes with `ROLLBACK_NULL`; unavailable hiding views no longer veto safe forward activation. `deploy --check` reports adoption before security. Extraction defaults and missing reverse values refuse at check/preview with column repairs; bare global `cap N` survives generated views.
++- `check --fix` applies context-compiled `E_QUARRY_*` edits with exact diffs; defaults, arbitrary bounds and security intent stay manual. Image-only backends accept `client.upload` file metadata through verified image handling; invalid bytes and bounds still refuse.
++- Administrative `data --all` / `snapshotAll` merge active and retained rows/cells once per ID; limited reads remain active-only. Proof imports load browsers lazily and dispatch native commands directly, retaining deadlines, cleanup and fresh real-user staging worlds.
+ 
+ ## 0.4.45
+ 
+@@ -43,7 +33,6 @@
+ 
+ ### Guide changes
+ 
+-- Day-one builders read start then workflow: one composed role/private-field/upload/price/stage/deadline/approval recipe with acceptance. README routes there; operator documents stay explicit references. API digests cover React, observation, sessions and account plans, and declarations point to them. Starter edit regions and check’s API-index hint reduce file rereads. Nullable arithmetic/condition and required-insert idioms are shown in place.
+ 
+ 
+ - Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.

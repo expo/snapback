@@ -1,0 +1,499 @@
+[
+  {
+    "id": "001",
+    "method": "Deterministic replay of all retained native-model guide/init commands on a fresh private copy; no new agent session. Full current command outputs counted. Previous tool-visible total conservatively retains all non-CLI context and check ceremony; CLI delta is recomputed with o200k_base.",
+    "cliTokens": 6222,
+    "oldCliTokens": 5907,
+    "oldStrictTokens": 8524,
+    "strictReplayedTokens": 8839,
+    "checkExit": 0,
+    "checkOutputTokens": 2212,
+    "reads": [
+      {
+        "args": [
+          "init",
+          "--adapt",
+          "--day2"
+        ],
+        "exit": 0,
+        "tokens": 2088,
+        "stdoutSha256": "bd1badf1704f41174c0a30a7e57e2f5b201eac8f19b3cb2610e50a7f7b0757fa",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Which migration shape"
+        ],
+        "exit": 0,
+        "tokens": 377,
+        "stdoutSha256": "ac1096fb9bb99a7d2e4d4d6c453d127cddeaa9e6532ba1ba90e372a73d06084e",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Migrations and adoption"
+        ],
+        "exit": 0,
+        "tokens": 200,
+        "stdoutSha256": "8377973ce264396f05e6d1a49de66d39fc9feca8052904a370be5b3bfa4753bc",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "api",
+          "proof"
+        ],
+        "exit": 0,
+        "tokens": 1501,
+        "stdoutSha256": "ebd000968fe39311dec2030bd3e23d45ae30a42844b202995ed9f912cbe38840",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "production",
+          "--section",
+          "Serve script and reusable accounts"
+        ],
+        "exit": 0,
+        "tokens": 809,
+        "stdoutSha256": "87901ffbe6cfaaa2118436da50f1f265452fffcc75d513b0411258b882b32581",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Keep v1 clients working"
+        ],
+        "exit": 0,
+        "tokens": 351,
+        "stdoutSha256": "fc9be7839c01717ee2b66cf0549adf1dc4ee9d56041ce956ceb6afc85dcff768",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Rollback"
+        ],
+        "exit": 0,
+        "tokens": 896,
+        "stdoutSha256": "b0beeb83644b649fbc5ca28adc7e3d37074e3ae3af113df360c0cf31e5dffe1d",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  {
+    "id": "022",
+    "method": "Deterministic replay of all retained native-model guide/init commands on a fresh private copy; no new agent session. Full current command outputs counted. Previous tool-visible total conservatively retains all non-CLI context and check ceremony; CLI delta is recomputed with o200k_base.",
+    "cliTokens": 6239,
+    "oldCliTokens": 5338,
+    "oldStrictTokens": 6385,
+    "strictReplayedTokens": 7286,
+    "checkExit": 0,
+    "checkOutputTokens": 2237,
+    "reads": [
+      {
+        "args": [
+          "init",
+          "--adapt",
+          "--day2"
+        ],
+        "exit": 0,
+        "tokens": 2071,
+        "stdoutSha256": "057e74298d7dcf9a015a0ed23b403071a6f718a545fb9c90f6a3ded2c9fa184b",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "rename",
+          "--section",
+          "opening"
+        ],
+        "exit": 0,
+        "tokens": 1527,
+        "stdoutSha256": "2d4605fc4ef130e2fc54502f5fcf1810b733b1273a9e1434b256506d6092cb79",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Keep v1 clients working"
+        ],
+        "exit": 0,
+        "tokens": 331,
+        "stdoutSha256": "7e953e621f41f19058cd7a26a95e33231146afa2846f8f0da9263dd963f673db",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "production",
+          "--section",
+          "Serve script and reusable accounts"
+        ],
+        "exit": 0,
+        "tokens": 809,
+        "stdoutSha256": "87901ffbe6cfaaa2118436da50f1f265452fffcc75d513b0411258b882b32581",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "api",
+          "proof"
+        ],
+        "exit": 0,
+        "tokens": 1501,
+        "stdoutSha256": "ebd000968fe39311dec2030bd3e23d45ae30a42844b202995ed9f912cbe38840",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  {
+    "id": "011",
+    "method": "Deterministic replay of all retained native-model guide/init commands on a fresh private copy; no new agent session. Full current command outputs counted. Previous tool-visible total conservatively retains all non-CLI context and check ceremony; CLI delta is recomputed with o200k_base.",
+    "cliTokens": 7260,
+    "oldCliTokens": 6899,
+    "oldStrictTokens": 9934,
+    "strictReplayedTokens": 10295,
+    "checkExit": 0,
+    "checkOutputTokens": 2241,
+    "reads": [
+      {
+        "args": [
+          "init",
+          "--help"
+        ],
+        "exit": 0,
+        "tokens": 1128,
+        "stdoutSha256": "5843f185c293f492ed3ca782009dccf5f7e4a39e31b764c57ff51629ca8dc912",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "init",
+          "--adapt",
+          "--day2"
+        ],
+        "exit": 0,
+        "tokens": 2100,
+        "stdoutSha256": "c6257550c1adfe27748772b731e927fa71d475247546a4f46057aad90f8e91cd",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Bridge a safety gate"
+        ],
+        "exit": 0,
+        "tokens": 318,
+        "stdoutSha256": "634cff1b7f6ce3e55ddf2bd7cbb1960c3b57efd175d3811d3bf1577e7e445b5e",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Keep v1 clients working"
+        ],
+        "exit": 0,
+        "tokens": 351,
+        "stdoutSha256": "fc9be7839c01717ee2b66cf0549adf1dc4ee9d56041ce956ceb6afc85dcff768",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Migrations and adoption"
+        ],
+        "exit": 0,
+        "tokens": 200,
+        "stdoutSha256": "8377973ce264396f05e6d1a49de66d39fc9feca8052904a370be5b3bfa4753bc",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Which migration shape"
+        ],
+        "exit": 0,
+        "tokens": 397,
+        "stdoutSha256": "ea7a78a89afc681c2d45b8ca4879ff9c7476b0db93e83f4c5ea72182ca198369",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "evolution",
+          "--section",
+          "Move media"
+        ],
+        "exit": 0,
+        "tokens": 364,
+        "stdoutSha256": "7f029965e0ea2192acae9b5af7d920e5f2ab313c545bd8d02e4c5ba8f3d49478",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "security",
+          "--section",
+          "N_PRESENCE_LOOSENING"
+        ],
+        "exit": 0,
+        "tokens": 92,
+        "stdoutSha256": "3c2c63f133556dac0e6e76eefbe1da37d8ac8d4de1c0f29d6abb162b1d9b6ae0",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "api",
+          "proof"
+        ],
+        "exit": 0,
+        "tokens": 1501,
+        "stdoutSha256": "ebd000968fe39311dec2030bd3e23d45ae30a42844b202995ed9f912cbe38840",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "production",
+          "--section",
+          "Serve script and reusable accounts"
+        ],
+        "exit": 0,
+        "tokens": 809,
+        "stdoutSha256": "87901ffbe6cfaaa2118436da50f1f265452fffcc75d513b0411258b882b32581",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  {
+    "id": "021",
+    "method": "Deterministic replay of all retained native-model guide/init commands on a fresh private copy; no new agent session. Full current command outputs counted. Previous tool-visible total conservatively retains all non-CLI context and check ceremony; CLI delta is recomputed with o200k_base.",
+    "cliTokens": 7078,
+    "oldCliTokens": 9363,
+    "oldStrictTokens": 11976,
+    "strictReplayedTokens": 9691,
+    "checkExit": 0,
+    "checkOutputTokens": 2220,
+    "reads": [
+      {
+        "args": [
+          "init",
+          "--adapt",
+          "--day2"
+        ],
+        "exit": 0,
+        "tokens": 2089,
+        "stdoutSha256": "9788729c96f59b8cdfabe337df72edcdb164c00f584e78f827bf09dcc24a736a",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Migrations and adoption"
+        ],
+        "exit": 0,
+        "tokens": 180,
+        "stdoutSha256": "1f160ff67952c234ae5debcb9607fc23b2e1b7316ce458f0f83783dc588bbb83",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Which migration shape"
+        ],
+        "exit": 0,
+        "tokens": 397,
+        "stdoutSha256": "ea7a78a89afc681c2d45b8ca4879ff9c7476b0db93e83f4c5ea72182ca198369",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "api",
+          "proof",
+          "--section",
+          "Serve script and reusable accounts"
+        ],
+        "exit": 1,
+        "tokens": 96,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "7357438149647fbdb07113b5543fbe7e5f4e97c71b5f978d36c514d43bfc849c"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Keep v1 clients working"
+        ],
+        "exit": 0,
+        "tokens": 351,
+        "stdoutSha256": "fc9be7839c01717ee2b66cf0549adf1dc4ee9d56041ce956ceb6afc85dcff768",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "api",
+          "proof"
+        ],
+        "exit": 0,
+        "tokens": 1501,
+        "stdoutSha256": "ebd000968fe39311dec2030bd3e23d45ae30a42844b202995ed9f912cbe38840",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "production",
+          "--sections"
+        ],
+        "exit": 0,
+        "tokens": 179,
+        "stdoutSha256": "1952a3621f3eea44b83ec2bb5a8358604284e36816a3c9bf6f57ff22f7827871",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--sections"
+        ],
+        "exit": 0,
+        "tokens": 303,
+        "stdoutSha256": "75b2df22ec7e95d04920973cfab2794f677f9613496743a99bc56ca74b26b0b9",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "production",
+          "--section",
+          "Serve script and reusable accounts"
+        ],
+        "exit": 0,
+        "tokens": 809,
+        "stdoutSha256": "87901ffbe6cfaaa2118436da50f1f265452fffcc75d513b0411258b882b32581",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "Persistent production: SQLite v1"
+        ],
+        "exit": 1,
+        "tokens": 103,
+        "stdoutSha256": "7548c3bd1c348cf0b3e0eadc055a997b73d9c02aa62fd2991073adb4acfbbfa8",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "13"
+        ],
+        "exit": 0,
+        "tokens": 460,
+        "stdoutSha256": "7d3e09aa9d90bf3e0cc572df4104a077ea71638ed0f314af39259941b63318ab",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "14"
+        ],
+        "exit": 0,
+        "tokens": 31,
+        "stdoutSha256": "9e5408b34b06e594644e1904f4107ff736d71fd697627efc77b26c3b6a972c5f",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "10"
+        ],
+        "exit": 0,
+        "tokens": 241,
+        "stdoutSha256": "1b648efc599f20d5f6954d91a4a4e740dd82997be2ac8ae33136add69f6c6971",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "deploy",
+          "--section",
+          "11"
+        ],
+        "exit": 0,
+        "tokens": 338,
+        "stdoutSha256": "cb77275450588541cc1e5572ef74735de5a0017c2a947ed559e989cba7e1e03b",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  {
+    "kind": "TOK1 day-one routed path",
+    "method": "Actual fresh-project start + routed workflow + README before first schema; deterministic instruction replay, not whole-session token evidence.",
+    "docsTokensBeforeSchema": 2927,
+    "budget": 10000,
+    "reads": [
+      {
+        "args": [
+          "guide",
+          "start"
+        ],
+        "exit": 0,
+        "tokens": 791,
+        "stdoutSha256": "71ae8f17b6f5835581a4e537842e8cea1d83a76d90b435d99b9c67c551def9e4",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "args": [
+          "guide",
+          "workflow"
+        ],
+        "exit": 0,
+        "tokens": 2037,
+        "stdoutSha256": "2fe35922c020f0eea1a3445f20cddfa1131b4e5caf034f3de9f2cf64c756c5c9",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "generated",
+    "exit": 0,
+    "seconds": 239.36505341529846
+  },
+  {
+    "name": "inventories",
+    "exit": 0,
+    "seconds": 196.85114932060242
+  },
+  {
+    "name": "guide",
+    "exit": 0,
+    "seconds": 211.22027969360352
+  },
+  {
+    "name": "references",
+    "exit": 0,
+    "seconds": 5.2008583545684814
+  },
+  {
+    "name": "docs-budget",
+    "exit": 0,
+    "seconds": 63.74646019935608
+  },
+  {
+    "name": "wasm-build",
+    "exit": 0,
+    "seconds": 68.19300079345703
+  },
+  {
+    "name": "wasm-measurement",
+    "exit": 0,
+    "seconds": 72.913907289505
+  },
+  {
+    "name": "client-build",
+    "exit": 0,
+    "seconds": 7.105650901794434
+  }
+]
