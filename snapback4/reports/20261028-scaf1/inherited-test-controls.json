@@ -1,0 +1,66 @@
+{
+  "baselineSource": "1c4c51b551",
+  "binarySha256": "a2d35d9f911d09c66d64fcf5864dcb53488c68be7f62f17098f88b66df7e5f52",
+  "controls": [
+    {
+      "test": "guide_lists_aliases_and_resolves_them_on_stdout",
+      "status": 0,
+      "expected": "### Pages and cursors",
+      "baselineHasExpected": false,
+      "actualHeading": "## Pages and cursors"
+    },
+    {
+      "test": "a_long_card_prints_its_opening_and_index_and_full_prints_it_all",
+      "status": 0,
+      "baselineFullLines": 26,
+      "staleExpectedWholeCardLines": 839
+    },
+    {
+      "test": "web_and_expo_starters_are_one_small_screen_with_product_comments",
+      "status": 0,
+      "staleExpected": "cases: 7 passed, 0 failed",
+      "baselineHasExpected": false,
+      "baselineVerdict": "test: no failing observations; authored cases pass (7 passed, 0 failed, 0 skipped); queries pass (1 complete, 0 capped, 0 expected refusals, 0 derived refusals, 0 not run, 0 denied); security completed (finite, not proof)"
+    },
+    {
+      "test": "init_beside_a_projects_own_schema_leaves_its_tests_green",
+      "status": 0,
+      "staleExpected": "cases: 1 passed, 0 failed",
+      "baselineHasExpected": false,
+      "baselineVerdict": "test: no failing observations; authored cases pass (1 passed, 0 failed, 0 skipped); queries pass (1 complete, 0 capped, 0 expected refusals, 0 derived refusals, 0 not run, 0 denied); security completed (finite, not proof)"
+    }
+  ],
+  "unchangedGuideInputs": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide.rs",
+      "baselineSha256": "f2b3ec6098ba1f239c77faf7fc4d0d00498e433312ecf7c033986df854b68a55",
+      "currentSha256": "f2b3ec6098ba1f239c77faf7fc4d0d00498e433312ecf7c033986df854b68a55",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "baselineSha256": "0c1a593c74835075029c68ba87a6f17d0bfad5e9ec223183dab97c65762bfcba",
+      "currentSha256": "0c1a593c74835075029c68ba87a6f17d0bfad5e9ec223183dab97c65762bfcba",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/start.md",
+      "baselineSha256": "7cbe17743ae17feb45f01c89aa23470ec33360b92ee2d200169dafdaa2d1ce98",
+      "currentSha256": "7cbe17743ae17feb45f01c89aa23470ec33360b92ee2d200169dafdaa2d1ce98",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/guide/familiar.rs",
+      "baselineSha256": "9e83db831b551f7812b7fa5aad305115c70823333d2a3f3332a362514fc18ba8",
+      "currentSha256": "9e83db831b551f7812b7fa5aad305115c70823333d2a3f3332a362514fc18ba8",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/fixtures/guide-before.json",
+      "baselineSha256": "b82142e1a171c8b6dc3d878288c98a09b25fa3eabe71700a2363500cba85bc23",
+      "currentSha256": "b82142e1a171c8b6dc3d878288c98a09b25fa3eabe71700a2363500cba85bc23",
+      "unchanged": true
+    }
+  ],
+  "scope": "Stale assertions fail on the original optimized CLI / unchanged raw-card and fixture source. No SCAF1 changes are blamed for these inherited failures."
+}

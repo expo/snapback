@@ -331,3 +331,33 @@ fn ephemeral_mutations_have_signal_expectations() {
         .unwrap();
     assert!(case.contains("state: 'sent'"), "{case}");
 }
+
+#[test]
+fn scaffold_notice_follows_the_verdict_and_unchanged_checks_are_quiet() {
+    let p = Project::new("verdict-first");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    let run = || {
+        Command::new(env!("CARGO_BIN_EXE_snapback4"))
+            .arg("check")
+            .current_dir(&p.0)
+            .output()
+            .unwrap()
+    };
+    let first = run();
+    assert!(first.status.success());
+    let text = String::from_utf8_lossy(&first.stdout);
+    assert!(
+        text.lines().next().unwrap().starts_with("check: ok"),
+        "{text}"
+    );
+    assert_eq!(
+        text.lines()
+            .filter(|l| l.starts_with("proof scaffold:"))
+            .count(),
+        1
+    );
+    assert!(text.lines().count() <= 3, "{text}");
+    let next = run();
+    assert!(next.status.success());
+    assert!(!String::from_utf8_lossy(&next.stdout).contains("proof scaffold:"));
+}
