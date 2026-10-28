@@ -38,3 +38,7 @@ apps/chat-expo/android/
 /.social-direct-*/
 /.social-test-*/
 /.social-quote-jump-*/
+
+# Disposable check-generated proof packets in the two repository reference apps.
+/apps/chat/scripts/proof-scaffold/
+/apps/chat-expo/scripts/proof-scaffold/
