@@ -1,0 +1,2077 @@
+{
+  "method": "Each native R0 repetition has a distinct fresh-service companion at identical offered rate, placement and duration with existing PROFILE/STATS/SERIES flags. Native qualification never uses instrumented latency. Resource CPU/WAL columns belong to original native trial; prefix and loan columns belong to its indexed companion.",
+  "cpu_caveat": "Frozen generator lacks native measured-start timestamps: controller generator-launch anchor + 100ms scheduler lead + 10s warmup, 100ms CPU sampling/interpolation. ACK divisor includes measured-arrival completions in drain.",
+  "wal_caveat": "Cluster-wide pg_stat_wal deltas span warmup, measurement, native drain and background head/lease/retention work; delayed PG statistics reporting is not a per-transaction exact measure.",
+  "sent_mean_caveat": "Conservative HDR upper-equivalent service-histogram sum divided by sent requests only. Tiny expired-before-send timing intervals remain in numerator; unsent arrivals never dilute divisor.",
+  "rows": [
+    {
+      "rate": 2690,
+      "repetition": 1,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.88658477605948,
+      "native_sent_mean_lower_ms": 5.882429630334573,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5379901484617566,
+        "server_cpu_ms_per_measured_ack": 0.3247056393449615,
+        "proxy_cpu_ms_per_measured_ack": 0.21507409286044596,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793110214.2772465,
+        "cpu_window_end": 1793110234.2772465,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 2028.1274826216484,
+        "syncs_per_all_ack": 0.130474180734856,
+        "wal_window_s": 31.22430920600891,
+        "wal_all_ack": 80560
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.321945418438662,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5387938022018581,
+        "server_cpu_ms_per_measured_ack": 0.4048400888350957,
+        "proxy_cpu_ms_per_measured_ack": 0.214315955198217,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793127815.4643562,
+        "cpu_window_end": 1793127835.4643562,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 869.1739497467474,
+        "syncs_per_all_ack": 0.12878637401926707,
+        "wal_window_s": 32.96047902107239,
+        "wal_all_ack": 80552
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 14.088753430175782,
+          "p99": 26,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 0.89365,
+          "p99": 9,
+          "peak": 24
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.6188,
+          "p99": 7,
+          "peak": 20
+        },
+        "allocated_minus_w": {
+          "mean": 15.761203430175781,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 15.761203430175781,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 15.761203430175781,
+          "p99": 30,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 81128,
+          "mean_ms": 0.007331418178680604,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 12.65
+        },
+        "loan_custody": {
+          "count": 81129,
+          "mean_ms": 5.366771448088846,
+          "p99_ms_upper": 8.95,
+          "max_ms_upper": 29.05
+        },
+        "prefix_ack_wait": {
+          "count": 80453,
+          "mean_ms": 0.44237156445378045,
+          "p99_ms_upper": 2.1,
+          "max_ms_upper": 9.05
+        },
+        "completion_owner_wait": {
+          "count": 80453,
+          "mean_ms": 0.2517624987135346,
+          "p99_ms_upper": 1.8,
+          "max_ms_upper": 8.6
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 2690,
+      "repetition": 2,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.875022826319703,
+      "native_sent_mean_lower_ms": 5.870872515092937,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5472732993455641,
+        "server_cpu_ms_per_measured_ack": 0.3256989788557028,
+        "proxy_cpu_ms_per_measured_ack": 0.21539179012116555,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793110465.0619066,
+        "cpu_window_end": 1793110485.0619066,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 1181.4361889630861,
+        "syncs_per_all_ack": 0.13156914827594768,
+        "wal_window_s": 31.437222003936768,
+        "wal_all_ack": 80566
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.073939698884758,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5395330123878418,
+        "server_cpu_ms_per_measured_ack": 0.40449923556294926,
+        "proxy_cpu_ms_per_measured_ack": 0.21542741329001167,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793127914.7543306,
+        "cpu_window_end": 1793127934.7543306,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 881.3342271215056,
+        "syncs_per_all_ack": 0.1293634242017975,
+        "wal_window_s": 32.8775999546051,
+        "wal_all_ack": 80556
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 13.63295,
+          "p99": 21,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 0.851265283203125,
+          "p99": 8,
+          "peak": 20
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.58931611328125,
+          "p99": 7,
+          "peak": 17
+        },
+        "allocated_minus_w": {
+          "mean": 15.206682641601562,
+          "p99": 23,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 15.206682641601562,
+          "p99": 23,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 15.206682641601562,
+          "p99": 23,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 81147,
+          "mean_ms": 0.0036485797010363907,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 5.55
+        },
+        "loan_custody": {
+          "count": 81148,
+          "mean_ms": 5.3020223818331935,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 17.45
+        },
+        "prefix_ack_wait": {
+          "count": 80473,
+          "mean_ms": 0.42372825640898193,
+          "p99_ms_upper": 1.95,
+          "max_ms_upper": 11.0
+        },
+        "completion_owner_wait": {
+          "count": 80473,
+          "mean_ms": 0.23714561410659477,
+          "p99_ms_upper": 1.65,
+          "max_ms_upper": 9.45
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 2690,
+      "repetition": 3,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.958181523717473,
+      "native_sent_mean_lower_ms": 5.953910045501859,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.54204303351466,
+        "server_cpu_ms_per_measured_ack": 0.3244494248568649,
+        "proxy_cpu_ms_per_measured_ack": 0.21551608438865305,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793110685.487898,
+        "cpu_window_end": 1793110705.487898,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 949.0835682266896,
+        "syncs_per_all_ack": 0.13013298896104702,
+        "wal_window_s": 31.533042907714844,
+        "wal_all_ack": 80533
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.036760923568773,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.546265692659999,
+        "server_cpu_ms_per_measured_ack": 0.4040520790801849,
+        "proxy_cpu_ms_per_measured_ack": 0.21492849076348472,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128035.5167677,
+        "cpu_window_end": 1793128055.5167677,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 831.746886214904,
+        "syncs_per_all_ack": 0.12980416992636193,
+        "wal_window_s": 32.802289962768555,
+        "wal_all_ack": 80529
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 13.563623217773438,
+          "p99": 20,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 0.846,
+          "p99": 8,
+          "peak": 21
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.58275,
+          "p99": 7,
+          "peak": 18
+        },
+        "allocated_minus_w": {
+          "mean": 15.121373217773437,
+          "p99": 22,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 15.121373217773437,
+          "p99": 22,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 15.121373217773437,
+          "p99": 22,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 81154,
+          "mean_ms": 0.00309228477955492,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 6.65
+        },
+        "loan_custody": {
+          "count": 81155,
+          "mean_ms": 5.283954396746966,
+          "p99_ms_upper": 8.15,
+          "max_ms_upper": 20.0
+        },
+        "prefix_ack_wait": {
+          "count": 80484,
+          "mean_ms": 0.40698217019531835,
+          "p99_ms_upper": 1.9,
+          "max_ms_upper": 6.1
+        },
+        "completion_owner_wait": {
+          "count": 80484,
+          "mean_ms": 0.22581165308632772,
+          "p99_ms_upper": 1.65,
+          "max_ms_upper": 5.15
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 2690,
+      "repetition": 4,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.660522082230483,
+      "native_sent_mean_lower_ms": 5.656399255315986,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5418941909901038,
+        "server_cpu_ms_per_measured_ack": 0.32563362055694667,
+        "proxy_cpu_ms_per_measured_ack": 0.21674254768230164,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793110910.7689416,
+        "cpu_window_end": 1793110930.7689416,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 918.768711199404,
+        "syncs_per_all_ack": 0.13220759870871618,
+        "wal_window_s": 31.636006116867065,
+        "wal_all_ack": 80540
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.1401973333829,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.539583733388601,
+        "server_cpu_ms_per_measured_ack": 0.4039049579094487,
+        "proxy_cpu_ms_per_measured_ack": 0.21517797012225615,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128135.0884295,
+        "cpu_window_end": 1793128155.0884295,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 819.0216559876819,
+        "syncs_per_all_ack": 0.12806089504793125,
+        "wal_window_s": 32.809366941452026,
+        "wal_all_ack": 80532
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 13.7732,
+          "p99": 22,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 0.8798573608398438,
+          "p99": 8,
+          "peak": 21
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.611685888671875,
+          "p99": 7,
+          "peak": 20
+        },
+        "allocated_minus_w": {
+          "mean": 15.372885888671876,
+          "p99": 25,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 15.372885888671876,
+          "p99": 25,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 15.372885888671876,
+          "p99": 25,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 81128,
+          "mean_ms": 0.00491675993491766,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 7.2
+        },
+        "loan_custody": {
+          "count": 81129,
+          "mean_ms": 5.34009779676811,
+          "p99_ms_upper": 8.45,
+          "max_ms_upper": 18.05
+        },
+        "prefix_ack_wait": {
+          "count": 80456,
+          "mean_ms": 0.42466613100328127,
+          "p99_ms_upper": 1.9,
+          "max_ms_upper": 7.35
+        },
+        "completion_owner_wait": {
+          "count": 80456,
+          "mean_ms": 0.2362162957517152,
+          "p99_ms_upper": 1.65,
+          "max_ms_upper": 3.35
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 2690,
+      "repetition": 5,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.7146937378438665,
+      "native_sent_mean_lower_ms": 5.7105796282527885,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5381049579010908,
+        "server_cpu_ms_per_measured_ack": 0.323644956928009,
+        "proxy_cpu_ms_per_measured_ack": 0.21604636673747155,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793111155.7752647,
+        "cpu_window_end": 1793111175.7752647,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 937.4943680687505,
+        "syncs_per_all_ack": 0.1329309638240006,
+        "wal_window_s": 31.773338794708252,
+        "wal_all_ack": 80523
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 53800,
+      "diagnostic_sent_mean_upper_ms": 1.5359909107806693,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": null,
+        "server_cpu_ms_per_measured_ack": null,
+        "proxy_cpu_ms_per_measured_ack": null,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128240.6837354,
+        "cpu_window_end": 1793128260.6837354,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 19572.4,
+        "syncs_per_all_ack": 15.4,
+        "wal_window_s": 31.50233507156372,
+        "wal_all_ack": 5
+      },
+      "occupancy": null,
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 0,
+      "measured_series_complete": false,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 26,
+          "mean_ms": 0.002628076923076923,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 27,
+          "mean_ms": 3.1166429629629633,
+          "p99_ms_upper": 5.75,
+          "max_ms_upper": 5.75
+        },
+        "prefix_ack_wait": {
+          "count": 9,
+          "mean_ms": 0.054663888888888894,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 0.1
+        },
+        "completion_owner_wait": {
+          "count": 9,
+          "mean_ms": 0.012204111111111112,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3200,
+      "repetition": 1,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.89146204,
+      "native_sent_mean_lower_ms": 5.887309984,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5291946729726836,
+        "server_cpu_ms_per_measured_ack": 0.32594994347870754,
+        "proxy_cpu_ms_per_measured_ack": 0.2094585565341842,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793111381.5544424,
+        "cpu_window_end": 1793111401.5544424,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 1097.0716759869795,
+        "syncs_per_all_ack": 0.11205241632584927,
+        "wal_window_s": 32.180522203445435,
+        "wal_all_ack": 95848
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.373399256,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5317811804271126,
+        "server_cpu_ms_per_measured_ack": 0.41072852665043075,
+        "proxy_cpu_ms_per_measured_ack": 0.20910395903507298,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128330.3800528,
+        "cpu_window_end": 1793128350.3800528,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 875.1286367241307,
+        "syncs_per_all_ack": 0.10912259464874567,
+        "wal_window_s": 32.91482996940613,
+        "wal_all_ack": 95828
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 16.7917052734375,
+          "p99": 25,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.32995,
+          "p99": 11,
+          "peak": 22
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.90605,
+          "p99": 9,
+          "peak": 19
+        },
+        "allocated_minus_w": {
+          "mean": 18.82685791015625,
+          "p99": 28,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 18.82685791015625,
+          "p99": 28,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 18.82685791015625,
+          "p99": 28,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 96456,
+          "mean_ms": 0.0056687698743468524,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 11.75
+        },
+        "loan_custody": {
+          "count": 96457,
+          "mean_ms": 5.400479909358574,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 24.1
+        },
+        "prefix_ack_wait": {
+          "count": 95784,
+          "mean_ms": 0.5804976739852168,
+          "p99_ms_upper": 2.2,
+          "max_ms_upper": 5.4
+        },
+        "completion_owner_wait": {
+          "count": 95784,
+          "mean_ms": 0.3437884929320137,
+          "p99_ms_upper": 1.85,
+          "max_ms_upper": 4.0
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3200,
+      "repetition": 2,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.786031672,
+      "native_sent_mean_lower_ms": 5.781903904,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5271352701773718,
+        "server_cpu_ms_per_measured_ack": 0.3244583150563259,
+        "proxy_cpu_ms_per_measured_ack": 0.21001877393304266,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793111626.5526145,
+        "cpu_window_end": 1793111646.5526145,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 988.0332999499249,
+        "syncs_per_all_ack": 0.11205349691203471,
+        "wal_window_s": 32.126603841781616,
+        "wal_all_ack": 95856
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.384240472,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5335791932833678,
+        "server_cpu_ms_per_measured_ack": 0.4099086837850365,
+        "proxy_cpu_ms_per_measured_ack": 0.20849985549466243,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128455.0860243,
+        "cpu_window_end": 1793128475.0860243,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 844.3571368948247,
+        "syncs_per_all_ack": 0.10906719532554257,
+        "wal_window_s": 32.941068172454834,
+        "wal_all_ack": 95840
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 16.80385,
+          "p99": 26,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.328104833984375,
+          "p99": 11,
+          "peak": 26
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.903954833984375,
+          "p99": 9,
+          "peak": 22
+        },
+        "allocated_minus_w": {
+          "mean": 18.830204833984375,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 18.830204833984375,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 18.830204833984375,
+          "p99": 29,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 96454,
+          "mean_ms": 0.006928446202334792,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 11.6
+        },
+        "loan_custody": {
+          "count": 96455,
+          "mean_ms": 5.397672080317247,
+          "p99_ms_upper": 8.45,
+          "max_ms_upper": 25.15
+        },
+        "prefix_ack_wait": {
+          "count": 95782,
+          "mean_ms": 0.569393741172663,
+          "p99_ms_upper": 2.2,
+          "max_ms_upper": 6.5
+        },
+        "completion_owner_wait": {
+          "count": 95782,
+          "mean_ms": 0.33299541741663363,
+          "p99_ms_upper": 1.85,
+          "max_ms_upper": 3.75
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3200,
+      "repetition": 3,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.786639224,
+      "native_sent_mean_lower_ms": 5.7825204800000005,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5294354161874257,
+        "server_cpu_ms_per_measured_ack": 0.3263447990343883,
+        "proxy_cpu_ms_per_measured_ack": 0.20957095904366177,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793111876.5123289,
+        "cpu_window_end": 1793111896.5123289,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 883.1384341043236,
+        "syncs_per_all_ack": 0.11216551609068347,
+        "wal_window_s": 32.25710391998291,
+        "wal_all_ack": 95894
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.419320856,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5343837776123527,
+        "server_cpu_ms_per_measured_ack": 0.41008909792890486,
+        "proxy_cpu_ms_per_measured_ack": 0.2088738497566192,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128575.1446192,
+        "cpu_window_end": 1793128595.1446192,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 845.4072849064084,
+        "syncs_per_all_ack": 0.10771895411197596,
+        "wal_window_s": 32.94055199623108,
+        "wal_all_ack": 95842
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 16.9562857421875,
+          "p99": 25,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.32055,
+          "p99": 11,
+          "peak": 21
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.90595,
+          "p99": 9,
+          "peak": 20
+        },
+        "allocated_minus_w": {
+          "mean": 18.99141669921875,
+          "p99": 28,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 18.99141669921875,
+          "p99": 28,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 18.99141669921875,
+          "p99": 28,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 96457,
+          "mean_ms": 0.0063519832049514285,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 9.65
+        },
+        "loan_custody": {
+          "count": 96458,
+          "mean_ms": 5.442093285450662,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 27.5
+        },
+        "prefix_ack_wait": {
+          "count": 95786,
+          "mean_ms": 0.5929882035579312,
+          "p99_ms_upper": 2.2,
+          "max_ms_upper": 5.0
+        },
+        "completion_owner_wait": {
+          "count": 95786,
+          "mean_ms": 0.3527804090681311,
+          "p99_ms_upper": 1.85,
+          "max_ms_upper": 3.6
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3200,
+      "repetition": 4,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 6.162676184,
+      "native_sent_mean_lower_ms": 6.158384895999999,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5266667350150881,
+        "server_cpu_ms_per_measured_ack": 0.3280557863606019,
+        "proxy_cpu_ms_per_measured_ack": 0.20818814784932244,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793112121.668487,
+        "cpu_window_end": 1793112141.668487,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 884.3322412012062,
+        "syncs_per_all_ack": 0.10900800317205254,
+        "wal_window_s": 32.35623502731323,
+        "wal_all_ack": 95837
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.46161756,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5362200158711016,
+        "server_cpu_ms_per_measured_ack": 0.41157743474113273,
+        "proxy_cpu_ms_per_measured_ack": 0.20884902053122104,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128685.9566236,
+        "cpu_window_end": 1793128705.9566236,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 810.607510669157,
+        "syncs_per_all_ack": 0.10674374197856777,
+        "wal_window_s": 32.7947461605072,
+        "wal_all_ack": 95837
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 17.102062353515624,
+          "p99": 26,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.310162353515625,
+          "p99": 11,
+          "peak": 20
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.9033311767578125,
+          "p99": 9,
+          "peak": 19
+        },
+        "allocated_minus_w": {
+          "mean": 19.11824353027344,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 19.11824353027344,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 19.11824353027344,
+          "p99": 29,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 96448,
+          "mean_ms": 0.0074564758107996025,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 10.85
+        },
+        "loan_custody": {
+          "count": 96449,
+          "mean_ms": 5.48901452047196,
+          "p99_ms_upper": 8.45,
+          "max_ms_upper": 22.2
+        },
+        "prefix_ack_wait": {
+          "count": 95780,
+          "mean_ms": 0.5664835538003758,
+          "p99_ms_upper": 2.1,
+          "max_ms_upper": 6.25
+        },
+        "completion_owner_wait": {
+          "count": 95780,
+          "mean_ms": 0.3268939506786385,
+          "p99_ms_upper": 1.8,
+          "max_ms_upper": 3.8
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3200,
+      "repetition": 5,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 6.0205473839999994,
+      "native_sent_mean_lower_ms": 6.016294176,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5256385137482298,
+        "server_cpu_ms_per_measured_ack": 0.3285171790361426,
+        "proxy_cpu_ms_per_measured_ack": 0.209128324364103,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793112391.573689,
+        "cpu_window_end": 1793112411.573689,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 915.3376351041188,
+        "syncs_per_all_ack": 0.11178692150398531,
+        "wal_window_s": 32.708471059799194,
+        "wal_all_ack": 95852
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": true,
+      "diagnostic_errors": 0,
+      "diagnostic_sent_mean_upper_ms": 6.628551128,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5365106585645646,
+        "server_cpu_ms_per_measured_ack": 0.41120017920074176,
+        "proxy_cpu_ms_per_measured_ack": 0.2079942314252315,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128790.4323096,
+        "cpu_window_end": 1793128810.4323096,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 856.2367660710747,
+        "syncs_per_all_ack": 0.10593401549999479,
+        "wal_window_s": 32.855324029922485,
+        "wal_all_ack": 95871
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 17.423477392578125,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.396741650390625,
+          "p99": 12,
+          "peak": 22
+        },
+        "confirmed_count_above_w": {
+          "mean": 0.95211904296875,
+          "p99": 9,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 19.5555,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 19.5555,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 19.5555,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 96482,
+          "mean_ms": 0.016247162900851972,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 16.2
+        },
+        "loan_custody": {
+          "count": 96483,
+          "mean_ms": 5.572295436149374,
+          "p99_ms_upper": 9.5,
+          "max_ms_upper": 37.45
+        },
+        "prefix_ack_wait": {
+          "count": 95815,
+          "mean_ms": 0.6019054321870271,
+          "p99_ms_upper": 2.45,
+          "max_ms_upper": 8.35
+        },
+        "completion_owner_wait": {
+          "count": 95815,
+          "mean_ms": 0.3500965533997808,
+          "p99_ms_upper": 2.05,
+          "max_ms_upper": 8.0
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3805,
+      "repetition": 1,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.893082157529567,
+      "native_sent_mean_lower_ms": 5.888910862128778,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.487651421723116,
+        "server_cpu_ms_per_measured_ack": 0.3354310131019417,
+        "proxy_cpu_ms_per_measured_ack": 0.20227555272436032,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793112677.1251032,
+        "cpu_window_end": 1793112697.1251032,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 925.5080952130365,
+        "syncs_per_all_ack": 0.09488852637302882,
+        "wal_window_s": 32.743332862854004,
+        "wal_all_ack": 114018
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 1330,
+      "diagnostic_sent_mean_upper_ms": 8.55911879704427,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5201487526410983,
+        "server_cpu_ms_per_measured_ack": 0.42083098049449186,
+        "proxy_cpu_ms_per_measured_ack": 0.1998037137228792,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793128885.6436074,
+        "cpu_window_end": 1793128905.6436074,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 800.2020552207229,
+        "syncs_per_all_ack": 0.09481394563265597,
+        "wal_window_s": 33.77501702308655,
+        "wal_all_ack": 112494
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 20.36528037109375,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.97205,
+          "p99": 13,
+          "peak": 21
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.3828,
+          "p99": 11,
+          "peak": 20
+        },
+        "allocated_minus_w": {
+          "mean": 26.11564482421875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.11564482421875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.11564482421875,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113161,
+          "mean_ms": 0.018377569029966154,
+          "p99_ms_upper": 0.5,
+          "max_ms_upper": 14.55
+        },
+        "loan_custody": {
+          "count": 113162,
+          "mean_ms": 5.461847612573125,
+          "p99_ms_upper": 8.7,
+          "max_ms_upper": 29.3
+        },
+        "prefix_ack_wait": {
+          "count": 112454,
+          "mean_ms": 1.371888016620129,
+          "p99_ms_upper": 2.75,
+          "max_ms_upper": 30.55
+        },
+        "completion_owner_wait": {
+          "count": 112454,
+          "mean_ms": 1.0832116419335907,
+          "p99_ms_upper": 2.35,
+          "max_ms_upper": 26.8
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3805,
+      "repetition": 2,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 6.087167834270696,
+      "native_sent_mean_lower_ms": 6.0828591264126155,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.4914550974795019,
+        "server_cpu_ms_per_measured_ack": 0.33304838940213,
+        "proxy_cpu_ms_per_measured_ack": 0.2015608264434954,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793112947.4183,
+        "cpu_window_end": 1793112967.4183,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 870.8823519090398,
+        "syncs_per_all_ack": 0.0920655530600786,
+        "wal_window_s": 32.805359840393066,
+        "wal_all_ack": 113984
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 1435,
+      "diagnostic_sent_mean_upper_ms": 8.577951563584008,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5109997333385953,
+        "server_cpu_ms_per_measured_ack": 0.42185852847889654,
+        "proxy_cpu_ms_per_measured_ack": 0.2002947743371639,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129005.1425555,
+        "cpu_window_end": 1793129025.1425555,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 799.8126566081996,
+        "syncs_per_all_ack": 0.09439142720051182,
+        "wal_window_s": 33.79283809661865,
+        "wal_all_ack": 112542
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 20.53857783203125,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.0092,
+          "p99": 13,
+          "peak": 22
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.4123,
+          "p99": 11,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 26.185872229003905,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.185872229003905,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.185872229003905,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113147,
+          "mean_ms": 0.018605816831201886,
+          "p99_ms_upper": 0.5,
+          "max_ms_upper": 36.5
+        },
+        "loan_custody": {
+          "count": 113148,
+          "mean_ms": 5.466547182849013,
+          "p99_ms_upper": 8.5,
+          "max_ms_upper": 46.35
+        },
+        "prefix_ack_wait": {
+          "count": 112449,
+          "mean_ms": 1.3655995588933652,
+          "p99_ms_upper": 2.75,
+          "max_ms_upper": 13.5
+        },
+        "completion_owner_wait": {
+          "count": 112449,
+          "mean_ms": 1.0739372689841618,
+          "p99_ms_upper": 2.3,
+          "max_ms_upper": 12.3
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3805,
+      "repetition": 3,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 6.116450332036793,
+      "native_sent_mean_lower_ms": 6.112219049881735,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.48980349026378206,
+        "server_cpu_ms_per_measured_ack": 0.33502010386673875,
+        "proxy_cpu_ms_per_measured_ack": 0.20163842780643068,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793113222.524229,
+        "cpu_window_end": 1793113242.524229,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 964.4746800466662,
+        "syncs_per_all_ack": 0.09127990105349953,
+        "wal_window_s": 32.91944599151611,
+        "wal_all_ack": 114001
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 1225,
+      "diagnostic_sent_mean_upper_ms": 8.591043161322204,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5111405033670448,
+        "server_cpu_ms_per_measured_ack": 0.42043037214746093,
+        "proxy_cpu_ms_per_measured_ack": 0.1999819010056564,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129155.4313686,
+        "cpu_window_end": 1793129175.4313686,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 849.6959857381062,
+        "syncs_per_all_ack": 0.09537197999077589,
+        "wal_window_s": 33.974591970443726,
+        "wal_all_ack": 112748
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 20.408020971679687,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.01325,
+          "p99": 13,
+          "peak": 24
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.39675,
+          "p99": 11,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 26.06522373046875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.06522373046875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.06522373046875,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113398,
+          "mean_ms": 0.017120031587858693,
+          "p99_ms_upper": 0.45,
+          "max_ms_upper": 15.6
+        },
+        "loan_custody": {
+          "count": 113399,
+          "mean_ms": 5.450126929011719,
+          "p99_ms_upper": 8.4,
+          "max_ms_upper": 30.05
+        },
+        "prefix_ack_wait": {
+          "count": 112707,
+          "mean_ms": 1.3693417673613884,
+          "p99_ms_upper": 2.8,
+          "max_ms_upper": 7.05
+        },
+        "completion_owner_wait": {
+          "count": 112707,
+          "mean_ms": 1.0758165708252372,
+          "p99_ms_upper": 2.35,
+          "max_ms_upper": 5.75
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3805,
+      "repetition": 4,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 6.107810274848883,
+      "native_sent_mean_lower_ms": 6.103583460078844,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.4891255020092884,
+        "server_cpu_ms_per_measured_ack": 0.3341613799194458,
+        "proxy_cpu_ms_per_measured_ack": 0.20158814580674442,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793113502.9552212,
+        "cpu_window_end": 1793113522.9552212,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 846.9465045486047,
+        "syncs_per_all_ack": 0.09286698072654859,
+        "wal_window_s": 32.85160994529724,
+        "wal_all_ack": 113991
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 1946,
+      "diagnostic_sent_mean_upper_ms": 8.65628119857324,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5122999578608765,
+        "server_cpu_ms_per_measured_ack": 0.420904880425011,
+        "proxy_cpu_ms_per_measured_ack": 0.2002530327289915,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129280.3564785,
+        "cpu_window_end": 1793129300.3564785,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 831.6783415896818,
+        "syncs_per_all_ack": 0.0942384076404695,
+        "wal_window_s": 33.88133215904236,
+        "wal_all_ack": 112035
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 20.72137177734375,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.0238607421875,
+          "p99": 13,
+          "peak": 21
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.40648037109375,
+          "p99": 11,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 26.20337607421875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.20337607421875,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.20337607421875,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 112677,
+          "mean_ms": 0.024601828394437197,
+          "p99_ms_upper": 0.75,
+          "max_ms_upper": 26.65
+        },
+        "loan_custody": {
+          "count": 112678,
+          "mean_ms": 5.553972407142477,
+          "p99_ms_upper": 9.1,
+          "max_ms_upper": 39.55
+        },
+        "prefix_ack_wait": {
+          "count": 111985,
+          "mean_ms": 1.3148025194892172,
+          "p99_ms_upper": 2.8,
+          "max_ms_upper": 8.85
+        },
+        "completion_owner_wait": {
+          "count": 111985,
+          "mean_ms": 1.0147167111845337,
+          "p99_ms_upper": 2.35,
+          "max_ms_upper": 7.2
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 3805,
+      "repetition": 5,
+      "native_eligible": true,
+      "native_pass": true,
+      "native_sent_mean_upper_ms": 5.839735713587385,
+      "native_sent_mean_lower_ms": 5.835581291984231,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.49009390840590716,
+        "server_cpu_ms_per_measured_ack": 0.3333232428811359,
+        "proxy_cpu_ms_per_measured_ack": 0.20239761592478075,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793113787.9492815,
+        "cpu_window_end": 1793113807.9492815,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 966.2159633059707,
+        "syncs_per_all_ack": 0.09456781028555392,
+        "wal_window_s": 32.89894104003906,
+        "wal_all_ack": 114024
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 787,
+      "diagnostic_sent_mean_upper_ms": 8.550806089081567,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5137111547216369,
+        "server_cpu_ms_per_measured_ack": 0.41838569717527946,
+        "proxy_cpu_ms_per_measured_ack": 0.19959522389771706,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129400.372652,
+        "cpu_window_end": 1793129420.372652,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 907.670918615231,
+        "syncs_per_all_ack": 0.09451162955045361,
+        "wal_window_s": 33.941059827804565,
+        "wal_all_ack": 113203
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 20.605521765136718,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.0161,
+          "p99": 13,
+          "peak": 22
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.42125,
+          "p99": 11,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 26.190397814941406,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.190397814941406,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.190397814941406,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113839,
+          "mean_ms": 0.018545753581812912,
+          "p99_ms_upper": 0.6,
+          "max_ms_upper": 22.95
+        },
+        "loan_custody": {
+          "count": 113840,
+          "mean_ms": 5.4741988840565705,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 37.2
+        },
+        "prefix_ack_wait": {
+          "count": 113143,
+          "mean_ms": 1.3393338657274423,
+          "p99_ms_upper": 2.7,
+          "max_ms_upper": 10.4
+        },
+        "completion_owner_wait": {
+          "count": 113143,
+          "mean_ms": 1.0460621354215462,
+          "p99_ms_upper": 2.3,
+          "max_ms_upper": 7.95
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 4525,
+      "repetition": 1,
+      "native_eligible": true,
+      "native_pass": false,
+      "native_sent_mean_upper_ms": 7.071171477375465,
+      "native_sent_mean_lower_ms": 7.019307086132778,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.42479817618834365,
+        "server_cpu_ms_per_measured_ack": 0.35010744192337734,
+        "proxy_cpu_ms_per_measured_ack": 0.1961599616981695,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793114082.580424,
+        "cpu_window_end": 1793114102.580424,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 959.1597419297623,
+        "syncs_per_all_ack": 0.0800150762681802,
+        "wal_window_s": 33.81455397605896,
+        "wal_all_ack": 135312
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 15854,
+      "diagnostic_sent_mean_upper_ms": 8.573391999758861,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5142364004615642,
+        "server_cpu_ms_per_measured_ack": 0.4231524488083066,
+        "proxy_cpu_ms_per_measured_ack": 0.20091186158286034,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129540.7203,
+        "cpu_window_end": 1793129560.7203,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 805.4795197116149,
+        "syncs_per_all_ack": 0.09509462635401389,
+        "wal_window_s": 33.806686878204346,
+        "wal_all_ack": 113182
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 19.994284997558594,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.0062,
+          "p99": 13,
+          "peak": 23
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.38875,
+          "p99": 11,
+          "peak": 20
+        },
+        "allocated_minus_w": {
+          "mean": 25.86430499267578,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 25.86430499267578,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 25.86430499267578,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113848,
+          "mean_ms": 0.015900926726863888,
+          "p99_ms_upper": 0.5,
+          "max_ms_upper": 20.7
+        },
+        "loan_custody": {
+          "count": 113849,
+          "mean_ms": 5.409267918479741,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 32.3
+        },
+        "prefix_ack_wait": {
+          "count": 113153,
+          "mean_ms": 1.3913681332355308,
+          "p99_ms_upper": 2.8,
+          "max_ms_upper": 7.75
+        },
+        "completion_owner_wait": {
+          "count": 113153,
+          "mean_ms": 1.0970936847189203,
+          "p99_ms_upper": 2.4,
+          "max_ms_upper": 6.15
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 4525,
+      "repetition": 2,
+      "native_eligible": true,
+      "native_pass": false,
+      "native_sent_mean_upper_ms": 7.1316140054935335,
+      "native_sent_mean_lower_ms": 7.11570066235216,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.41449480688076396,
+        "server_cpu_ms_per_measured_ack": 0.34525649636408434,
+        "proxy_cpu_ms_per_measured_ack": 0.19377485608005038,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793114363.0588825,
+        "cpu_window_end": 1793114383.0588825,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 868.5723305231636,
+        "syncs_per_all_ack": 0.08015990677022253,
+        "wal_window_s": 33.79963707923889,
+        "wal_all_ack": 135579
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 15898,
+      "diagnostic_sent_mean_upper_ms": 8.579026090909093,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.515608990685171,
+        "server_cpu_ms_per_measured_ack": 0.42337746754147565,
+        "proxy_cpu_ms_per_measured_ack": 0.20136289740196794,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129670.6659598,
+        "cpu_window_end": 1793129690.6659598,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 854.987132988676,
+        "syncs_per_all_ack": 0.09620551747377382,
+        "wal_window_s": 33.91838502883911,
+        "wal_all_ack": 112769
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 19.786697985839844,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.090589929199219,
+          "p99": 13,
+          "peak": 28
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.4481939575195313,
+          "p99": 11,
+          "peak": 25
+        },
+        "allocated_minus_w": {
+          "mean": 25.7984177734375,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 25.7984177734375,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 25.7984177734375,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113358,
+          "mean_ms": 0.013024576209883731,
+          "p99_ms_upper": 0.4,
+          "max_ms_upper": 6.3
+        },
+        "loan_custody": {
+          "count": 113359,
+          "mean_ms": 5.392508157534912,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 16.45
+        },
+        "prefix_ack_wait": {
+          "count": 112669,
+          "mean_ms": 1.4025955716923022,
+          "p99_ms_upper": 2.85,
+          "max_ms_upper": 6.15
+        },
+        "completion_owner_wait": {
+          "count": 112669,
+          "mean_ms": 1.1017302014129886,
+          "p99_ms_upper": 2.4,
+          "max_ms_upper": 5.5
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 4525,
+      "repetition": 3,
+      "native_eligible": true,
+      "native_pass": false,
+      "native_sent_mean_upper_ms": 7.026693268464088,
+      "native_sent_mean_lower_ms": 7.022339813127072,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.4195526167637792,
+        "server_cpu_ms_per_measured_ack": 0.35075282432746413,
+        "proxy_cpu_ms_per_measured_ack": 0.1965985584868167,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793114663.1282895,
+        "cpu_window_end": 1793114683.1282895,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 840.2159938059949,
+        "syncs_per_all_ack": 0.08130369059469823,
+        "wal_window_s": 33.34969902038574,
+        "wal_all_ack": 135615
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 15833,
+      "diagnostic_sent_mean_upper_ms": 8.570976471118433,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5151042427867922,
+        "server_cpu_ms_per_measured_ack": 0.42313564173807916,
+        "proxy_cpu_ms_per_measured_ack": 0.20121096794929255,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129785.354517,
+        "cpu_window_end": 1793129805.354517,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 807.6745650314376,
+        "syncs_per_all_ack": 0.09627069021772679,
+        "wal_window_s": 33.91472101211548,
+        "wal_all_ack": 113399
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 19.79314658203125,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.052355126953125,
+          "p99": 13,
+          "peak": 26
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.40660341796875,
+          "p99": 11,
+          "peak": 21
+        },
+        "allocated_minus_w": {
+          "mean": 25.78555,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 25.78555,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 25.78555,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 114047,
+          "mean_ms": 0.0137639785790069,
+          "p99_ms_upper": 0.45,
+          "max_ms_upper": 20.15
+        },
+        "loan_custody": {
+          "count": 114048,
+          "mean_ms": 5.387215976203002,
+          "p99_ms_upper": 8.2,
+          "max_ms_upper": 30.95
+        },
+        "prefix_ack_wait": {
+          "count": 113359,
+          "mean_ms": 1.3972607082190212,
+          "p99_ms_upper": 2.85,
+          "max_ms_upper": 7.85
+        },
+        "completion_owner_wait": {
+          "count": 113359,
+          "mean_ms": 1.1020199471854903,
+          "p99_ms_upper": 2.4,
+          "max_ms_upper": 7.75
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 4525,
+      "repetition": 4,
+      "native_eligible": true,
+      "native_pass": false,
+      "native_sent_mean_upper_ms": 7.011241074519337,
+      "native_sent_mean_lower_ms": 7.006866347138121,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.4120017804859105,
+        "server_cpu_ms_per_measured_ack": 0.35125685284379277,
+        "proxy_cpu_ms_per_measured_ack": 0.1969487125883174,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793114917.8855503,
+        "cpu_window_end": 1793114937.8855503,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 878.4107651022545,
+        "syncs_per_all_ack": 0.08152342194895386,
+        "wal_window_s": 33.36974000930786,
+        "wal_all_ack": 135642
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 15996,
+      "diagnostic_sent_mean_upper_ms": 8.590693221585418,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.5114052099151069,
+        "server_cpu_ms_per_measured_ack": 0.4239318456625576,
+        "proxy_cpu_ms_per_measured_ack": 0.20124974837823079,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793129916.1639988,
+        "cpu_window_end": 1793129936.1639988,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 800.6726317385835,
+        "syncs_per_all_ack": 0.09619347529371883,
+        "wal_window_s": 33.8032591342926,
+        "wal_all_ack": 112097
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 19.771149938964843,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.0319,
+          "p99": 13,
+          "peak": 23
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.4128,
+          "p99": 11,
+          "peak": 23
+        },
+        "allocated_minus_w": {
+          "mean": 25.784899938964845,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 25.784899938964845,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 25.784899938964845,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 112693,
+          "mean_ms": 0.01790099777270993,
+          "p99_ms_upper": 0.55,
+          "max_ms_upper": 10.8
+        },
+        "loan_custody": {
+          "count": 112694,
+          "mean_ms": 5.421665822776723,
+          "p99_ms_upper": 8.9,
+          "max_ms_upper": 24.75
+        },
+        "prefix_ack_wait": {
+          "count": 112000,
+          "mean_ms": 1.404372915607143,
+          "p99_ms_upper": 2.85,
+          "max_ms_upper": 6.95
+        },
+        "completion_owner_wait": {
+          "count": 112000,
+          "mean_ms": 1.1044325447232144,
+          "p99_ms_upper": 2.45,
+          "max_ms_upper": 6.6
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    },
+    {
+      "rate": 4525,
+      "repetition": 5,
+      "native_eligible": true,
+      "native_pass": false,
+      "native_sent_mean_upper_ms": 7.028853399292817,
+      "native_sent_mean_lower_ms": 7.0244652976795585,
+      "native_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.42403214579993287,
+        "server_cpu_ms_per_measured_ack": 0.3514886163457572,
+        "proxy_cpu_ms_per_measured_ack": 0.19692545774650963,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793115222.7586286,
+        "cpu_window_end": 1793115242.7586286,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 918.0009662120799,
+        "syncs_per_all_ack": 0.0818551271933383,
+        "wal_window_s": 33.50556302070618,
+        "wal_all_ack": 135581
+      },
+      "diagnostic_eligible": true,
+      "diagnostic_pass": false,
+      "diagnostic_errors": 15805,
+      "diagnostic_sent_mean_upper_ms": 8.568249263431287,
+      "available_data_width": 29,
+      "total_product_connection_cap": 32,
+      "diagnostic_observed_product_sessions_peak": 32,
+      "diagnostic_resources": {
+        "pg_cpu_ms_per_measured_ack": 0.518416814703087,
+        "server_cpu_ms_per_measured_ack": 0.422820531473747,
+        "proxy_cpu_ms_per_measured_ack": 0.2009425470278788,
+        "product_connections_peak": 32,
+        "cpu_window_start": 1793130036.081413,
+        "cpu_window_end": 1793130056.081413,
+        "cpu_window_anchor": "controller recorded generator launch + 100ms lead + 10s warmup; 100ms tick sampling/interpolation; includes drain ACKs in divisor",
+        "wal_bytes_per_all_ack": 847.5907868698253,
+        "syncs_per_all_ack": 0.09596492940623141,
+        "wal_window_s": 33.89662504196167,
+        "wal_all_ack": 112687
+      },
+      "occupancy": {
+        "loans": {
+          "mean": 19.822311962890623,
+          "p99": 29,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.03435,
+          "p99": 13,
+          "peak": 24
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.41435,
+          "p99": 11,
+          "peak": 22
+        },
+        "allocated_minus_w": {
+          "mean": 25.854434765625,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 25.854434765625,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 25.854434765625,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_observed_occupancy": null,
+      "measured_series_coverage_ms": 20000.0,
+      "measured_series_complete": true,
+      "phase_waits": {
+        "pool_wait": {
+          "count": 113285,
+          "mean_ms": 0.013366862700269232,
+          "p99_ms_upper": 0.45,
+          "max_ms_upper": 18.05
+        },
+        "loan_custody": {
+          "count": 113286,
+          "mean_ms": 5.391054953780697,
+          "p99_ms_upper": 8.25,
+          "max_ms_upper": 31.3
+        },
+        "prefix_ack_wait": {
+          "count": 112594,
+          "mean_ms": 1.4104775043874451,
+          "p99_ms_upper": 2.85,
+          "max_ms_upper": 7.4
+        },
+        "completion_owner_wait": {
+          "count": 112594,
+          "mean_ms": 1.115960330221859,
+          "p99_ms_upper": 2.4,
+          "max_ms_upper": 4.8
+        }
+      },
+      "reader_share": "no application readers in write-only cohort; shared 29-slot pool retained",
+      "control_share": "owner/lease/optional second ordered writer reserve 3; catch-up borrows data loans; pool/custody clocks aggregate data and control",
+      "diagnostic_phase_window": "before/after numerical files around 10s warmup + 20s measurement + native drain; 50us histogram upper bounds; series uses measured 20s at 1ms timestamp resolution"
+    }
+  ]
+}

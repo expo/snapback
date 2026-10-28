@@ -1,0 +1,12 @@
+{
+  "time": 1793124334.6363275,
+  "system": "supabase",
+  "normal_protocol_close": true,
+  "last_completed_measurement": "101-sanity-r0-W5-A-2262-rep1",
+  "no_app_or_generator_paused": true,
+  "all_role_cohorts_complete": true,
+  "cluster_stopped": true,
+  "private_pg_data_removed": true,
+  "before_free_bytes": 31182950400,
+  "after_free_bytes": 32035627008
+}

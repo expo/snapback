@@ -479,6 +479,18 @@ fn matcher_keeps_types_and_excludes_tests_errors_and_wasm() {
 }
 
 #[test]
+fn precise_capturing_bounds_are_not_use_declarations() {
+    // engine/postgres/ownership.rs returns `impl Fn() -> bool + Send + Sync + use<>`;
+    // reading that bound as a use tree looped forever on the body's `;`.
+    let source = "pub fn watch(&self) -> impl Fn() -> bool + Send + Sync + use<> {\n    let grant = self.grant.clone();\n    move || grant.load()\n}\npub use crate::store::Store as Kept;\n";
+    let found: Vec<_> = bindings(source).into_iter().map(|b| (b.path.join("::"), b.name, b.exported)).collect();
+    assert_eq!(found, vec![("crate::store::Store".to_string(), "Kept".to_string(), true)]);
+    // A malformed brace tree still terminates instead of growing without bound.
+    assert!(std::panic::catch_unwind(|| bindings("use crate::{store; Store};")).is_err(),
+        "malformed input must terminate and fail closed");
+}
+
+#[test]
 fn renamed_error_module_and_renamed_exports_cannot_bypass_census() {
     let engine = "crates/snapback4-core/src/engine/attack.rs";
     let lib = "crates/snapback4-core/src/lib.rs";
