@@ -427,3 +427,23 @@ crates.io index metadata and reuses public dependency archives; no credentials
 or Cargo configuration is copied. CLI, load generator and native seed helper
 all build in the lane's own target. No benchmark query or fixture source is
 changed by the lock alignment.
+
+
+### Excluded S1 driver pilot
+
+The completed 1,000-message pilot has six passing 100/s windows (W3/B and
+W4/A across all three arms), zero errors and exact write counters. It is
+excluded from the main matrix. The native generator validates a minimum
+32,768-row address range even for W3/W4, which do not use that parameter;
+only this excluded pilot uses that placeholder with a smaller fixture.
+Parser CPU clocks are present on every traced query, and RI traces contain
+parked/resumed reads. [Pilot receipt](./round2-pilot.json).
+
+Earlier excluded setup attempts record no timed window for the relocated
+initdb library path and minimum-row validation failures. One passing W3/G5
+window precedes a next-arm startup refusal while the former lease is still
+live. The corrected driver waits for the stopped owner's lease and read grant
+to expire before starting another arm, outside timing and without changing
+private catalog state. All owned pilot processes are stopped; the postmaster
+PID file is absent before deleting its scratch PG data. Only owned release
+intermediates are pruned, retaining the three hashed tools for the full run.

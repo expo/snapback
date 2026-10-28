@@ -93,6 +93,7 @@ def main():
     for k in list(r.env):
         if k.startswith('SNAPBACK4_'):r.env.pop(k)
     r.env['LD_LIBRARY_PATH']='/home/ccheever/tools/pg16/usr/lib/x86_64-linux-gnu'
+    os.environ['LD_LIBRARY_PATH']=r.env['LD_LIBRARY_PATH'] # S1 initdb inherits the controller environment
     # ping-unix requires a password file even with local trust; use a new
     # non-secret placeholder rather than reading a shared cluster credential.
     dummy=r.runtime/'unused-private-password';dummy.write_text('unused-local-trust')
@@ -105,10 +106,13 @@ def main():
                 os.kill(os.getpid(),signal.SIGTERM);return
     watcher=threading.Thread(target=disk_monitor,daemon=True);watcher.start()
     signal.signal(signal.SIGTERM,lambda *_:(_ for _ in ()).throw(KeyboardInterrupt()))
-    runs=[];report=dict(method='s1-onehost.py lifecycle/fixture/quiet gate/affinity/SLO; fixed interleaved G5, RI, G6; 3 repetitions',warmup_ms=a.warmup_ms,duration_ms=a.duration_ms,runs=runs)
+    runs=[];report=dict(fixture_rows=a.rows,pilot=args.pilot,raw_out=str(r.out),method='s1-onehost.py lifecycle/fixture/quiet gate/affinity/SLO; fixed interleaved G5, RI, G6; 3 repetitions',warmup_ms=a.warmup_ms,duration_ms=a.duration_ms,runs=runs)
     def save():args.result.write_text(json.dumps(report,indent=2)+'\n')
     try:
-        r.start();r.fixture(a.rows)
+        r.start()
+        ownership=json.loads((r.out/'ownership.json').read_text())
+        report['provenance']={k:ownership[k] for k in ['source_commit','binary_sha256','target_binary_sha256','pg_cores','app_cores','load_cores']}
+        r.fixture(a.rows)
         report['seed']=json.loads((r.out/'seed-equality.json').read_text());save()
         cohorts=[(w,link,rate,rep) for rep in range(3) for w in ['W1','W2','W3'] for link in ['A','B'] for rate in ([8000,9514,11313,16000] if w=='W3' else [8000,9514,11313])]
         cohorts += [('W4','A',rate,rep) for rep in range(3) for rate in [800,2262]]
@@ -131,7 +135,9 @@ def main():
                 r.ping(delay,d/'rtt-before.json');r.start_service(32,delay,d)
                 r.before_trials(d,w,128 if w!='W4' else 32,'disjoint',a.rows)
                 r.host_check(label+'-ready');free(r.out,'measure-'+label)
-                result=r.trial(d,w,128 if w!='W4' else 32,'disjoint',a.rows,rate,rep)
+                # The excluded W3/W4 pilot does not use the generator's message
+                # address range, but the harness still validates its 32768 minimum.
+                result=r.trial(d,w,128 if w!='W4' else 32,'disjoint',max(a.rows,32768),rate,rep)
                 before=json.loads((d/f'rate-{rate}-r{rep}.before.json').read_text());after=json.loads((d/f'rate-{rate}-r{rep}.after.json').read_text())
                 ack=result['total_success_including_warmup']
                 calls=lambda v:sum(s['calls'] for s in v['statements'])
@@ -144,6 +150,16 @@ def main():
                 if w=='W4':row['counter_check']=result['counter_check']
                 runs.append(row);save();print(json.dumps(row),flush=True)
                 r.stop_service()
+                # SIGTERM may leave a fenced lease/read grant until expiry.
+                # Wait outside timing; never overwrite another owner or grant.
+                end=time.monotonic()+30
+                while r.sqlpg("SELECT lease_until<=clock_timestamp() FROM bench._owner WHERE singleton").strip()!='t':
+                    if time.monotonic()>end:raise RuntimeError('owned prior lease did not expire')
+                    time.sleep(.05)
+                if r.sqlpg("SELECT to_regclass('bench._read_grant') IS NOT NULL").strip()=='t':
+                    while r.sqlpg("SELECT count(*) FROM bench._read_grant WHERE valid_until>=clock_timestamp()").strip()!='0':
+                        if time.monotonic()>end:raise RuntimeError('owned prior read grant did not expire')
+                        time.sleep(.05)
         report['final_seed']=r.verify_seed(a.rows)
     except BaseException as e:
         report['stopped_reason']=type(e).__name__+': '+str(e);raise
