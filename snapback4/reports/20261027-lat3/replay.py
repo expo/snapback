@@ -46,11 +46,10 @@ def run(dst,script,log,timeout=360,port_range=None):
   'npm_config_cache':str(SCRATCH/'npm-cache')}
  env.pop('NODE_OPTIONS',None);env.pop('LAT3_TRACE',None);env.pop('SNAPBACK4_LATENCY_TRACE',None)
  if port_range:env.update(PORT_LO=str(port_range[0]),PORT_HI=str(port_range[1]))
- # A historical script supports TMPDIR but defaults to a removed bakeoff
- # scratch root. Supply its documented override, without rewriting assertions.
- runtime=None
- if script=='day2:proof' and any('process.env.TMPDIR' in p.read_text(errors='replace') and '/tmp/' in p.read_text(errors='replace') for p in (dst/'scripts').glob('day2-proof.*')):
-  runtime=SCRATCH/'runtime'/dst.parent.name/dst.name;runtime.mkdir(parents=True,exist_ok=True,mode=0o700);env['TMPDIR']=str(runtime)
+ # Some historical scripts read TMPDIR directly; others default to a removed
+ # bakeoff scratch root. Keep every new run's temporary worlds task-local.
+ runtime=SCRATCH/'runtime'/dst.parent.name/dst.name
+ runtime.mkdir(parents=True,exist_ok=True,mode=0o700);env['TMPDIR']=str(runtime)
  trace=log.with_suffix('.native.jsonl') if int(dst.parent.name.split('-')[0][1:])>=32 else None
  if trace:
   trace.write_text('');trace.chmod(0o600);env['SNAPBACK4_LATENCY_TRACE']=str(trace)
