@@ -5,6 +5,17 @@ fn check(source: &str) -> Bound {
     compile(&[("schema.q".into(), source.into())])
 }
 
+// GEN1's inert usage comment names hooks such as useAction even in core apps.
+// Keep the server-only declaration assertion on emitted code, preserving the
+// operation index and every byte outside that exact generated comment.
+fn client_declarations(bound: &Bound) -> String {
+    let api = emit::typescript(bound);
+    let (before, packet) = api.split_once(emit::usage::START).expect("usage packet");
+    let (_, after) = packet.split_once(emit::usage::END).expect("closed usage packet");
+    assert!(!after.contains(emit::usage::START), "one packet only");
+    format!("{before}{after}")
+}
+
 fn refusal(bound: &Bound, file: &str, line: u32, form: &str, guide: &str) {
     assert!(!bound.server);
     let diagnostics: Vec<_> = bound.diagnostics.iter().filter(|d| d.site.file == file && d.site.line == line).collect();
@@ -102,7 +113,7 @@ fn one_directive_covers_all_modules_and_matches_identity_collection() {
             assert_eq!(emit::server_typescript(&bound), emit::server_typescript(&baseline));
         }
     }
-    let api = emit::typescript(&baseline);
+    let api = client_declarations(&baseline);
     assert!(api.contains("send: Action<"));
     assert!(!api.contains("Route") && !api.contains("hook"));
 }
@@ -139,7 +150,7 @@ schedule daily every 1d: sweep\n";
     assert_eq!(seated.diagnostics[0].message, "a job runs as the system; its schedule cannot declare a service seat");
     assert!(seated.schema.schedules.is_empty());
     assert_eq!(check(&format!("{seated_source}use server\n")).diagnostics, seated.diagnostics);
-    let api = emit::typescript(&bound);
+    let api = client_declarations(&bound);
     assert!(!api.contains("Action") && !api.contains("Route"), "{api}");
     let server = emit::server_typescript(&bound);
     assert!(server.contains("from \"snapback4/server\""));
@@ -148,8 +159,8 @@ schedule daily every 1d: sweep\n";
     assert!(server.contains("actions?: Actions; routes?: Routes; effects?: Effects"));
     // The directive changes neither core schema serialization nor effect contracts.
     let enabled = check(&format!("{source}use server\n"));
-    assert!(emit::typescript(&enabled).contains("import type { Action, Cursor, Mutation, Query }"));
-    assert_eq!(api, emit::typescript(&enabled).replace("Action, ", ""));
+    assert!(client_declarations(&enabled).contains("import type { Action, Cursor, Mutation, Query }"));
+    assert_eq!(api, client_declarations(&enabled).replace("Action, ", ""));
     assert_eq!(serde_json::to_string(&bound.schema).unwrap(), serde_json::to_string(&enabled.schema).unwrap());
     assert_eq!(server, emit::server_typescript(&enabled));
 }
