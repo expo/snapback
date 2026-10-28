@@ -1,0 +1,28 @@
+{
+  "workerExits": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "cases": 120,
+  "errors": [],
+  "matchedSuccessfulPairs": 119,
+  "nonSecuritySeconds": {
+    "before": {
+      "n": 119,
+      "median": 0.9576155541031355,
+      "p90": 2.225854321124884,
+      "max": 6.40207016810715
+    },
+    "after": {
+      "n": 119,
+      "median": 0.3568812540172077,
+      "p90": 0.7533233389649645,
+      "max": 1.4270150780359243
+    }
+  },
+  "exitChanges": [],
+  "bar": true,
+  "method": "Normal real clock, full production security; subtract only the enclosing measured deploy.security interval. All40 wave33 stores copied before opening, owner/token excluded; up to4 workers;120 unchanged/reactivation/new-release cases. This is timing and exit compatibility, not fixed-clock store identity."
+}

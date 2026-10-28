@@ -1,0 +1,57 @@
+{
+  "leanExit": 1,
+  "leanGenerated": 2000,
+  "leanExecuted": 5680,
+  "leanOracle": {
+    "lean": {
+      "attempted": 2000,
+      "passed": 1658,
+      "unsupported": {
+        "call-max": 36,
+        "call-min": 21,
+        "call-sum": 26,
+        "index-computed-or-words": 46,
+        "loop": 54,
+        "now": 7,
+        "page-compound-where-branches": 1,
+        "page-static-key-expression": 4,
+        "prelude-now": 18,
+        "shape": 111
+      },
+      "disagreeing": 18,
+      "signatures": {
+        "lean--continuation-next--next~no-next": 5,
+        "lean--next--next~no-next": 8,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 5
+      },
+      "meter_fields_omitted": 0
+    }
+  },
+  "sameFindingFiles": true,
+  "findingFiles": 16,
+  "sameOracleTotals": true,
+  "findingSha256": {
+    "lean--next--next~no-next/case.q": "b48ff3d899fa12723943fc859c92d66e4fb9f76751018e2c5da1d092c8652589",
+    "lean--next--next~no-next/case.json": "903160257db0c3d7cbcb0d6aee77d2296b9506384b207c5aaba0bc6314e37815",
+    "lean--continuation-next--next~no-next/case.q": "958878aa69b4a16850d61b17705f5d6a9542b5823509c7f8351fdd2394ee73e8",
+    "lean--continuation-next--next~no-next/case.json": "00ba50b9d1ea24f7808455639e0cc3fc2b21bb787625cfd6261d3b8bc839085f",
+    "lean--prelude-code--E_RULE~NOT_FOUND/case.q": "956906e7a45142a18f693129aa18e314627f0caac3a43299b4a5b7eca2f0c423",
+    "lean--prelude-code--E_RULE~NOT_FOUND/case.json": "f519c582e1b28d8ba990a4c9abcd1c718ab0b1719c556649c43d61784de6774b",
+    "worker-0/lean--next--next~no-next/case.q": "d085c9327ffb75c3a4dbbcae244d884a23e08f74f87f6442c1fddfa445317c54",
+    "worker-0/lean--next--next~no-next/case.json": "a8abc7e7867a06ea2913dca9f7d7d53fdccad51559ca00c00b49e00c98751ad2",
+    "worker-0/lean--continuation-next--next~no-next/case.q": "958878aa69b4a16850d61b17705f5d6a9542b5823509c7f8351fdd2394ee73e8",
+    "worker-0/lean--continuation-next--next~no-next/case.json": "00ba50b9d1ea24f7808455639e0cc3fc2b21bb787625cfd6261d3b8bc839085f",
+    "worker-1/lean--next--next~no-next/case.q": "b48ff3d899fa12723943fc859c92d66e4fb9f76751018e2c5da1d092c8652589",
+    "worker-1/lean--next--next~no-next/case.json": "903160257db0c3d7cbcb0d6aee77d2296b9506384b207c5aaba0bc6314e37815",
+    "worker-1/lean--continuation-next--next~no-next/case.q": "2aa693a161bca21fb053b4252ac3ae2f735fdbc6b8ab41ebf5a120a5e26b41f7",
+    "worker-1/lean--continuation-next--next~no-next/case.json": "74d73ff0147be64e39d49b858339d2128ff3836a3689712f70af80d3e507a057",
+    "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.q": "956906e7a45142a18f693129aa18e314627f0caac3a43299b4a5b7eca2f0c423",
+    "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.json": "f519c582e1b28d8ba990a4c9abcd1c718ab0b1719c556649c43d61784de6774b"
+  },
+  "ordinaryExit": 0,
+  "ordinaryGenerated": 2000,
+  "ordinaryExecuted": 120026,
+  "ordinaryOracles": 9,
+  "ordinaryDisagreements": 0,
+  "method": "Literal exits retained. Every saved Lean case file and all oracle counters match Integration30. No model/oracle/assertion changed or weakened;18 existing next/continuation and E_RULE-vs-NOT_FOUND contract observations remain explicit. Both commissioned short campaigns use current-source release build and seed0/cases2000/workers2."
+}

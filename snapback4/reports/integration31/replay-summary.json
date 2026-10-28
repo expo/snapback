@@ -1,0 +1,59 @@
+{
+  "model": "muse-spark-1.3-contributor",
+  "effort": "high",
+  "fullOriginalBrief": true,
+  "emptyUninstalledStart": true,
+  "records": [
+    {
+      "phase": "before",
+      "modelCalls": 106,
+      "inputTokens": 10504588,
+      "cachedInputTokens": 10353881,
+      "outputTokens": 58001,
+      "wallSeconds": 926.545,
+      "completeExit": 0,
+      "verifyMentions": [],
+      "verifyPhasesReached": [],
+      "scaffoldCasesEdited": false,
+      "acceptanceUsesScaffold": false,
+      "frontendUsesScaffold": false,
+      "verifyScript": null
+    },
+    {
+      "phase": "after",
+      "modelCalls": 127,
+      "inputTokens": 16946518,
+      "cachedInputTokens": 16697517,
+      "outputTokens": 86133,
+      "wallSeconds": 1522.666,
+      "completeExit": 0,
+      "verifyMentions": [
+        {
+          "callId": "call_01a1832822f475359743659fce6a70b8",
+          "commandSha256": "584b619d69581ea9022ff88d548a34ce57971ef1121db3d4225a1a26a0e85b67",
+          "prefixFirstWords": [],
+          "hereDocumentBefore": false,
+          "prefixLines": 0
+        },
+        {
+          "callId": "call_01a183290b5d7579ad136aa253849c55",
+          "commandSha256": "fee23ab99e128463b913c31d61d031b59072bec25bd178693889a8a3c8fe091f",
+          "prefixFirstWords": [],
+          "hereDocumentBefore": false,
+          "prefixLines": 0
+        }
+      ],
+      "verifyPhasesReached": [
+        "check",
+        "acceptance",
+        "frontend:proof",
+        "probe:check"
+      ],
+      "scaffoldCasesEdited": true,
+      "acceptanceUsesScaffold": true,
+      "frontendUsesScaffold": false,
+      "verifyScript": "node scripts/verify.mjs"
+    }
+  ],
+  "limitation": "One noisy pair; observed input and wall time regress. This is adoption evidence, not a performance win. Replay uses pre-final-doc/presentation047 snapshot; final packed qualification separately covers actual shipping source."
+}

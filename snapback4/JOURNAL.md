@@ -110232,3 +110232,36 @@ remain measurements rather than guarantees of generated security coverage.
 ### 2026-10-28 — Integration 31 / 0.4.47
 
 Merge LAT4, VER1 and SCAF1, excluding TOK4. The bounded start/workflow names the generated cases and npm run verify; application-owned npm scripts opt into the packet. Preserve REL4 refusal order, TOK2 output and CALLS1 refusal lines. Conflict-only Muse and fresh Codex reviews both returned NOT READY with three concrete guidance/reference findings, corrected and retained verbatim with dispositions. Build caught an obsolete duplicate reclaim call; main already emits it during acquisition. Locked device measures 2,416,601 raw / 738,640 gzip / 556,421 Brotli bytes; budget739,140 = measurement+500. Whole-artifact version/layout cost is +8 raw/+133 gzip versus0.4.46, with unchanged runtime ceilings. The integration report retains affected, root, packed-consumer, source-copy survey, whole-session replay and latency evidence; publication owns the complete platform battery.
+
+### 2026-10-28 — Integration 31 final evidence
+
+The complete installed-consumer chain passes on c72b850407, including scaffold
+positives/negatives, host frontends/starters/audits and clean Ubuntu/Alpine
+consumers. Native SHA256 is
+7b859bb027dfccbffd5d3684f2a73d2bb111ff34b3e0229424e30667e9193222;
+consumer receipt SHA256 is
+659c28cf075fa653223d7f3bb66c31c211bbbd27e9eb2de537e19b8ff04a09c5.
+It has suite:not-run and publicationQualified:false. The original failures and
+repairs remain explicit: historical README custody, active idle guidance,
+compact notice/console expectations, guide packet vocabulary, current version
+pins, clock fact channel and production snapshot ownership. Production preview
+and authored-byte assertions remain exact; an intervening check adds only the
+eight documented packet leaves before repeat-apply idempotence is asserted.
+An inherited missing DX16 module in the qualifier's disposable fixture is
+restored with full/consumer-only negative controls: 65/65 tests pass. No runtime
+input changes in that fixture-only repair. The scoped affected closure passes
+162 Rust tests and 30 client files (335 pass, two existing skips); all root
+checks pass. Fresh Codex and Muse repair reviews are both READY, with earlier
+received NOT READY findings preserved, not relabelled.
+
+Survey 1,020 has zero new false gates/production refusals and no hidden IDs.
+The paired 54-schema/648-invocation check/staging/production spot check improves
+every median, p90 and maximum; LAT4's 120 copied-store cases have no exit
+changes, with non-security median/p90 0.357/0.753 seconds. Ordinary difftest
+passes 2,000 cases/120,026 executions; Lean retains literal exit1 and the same
+18 observations/16 saved-case hashes as Integration30. The one complete Muse
+pair adopts verify and scaffold acceptance but regresses input tokens
+10.50M→16.95M and wall time 927→1,523 seconds. That is adoption evidence, not a
+whole-session performance win; the 40-lane rerun measures the landed release.
+Durable evidence is reports/integration31/REPORT.md. Publication owns the full
+platform/client battery and npm release.

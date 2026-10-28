@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "preview": "unchanged",
+  "apply": "compiled",
+  "frontend": "unchanged",
+  "identity": [
+    "use identity"
+  ],
+  "writers": [
+    "bootstrapstaffRole1",
+    "bootstrapstaffRole2"
+  ],
+  "idempotent": true,
+  "alreadyProvisioned": false
+}

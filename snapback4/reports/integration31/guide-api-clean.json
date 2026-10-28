@@ -1,0 +1,9 @@
+{
+  "issue": "20261028-sb4-guide-api-fresh-output-directory",
+  "fixedOnMainBy": "978e13fb8e",
+  "directoryAbsentBeforeGeneration": true,
+  "generationExit": 0,
+  "checkExit": 0,
+  "exactRegeneration": true,
+  "files": 11
+}

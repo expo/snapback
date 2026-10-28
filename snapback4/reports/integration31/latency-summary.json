@@ -1,0 +1,190 @@
+[
+  {
+    "cohort": "sample54",
+    "mode": "check",
+    "temperature": "cold",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 2.93155089544598,
+    "p90": 5.828992761904374,
+    "max": 9.018829279113561,
+    "exits": {
+      "0": 52,
+      "1": 2
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "check",
+    "temperature": "cold",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 2.586118343984708,
+    "p90": 5.493871920974925,
+    "max": 8.303169627906755,
+    "exits": {
+      "0": 52,
+      "1": 2
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "check",
+    "temperature": "warm",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 2.226249614963308,
+    "p90": 4.433334451168776,
+    "max": 6.902386232977733,
+    "exits": {
+      "0": 52,
+      "1": 2
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "check",
+    "temperature": "warm",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 2.110546405543573,
+    "p90": 4.171988943126053,
+    "max": 6.241905119968578,
+    "exits": {
+      "0": 52,
+      "1": 2
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "staging",
+    "temperature": "cold",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 2.910757686011493,
+    "p90": 5.997037725057453,
+    "max": 9.716817286098376,
+    "exits": {
+      "0": 54
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "staging",
+    "temperature": "cold",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 2.610579926520586,
+    "p90": 5.568058639997616,
+    "max": 9.281566604971886,
+    "exits": {
+      "0": 54
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "staging",
+    "temperature": "warm",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 0.07629512343555689,
+    "p90": 0.12546536698937416,
+    "max": 0.27588163409382105,
+    "exits": {
+      "0": 54
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "staging",
+    "temperature": "warm",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 0.06612511654384434,
+    "p90": 0.10772053501568735,
+    "max": 0.23881796002388,
+    "exits": {
+      "0": 54
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "production",
+    "temperature": "cold",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 2.859477899968624,
+    "p90": 6.0775620301719755,
+    "max": 9.119500583037734,
+    "exits": {
+      "0": 50,
+      "1": 4
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "production",
+    "temperature": "cold",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 2.5531373530393466,
+    "p90": 5.518375504994765,
+    "max": 8.216727608814836,
+    "exits": {
+      "0": 50,
+      "1": 4
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "production",
+    "temperature": "warm",
+    "label": "0.4.46",
+    "n": 54,
+    "median": 0.07689786702394485,
+    "p90": 0.1736043959390372,
+    "max": 9.209770207060501,
+    "exits": {
+      "0": 50,
+      "1": 4
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  },
+  {
+    "cohort": "sample54",
+    "mode": "production",
+    "temperature": "warm",
+    "label": "0.4.47",
+    "n": 54,
+    "median": 0.06599184556398541,
+    "p90": 0.14824343705549836,
+    "max": 8.061628180090338,
+    "exits": {
+      "0": 50,
+      "1": 4
+    },
+    "toolFailures": [],
+    "setupFailures": []
+  }
+]

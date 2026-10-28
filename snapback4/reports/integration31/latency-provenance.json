@@ -1,0 +1,342 @@
+{
+  "toolSha256": "412333060e015bc37f26b3796d78f546afdafcecc06de15f4fccff149530bf5e",
+  "startedEpoch": 1793202282.199657,
+  "binaries": {
+    "0.4.46": {
+      "path": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46-final",
+      "sha256": "cd4f6de04dd5c972f88e6cff6ad89b32cd6f7bfa7b289cf905e5e9a04d98358d"
+    },
+    "0.4.47": {
+      "path": "/home/ccheever/sb4-loop/reports/integration31/native-0.4.47",
+      "sha256": "07b9a5332508728015bd65de7d8dc42baf0fd265ea5c80b8ae407120f32b588e"
+    }
+  },
+  "workers": 4,
+  "keys": [
+    {
+      "wave": 15,
+      "lane": "001-weld-coupon-quals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 15,
+      "lane": "034-day2-cla-signature-ledger",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 15,
+      "lane": "067-curfew-extension-requests",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "001-snapback-ferry-deck-manifest",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "017-snapback-trial-symptom-diary",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 16,
+      "lane": "033-snapback-compounding-dual-check",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "001-snapback-ferry-deck-manifest",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "017-snapback-trial-symptom-diary",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 17,
+      "lane": "033-snapback-compounding-dual-check",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "001-snapback-falconry-mews-weights",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "017-snapback-quarry-blast-notices",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 18,
+      "lane": "033-snapback-fencing-bout-pools",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "001-snapback-falconry-mews-weights",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "017-snapback-quarry-blast-notices",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 19,
+      "lane": "033-snapback-fencing-bout-pools",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "001-snapback-luthier-crack-repairs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "017-snapback-search-rescue-callouts",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 20,
+      "lane": "033-snapback-lead-service-swaps",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "001-snapback-luthier-crack-repairs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "017-snapback-search-rescue-callouts",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 21,
+      "lane": "033-snapback-lead-service-swaps",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "001-snapback-stained-glass-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "017-snapback-pawn-loan-tickets",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 22,
+      "lane": "033-snapback-kayak-livery-rentals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "001-snapback-stained-glass-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "017-snapback-pawn-loan-tickets",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 23,
+      "lane": "033-snapback-kayak-livery-rentals",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "001-snapback-organ-pipe-voicing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "017-snapback-butcher-custom-orders",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 24,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "001-snapback-organ-pipe-voicing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "017-snapback-butcher-custom-orders",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 25,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "017-snapback-personal-chef-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "017-snapback-personal-chef-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "001-snapback-barometer-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 28,
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "001-snapback-barometer-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 29,
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "001-snapback-weathervane-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "017-snapback-petting-zoo-parties",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "001-snapback-weathervane-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "017-snapback-petting-zoo-parties",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "001-snapback-jukebox-restorations",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "014-snapback-ceiling-draping-installs",
+      "cohort": "sample54",
+      "variant": ""
+    },
+    {
+      "wave": 32,
+      "lane": "027-snapback-animatronic-figure-builds",
+      "cohort": "sample54",
+      "variant": ""
+    }
+  ],
+  "method": "Paired adjacent binaries with rotating order per schema/mode; same four workers and window; cold then warm on the same independent source/JSONL copy. No phase tracing. Preview starts from a fresh matching-binary deployment of the predecessor; setup time is retained separately. Sample54 retains authored JSONL as Integration28; day2-nine uses only Quarry source as wave33-repro/rel/replay.sh. No original stores opened."
+}

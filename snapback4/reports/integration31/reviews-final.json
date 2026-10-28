@@ -1,0 +1,25 @@
+{
+  "r2": {
+    "source": "4d80392391",
+    "diffSha256": "77f9c0ddc91ba2ff5d43e565d850ce9afa0410080070bbe9a14129c3ce27b71e",
+    "codex": "NOT READY: historical suffix mutation and README idle bound",
+    "muse": "NOT READY: README idle bound"
+  },
+  "r3": {
+    "source": "4598f2622a",
+    "diffSha256": "5471ec4ed2b6b5a2a50071f33b33aa49cc561812259fde6e5ca497eace082fbb",
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "fresh": true,
+      "verdict": "READY"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "effort": "high",
+      "fresh": true,
+      "verdict": "READY"
+    }
+  },
+  "disposition": "All actual received reviews retained verbatim. R3 reviews only the bounded repairs required by R2; R2 inspected final authored resolutions and found no other material issue. Restore all four historical constants byte-for-byte, recognize the two pre-cut appendices, retain app-owned edits, state idle/hold in active docs and add frozen released046 regression. Publication qualification and tests remain separate."
+}

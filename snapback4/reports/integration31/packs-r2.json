@@ -1,0 +1,14 @@
+{
+  "snapback4": {
+    "sha256": "9010ee93bab458b5276dff9f7d13378c3a393fcc0887a9fca4c45f19f231c4a4",
+    "changedReplayLeaves": [
+      "package/CHANGELOG.md"
+    ],
+    "runtimeEqualToReplay": true
+  },
+  "snapback4-expo": {
+    "sha256": "7f3962fc15dc55e2e2f4611f7bf47c4f71c593bca67b378139d951127516d5d2",
+    "changedReplayLeaves": [],
+    "runtimeEqualToReplay": true
+  }
+}

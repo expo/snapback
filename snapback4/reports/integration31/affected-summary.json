@@ -1,0 +1,166 @@
+{
+  "source": "d81cef9b0fb75ba356a8511bf36f8ad8e4e793a2",
+  "receiptPath": "/home/ccheever/projects/snapback-sb4loop/target/affected/d81cef9b0fb7-1793204068563.json",
+  "receiptSha256": "48c41f5ed008cc78055a8aacd750f71cf03cfd7eb322bc187bb81a2d96cd2f11",
+  "ok": true,
+  "unchanged": true,
+  "canonicalComplete": false,
+  "rustPassed": 162,
+  "rustFailed": 0,
+  "clientFiles": 30,
+  "clientResult": "-- client files: 30/30; failed 0; tests {\"tests\":337,\"pass\":335,\"fail\":0,\"cancelled\":0,\"skipped\":2,\"todo\":0}",
+  "steps": [
+    {
+      "id": "rust:cli-integration-closure",
+      "status": 0,
+      "milliseconds": 138399
+    },
+    {
+      "id": "rust:historical-readme",
+      "status": 0,
+      "milliseconds": 29152
+    },
+    {
+      "id": "rust:moved-init-tests",
+      "status": 0,
+      "milliseconds": 8466
+    },
+    {
+      "id": "rust:complete-guide",
+      "status": 0,
+      "milliseconds": 49943
+    },
+    {
+      "id": "client-tests",
+      "status": 0,
+      "milliseconds": 147618
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "milliseconds": 5249
+    }
+  ],
+  "priorWideAttempt": {
+    "source": "64a92d6eef",
+    "result": "FAIL retained; known CLI/guide/client assertions corrected, input changes retained",
+    "receiptPath": "/home/ccheever/projects/snapback-sb4loop/target/affected/64a92d6eef05-1793199621567.json",
+    "reusedPrerequisiteResults": [
+      {
+        "id": "install-client",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 89
+      },
+      {
+        "id": "build-cli",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 57023
+      },
+      {
+        "id": "build-wasm",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 38522
+      },
+      {
+        "id": "build-client",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 7366
+      },
+      {
+        "id": "typecheck:snapback4",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 2972
+      },
+      {
+        "id": "fixture-tests",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 11077
+      },
+      {
+        "id": "chat-check",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 491
+      },
+      {
+        "id": "chat-typecheck",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 1269
+      },
+      {
+        "id": "diagnostics",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 196239
+      },
+      {
+        "id": "docs-budget",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 225
+      },
+      {
+        "id": "expo-typecheck",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 1136
+      },
+      {
+        "id": "generated",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 241716
+      },
+      {
+        "id": "guide",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 213545
+      },
+      {
+        "id": "inventories",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 197983
+      },
+      {
+        "id": "packaged-docs",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 42
+      },
+      {
+        "id": "ref-check",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 5226
+      },
+      {
+        "id": "release-guard",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 21471
+      },
+      {
+        "id": "selector-tests",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 17427
+      },
+      {
+        "id": "wasm-measurement",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 41527
+      }
+    ]
+  },
+  "scope": "Integration31 final affected closure against pinned pre-merge main. Original complete touched CLI/language crates,28 client files and root/build checks are retained literally, including their initial deterministic reds and changed-input verdict. Relevant repaired CLI/guide targets and all30 selected clients execute again here on final source. Original unmodified core/SDK/wasm/build/root stages already passed; exact omissions and reused results are explicit. This is commissioned lean affected evidence, not the prohibited seven-crate458-client/model pool, and not publication qualification."
+}

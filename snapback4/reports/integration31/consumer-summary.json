@@ -1,0 +1,116 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "c72b850407dd047941a1057204b9b4ceb0714689",
+  "version": "0.4.47",
+  "route": "proot",
+  "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+  "expoIntegrity": "sha512-/Ebss42mAs/QFFLygdc+0F/yzwyIi//oaPEva98Ntlvombz2m+jdoAK/d5X6WjLwJZIdtvpGFQKdCE+VzvtsWQ==",
+  "binarySha256": "7b859bb027dfccbffd5d3684f2a73d2bb111ff34b3e0229424e30667e9193222",
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "completeConsumerChainExit": 0,
+  "seconds": 1989.7102931020781,
+  "receiptSha256": "659c28cf075fa653223d7f3bb66c31c211bbbd27e9eb2de537e19b8ff04a09c5",
+  "retainedReceipt": "/home/ccheever/sb4-loop/reports/integration31/consumer-r3/consumer.json",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.47",
+    "filename": "snapback4-linux-x64-0.4.47.tgz",
+    "integrity": "sha512-wNGeO570Xrx5YdcfBQWugOPKtf7wWfHhQpC18l1ovFUO+TrOWbgxYGoPuFWVPms7Jmd63hQOzyUwe6SOzPeLZQ==",
+    "bytes": 18771110
+  },
+  "proofStatuses": {
+    "elf": "passed",
+    "day2Proof": "passed",
+    "dx8Proof": "passed",
+    "dx5Proof": "passed",
+    "day4Proof": "passed",
+    "day5Proof": "passed",
+    "productionProofs": "passed",
+    "proofKit": "passed",
+    "clientRecipes": "passed",
+    "ruleRecipes": "passed",
+    "stagingProof": "passed",
+    "migrationProof": "passed",
+    "securityProof": "passed",
+    "suite": "not-run"
+  },
+  "platformProofs": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "24.13.1",
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 377604,
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "platformIntegrity": "sha512-wNGeO570Xrx5YdcfBQWugOPKtf7wWfHhQpC18l1ovFUO+TrOWbgxYGoPuFWVPms7Jmd63hQOzyUwe6SOzPeLZQ==",
+      "expoIntegrity": "sha512-/Ebss42mAs/QFFLygdc+0F/yzwyIi//oaPEva98Ntlvombz2m+jdoAK/d5X6WjLwJZIdtvpGFQKdCE+VzvtsWQ==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 497992,
+      "clientIntegrity": "sha512-tGJ3EHUbOOjaHu+EZ4canlQLiNAeXh7aWb6A43UzPF81UB4ocExCPlIt7oqQ7aPtGA04aSi326wNkcFhz3RCrg==",
+      "platformIntegrity": "sha512-wNGeO570Xrx5YdcfBQWugOPKtf7wWfHhQpC18l1ovFUO+TrOWbgxYGoPuFWVPms7Jmd63hQOzyUwe6SOzPeLZQ==",
+      "expoIntegrity": "sha512-/Ebss42mAs/QFFLygdc+0F/yzwyIi//oaPEva98Ntlvombz2m+jdoAK/d5X6WjLwJZIdtvpGFQKdCE+VzvtsWQ==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "scaffoldProof": {
+    "status": "passed",
+    "syntax": 5,
+    "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
+    "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
+    "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+    "negative": [
+      "unfilled acceptance",
+      "unfilled frontend",
+      "UI click without a durable write",
+      "wrong refusal code",
+      "missing excluded role",
+      "new operation with preserved edits",
+      "edited stale schema facts",
+      "empty acceptance"
+    ],
+    "qualification": false
+  },
+  "additionalStageReports": {
+    "client-recipes.json": "passed",
+    "day2-proof.json": "passed",
+    "day4-proof.json": "passed",
+    "day5-proof.json": "passed",
+    "dormant.json": "passed",
+    "dx16-proof.json": "passed",
+    "dx4-proof.json": "passed",
+    "dx5-proof.json": "passed",
+    "dx6-proof.json": "passed",
+    "dx7-proof.json": "passed",
+    "dx8-proof.json": "passed",
+    "migrations.json": "passed",
+    "production-proofs.json": "passed",
+    "proofs.json": "see-retained-report",
+    "release-transitions.json": "passed",
+    "rule-recipes.json": "passed",
+    "scaf1.json": "passed",
+    "security.json": "passed",
+    "staging.json": "passed"
+  }
+}

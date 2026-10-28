@@ -1,0 +1,22 @@
+[
+  {
+    "lane": "sb4-b36-lat4",
+    "revision": "8af058e18dba15ed0a320b3aa66151f24d16f7af",
+    "ancestorOfIntegration": true
+  },
+  {
+    "lane": "sb4-b36-ver1",
+    "revision": "f91a774e12a7d9997723344e448666314e250fc3",
+    "ancestorOfIntegration": true
+  },
+  {
+    "lane": "sb4-b36-scaf1",
+    "revision": "c4386f8f843bbc629bcbde2b30a2d68907fc9fa7",
+    "ancestorOfIntegration": true
+  },
+  {
+    "lane": "sb4-b36-tok4",
+    "revision": "6ce7242f9a698b3f49779f27648feaeae0121086",
+    "ancestorOfIntegration": false
+  }
+]

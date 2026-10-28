@@ -1,0 +1,357 @@
+{
+  "schemas": 1020,
+  "sourceMatchedBaselineSchemas": 1020,
+  "baseline": "Integration30 source-reviewed1020 survey",
+  "falseNewGates": 0,
+  "newProductionRefusals": 0,
+  "gates": [
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:102:3",
+      "operation": "recordInstallation",
+      "carried": true
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:116:3",
+      "operation": "recordInstallation",
+      "carried": true
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:84:3",
+      "operation": "advanceJob",
+      "carried": true
+    },
+    {
+      "wave": 31,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:60:10",
+      "operation": "openFitting",
+      "carried": true
+    },
+    {
+      "wave": 31,
+      "lane": "014-snapback-balloon-decor-installs",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:91:10",
+      "operation": "openProject",
+      "carried": true
+    },
+    {
+      "wave": 31,
+      "lane": "019-snapback-pet-relocation-flights",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:88:10",
+      "operation": "openMove",
+      "carried": true
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:141:3",
+      "operation": "advanceJob",
+      "carried": true
+    }
+  ],
+  "enforcedRefutations": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 186
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "carried": true
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 287
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "carried": true
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 215
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "carried": true
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 201
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "carried": true
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 312
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "carried": true
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 253
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 151
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+        "line": 157
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 174
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 174
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "carried": true
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 163
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 169
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/fcfe4d3ad4e863c722a4b3da1beb5a7936aa1f7eecfc567a0042ca8cf5a71dae/schema.q",
+        "line": 175
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "site": {
+        "col": 3,
+        "file": "$derived/participant-conservation/de3c926e1c3d413be6acadd56ca47d2cf820d9416923d63e7ec8bc25cbdf3886/schema.q",
+        "line": 112
+      },
+      "predicate": "participant removal conserves receipts: refund covers charge for [(\"outing\", \"outing\"), (\"hiker\", \"hiker\")]",
+      "operation": "removeOutingHiker",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 176
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 176
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "carried": true
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 180
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "carried": true
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+        "line": 90
+      },
+      "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+      "operation": "changeLikeness",
+      "carried": true
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+        "line": 90
+      },
+      "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+      "operation": "changeLikeness",
+      "carried": true
+    }
+  ],
+  "freshRefusals": 20,
+  "defaultCheckLines": {
+    "median": 4.0,
+    "p90": 7,
+    "max": 17
+  },
+  "defaultDeployLines": {
+    "median": 3.0,
+    "p90": 3,
+    "max": 5
+  },
+  "hiddenGateOrWitnessIds": [],
+  "unclassified": [],
+  "rowsSha256": "748a5b8264fa74e54c6dfdef888703c109ded2305dfe40ed441aaa5eb4a24678",
+  "provenance": {
+    "rows": 1020,
+    "unchangedOriginalRows": 970,
+    "wave31RowsReexecuted": 50,
+    "command": [
+      "timeout",
+      "3600s",
+      "python3",
+      "/home/ccheever/sb4-loop/reports/integration31/survey.py",
+      "--binary",
+      "/home/ccheever/sb4-loop/reports/integration31/survey-native-0.4.47",
+      "--out",
+      "/home/ccheever/sb4-loop/reports/integration31/survey-wave31",
+      "--waves",
+      "31",
+      "--workers",
+      "4",
+      "--default-output",
+      "--predecessor-v1"
+    ],
+    "originalRowsSha256": "83cee57a7ff08fd4936c92726be57ca8ffc51a593bcb8f80f846c292d87c74ed",
+    "wave31RowsSha256": "4ab5fe69a5f177a58e1741951cb28382519187c8879e758471c824a12ecaea16",
+    "reason": "Integration30 survey supplies exact day-one sources as the wave31 write baseline. Initial1020 run omitted that context; preserve it, rerun all50 affected wave31 cases with the same predecessor-v1 flag, reuse other970 source/fixture-identical rows. No verdict normalization."
+  }
+}

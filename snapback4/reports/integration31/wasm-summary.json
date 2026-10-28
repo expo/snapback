@@ -1,0 +1,23 @@
+{
+  "sourceLog": "affected.log",
+  "measurement": {
+    "at": "2026-10-28T16:08:53Z",
+    "sha": "e76eadffbb",
+    "dirty": false,
+    "wasm": {
+      "raw": 2416601,
+      "gzip": 738640,
+      "brotli": 556421
+    },
+    "glue": {
+      "raw": 16053,
+      "gzip": 3695,
+      "brotli": 3260
+    },
+    "wasmOpt": true,
+    "budget": 739140,
+    "over": 0
+  },
+  "headroomBytes": 500,
+  "familyAndAbsenceAudits": "passed"
+}
