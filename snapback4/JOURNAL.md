@@ -109994,3 +109994,8 @@ Merge LAT1, REL4, SRV1, DX16, TOK3, TOK2, CALLS1 and LAT3 in order, keeping SEC1
 ### 2026-10-28 — Integration 30 production restoration follow-up
 
 The first selected Rust run caught a public command-table ordering mismatch for promote/rollback; restore the common ordered contract without changing its assertion. Item 9 inspection also found strict-production SECP restoration still sequential. Compute that independent replay alongside report/witness campaigns, bind it to the full actual note vector, reduce only after the current-source/current-report guards, and fall back to the original replay on mismatch. Exact suffix/payload and mismatch-no-authority tests are retained. Preliminary timings are preserved separately and final paired measurements restart on the new executable; no preliminary pass is promoted. Existing conflict-only reviews remain scoped to their original diff, with no extra reviewer round.
+
+
+### 2026-10-28 — Integration 30 deterministic verification repairs
+
+The broad affected run exposed older scaffold tests attempting registry installation of the unpublished pin, frozen-capture fixtures without their SDK, and detailed-output assertions on compact defaults. Fixtures defer installation, supply local dependencies, and select documented --explain/--verbose output while preserving state/authority/count assertions. Default witnessed-question visibility stays a default-output test. A real dense-search defect discarded every hit as one oversized paragraph; retain query and numbered match rows with the existing byte cap and a complete-section pointer, covered by a Unicode/literal-hit regression. The earlier timing executable predates this guide-only repair and is retained separately; final executable qualification is distinct.

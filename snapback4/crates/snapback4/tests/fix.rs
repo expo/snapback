@@ -360,9 +360,11 @@ fn calibration_cursor_index_has_specific_code_and_cli_repair() {
 #[test]
 fn calibration_guide_cli_resolves_the_builders_words() {
     for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "time"), ("clock", "time"), ("schedule", "jobs"), ("mutations", "writes"), ("replay", "personas"), ("seed", "personas")] {
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word, "--full"]).output().unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word, "--full", "--repeat"]).output().unwrap();
         assert!(output.status.success(), "{word}: {output:?}");
-        assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), snapback4_lang::guide::card(target).unwrap().trim_end());
+        let canonical=std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide",target,"--full","--repeat"]).output().unwrap();
+        assert!(canonical.status.success(),"{target}: {canonical:?}");
+        assert_eq!(output.stdout,canonical.stdout,"aliases retain the exact bounded public reference response");
     }
 }
 

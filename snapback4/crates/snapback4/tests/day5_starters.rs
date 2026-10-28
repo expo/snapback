@@ -6,7 +6,9 @@ impl App {
     fn new() -> Self {
         static NEXT: AtomicUsize=AtomicUsize::new(0);
         let root=std::env::temp_dir().join(format!("sb4-day5-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
-        fs::create_dir(&root).unwrap(); Self(root)
+        fs::create_dir(&root).unwrap();
+        #[cfg(unix)] std::os::unix::fs::symlink(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../node_modules"),root.join("node_modules")).unwrap();
+        Self(root)
     }
     fn run(&self,args:&[&str])->Output {Command::new(BIN).args(args).current_dir(&self.0).env("SNAPBACK4_INIT_INSTALL","0").env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
     fn ok(&self,args:&[&str])->String {let out=self.run(args);assert!(out.status.success(),"{args:?}: {out:?}");String::from_utf8(out.stdout).unwrap()}
@@ -15,7 +17,7 @@ impl App {
 }
 impl Drop for App {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 fn snapshot(root:&Path)->BTreeMap<PathBuf,Vec<u8>> {
-    fn walk(root:&Path,dir:&Path,out:&mut BTreeMap<PathBuf,Vec<u8>>){for entry in fs::read_dir(dir).unwrap(){let entry=entry.unwrap();if entry.file_type().unwrap().is_dir(){walk(root,&entry.path(),out);}else {out.insert(entry.path().strip_prefix(root).unwrap().to_owned(),fs::read(entry.path()).unwrap());}}}
+    fn walk(root:&Path,dir:&Path,out:&mut BTreeMap<PathBuf,Vec<u8>>){for entry in fs::read_dir(dir).unwrap(){let entry=entry.unwrap();if entry.file_name()=="node_modules" {continue;}if entry.file_type().unwrap().is_dir(){walk(root,&entry.path(),out);}else {out.insert(entry.path().strip_prefix(root).unwrap().to_owned(),fs::read(entry.path()).unwrap());}}}
     let mut out=BTreeMap::new();walk(root,root,&mut out);out
 }
 #[test]

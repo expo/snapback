@@ -22,7 +22,7 @@ fn rolled()->App{let a=App::new();a.source(OLD);a.ok(&["deploy","deploy"]);a.see
 #[test]
 fn wave31_041_redundant_rollback_records_nothing_and_forward_still_restores_native_edit(){
     let a=rolled();let before=a.json(&["releases","deploy"]);
-    assert!(a.ok(&["rollback","deploy","--to","1"]).contains("release 1 is already live"));
+    assert!(a.ok(&["rollback","deploy","--to","1","--explain"]).contains("release 1 is already live"));
     let preview=a.json(&["rollback","deploy","--to","1","--check"]);assert_eq!(preview["visibility"]["hiddenRows"],0);
     assert_eq!(a.json(&["releases","deploy"]),before);
     a.ok(&["rollback","deploy","--to","latest","--exact"]);assert_eq!(a.stage(),"outer_covering");
@@ -105,6 +105,6 @@ fn wave31_041_legacy_pointer_initialization_is_not_an_already_live_transition() 
     a.ok(&["deploy","deploy"]);let state=a.json(&["releases","deploy"]);
     assert_eq!(state["current"],1);assert_eq!(state["generation"],before_generation+1);assert_eq!(a.stage(),"wood_repair");
     for event in state["events"].as_array().unwrap(){assert_ne!(event["release"],event["previous"]);}
-    assert!(a.ok(&["rollback","deploy","--to","1"]).contains("already live"));
+    assert!(a.ok(&["rollback","deploy","--to","1","--explain"]).contains("already live"));
     assert_eq!(a.json(&["releases","deploy"]),state);
 }

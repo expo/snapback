@@ -7,11 +7,13 @@ struct App(PathBuf);
 impl App {
     fn new() -> Self {
         let path = std::env::temp_dir().join(format!("sb4-day3-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
-        fs::create_dir_all(&path).unwrap(); Self(path)
+        fs::create_dir_all(&path).unwrap();
+        #[cfg(unix)] std::os::unix::fs::symlink(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../node_modules"),path.join("node_modules")).unwrap();
+        Self(path)
     }
     fn run(&self, args: &[&str]) -> Output { { let mut command=self.command(args);if args.first()==Some(&"test"){command.arg("--explain");} command.output().unwrap() } }
     fn command(&self, args: &[&str]) -> Command {
-        let mut command = Command::new(BIN); command.args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI"); command
+        let mut command = Command::new(BIN); command.args(args).current_dir(&self.0).env("SNAPBACK4_INIT_INSTALL","0").env("SNAPBACK4_BIN",BIN).env_remove("PORT_LO").env_remove("PORT_HI"); command
     }
     fn write(&self, path: &str, text: &str) { fs::create_dir_all(self.0.join(path).parent().unwrap()).unwrap(); fs::write(self.0.join(path), text).unwrap(); }
     fn text(&self, path: &str) -> String { fs::read_to_string(self.0.join(path)).unwrap() }

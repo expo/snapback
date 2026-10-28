@@ -2,7 +2,7 @@ use std::{fs,path::PathBuf,process::Command};
 struct Scratch(PathBuf);
 impl Drop for Scratch {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 fn scratch(name:&str)->Scratch {let p=std::env::temp_dir().join(format!("dx13-{name}-{}",std::process::id()));fs::create_dir_all(p.join("snapback")).unwrap();Scratch(p)}
-fn run(p:&Scratch,args:&[&str])->std::process::Output {Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&p.0).args(args).output().unwrap()}
+fn run(p:&Scratch,args:&[&str])->std::process::Output {Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&p.0).args(args).env("SNAPBACK4_INIT_INSTALL","0").output().unwrap()}
 #[test]
 fn cold_default_check_and_deploy_show_concrete_witnesses_without_review() {
  let p=scratch("witness");
@@ -13,7 +13,9 @@ fn cold_default_check_and_deploy_show_concrete_witnesses_without_review() {
  for args in [vec!["check"],vec!["deploy","release"]] {
   let out=run(&p,&args);let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
   assert!(out.status.success(),"{text}");
-  let verdict=text.lines().next().unwrap();assert!(verdict.contains("witnessed questions")&&verdict.contains("don't block"),"{verdict}");
+  let verdict=text.lines().next().unwrap();
+  if args[0]=="check" {assert!(verdict.contains("witnessed questions")&&verdict.contains("don't block"),"{verdict}");}
+  else {assert!(verdict.starts_with("deploy:"),"{verdict}");assert!(text.lines().any(|line|line.contains("witnessed questions")&&line.contains("don't block")),"{text}");}
   assert!(text.contains("Witness:")&&text.contains("N_ARGUMENT_GRANT")&&text.contains("intended?"),"{text}");
   assert!(text.contains("don't block"),"{text}");
  }

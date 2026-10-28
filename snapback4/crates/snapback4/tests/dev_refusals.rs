@@ -430,7 +430,7 @@ fn fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard
  let fixture=project.0.join("fixture");fs::create_dir(&fixture).unwrap();
  fs::write(fixture.join("rows.jsonl"),"{\"id\":\"hidden\",\"owner\":\"dev:bob\"}\n").unwrap();
  fs::write(fixture.join("test.cases.jsonl"),"{\"as\":\"alice\",\"op\":\"point\",\"args\":{\"id\":\"hidden\"},\"expect\":\"complete\",\"data\":null}\n{\"as\":\"alice\",\"op\":\"add\",\"args\":{\"owner\":\"alice\"},\"expect\":\"E_INPUT\"}\n").unwrap();
- let out=Command::new(BIN).current_dir(&project.0).args(["test","--fixture","fixture"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
+ let out=Command::new(BIN).current_dir(&project.0).args(["test","--fixture","fixture","--explain"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
 }
 impl Host {
  fn post_authenticated(&self,path:&str,payload:Value,auth:&str)->Value {

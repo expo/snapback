@@ -9,7 +9,7 @@ impl Project {
         fs::create_dir_all(&path).unwrap(); Self(path)
     }
     fn run(&self, args: &[&str]) -> Output {
-        Command::new(BIN).args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()
+        Command::new(BIN).args(args).current_dir(&self.0).env("SNAPBACK4_INIT_INSTALL","0").env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()
     }
     fn text(&self, path: &str) -> String { fs::read_to_string(self.0.join(path)).unwrap() }
 }

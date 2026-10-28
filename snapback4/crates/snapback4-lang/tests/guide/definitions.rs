@@ -6,6 +6,16 @@ mod refusal_actions;
 fn normalize(text: &str) -> String { text.split_whitespace().collect::<Vec<_>>().join(" ") }
 
 #[test]
+fn dense_literal_search_retains_matching_rows_inside_the_existing_byte_budget() {
+    let card=format!("# Dense\n\n## Results\n\n{}",format!("needle ' {}\n","界".repeat(300)).repeat(100));
+    let text=snapback4_lang::guide::find("dense",&card,"'").unwrap();
+    assert!(text.len()<=snapback4_lang::guide::FULL_BYTES);
+    assert!(text.contains(": needle ' "),"the actual matching row survives, not only the query header");
+    assert!(text.contains("more matching context")&&text.contains("--section"));
+    assert!(!text.contains('\u{fffd}'),"UTF-8 is not split at the byte boundary");
+}
+
+#[test]
 fn heaviest_account_aliases_reach_the_executable_acquisition_recipe() {
     for alias in ["envelope", "heaviest", "1000", "cold start", "cold restart", "acquire"] {
         assert_eq!(card(alias), card("bounds"));

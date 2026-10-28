@@ -590,6 +590,15 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     }
     if shown < hits.len() { out.push_str(&format!("… {} more; narrow the words or read one section with --section <number>\n", hits.len() - shown)); }
     out.push_str(&format!("Whole sections: snapback4 guide {name} --section <number>"));
+    // Search rows are numbered excerpts, not executable fences. Keep the query
+    // and the first actual matches when a dense result exceeds the read budget;
+    // paragraph-only bounding would discard the entire result as one block.
+    if out.len() > FULL_BYTES {
+        let tail=format!("\n… more matching context; narrow the words or read snapback4 guide {name} --section <number>");
+        let room=FULL_BYTES.saturating_sub(tail.len());
+        let end=out[..out.floor_char_boundary(room)].rfind('\n').unwrap_or_else(||out.floor_char_boundary(room));
+        out.truncate(end);out.push_str(&tail);
+    }
     if any { Err(out) } else { Ok(out) }
 }
 

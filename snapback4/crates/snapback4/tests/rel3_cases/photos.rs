@@ -15,7 +15,7 @@ fn wave31_003_023_guarded_photos_follow_receipt_owned_ids_after_exact_cycles(){
     for _ in 0..2 {
         let human=app.ok(&["rollback","deploy","--to","1","--check"]);assert!(!human.contains("\"matchesTarget\"")&&!human.contains("\"differences\""),"{human}");
         let preview=app.json(&["rollback","deploy","--to","1","--check"]);assert_eq!(preview["visibility"]["hiddenRows"],0,"{preview}");
-        let out=app.ok(&["rollback","deploy","--to","1"]);assert!(out.contains("still runs the registered workflow and current guards"),"{out}");
+        let out=app.ok(&["rollback","deploy","--to","1","--explain"]);assert!(out.contains("still runs the registered workflow and current guards"),"{out}");
         let status=app.json(&["releases","deploy"]);assert_eq!(status["live"]["exact"],false);
         let before=status.clone();app.ok(&["rollback","deploy","--to","1"]);assert_eq!(app.json(&["releases","deploy"]),before);
         let mut e=app.engine();let result=e.query("list",Context::new("alice",BTreeMap::new())).unwrap();let rows=snapback4_core::wire::to_json(&result.data);

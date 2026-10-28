@@ -62,7 +62,7 @@ fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     assert!(String::from_utf8_lossy(&second.stderr).contains("E_STORE_BUSY"), "{second:?}");
     fs::write(dir.0.join("snapback/schema.q"), schema.replace("return 1", "return 2")).unwrap();
     // Address discovery does not depend on the serving shell's runtime env.
-    let deployed = Command::new(BIN).current_dir(&dir.0).args(["deploy", release])
+    let deployed = Command::new(BIN).current_dir(&dir.0).args(["deploy", release, "--explain"])
         .env("XDG_RUNTIME_DIR", dir.0.join("different-runtime")).output().unwrap();
     assert!(deployed.status.success(), "{deployed:?}");
     assert!(String::from_utf8_lossy(&deployed.stdout).contains("release 2 is current as generation 2"), "{deployed:?}");
@@ -125,7 +125,7 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
     for (verb, initial_soft, hard_low) in [("dev", 64, false), ("serve", 64, false), ("dev", 64, true), ("dev", 1024, true), ("serve", 1024, true)] {
         let mut command = Command::new(BIN);
-        command.arg(verb).args(["--port", "0"]).current_dir(&dir.0);
+        command.arg(verb).args(["--port", "0", "--verbose"]).current_dir(&dir.0);
         if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch"]); }
         else { command.arg(&deployment); }
         unsafe { command.pre_exec(move || {
