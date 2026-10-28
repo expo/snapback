@@ -1,0 +1,20 @@
+{
+  "sequence": 82,
+  "measurement_id": "082-writes-supabase-W4-B-3805-rep1",
+  "reason": "PostgREST bind Address in use",
+  "no_timed_load": true,
+  "completed_trials_retained": 81,
+  "owned_clusters_stopped": true,
+  "supabase_fixture_retained": true,
+  "r8_fixture_cleaned_by_normal_runner_shutdown": true,
+  "resume": "fresh R8 fixture using the same frozen Engine::seed_at helper; retained Supabase fixture revalidated; resume at missing control",
+  "endpoint": "unchanged private PG55441, HTTP58080; add untimed bind-availability wait",
+  "supabase_counter_audit": {
+    "counter_sum": 3660476,
+    "expected_from": "080-writes-supabase-W4-B-3200-rep5",
+    "exact_match": true,
+    "no_managed_row_repair": true,
+    "no_prior_trial_replacement": true
+  },
+  "seed_equality_revalidated": true
+}

@@ -1,0 +1,10 @@
+{
+  "cells": 188,
+  "trials": 188,
+  "scheduled_arrivals": 14802980,
+  "cells_with_passing_rate": 58,
+  "unknown_write_outcome_trials": 6,
+  "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets",
+  "scope": "all raw attempts, including contamination and retries, normalized into one-rate/one-repetition views using hard links; unchanged original S1 auditor; normalization does not select or overwrite raw evidence",
+  "raw_trial_count": 188
+}

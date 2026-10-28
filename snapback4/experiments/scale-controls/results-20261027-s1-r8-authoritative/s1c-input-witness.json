@@ -1,0 +1,23 @@
+{
+  "files": {
+    "supabase-schema.sql": {
+      "sha256": "ba413687d1706c7194defef0b5290a7b16b1f28c1c2c792696d14ea2e02f9f88",
+      "s1c_sha256": "ba413687d1706c7194defef0b5290a7b16b1f28c1c2c792696d14ea2e02f9f88"
+    },
+    "supabase-align.sql": {
+      "sha256": "4fd7cbdac69c7c80d940121cf1473a26659c85ca29f496fc89e7f696b6c1c6e7",
+      "s1c_sha256": "4fd7cbdac69c7c80d940121cf1473a26659c85ca29f496fc89e7f696b6c1c6e7"
+    },
+    "supabase.conf": {
+      "sha256": "71c95b2966c96f2c1e9c0a035fba2a1fdc31de80eef32c4b2fbbce21e25351a8",
+      "s1c_sha256": "71c95b2966c96f2c1e9c0a035fba2a1fdc31de80eef32c4b2fbbce21e25351a8"
+    },
+    "postgresql.conf.delta": {
+      "sha256": "b3f2534ba90a87b675c1d0a8f5343c30af9b54b14c223e4187e7b3ebf7133bda",
+      "s1c_sha256": "b3f2534ba90a87b675c1d0a8f5343c30af9b54b14c223e4187e7b3ebf7133bda"
+    }
+  },
+  "s1c_harness_sha256": "bf4c6d739f9a2562c7cbdf24bf91b557dcce1e1c15be2a5569658e3989ae6f83",
+  "current_harness_sha256": "d45a45607123e38114e25b7a7f379c384a342d1f9af42595c3047449171814e9",
+  "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee"
+}

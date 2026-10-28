@@ -1,0 +1,38 @@
+{
+  "scope": "report-only measurement; unchanged product, generator and checked-in runner",
+  "governing": [
+    "LLP 3000#1-decisions",
+    "LLP 3000.009.001.002#6-method-and-metrics",
+    "LLP 3000.009.001.000.000.003#8.2-w4a-at-3805-and-4525s",
+    "S1-C METHOD.md",
+    "author S1 ruling 9 and current lane brief"
+  ],
+  "read_reference": {
+    "path": "snapback4/experiments/scale-controls/results-20261025-s1-reads/README.md",
+    "sha256": "eb8af1d5948d201a0746d59be8891118b184fc8b5076d820b8f15a4fb2de80df",
+    "landed_report_commit": "be0b9219f0d8b34408917239804a683a73f68f11",
+    "g6_rungs": {
+      "W1": 8000,
+      "W2": 11313,
+      "W3": 16000
+    },
+    "links": [
+      "A",
+      "B"
+    ]
+  },
+  "diagnostic_rule": "Native collectors off; one fresh indexed diagnostic companion for each R8 W4/A and hot1/B measurement",
+  "hand_off": "none",
+  "time": 1793108473.040659,
+  "exact_reference": {
+    "path": "snapback4/experiments/scale-controls/results-20261027-s1-writes-wb/README.md",
+    "sha256": "9661d36d7390c838b7f3c7268f2e2836a0450aa3a4b640f4d5c7d0271136b344",
+    "rungs": {
+      "A": 1131,
+      "B": 1131
+    },
+    "reason": "Latest landed native main exact-key matrix; R0 sanity is not a main measurement; 2096/1678 SPR8 rates are on the other host with shorter windows"
+  },
+  "candidate": "6c0fe17c6e",
+  "main": "982e77a600"
+}

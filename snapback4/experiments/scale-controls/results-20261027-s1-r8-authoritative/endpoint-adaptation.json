@@ -1,0 +1,8 @@
+{
+  "system": "supabase",
+  "from_port": 55440,
+  "to_port": 55441,
+  "occurrences": 1,
+  "only_source_replacement": "port=55440 -> port=55441",
+  "protected_cluster_connected": false
+}

@@ -1,0 +1,34 @@
+{
+  "start": 1793148452.2535229,
+  "end": 1793148458.3858714,
+  "before_free_bytes": 29710086144,
+  "after_free_bytes": 30195273728,
+  "scope": "only own superseded completed-lane executables after byte-for-byte verified recovery from their digest-checked archives; no raw data removed",
+  "removed": [
+    {
+      "path": "/home/ccheever/sb4scale/s1-r0-authoritative-20261027/bin/snapback4-r0",
+      "bytes": 333437984,
+      "sha256": "a21127fd25d127558de0778a98d6a99432a96680dc2202524ff6f5f7ad929ebf",
+      "verified_archive": "/home/ccheever/sb4scale/archive/s1-r0-authoritative-20261027.tar.gz",
+      "archive_sha256": "9879fc4e3d69ed179b0a65f4d01ba586e3c3226db7db79f162671341fdacd61c",
+      "member": "s1-r0-authoritative-20261027/bin/snapback4-r0"
+    },
+    {
+      "path": "/home/ccheever/sb4scale/s1-writes-wc-20261027/bin/snapback4-main",
+      "bytes": 77458768,
+      "sha256": "c95bf3d6c6ff78ed596c91e5824af6be4c72008a2cd5274206b81bbfd2ce7f75",
+      "verified_archive": "/home/ccheever/sb4scale/archive/s1-writes-wc-20261027.tar.gz",
+      "archive_sha256": "7f8071e0bf782bf13dfa27d4991a67529b218b65e55b2a8b71539be8c30fb658",
+      "member": "s1-writes-wc-20261027/bin/snapback4-main"
+    },
+    {
+      "path": "/home/ccheever/sb4scale/s1-writes-wc-20261027/bin/snapback4-wp",
+      "bytes": 74769792,
+      "sha256": "d337f019dd92c95fa0a302ba805ccb01221856c80225f5bd6b5d459d2fc927d0",
+      "verified_archive": "/home/ccheever/sb4scale/archive/s1-writes-wc-20261027.tar.gz",
+      "archive_sha256": "7f8071e0bf782bf13dfa27d4991a67529b218b65e55b2a8b71539be8c30fb658",
+      "member": "s1-writes-wc-20261027/bin/snapback4-wp"
+    }
+  ],
+  "current_r8_main_and_frozen_helpers_verified": true
+}

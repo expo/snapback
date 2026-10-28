@@ -1,0 +1,55 @@
+{
+  "roots_removed": 6,
+  "all_private_roots_absent": true,
+  "clusters": [
+    {
+      "system": "supabase",
+      "source": "supabase-resume-01",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "snapback",
+      "source": "r8-resume-01",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "snapback",
+      "source": "main",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "supabase",
+      "source": "supabase",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "snapback",
+      "source": "r8",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "snapback",
+      "source": "setup-failed-01/r8",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "supabase",
+      "source": "controller-generation-02/supabase-resume-01",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    }
+  ]
+}

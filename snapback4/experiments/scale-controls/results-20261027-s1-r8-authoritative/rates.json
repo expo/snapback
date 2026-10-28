@@ -1,0 +1,3121 @@
+[
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 248155,
+    "max_error_fraction": 0.9976579925650557,
+    "error_types": {
+      "expired_before_send": 235289,
+      "http_503": 12866
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      217.59965457842802,
+      26.176996422396588,
+      221.5841935285566,
+      218.25630901670075,
+      220.75347520062047
+    ],
+    "sent_means_lower_ms": [
+      3.7162300102075536e-05,
+      6.844852140783744e-05,
+      3.957770854967116e-05,
+      3.505453306066803e-05,
+      3.6143054119269216e-05
+    ],
+    "p50_ms": {
+      "median": 1112.539135,
+      "min": 1043.333119,
+      "max": 1114.636287
+    },
+    "p99_ms": {
+      "median": 1360.003071,
+      "min": 1336.934399,
+      "max": 1365.245951
+    },
+    "dispatch_p50_ms": {
+      "median": 1101.004799,
+      "min": 1031.274495,
+      "max": 1102.053375
+    },
+    "dispatch_p99_ms": {
+      "median": 1348.468735,
+      "min": 1325.400063,
+      "max": 1352.663039
+    },
+    "http_service_p99_ms": {
+      "median": 229.900287,
+      "min": 222.822399,
+      "max": 232.128511
+    },
+    "achieved_per_s": {
+      "median": 6.35,
+      "min": 6.3,
+      "max": 1016.25
+    },
+    "unrelated_peak_cores": {
+      "median": 0.13246589833725383,
+      "min": 0.10995415918597214,
+      "max": 0.17990112207197093
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-B",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      10.06771956505576,
+      9.935667113605948,
+      9.97908296252788,
+      9.677078335018589,
+      9.847037286988847
+    ],
+    "sent_means_lower_ms": [
+      10.05965700282528,
+      9.927667133382899,
+      9.97107262810409,
+      9.669237169962825,
+      9.8390911333829
+    ],
+    "p50_ms": {
+      "median": 9.887743,
+      "min": 9.666559,
+      "max": 10.059775
+    },
+    "p99_ms": {
+      "median": 55.508991,
+      "min": 13.352959,
+      "max": 58.490879
+    },
+    "dispatch_p50_ms": {
+      "median": 0.015711,
+      "min": 0.015183,
+      "max": 0.015823
+    },
+    "dispatch_p99_ms": {
+      "median": 43.614207,
+      "min": 1.509375,
+      "max": 46.628863
+    },
+    "http_service_p99_ms": {
+      "median": 13.279231,
+      "min": 12.435455,
+      "max": 14.655487
+    },
+    "achieved_per_s": {
+      "median": 2690.0,
+      "min": 2690.0,
+      "max": 2690.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.14002017062152866,
+      "min": 0.09996714572777293,
+      "max": 0.17958223076607677
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 319379,
+    "max_error_fraction": 0.99825,
+    "error_types": {
+      "expired_before_send": 305350,
+      "http_503": 14029
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      218.41064549079127,
+      217.43063300475544,
+      220.7174569648276,
+      220.11001316419964,
+      215.39959059245535
+    ],
+    "sent_means_lower_ms": [
+      3.563778990450205e-05,
+      4.01586277173913e-05,
+      3.395103448275862e-05,
+      3.609948364888124e-05,
+      3.3498484338161e-05
+    ],
+    "p50_ms": {
+      "median": 1112.539135,
+      "min": 1110.441983,
+      "max": 1113.587711
+    },
+    "p99_ms": {
+      "median": 1358.954495,
+      "min": 1351.614463,
+      "max": 1368.391679
+    },
+    "dispatch_p50_ms": {
+      "median": 1102.053375,
+      "min": 1101.004799,
+      "max": 1104.150527
+    },
+    "dispatch_p99_ms": {
+      "median": 1348.468735,
+      "min": 1341.128703,
+      "max": 1358.954495
+    },
+    "http_service_p99_ms": {
+      "median": 226.230271,
+      "min": 223.084543,
+      "max": 229.638143
+    },
+    "achieved_per_s": {
+      "median": 6.2,
+      "min": 5.6,
+      "max": 7.1
+    },
+    "unrelated_peak_cores": {
+      "median": 0.13883386885579282,
+      "min": 0.10666843031899703,
+      "max": 0.1699707842731038
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 15436,
+    "max_error_fraction": 0.0645625,
+    "error_types": {
+      "expired_before_send": 15436
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      10.72402855524409,
+      10.694753978363838,
+      10.472592059907686,
+      10.734409907620341,
+      10.794705012460748
+    ],
+    "sent_means_lower_ms": [
+      10.026140368660045,
+      9.89626312352912,
+      9.996793233175172,
+      10.046079377173326,
+      9.839471371985033
+    ],
+    "p50_ms": {
+      "median": 1003.487231,
+      "min": 1001.390079,
+      "max": 1004.535807
+    },
+    "p99_ms": {
+      "median": 1011.351551,
+      "min": 1011.351551,
+      "max": 1012.400127
+    },
+    "dispatch_p50_ms": {
+      "median": 993.525759,
+      "min": 991.428607,
+      "max": 994.574335
+    },
+    "dispatch_p99_ms": {
+      "median": 1001.390079,
+      "min": 1001.390079,
+      "max": 1002.438655
+    },
+    "http_service_p99_ms": {
+      "median": 14.663679,
+      "min": 13.754367,
+      "max": 15.458303
+    },
+    "achieved_per_s": {
+      "median": 3050.1,
+      "min": 2993.4,
+      "max": 3098.1
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12004475011680252,
+      "min": 0.11980804501759504,
+      "max": 0.1303038391445174
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 379890,
+    "max_error_fraction": 0.9985676741130092,
+    "error_types": {
+      "expired_before_send": 365976,
+      "http_503": 13914
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      220.61440623612546,
+      222.19534432303956,
+      216.6685551452268,
+      218.42061900375427,
+      224.06735303430173
+    ],
+    "sent_means_lower_ms": [
+      3.372319889693209e-05,
+      3.0514226231783483e-05,
+      3.838591740013541e-05,
+      3.225017064846416e-05,
+      3.2481274063703185e-05
+    ],
+    "p50_ms": {
+      "median": 1113.587711,
+      "min": 1111.490559,
+      "max": 1114.636287
+    },
+    "p99_ms": {
+      "median": 1358.954495,
+      "min": 1351.614463,
+      "max": 1362.100223
+    },
+    "dispatch_p50_ms": {
+      "median": 1105.199103,
+      "min": 1103.101951,
+      "max": 1106.247679
+    },
+    "dispatch_p99_ms": {
+      "median": 1350.565887,
+      "min": 1343.225855,
+      "max": 1353.711615
+    },
+    "http_service_p99_ms": {
+      "median": 226.230271,
+      "min": 222.822399,
+      "max": 230.817791
+    },
+    "achieved_per_s": {
+      "median": 6.3,
+      "min": 5.45,
+      "max": 6.5
+    },
+    "unrelated_peak_cores": {
+      "median": 0.16980816046830977,
+      "min": 0.1298966548257153,
+      "max": 0.18896395365686883
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-B",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 77623,
+    "max_error_fraction": 0.21946123521681998,
+    "error_types": {
+      "expired_before_send": 77623
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      10.46116343481743,
+      10.593274727233606,
+      10.774697478173032,
+      10.5646991289412,
+      10.439785118303426
+    ],
+    "sent_means_lower_ms": [
+      7.6652991847765675,
+      7.535039540617035,
+      7.4188221387228745,
+      7.590489508105253,
+      7.62711890817292
+    ],
+    "p50_ms": {
+      "median": 1005.584383,
+      "min": 1005.584383,
+      "max": 1005.584383
+    },
+    "p99_ms": {
+      "median": 1011.875839,
+      "min": 1011.351551,
+      "max": 1012.400127
+    },
+    "dispatch_p50_ms": {
+      "median": 997.195775,
+      "min": 997.195775,
+      "max": 997.195775
+    },
+    "dispatch_p99_ms": {
+      "median": 1003.487231,
+      "min": 1002.962943,
+      "max": 1004.011519
+    },
+    "http_service_p99_ms": {
+      "median": 13.524991,
+      "min": 13.303807,
+      "max": 14.098431
+    },
+    "achieved_per_s": {
+      "median": 3028.9,
+      "min": 2969.95,
+      "max": 3065.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.13064627074483195,
+      "min": 0.11015113805268704,
+      "max": 0.1809996431449324
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-A",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 278743,
+    "max_error_fraction": 0.99796875,
+    "error_types": {
+      "expired_before_send": 264352,
+      "http_503": 14391
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      185.23663186012163,
+      185.3783352184241,
+      12.986806743842717,
+      183.3884218761823,
+      188.63031376569407
+    ],
+    "sent_means_lower_ms": [
+      3.559513466550826e-05,
+      3.5280996523754345e-05,
+      2.6999204208212895,
+      3.456807108053883e-05,
+      3.627350427350427e-05
+    ],
+    "p50_ms": {
+      "median": 1094.713343,
+      "min": 691.535871,
+      "max": 1096.810495
+    },
+    "p99_ms": {
+      "median": 1299.185663,
+      "min": 1258.291199,
+      "max": 1305.477119
+    },
+    "dispatch_p50_ms": {
+      "median": 1085.276159,
+      "min": 683.147263,
+      "max": 1087.373311
+    },
+    "dispatch_p99_ms": {
+      "median": 1289.748479,
+      "min": 1248.854015,
+      "max": 1296.039935
+    },
+    "http_service_p99_ms": {
+      "median": 193.724415,
+      "min": 185.073663,
+      "max": 197.263359
+    },
+    "achieved_per_s": {
+      "median": 6.9,
+      "min": 6.5,
+      "max": 2035.55
+    },
+    "unrelated_peak_cores": {
+      "median": 0.18535612983435557,
+      "min": 0.1400245227025786,
+      "max": 0.24320527088078198
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-A",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      8.082377688,
+      7.973158744,
+      8.078358743999999,
+      8.002838488,
+      7.921949208
+    ],
+    "sent_means_lower_ms": [
+      8.076840384,
+      7.967771648,
+      8.072853504,
+      7.99738272,
+      7.916655872000001
+    ],
+    "p50_ms": {
+      "median": 7.983103,
+      "min": 7.897087,
+      "max": 8.040447
+    },
+    "p99_ms": {
+      "median": 17.694719,
+      "min": 12.533759,
+      "max": 65.929215
+    },
+    "dispatch_p50_ms": {
+      "median": 0.014111,
+      "min": 0.009175,
+      "max": 0.015375
+    },
+    "dispatch_p99_ms": {
+      "median": 7.716863,
+      "min": 2.672639,
+      "max": 55.934975
+    },
+    "http_service_p99_ms": {
+      "median": 11.714559,
+      "min": 11.263999,
+      "max": 12.574719
+    },
+    "achieved_per_s": {
+      "median": 3200.0,
+      "min": 3200.0,
+      "max": 3200.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.14898482335075044,
+      "min": 0.12113174883626757,
+      "max": 0.16430956725142234
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-A",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 181103,
+    "max_error_fraction": 0.9976394052044609,
+    "error_types": {
+      "expired_before_send": 170212,
+      "http_503": 10891
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      6.638201609914739,
+      186.8358177872154,
+      191.19940795341893,
+      12.49138241855397,
+      191.76216630494753
+    ],
+    "sent_means_lower_ms": [
+      5.848795976538806,
+      4.4474022183304145e-05,
+      3.5905942072260373e-05,
+      2.7207817867369175,
+      3.5107046476761616e-05
+    ],
+    "p50_ms": {
+      "median": 1095.761919,
+      "min": 6.062079,
+      "max": 1098.907647
+    },
+    "p99_ms": {
+      "median": 1303.379967,
+      "min": 1088.421887,
+      "max": 1314.914303
+    },
+    "dispatch_p50_ms": {
+      "median": 1084.227583,
+      "min": 0.016159,
+      "max": 1086.324735
+    },
+    "dispatch_p99_ms": {
+      "median": 1291.845631,
+      "min": 1078.984703,
+      "max": 1302.331391
+    },
+    "http_service_p99_ms": {
+      "median": 197.525503,
+      "min": 25.788415,
+      "max": 203.423743
+    },
+    "achieved_per_s": {
+      "median": 7.45,
+      "min": 6.35,
+      "max": 2618.25
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1315090676002954,
+      "min": 0.12001513113115145,
+      "max": 2.2162053940344877
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-A",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      7.714984626171004,
+      7.595175331895911,
+      7.807624040892193,
+      7.768527873159851,
+      7.708113167434944
+    ],
+    "sent_means_lower_ms": [
+      7.709936126096655,
+      7.590312141561339,
+      7.802485702899628,
+      7.763468942750929,
+      7.703103038810409
+    ],
+    "p50_ms": {
+      "median": 7.671807,
+      "min": 7.581695,
+      "max": 7.696383
+    },
+    "p99_ms": {
+      "median": 12.763135,
+      "min": 10.444799,
+      "max": 37.814271
+    },
+    "dispatch_p50_ms": {
+      "median": 0.015591,
+      "min": 0.015159,
+      "max": 0.015655
+    },
+    "dispatch_p99_ms": {
+      "median": 1.189887,
+      "min": 0.168703,
+      "max": 25.903103
+    },
+    "http_service_p99_ms": {
+      "median": 11.534335,
+      "min": 10.239999,
+      "max": 12.713983
+    },
+    "achieved_per_s": {
+      "median": 2690.0,
+      "min": 2690.0,
+      "max": 2690.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.142431939995895,
+      "min": 0.1297337790628486,
+      "max": 0.21712206080944912
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W5-hot1-A",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 302787,
+    "max_error_fraction": 0.9984362680683312,
+    "error_types": {
+      "expired_before_send": 289637,
+      "http_503": 13150
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      140.2856800114487,
+      186.53181857825706,
+      187.77319864405285,
+      183.8270395731532,
+      8.416135929124016
+    ],
+    "sent_means_lower_ms": [
+      3.524966974900925e-05,
+      3.55817545904984e-05,
+      3.5764170337738616e-05,
+      3.695975855130785e-05,
+      8.3553126009394
+    ],
+    "p50_ms": {
+      "median": 1094.713343,
+      "min": 886.046719,
+      "max": 1095.761919
+    },
+    "p99_ms": {
+      "median": 1302.331391,
+      "min": 1000.341503,
+      "max": 1307.574271
+    },
+    "dispatch_p50_ms": {
+      "median": 1086.324735,
+      "min": 877.658111,
+      "max": 1087.373311
+    },
+    "dispatch_p99_ms": {
+      "median": 1293.942783,
+      "min": 991.952895,
+      "max": 1299.185663
+    },
+    "http_service_p99_ms": {
+      "median": 191.365119,
+      "min": 29.229055,
+      "max": 193.200127
+    },
+    "achieved_per_s": {
+      "median": 6.85,
+      "min": 5.95,
+      "max": 3800.3
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1299548406062126,
+      "min": 0.10976393178944818,
+      "max": 0.23999606794600625
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W5-hot1-A",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      8.601565360052563,
+      8.410165146859397,
+      8.567790314586071,
+      8.54493070544021,
+      8.570069219185283
+    ],
+    "sent_means_lower_ms": [
+      8.595778136136662,
+      8.404780687306177,
+      8.562039690932984,
+      8.539296395269382,
+      8.564329306491459
+    ],
+    "p50_ms": {
+      "median": 178.520063,
+      "min": 99.090431,
+      "max": 343.146495
+    },
+    "p99_ms": {
+      "median": 546.832383,
+      "min": 271.056895,
+      "max": 577.765375
+    },
+    "dispatch_p50_ms": {
+      "median": 170.131455,
+      "min": 90.439679,
+      "max": 334.495743
+    },
+    "dispatch_p99_ms": {
+      "median": 537.919487,
+      "min": 262.537215,
+      "max": 569.376767
+    },
+    "http_service_p99_ms": {
+      "median": 12.861439,
+      "min": 11.730943,
+      "max": 12.926975
+    },
+    "achieved_per_s": {
+      "median": 3805.0,
+      "min": 3805.0,
+      "max": 3805.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.140017797489685,
+      "min": 0.1103801481155724,
+      "max": 0.1601397180648886
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W4-disjoint-B",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 268413,
+    "max_error_fraction": 0.9981226765799257,
+    "error_types": {
+      "expired_before_send": 254264,
+      "http_503": 14149
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      217.1243312060421,
+      213.77092733967936,
+      220.5480108696102,
+      219.4292200723098,
+      214.7891178385364
+    ],
+    "sent_means_lower_ms": [
+      3.502953156822811e-05,
+      3.3934869739478955e-05,
+      3.3793377026560884e-05,
+      3.524674434544208e-05,
+      3.419838872104733e-05
+    ],
+    "p50_ms": {
+      "median": 1111.490559,
+      "min": 1109.393407,
+      "max": 1113.587711
+    },
+    "p99_ms": {
+      "median": 1349.517311,
+      "min": 1345.323007,
+      "max": 1360.003071
+    },
+    "dispatch_p50_ms": {
+      "median": 1098.907647,
+      "min": 1097.859071,
+      "max": 1101.004799
+    },
+    "dispatch_p99_ms": {
+      "median": 1337.982975,
+      "min": 1333.788671,
+      "max": 1348.468735
+    },
+    "http_service_p99_ms": {
+      "median": 227.409919,
+      "min": 223.477759,
+      "max": 229.375999
+    },
+    "achieved_per_s": {
+      "median": 6.1,
+      "min": 5.05,
+      "max": 6.35
+    },
+    "unrelated_peak_cores": {
+      "median": 0.15303483513582217,
+      "min": 0.12979213493814076,
+      "max": 0.16136851794705198
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W4-disjoint-B",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      9.958700642230482,
+      9.84912304936803,
+      9.674749401189592,
+      9.901969519553903,
+      9.931748048624536
+    ],
+    "sent_means_lower_ms": [
+      9.950673329962825,
+      9.84117552535316,
+      9.666906408921934,
+      9.893980807137547,
+      9.923740074349443
+    ],
+    "p50_ms": {
+      "median": 9.863167,
+      "min": 9.666559,
+      "max": 9.920511
+    },
+    "p99_ms": {
+      "median": 14.983167,
+      "min": 13.139967,
+      "max": 53.968895
+    },
+    "dispatch_p50_ms": {
+      "median": 0.015799,
+      "min": 0.015431,
+      "max": 0.015919
+    },
+    "dispatch_p99_ms": {
+      "median": 3.117055,
+      "min": 1.246207,
+      "max": 42.074111
+    },
+    "http_service_p99_ms": {
+      "median": 13.393919,
+      "min": 12.328959,
+      "max": 13.852671
+    },
+    "achieved_per_s": {
+      "median": 2690.0,
+      "min": 2690.0,
+      "max": 2690.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.15071440843897443,
+      "min": 0.12934313832287325,
+      "max": 0.22880809328736793
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W4-disjoint-B",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 319419,
+    "max_error_fraction": 0.99840625,
+    "error_types": {
+      "expired_before_send": 305350,
+      "http_503": 14069
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      218.52401625743587,
+      218.8287077749658,
+      214.90866833087,
+      218.5860285757679,
+      221.16642712370424
+    ],
+    "sent_means_lower_ms": [
+      3.4789401709401707e-05,
+      3.504958960328317e-05,
+      4.418878065166275e-05,
+      3.310204778156996e-05,
+      3.182273669661369e-05
+    ],
+    "p50_ms": {
+      "median": 1112.539135,
+      "min": 1110.441983,
+      "max": 1113.587711
+    },
+    "p99_ms": {
+      "median": 1351.614463,
+      "min": 1342.177279,
+      "max": 1368.391679
+    },
+    "dispatch_p50_ms": {
+      "median": 1102.053375,
+      "min": 1099.956223,
+      "max": 1104.150527
+    },
+    "dispatch_p99_ms": {
+      "median": 1342.177279,
+      "min": 1332.740095,
+      "max": 1358.954495
+    },
+    "http_service_p99_ms": {
+      "median": 227.016703,
+      "min": 222.298111,
+      "max": 230.293503
+    },
+    "achieved_per_s": {
+      "median": 5.7,
+      "min": 5.1,
+      "max": 6.55
+    },
+    "unrelated_peak_cores": {
+      "median": 0.14074514105732908,
+      "min": 0.1083821953430761,
+      "max": 0.20307913126786054
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W4-disjoint-B",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 13056,
+    "max_error_fraction": 0.06021875,
+    "error_types": {
+      "expired_before_send": 13056
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      10.48510222202616,
+      10.733575399265606,
+      10.894491905712764,
+      10.522254853261659,
+      10.531705564235324
+    ],
+    "sent_means_lower_ms": [
+      10.002332941640226,
+      10.078989608975927,
+      9.9625141154524,
+      10.069265442232878,
+      10.003559228787779
+    ],
+    "p50_ms": {
+      "median": 1003.487231,
+      "min": 989.331455,
+      "max": 1004.011519
+    },
+    "p99_ms": {
+      "median": 1011.351551,
+      "min": 1010.827263,
+      "max": 1011.875839
+    },
+    "dispatch_p50_ms": {
+      "median": 993.525759,
+      "min": 978.321407,
+      "max": 994.050047
+    },
+    "dispatch_p99_ms": {
+      "median": 1001.390079,
+      "min": 1000.865791,
+      "max": 1001.914367
+    },
+    "http_service_p99_ms": {
+      "median": 13.983743,
+      "min": 13.295615,
+      "max": 15.237119
+    },
+    "achieved_per_s": {
+      "median": 3088.6,
+      "min": 3007.3,
+      "max": 3097.35
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12152085425554526,
+      "min": 0.11245195235308449,
+      "max": 0.2199863108570257
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W4-disjoint-B",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 379837,
+    "max_error_fraction": 0.99838370565046,
+    "error_types": {
+      "expired_before_send": 365771,
+      "http_503": 14066
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      217.96234621499147,
+      220.78229732838912,
+      217.71817855430712,
+      214.84290744243035,
+      214.74252270896275
+    ],
+    "sent_means_lower_ms": [
+      3.907495741056218e-05,
+      3.217626767850983e-05,
+      3.6013278855975483e-05,
+      3.553440751930178e-05,
+      3.73501174890903e-05
+    ],
+    "p50_ms": {
+      "median": 1111.490559,
+      "min": 1110.441983,
+      "max": 1113.587711
+    },
+    "p99_ms": {
+      "median": 1351.614463,
+      "min": 1346.371583,
+      "max": 1366.294527
+    },
+    "dispatch_p50_ms": {
+      "median": 1103.101951,
+      "min": 1102.053375,
+      "max": 1105.199103
+    },
+    "dispatch_p99_ms": {
+      "median": 1343.225855,
+      "min": 1337.982975,
+      "max": 1357.905919
+    },
+    "http_service_p99_ms": {
+      "median": 224.264191,
+      "min": 220.594175,
+      "max": 225.705983
+    },
+    "achieved_per_s": {
+      "median": 6.75,
+      "min": 6.15,
+      "max": 7.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.10922224745153208,
+      "min": 0.0944328177788115,
+      "max": 0.13799776195623137
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W4-disjoint-B",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 79803,
+    "max_error_fraction": 0.2200262812089356,
+    "error_types": {
+      "expired_before_send": 79803
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      10.582632765295322,
+      10.782999869027563,
+      10.522373400499843,
+      10.73689364766283,
+      10.588158543924955
+    ],
+    "sent_means_lower_ms": [
+      7.572750313512798,
+      7.409679328593571,
+      7.568241869761095,
+      7.449773898392672,
+      7.584560520945007
+    ],
+    "p50_ms": {
+      "median": 1005.584383,
+      "min": 1005.584383,
+      "max": 1005.584383
+    },
+    "p99_ms": {
+      "median": 1011.875839,
+      "min": 1011.351551,
+      "max": 1012.400127
+    },
+    "dispatch_p50_ms": {
+      "median": 997.195775,
+      "min": 997.195775,
+      "max": 997.195775
+    },
+    "dispatch_p99_ms": {
+      "median": 1003.487231,
+      "min": 1002.962943,
+      "max": 1004.011519
+    },
+    "http_service_p99_ms": {
+      "median": 13.492223,
+      "min": 13.336575,
+      "max": 14.090239
+    },
+    "achieved_per_s": {
+      "median": 3022.2,
+      "min": 2967.8,
+      "max": 3040.95
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12090490502801884,
+      "min": 0.1101392640692769,
+      "max": 0.17618295342548132
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 379868,
+    "max_error_fraction": 0.9985019710906702,
+    "error_types": {
+      "expired_before_send": 363344,
+      "http_503": 16524
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      189.5893338491405,
+      185.63425043719175,
+      182.9618515471698,
+      188.57367961590572,
+      185.76825503399186
+    ],
+    "sent_means_lower_ms": [
+      3.834439834024897e-05,
+      3.9082390484479254e-05,
+      3.8714694110920524e-05,
+      3.84279823269514e-05,
+      3.8478791400348635e-05
+    ],
+    "p50_ms": {
+      "median": 1095.761919,
+      "min": 1093.664767,
+      "max": 1096.810495
+    },
+    "p99_ms": {
+      "median": 1300.234239,
+      "min": 1293.942783,
+      "max": 1305.477119
+    },
+    "dispatch_p50_ms": {
+      "median": 1087.373311,
+      "min": 1085.276159,
+      "max": 1088.421887
+    },
+    "dispatch_p99_ms": {
+      "median": 1291.845631,
+      "min": 1285.554175,
+      "max": 1297.088511
+    },
+    "http_service_p99_ms": {
+      "median": 191.889407,
+      "min": 189.136895,
+      "max": 196.476927
+    },
+    "achieved_per_s": {
+      "median": 6.4,
+      "min": 5.7,
+      "max": 6.7
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12754180578800237,
+      "min": 0.0899488516986541,
+      "max": 0.1799337476801613
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      8.411676630065704,
+      8.622963649881735,
+      8.479426945965834,
+      8.415307699080158,
+      8.62437276
+    ],
+    "sent_means_lower_ms": [
+      8.406207613140605,
+      8.617125992956636,
+      8.473913901077529,
+      8.409818874954007,
+      8.618476542654403
+    ],
+    "p50_ms": {
+      "median": 317.456383,
+      "min": 99.221503,
+      "max": 354.942975
+    },
+    "p99_ms": {
+      "median": 478.674943,
+      "min": 198.574079,
+      "max": 682.622975
+    },
+    "dispatch_p50_ms": {
+      "median": 307.494911,
+      "min": 90.832895,
+      "max": 346.554367
+    },
+    "dispatch_p99_ms": {
+      "median": 470.024191,
+      "min": 190.054399,
+      "max": 674.234367
+    },
+    "http_service_p99_ms": {
+      "median": 11.911167,
+      "min": 11.599871,
+      "max": 13.656063
+    },
+    "achieved_per_s": {
+      "median": 3805.0,
+      "min": 3805.0,
+      "max": 3805.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.11070056946802889,
+      "min": 0.09791474466576472,
+      "max": 0.17996910625541118
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "r8",
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 451852,
+    "max_error_fraction": 0.9988066298342542,
+    "error_types": {
+      "expired_before_send": 435322,
+      "http_503": 16530
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      182.43955551968057,
+      188.36782551501767,
+      187.5238858587339,
+      185.42348545815233,
+      187.7826574599824
+    ],
+    "sent_means_lower_ms": [
+      3.465430690245294e-05,
+      3.821819787985866e-05,
+      3.545193434935522e-05,
+      3.4785114393281204e-05,
+      4.008032834945764e-05
+    ],
+    "p50_ms": {
+      "median": 1095.761919,
+      "min": 1093.664767,
+      "max": 1096.810495
+    },
+    "p99_ms": {
+      "median": 1300.234239,
+      "min": 1293.942783,
+      "max": 1305.477119
+    },
+    "dispatch_p50_ms": {
+      "median": 1089.470463,
+      "min": 1086.324735,
+      "max": 1089.470463
+    },
+    "dispatch_p99_ms": {
+      "median": 1292.894207,
+      "min": 1286.602751,
+      "max": 1298.137087
+    },
+    "http_service_p99_ms": {
+      "median": 192.151551,
+      "min": 186.908671,
+      "max": 193.200127
+    },
+    "achieved_per_s": {
+      "median": 6.7,
+      "min": 5.4,
+      "max": 7.15
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1811026388465683,
+      "min": 0.13659563580758102,
+      "max": 0.37784941058210214
+    }
+  },
+  {
+    "phase": "writes",
+    "system": "supabase",
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 78018,
+    "max_error_fraction": 0.18060773480662984,
+    "error_types": {
+      "expired_before_send": 78018
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      8.607109374053502,
+      8.445900410819158,
+      8.58406831514493,
+      8.460119542486252,
+      8.630918899858404
+    ],
+    "sent_means_lower_ms": [
+      6.304090647411671,
+      6.402503268644504,
+      6.344816502595469,
+      6.404226503093274,
+      6.240198181322905
+    ],
+    "p50_ms": {
+      "median": 1004.535807,
+      "min": 1004.535807,
+      "max": 1004.535807
+    },
+    "p99_ms": {
+      "median": 1010.827263,
+      "min": 1010.302975,
+      "max": 1011.351551
+    },
+    "dispatch_p50_ms": {
+      "median": 997.720063,
+      "min": 997.195775,
+      "max": 997.720063
+    },
+    "dispatch_p99_ms": {
+      "median": 1003.487231,
+      "min": 1003.487231,
+      "max": 1004.535807
+    },
+    "http_service_p99_ms": {
+      "median": 12.025855,
+      "min": 11.632639,
+      "max": 13.590527
+    },
+    "achieved_per_s": {
+      "median": 3727.65,
+      "min": 3707.75,
+      "max": 3788.65
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12031162511259799,
+      "min": 0.08003283059289146,
+      "max": 0.17862217251308937
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "supabase",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "repetitions": 3,
+    "passes": 0,
+    "eligible": 3,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 3,
+    "errors": 51697,
+    "max_error_fraction": 0.7644120247568523,
+    "error_types": {
+      "expired_before_send": 51693,
+      "request_error": 4
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      117.70766346746544,
+      119.68613785309569,
+      117.82383317923133
+    ],
+    "sent_means_lower_ms": [
+      5.5562211981566816e-05,
+      5.7453095684803004e-05,
+      5.3620473022912044e-05
+    ],
+    "p50_ms": {
+      "median": 1076.887551,
+      "min": 1075.838975,
+      "max": 1077.936127
+    },
+    "p99_ms": {
+      "median": 1552.941055,
+      "min": 1517.289471,
+      "max": 1577.058303
+    },
+    "dispatch_p50_ms": {
+      "median": 1048.575999,
+      "min": 1047.527423,
+      "max": 1050.148863
+    },
+    "dispatch_p99_ms": {
+      "median": 1524.629503,
+      "min": 1488.977919,
+      "max": 1548.746751
+    },
+    "http_service_p99_ms": {
+      "median": 373.030911,
+      "min": 368.836607,
+      "max": 376.963071
+    },
+    "achieved_per_s": {
+      "median": 270.5,
+      "min": 266.45,
+      "max": 271.2
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1994278884326353,
+      "min": 0.10878678232883461,
+      "max": 0.2100814486353215
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "supabase",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "repetitions": 3,
+    "passes": 0,
+    "eligible": 3,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 3,
+    "errors": 53789,
+    "max_error_fraction": 0.7967285587975244,
+    "error_types": {
+      "expired_before_send": 53771,
+      "request_error": 18
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      138.54677807797566,
+      133.3687565660733,
+      135.23443445010614
+    ],
+    "sent_means_lower_ms": [
+      5.687510860121633e-05,
+      5.478052356020942e-05,
+      5.480042462845011e-05
+    ],
+    "p50_ms": {
+      "median": 1092.616191,
+      "min": 1091.567615,
+      "max": 1097.859071
+    },
+    "p99_ms": {
+      "median": 1661.992959,
+      "min": 1614.807039,
+      "max": 1674.575871
+    },
+    "dispatch_p50_ms": {
+      "median": 1064.304639,
+      "min": 1063.256063,
+      "max": 1069.547519
+    },
+    "dispatch_p99_ms": {
+      "median": 1633.681407,
+      "min": 1586.495487,
+      "max": 1646.264319
+    },
+    "http_service_p99_ms": {
+      "median": 413.401087,
+      "min": 410.779647,
+      "max": 429.129727
+    },
+    "achieved_per_s": {
+      "median": 235.25,
+      "min": 229.9,
+      "max": 238.4
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12999212716889585,
+      "min": 0.09995938103912866,
+      "max": 0.13047861156197138
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "r8",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      10.336934950486295,
+      10.573927482404951,
+      10.495829148187445,
+      10.335397773474801,
+      10.351234553669318
+    ],
+    "sent_means_lower_ms": [
+      10.32900760106101,
+      10.565851105216622,
+      10.487786813793104,
+      10.327470967285588,
+      10.343252699557913
+    ],
+    "p50_ms": {
+      "median": 10.215423,
+      "min": 10.190847,
+      "max": 10.346495
+    },
+    "p99_ms": {
+      "median": 16.351231,
+      "min": 15.818751,
+      "max": 23.281663
+    },
+    "dispatch_p50_ms": {
+      "median": 0.017119,
+      "min": 0.017023,
+      "max": 0.017263
+    },
+    "dispatch_p99_ms": {
+      "median": 0.058271,
+      "min": 0.049791,
+      "max": 0.118399
+    },
+    "http_service_p99_ms": {
+      "median": 16.310271,
+      "min": 15.785983,
+      "max": 21.315583
+    },
+    "achieved_per_s": {
+      "median": 1131.0,
+      "min": 1131.0,
+      "max": 1131.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.14700699394710198,
+      "min": 0.12474457048196544,
+      "max": 0.20769655675371304
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "main",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      10.292427256763926,
+      10.112029421220159,
+      10.23049037683466,
+      10.404135606896551,
+      10.485438852873564
+    ],
+    "sent_means_lower_ms": [
+      10.284528336693192,
+      10.104224299911582,
+      10.222598880990274,
+      10.396197935985853,
+      10.477423137046861
+    ],
+    "p50_ms": {
+      "median": 10.141695,
+      "min": 10.035199,
+      "max": 10.313727
+    },
+    "p99_ms": {
+      "median": 14.827519,
+      "min": 14.589951,
+      "max": 22.331391
+    },
+    "dispatch_p50_ms": {
+      "median": 0.017135,
+      "min": 0.017087,
+      "max": 0.017151
+    },
+    "dispatch_p99_ms": {
+      "median": 0.052767,
+      "min": 0.046079,
+      "max": 0.243199
+    },
+    "http_service_p99_ms": {
+      "median": 14.811135,
+      "min": 14.573567,
+      "max": 18.677759
+    },
+    "achieved_per_s": {
+      "median": 1131.0,
+      "min": 1131.0,
+      "max": 1131.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.12238404945918267,
+      "min": 0.09934323513686855,
+      "max": 0.19147356538789384
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "r8",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      12.890566593987622,
+      12.903067361450045,
+      12.764998842970822,
+      12.552520925375774,
+      12.74703728541114
+    ],
+    "sent_means_lower_ms": [
+      12.882041141644562,
+      12.894581022104333,
+      12.756608475331566,
+      12.544186692130857,
+      12.738599837312114
+    ],
+    "p50_ms": {
+      "median": 12.558335,
+      "min": 12.484607,
+      "max": 12.623871
+    },
+    "p99_ms": {
+      "median": 23.314431,
+      "min": 19.791871,
+      "max": 27.279359
+    },
+    "dispatch_p50_ms": {
+      "median": 0.017247,
+      "min": 0.017151,
+      "max": 0.017407
+    },
+    "dispatch_p99_ms": {
+      "median": 0.138367,
+      "min": 0.077247,
+      "max": 0.709631
+    },
+    "http_service_p99_ms": {
+      "median": 23.199743,
+      "min": 19.775487,
+      "max": 25.231359
+    },
+    "achieved_per_s": {
+      "median": 1131.0,
+      "min": 1131.0,
+      "max": 1131.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.14877156852934365,
+      "min": 0.10676013845833096,
+      "max": 0.18057929437855136
+    }
+  },
+  {
+    "phase": "exact",
+    "system": "main",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "repetitions": 5,
+    "passes": 5,
+    "eligible": 5,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      12.552190094606543,
+      12.443351479575597,
+      12.520426538107868,
+      12.473325435366933,
+      12.576564191865605
+    ],
+    "sent_means_lower_ms": [
+      12.543897509460654,
+      12.435033000176833,
+      12.512122726083113,
+      12.464990115649869,
+      12.56822253439434
+    ],
+    "p50_ms": {
+      "median": 12.476415,
+      "min": 12.369919,
+      "max": 12.509183
+    },
+    "p99_ms": {
+      "median": 18.300927,
+      "min": 17.563647,
+      "max": 18.857983
+    },
+    "dispatch_p50_ms": {
+      "median": 0.017119,
+      "min": 0.016991,
+      "max": 0.017167
+    },
+    "dispatch_p99_ms": {
+      "median": 0.053631,
+      "min": 0.048927,
+      "max": 0.127871
+    },
+    "http_service_p99_ms": {
+      "median": 18.284543,
+      "min": 17.547263,
+      "max": 18.825215
+    },
+    "achieved_per_s": {
+      "median": 1131.0,
+      "min": 1131.0,
+      "max": 1131.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.2200270579502359,
+      "min": 0.11415021689716309,
+      "max": 0.798870586666754
+    }
+  },
+  {
+    "phase": "cost-control",
+    "system": "main",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "repetitions": 3,
+    "passes": 0,
+    "eligible": 3,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 66846,
+    "max_error_fraction": 0.3019053876478318,
+    "error_types": {
+      "expired_before_send": 66623,
+      "http_503": 223
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      12.025929710725629,
+      11.687275122123603,
+      11.915952803954424
+    ],
+    "sent_means_lower_ms": [
+      6.283446012760999,
+      6.646859696562934,
+      6.4700690733541855
+    ],
+    "p50_ms": {
+      "median": 1006.108671,
+      "min": 1006.108671,
+      "max": 1006.108671
+    },
+    "p99_ms": {
+      "median": 1013.972991,
+      "min": 1013.448703,
+      "max": 1015.021567
+    },
+    "dispatch_p50_ms": {
+      "median": 997.720063,
+      "min": 997.720063,
+      "max": 997.720063
+    },
+    "dispatch_p99_ms": {
+      "median": 1005.584383,
+      "min": 1005.060095,
+      "max": 1006.632959
+    },
+    "http_service_p99_ms": {
+      "median": 15.523839,
+      "min": 15.228927,
+      "max": 16.383999
+    },
+    "achieved_per_s": {
+      "median": 2681.35,
+      "min": 2656.25,
+      "max": 2735.1
+    },
+    "unrelated_peak_cores": {
+      "median": 0.20031780690596743,
+      "min": 0.19421915554698854,
+      "max": 0.3330040346708129
+    }
+  },
+  {
+    "phase": "cost-control",
+    "system": "main",
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "repetitions": 3,
+    "passes": 0,
+    "eligible": 3,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 105541,
+    "max_error_fraction": 0.3938342541436464,
+    "error_types": {
+      "expired_before_send": 104964,
+      "http_503": 577
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      11.4297490923783,
+      11.534060068139631,
+      11.624980824883286
+    ],
+    "sent_means_lower_ms": [
+      3.8984620992535444,
+      3.7772245550289245,
+      3.63409594702901
+    ],
+    "p50_ms": {
+      "median": 1006.108671,
+      "min": 1006.108671,
+      "max": 1006.108671
+    },
+    "p99_ms": {
+      "median": 1013.448703,
+      "min": 1013.448703,
+      "max": 1015.021567
+    },
+    "dispatch_p50_ms": {
+      "median": 998.768639,
+      "min": 998.768639,
+      "max": 998.768639
+    },
+    "dispatch_p99_ms": {
+      "median": 1006.632959,
+      "min": 1006.108671,
+      "max": 1008.205823
+    },
+    "http_service_p99_ms": {
+      "median": 15.089663,
+      "min": 14.712831,
+      "max": 15.392767
+    },
+    "achieved_per_s": {
+      "median": 2764.55,
+      "min": 2742.9,
+      "max": 2790.5
+    },
+    "unrelated_peak_cores": {
+      "median": 0.3064073959836826,
+      "min": 0.15283488168413362,
+      "max": 0.7334024545792461
+    }
+  },
+  {
+    "phase": "cost-control",
+    "system": "main",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "repetitions": 3,
+    "passes": 0,
+    "eligible": 3,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 55245,
+    "max_error_fraction": 0.290640625,
+    "error_types": {
+      "expired_before_send": 55126,
+      "http_503": 119
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      14.086329520354022,
+      14.042397261336202,
+      13.94384764738184
+    ],
+    "sent_means_lower_ms": [
+      7.730141352061822,
+      7.796607488411396,
+      7.916278924930815
+    ],
+    "p50_ms": {
+      "median": 1007.157247,
+      "min": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "median": 1016.594431,
+      "min": 1015.545855,
+      "max": 1016.594431
+    },
+    "dispatch_p50_ms": {
+      "median": 997.195775,
+      "min": 997.195775,
+      "max": 997.195775
+    },
+    "dispatch_p99_ms": {
+      "median": 1006.632959,
+      "min": 1005.584383,
+      "max": 1006.632959
+    },
+    "http_service_p99_ms": {
+      "median": 18.907135,
+      "min": 17.530879,
+      "max": 19.431423
+    },
+    "achieved_per_s": {
+      "median": 2274.6,
+      "min": 2269.95,
+      "max": 2293.2
+    },
+    "unrelated_peak_cores": {
+      "median": 0.22508047210040308,
+      "min": 0.1386160880083061,
+      "max": 0.385178852054609
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W1-disjoint-A",
+    "rate": 8000,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 1,
+    "max_error_fraction": 6.25e-06,
+    "error_types": {
+      "request_error": 1
+    },
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      1.6344343376,
+      1.6267235888,
+      1.6352233824
+    ],
+    "sent_means_lower_ms": [
+      1.633297824,
+      1.6255862912,
+      1.634079364
+    ],
+    "p50_ms": {
+      "median": 1.484799,
+      "min": 1.480703,
+      "max": 1.504255
+    },
+    "p99_ms": {
+      "median": 3.674111,
+      "min": 3.506175,
+      "max": 4.702207
+    },
+    "dispatch_p50_ms": {
+      "median": 0.009695,
+      "min": 0.009015,
+      "max": 0.009799
+    },
+    "dispatch_p99_ms": {
+      "median": 0.091135,
+      "min": 0.083007,
+      "max": 0.129791
+    },
+    "http_service_p99_ms": {
+      "median": 3.614719,
+      "min": 3.454975,
+      "max": 4.530175
+    },
+    "achieved_per_s": {
+      "median": 8000.0,
+      "min": 7999.95,
+      "max": 8000.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.2178787046046735,
+      "min": 0.12072958169786996,
+      "max": 0.2801206237939954
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W1-disjoint-B",
+    "rate": 8000,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 4,
+    "max_error_fraction": 2.5e-05,
+    "error_types": {
+      "request_error": 4
+    },
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      2.330144472,
+      2.291113496,
+      2.33708708
+    ],
+    "sent_means_lower_ms": [
+      2.3284917504,
+      2.2894692608,
+      2.3354278207999997
+    ],
+    "p50_ms": {
+      "median": 2.140159,
+      "min": 2.134015,
+      "max": 2.168831
+    },
+    "p99_ms": {
+      "median": 7.233535,
+      "min": 4.122623,
+      "max": 8.085503
+    },
+    "dispatch_p50_ms": {
+      "median": 0.009679,
+      "min": 0.009071,
+      "max": 0.009727
+    },
+    "dispatch_p99_ms": {
+      "median": 0.098879,
+      "min": 0.095103,
+      "max": 0.128383
+    },
+    "http_service_p99_ms": {
+      "median": 6.856703,
+      "min": 4.081663,
+      "max": 7.241727
+    },
+    "achieved_per_s": {
+      "median": 8000.0,
+      "min": 7999.8,
+      "max": 8000.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.7878484730774994,
+      "min": 0.129560304874029,
+      "max": 1.7860603956659158
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W2-disjoint-A",
+    "rate": 11313,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      1.6110288982056042,
+      1.3647338221691858,
+      1.5927485492972688
+    ],
+    "sent_means_lower_ms": [
+      1.6098897404402015,
+      1.363770937081234,
+      1.5916264680986476
+    ],
+    "p50_ms": {
+      "median": 0.205951,
+      "min": 0.205311,
+      "max": 0.205951
+    },
+    "p99_ms": {
+      "median": 19.922943,
+      "min": 17.350655,
+      "max": 20.185087
+    },
+    "dispatch_p50_ms": {
+      "median": 0.014695,
+      "min": 0.014527,
+      "max": 0.014887
+    },
+    "dispatch_p99_ms": {
+      "median": 8.650751,
+      "min": 6.103039,
+      "max": 8.970239
+    },
+    "http_service_p99_ms": {
+      "median": 14.901247,
+      "min": 13.705215,
+      "max": 15.015935
+    },
+    "achieved_per_s": {
+      "median": 11313.0,
+      "min": 11313.0,
+      "max": 11313.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.22617352845690594,
+      "min": 0.147394368660469,
+      "max": 1.6050288406633324
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W2-disjoint-B",
+    "rate": 11313,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      1.791648778060638,
+      1.529868950393353,
+      1.5576974586228232
+    ],
+    "sent_means_lower_ms": [
+      1.7903835873066385,
+      1.5287890979934589,
+      1.5565968833023955
+    ],
+    "p50_ms": {
+      "median": 0.206079,
+      "min": 0.202623,
+      "max": 0.207487
+    },
+    "p99_ms": {
+      "median": 20.578303,
+      "min": 20.217855,
+      "max": 21.528575
+    },
+    "dispatch_p50_ms": {
+      "median": 0.014879,
+      "min": 0.014383,
+      "max": 0.015247
+    },
+    "dispatch_p99_ms": {
+      "median": 9.314303,
+      "min": 8.962047,
+      "max": 10.297343
+    },
+    "http_service_p99_ms": {
+      "median": 15.253503,
+      "min": 14.786559,
+      "max": 15.810559
+    },
+    "achieved_per_s": {
+      "median": 11313.0,
+      "min": 11313.0,
+      "max": 11313.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.15294788844858279,
+      "min": 0.13109977745472506,
+      "max": 0.21982642516610873
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W3-disjoint-A",
+    "rate": 16000,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      0.9864321226,
+      1.1902002405999998,
+      1.059607044
+    ],
+    "sent_means_lower_ms": [
+      0.985734357,
+      1.1893643807999998,
+      1.0588590686000001
+    ],
+    "p50_ms": {
+      "median": 0.297727,
+      "min": 0.279039,
+      "max": 0.301567
+    },
+    "p99_ms": {
+      "median": 32.997375,
+      "min": 24.608767,
+      "max": 34.635775
+    },
+    "dispatch_p50_ms": {
+      "median": 0.031247,
+      "min": 0.030399,
+      "max": 0.031279
+    },
+    "dispatch_p99_ms": {
+      "median": 25.034751,
+      "min": 16.670719,
+      "max": 26.656767
+    },
+    "http_service_p99_ms": {
+      "median": 11.509759,
+      "min": 11.214847,
+      "max": 12.075007
+    },
+    "achieved_per_s": {
+      "median": 16000.0,
+      "min": 16000.0,
+      "max": 16000.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.21152217539810964,
+      "min": 0.198527374017891,
+      "max": 0.7055715998155347
+    }
+  },
+  {
+    "phase": "reads",
+    "system": "r8",
+    "cell": "W3-disjoint-B",
+    "rate": 16000,
+    "repetitions": 3,
+    "passes": 3,
+    "eligible": 3,
+    "first_three_passes": 3,
+    "qualifies_all": true,
+    "qualifies_3of3": true,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 0,
+    "max_error_fraction": 0.0,
+    "error_types": {},
+    "flags": [
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "sent_means_upper_ms": [
+      1.2460501839999998,
+      1.0442407588,
+      0.9803661794
+    ],
+    "sent_means_lower_ms": [
+      1.2451708808,
+      1.0435078634000001,
+      0.9796732134
+    ],
+    "p50_ms": {
+      "median": 0.283391,
+      "min": 0.268031,
+      "max": 0.313343
+    },
+    "p99_ms": {
+      "median": 32.931839,
+      "min": 26.984447,
+      "max": 34.078719
+    },
+    "dispatch_p50_ms": {
+      "median": 0.029151,
+      "min": 0.029119,
+      "max": 0.031839
+    },
+    "dispatch_p99_ms": {
+      "median": 25.214975,
+      "min": 19.021823,
+      "max": 26.132479
+    },
+    "http_service_p99_ms": {
+      "median": 11.419647,
+      "min": 11.173887,
+      "max": 12.148735
+    },
+    "achieved_per_s": {
+      "median": 16000.0,
+      "min": 16000.0,
+      "max": 16000.0
+    },
+    "unrelated_peak_cores": {
+      "median": 0.24785130224260954,
+      "min": 0.179819780940577,
+      "max": 0.7627813460943096
+    }
+  },
+  {
+    "phase": "diagnostic",
+    "system": "r8",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 380423,
+    "max_error_fraction": 0.9998291721419186,
+    "error_types": {
+      "expired_before_send": 363722,
+      "http_503": 16701
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      188.20918764932395,
+      194.37933060060698,
+      188.77200809286555,
+      189.68982349881446,
+      193.0761673330317
+    ],
+    "sent_means_lower_ms": [
+      4.1240740740740744e-05,
+      3.22546282245827e-05,
+      3.429599056603774e-05,
+      3.2807350326022524e-05,
+      3.335354449472096e-05
+    ],
+    "p50_ms": {
+      "median": 1095.761919,
+      "min": 1094.713343,
+      "max": 1097.859071
+    },
+    "p99_ms": {
+      "median": 1207.959551,
+      "min": 1197.473791,
+      "max": 1235.222527
+    },
+    "dispatch_p50_ms": {
+      "median": 1087.373311,
+      "min": 1086.324735,
+      "max": 1089.470463
+    },
+    "dispatch_p99_ms": {
+      "median": 1199.570943,
+      "min": 1189.085183,
+      "max": 1226.833919
+    },
+    "http_service_p99_ms": {
+      "median": 196.214783,
+      "min": 194.904063,
+      "max": 200.409087
+    },
+    "achieved_per_s": {
+      "median": 0.75,
+      "min": 0.65,
+      "max": 0.95
+    },
+    "unrelated_peak_cores": {
+      "median": 0.16817519618569718,
+      "min": 0.15001771500907546,
+      "max": 0.2592122913624607
+    }
+  },
+  {
+    "phase": "diagnostic",
+    "system": "r8",
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 452439,
+    "max_error_fraction": 0.9998895027624309,
+    "error_types": {
+      "expired_before_send": 435669,
+      "http_503": 16770
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      187.39097369917985,
+      191.36822984120812,
+      191.52040256929064,
+      188.51224204566884,
+      191.74629889424804
+    ],
+    "sent_means_lower_ms": [
+      3.593145869947276e-05,
+      3.431818181818182e-05,
+      3.297904818916492e-05,
+      3.4315262227460225e-05,
+      3.52309766327142e-05
+    ],
+    "p50_ms": {
+      "median": 1095.761919,
+      "min": 1094.713343,
+      "max": 1096.810495
+    },
+    "p99_ms": {
+      "median": 1202.716671,
+      "min": 1195.376639,
+      "max": 1203.765247
+    },
+    "dispatch_p50_ms": {
+      "median": 1089.470463,
+      "min": 1087.373311,
+      "max": 1089.470463
+    },
+    "dispatch_p99_ms": {
+      "median": 1195.376639,
+      "min": 1189.085183,
+      "max": 1196.425215
+    },
+    "http_service_p99_ms": {
+      "median": 196.345855,
+      "min": 192.806911,
+      "max": 197.001215
+    },
+    "achieved_per_s": {
+      "median": 0.6,
+      "min": 0.5,
+      "max": 0.75
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1658283409163215,
+      "min": 0.16113787753987072,
+      "max": 0.20381222646878053
+    }
+  },
+  {
+    "phase": "diagnostic",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 2690,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 268882,
+    "max_error_fraction": 0.9996468401486989,
+    "error_types": {
+      "expired_before_send": 254806,
+      "http_503": 14076
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      224.54393165777466,
+      225.96567093535853,
+      225.30572693525687,
+      223.97319391739586,
+      227.36655447211368
+    ],
+    "sent_means_lower_ms": [
+      3.598982098982099e-05,
+      3.891487107029318e-05,
+      3.516361717100634e-05,
+      3.4507525376268816e-05,
+      3.628170515097691e-05
+    ],
+    "p50_ms": {
+      "median": 1113.587711,
+      "min": 1113.587711,
+      "max": 1114.636287
+    },
+    "p99_ms": {
+      "median": 1287.651327,
+      "min": 1266.679807,
+      "max": 1301.282815
+    },
+    "dispatch_p50_ms": {
+      "median": 1102.053375,
+      "min": 1101.004799,
+      "max": 1103.101951
+    },
+    "dispatch_p99_ms": {
+      "median": 1276.116991,
+      "min": 1254.096895,
+      "max": 1289.748479
+    },
+    "http_service_p99_ms": {
+      "median": 234.487807,
+      "min": 232.521727,
+      "max": 236.191743
+    },
+    "achieved_per_s": {
+      "median": 1.15,
+      "min": 0.95,
+      "max": 1.45
+    },
+    "unrelated_peak_cores": {
+      "median": 0.1918349734747606,
+      "min": 0.14874478724339477,
+      "max": 0.21807641801671637
+    }
+  },
+  {
+    "phase": "diagnostic",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 316418,
+    "max_error_fraction": 0.999625,
+    "error_types": {
+      "expired_before_send": 302480,
+      "http_503": 13938
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      103.1550729728764,
+      228.22714232940757,
+      222.7181546367432,
+      226.79326899362155,
+      223.70573254973823
+    ],
+    "sent_means_lower_ms": [
+      3.777878837095988e-05,
+      4.108850820842255e-05,
+      3.5989213639526795e-05,
+      3.568072289156626e-05,
+      3.88499127399651e-05
+    ],
+    "p50_ms": {
+      "median": 1112.539135,
+      "min": 1105.199103,
+      "max": 1114.636287
+    },
+    "p99_ms": {
+      "median": 1270.874111,
+      "min": 1259.339775,
+      "max": 1291.845631
+    },
+    "dispatch_p50_ms": {
+      "median": 1103.101951,
+      "min": 1094.713343,
+      "max": 1105.199103
+    },
+    "dispatch_p99_ms": {
+      "median": 1261.436927,
+      "min": 1249.902591,
+      "max": 1281.359871
+    },
+    "http_service_p99_ms": {
+      "median": 230.293503,
+      "min": 229.113855,
+      "max": 235.012095
+    },
+    "achieved_per_s": {
+      "median": 1.3,
+      "min": 1.2,
+      "max": 174.05
+    },
+    "unrelated_peak_cores": {
+      "median": 0.2050370888832189,
+      "min": 0.17936961411777008,
+      "max": 0.24236434693203046
+    }
+  },
+  {
+    "phase": "diagnostic",
+    "system": "r8",
+    "cell": "W5-hot1-B",
+    "rate": 3805,
+    "repetitions": 5,
+    "passes": 0,
+    "eligible": 5,
+    "first_three_passes": 0,
+    "qualifies_all": false,
+    "qualifies_3of3": false,
+    "contaminated_attempts": 0,
+    "reruns": 0,
+    "counter_mismatches": 0,
+    "errors": 380377,
+    "max_error_fraction": 0.9997634691195795,
+    "error_types": {
+      "expired_before_send": 366345,
+      "http_503": 14032
+    },
+    "flags": [
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL",
+      "FAIL"
+    ],
+    "sent_means_upper_ms": [
+      225.4779461958436,
+      233.06901276273652,
+      223.9465876797203,
+      227.3571623616341,
+      221.22323908503284
+    ],
+    "sent_means_lower_ms": [
+      3.53201831630856e-05,
+      3.165829694323144e-05,
+      3.494265734265734e-05,
+      3.632184724689165e-05,
+      3.463014172139648e-05
+    ],
+    "p50_ms": {
+      "median": 1113.587711,
+      "min": 1111.490559,
+      "max": 1117.782015
+    },
+    "p99_ms": {
+      "median": 1277.165567,
+      "min": 1251.999743,
+      "max": 1313.865727
+    },
+    "dispatch_p50_ms": {
+      "median": 1105.199103,
+      "min": 1103.101951,
+      "max": 1109.393407
+    },
+    "dispatch_p99_ms": {
+      "median": 1268.776959,
+      "min": 1243.611135,
+      "max": 1305.477119
+    },
+    "http_service_p99_ms": {
+      "median": 231.997439,
+      "min": 227.016703,
+      "max": 235.405311
+    },
+    "achieved_per_s": {
+      "median": 1.2,
+      "min": 0.9,
+      "max": 1.55
+    },
+    "unrelated_peak_cores": {
+      "median": 0.15421314703465208,
+      "min": 0.14992432837410738,
+      "max": 0.2272273469621568
+    }
+  }
+]
