@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_PROMOTE", &["Finish queued work and started external steps before stopping", "live guest sessions", "paused/advanced staging clocks", "test-clock timestamps are never rebased", "without publishing"]),
     ("E_PROBE_IDLE", &["Verify with npm run probe:check", "--hold for deliberate long-lived service", "does not establish authorization or deployment readiness"]),
     ("E_OBSERVE_USAGE", &["observed.subscribe(listener)", "unsubscribe and observed.close()"]),
     ("N_ROLE_UNFILTERED", &["Pin role in the full unique key probe", "If every roster variant is intended"]),

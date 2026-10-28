@@ -137,6 +137,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_PROMOTE", "E_PROMOTE refuses existing/nested targets and live sources."),
     ("E_OBSERVE_USAGE", "E_OBSERVE_USAGE means observe received a callback"),
     ("N_ROLE_UNFILTERED", "N_ROLE_UNFILTERED means an own-or-roster rule probes a mixed owner/customer"),
     ("N_RELEASE_CREATE_AUTHORITY", "A predecessor-backed setter narrowing"),

@@ -1,0 +1,407 @@
+# LLP 3000.000.000.003: Day-two release repairs (REL3)
+
+**Type:** RFC
+**Status:** Draft
+**Systems:** snapback4, releases, migrations, client contracts
+**Author:** Codex for Charlie Cheever
+**Date:** 2026-10-27
+**Revised:** 2026-10-27
+**Related:** LLP 3000.000.000 §22, LLP 3000.000.000.002, LLP 3000.000.000.000
+
+Commission: wave-31 fix list #1, #3, #5 and #7 wording. This amendment changes
+only the mechanisms below; §22's authority, visibility, snapshot and immutable
+registry obligations remain. Implementation/replay evidence belongs to REL3's
+workstream report. Each numbered mechanism receives the two commissioned reviews.
+
+## 1. Idempotent selection and repair
+
+An explicit selected immutable id already live returns success with `release N
+is already live`, the live identity and `unchanged: true` in JSON. Resolve view
+selection too: selecting the ordinary target already served by its registered
+view must not re-enter activation. Do not change generations, revisions, receipt
+state, history or release pointers. Core activation refuses a same-id request
+before migration preparation; private previews do not record self-transitions.
+The CLI's read-only preview retains its complete result contract.
+
+Old self-events stay in the audit. They never authorize deleting receipts or
+recapturing user edits. A forward activation may repair damaged forward receipt
+bookkeeping only when an existing down receipt validates its complete older
+projection and input/lifetime dependencies, restores its exact native image and
+the destination accepts it. Preserve that restored value as authored output
+instead of recomputing over it. This applies under the existing activation writer
+transaction and CAS, with ordinary constraints, visibility and authority checks.
+`rollback DIR --to latest --exact --check` previews that repair; the same command
+without `--check` activates it. A genuinely edited old projection still refuses,
+naming row ids and forward selection; use an authorized bridge mutation. New
+transform meaning needs a **fresh declaration name**; pruning cannot reset one.
+
+## 2. Frozen result fields
+
+`alias result list.oldName = currentName` in the endpoint's module declares an
+additive wire-result projection. It lowers to the ordinary metered row/object
+shape at every explicit return and the final implicit expression. Rows, optional
+rows and row collections keep their existing paging and row metadata. The base result is evaluated once; source-field accesses use ordinary metering
+on the authorized result. It adds no stored column,
+input alias, read authority, alternate interpreter or unmetered loop. Unknown
+fields, collisions and non-row results refuse at compilation. Native endpoints,
+jobs and actions are outside this initial form. Operation aliases inherit the
+endpoint's projected result. The generated client describes both fields.
+
+Compatibility reports enumerate frozen returned property paths. A declaration
+covering a read says `covered by alias list.oldName = currentName`; other missing,
+nullable or changed domains remain RESULT REVIEW. Coverage is a field-presence
+fact, not identical domain, business behavior or authorization.
+
+A guarded rollback view must retain extracted v1 photo fields on old parent
+results rather than silently dropping them. Generate ordinary, authorized child
+lookups and result projections; retain the entire current guarded workflow and
+child population. The initial extraction may use the parent's id, but later reverse/forward
+cycles may retain a different child id. A protected optional parent-reference column and unique
+index in the generated view carry the parent identity on exactly the child named
+by the validated extraction receipt. Activation populates this anchor only after
+checking the recorded child, its current parent reference and retained parent
+lifetime. Its `write <- deny` and immutable constraints prevent ordinary writes
+from forging or reassigning it; `on delete keep` adds no new parent-delete action.
+Only that exact extraction-owned contract has a fixed write reservation: checking
+an unconditional denial/immutable identity needs no data-dependent business
+audience. Other column-write/freeze gates retain their existing server-only and
+cascade restrictions. This bounded exemption keeps an existing cascade legal. The generated query uses an ordinary unique point
+lookup and child/column authorization. No arbitrary followup is substituted for a
+missing receipt-owned child. A missing/released payload yields null and is reported
+as a changed result domain; newer multiple-child workflows remain available.
+Physical asset homes stay on the child, and the generated source is inspectable.
+The strict schema capability `release-result-anchors-v1` fences stored backends;
+activation protocol 11 refuses older serving hosts before source compilation.
+Successful release activation advances the server store fence to
+`snapback4-release-store-11` while continuing to open store-10; old cold CLIs
+therefore cannot select a newly registered anchor view and silently omit its
+population. Refused adoption and no-op selection leave the fence unchanged.
+Restart serve with the corrected CLI before switching releases.
+An unrepresented v1 payload is a qualification failure, never excused by later
+writes or source selection success. Exact reverse extraction keeps its existing
+unambiguous-child and lifetime gates.
+
+## 3. One-release evolution
+
+A generated scalar identity rename may widen a domain in the same declaration.
+On first application, prove old-domain inclusion in the new scalar domain (including optionality, text
+bounds and numeric/enum bounds); no coercion or changed computation is inferred.
+Reverse projection validates each actual value under the destination domain and
+uses a widened registered view where needed; a registered old view may be wider
+than the native source, so reverse identity never requires a whole-domain inclusion
+in that direction. A previously registered rename re-enters through its immutable
+receipt and actual output checks. Retired input columns in an assembled snapshot
+do not carry all historical text constraints and cannot supply a fresh native
+domain proof. Existing declaration-name/digest gates still bind changed meaning. Reference/assets/lifetime ownership
+retain their existing distinct mechanisms. Tightened column-write rules must
+register a view retaining the current rule and callable compatible old reads;
+unsafe old writes pause or refuse rather than restoring broader write authority.
+
+Forward-after-old-edit refusals identify row, field, forward operation and repair;
+receipt validation remains a gate. `extract` stays asset-only for this increment:
+its diagnostic and evolution card explicitly say so and direct scalar splits to
+a named backfill/down and an authored child-writing mutation. A view's `live:`
+line states that it still runs the registered workflow and current guards.
+
+## 4. Preview wording
+
+Keep one top-level `rowShape` in preview JSON and preserve the structured live
+identity contract. Human prose does not repeat the expanded shape JSON across
+preview/receipt layers; structured records remain available with `--json`. Human
+shape advice lists changed operation/property names. Describe migration evidence
+as `preimages retained`, reserving dormant for actual inactive rows/cells/indexes.
+A retained predecessor representation is not labelled `read stale`; distinguish
+that representation from the retained newer source cells used on forward.
+Hiding refusals include table-qualified sample row ids and the exact count;
+samples stay bounded and explicitly labelled. Forward action advice is outside
+the bounded value samples so a long string cannot hide the fresh-name/bridge repair.
+
+## Reviews and verification
+
+Required: a fresh Codex review and Muse review of each mechanism, saved verbatim
+with provenance under `llp/reviews/`. Lane regressions name 041, 019, 010, 017,
+003, 005, 023, 012, 024, 020 and 040. Open only private copied stores, never the
+wave originals; remove copies after replay. Repeat Integration27's 150-store
+corpus, report every refusal delta and hidden v1 row, then run affected tests,
+short ordinary/Lean differential runs, reference/doc checks and affected packed
+publication consumer proofs. Merge incoming main; no push or version bump.
+
+### Round-one disposition
+
+The fresh Codex review found the canonical-child-id limitation material. The
+receipt-owned anchor now covers the distinct-id native singleton after an exact
+cycle and later guarded rollback, including independent followups. The CLI
+regression exercises that sequence and checks the actual frozen result values.
+Muse reviewed an earlier, evolving implementation snapshot. Its concrete gaps
+(view registration, named properties, alias inheritance/collisions and protected
+child lookup) are implemented. Ordinary shape lowering already maps pages and
+nullable rows; interpreter tests now demonstrate continuation, omission and a
+single evaluation of a write result. Existing retained-definition checks continue
+to bind pruned names. Forward repair still validates complete down evidence
+before the native-restoration exception, then repeats ordinary activation gates.
+The two initial reviews remain verbatim; further independent reviews evaluate
+the completed revision and the bounded metadata pricing/authority exceptions.
+
+### Round-two composition repairs
+
+A fresh Codex implementation review identified three composition gaps: shaped or
+aliased results lost parent identity, nested properties could receive a root alias
+coverage claim, and renamed columns were not aligned before write-rule comparison.
+The view now follows conservative bound-IR identity flow through row shapes and
+page loops, requiring the returned id to be the exact authorized base's id.
+Arbitrary objects, replaced ids and unsupported producers never establish lineage.
+Already served photo properties are not projected twice. Coverage matches a served
+root or root-page property exactly, and authority comparison shares the declared
+column/rule alignment already used by view admission. Regressions combine explicit
+shapes, result aliases, extracted native children and repeated guarded cycles;
+rename-plus-tightening also keeps old reads callable and denies outsider edits.
+
+### Exact reverse domain checks
+
+Muse round two asked whether a widened rename could leave an invalid scalar live
+on exact rollback. Destination validation runs in the shared
+`store/narrowed.rs::transition` after staged backfills (including text minima and
+formats through `incompatible_column`). Applying a staged reverse sets
+`activation_population`, which forces that walk even when the old spelling was
+retired. A non-fitting value becomes retained narrowed evidence, never a live
+out-of-domain cell. Default rollback uses the widened registered view and retains
+visibility; explicit `--exact --check` reports the narrowed population. The
+012/024 regression now executes that exact path: v1 amount=50 remains live,
+native price=500 is reported/retained, and forward restores both rows. This
+preserves existing intentional exact-narrowing semantics rather than adding a
+new blanket reverse-output refusal that would break truthful retained projections.
+
+### Forward dependencies remain binding
+
+Codex round three identified that a validated down receipt proves its native
+image, not a forward backfill's other dependencies. Native restoration now
+checks both the saved forward arguments and saved computation before preserving
+a distinct authored value. Missing legacy computed bookkeeping is recoverable
+only for input-only deterministic transforms with unchanged arguments; any
+store lookup still needs a matching saved computation. Agreement with the new
+computed value remains ordinary safe re-entry. Direct-input and point-dependency
+regressions compose an authored score with a down receipt and assert refusal
+preserves the complete receipt images, rows, generation, selected release and
+history. The original 041 damaged bookkeeping and native stage edit remain the
+positive repair control.
+
+A fourth focused Codex review caught the empty-computation fallback to a possibly
+poisoned `after` image. That image is never a computation certificate for native
+restoration now: require a nonempty matching computed image for any transform
+with store reads. The negative cases also poison an empty legacy point receipt
+whose old `after` happens to equal a changed recomputation, both with one output
+and multiple outputs; authored/absence receipt markers are included in the
+atomicity assertions. Input-only legacy 041 repair remains the positive control.
+
+The fifth focused reviews prompted a separate purity check: index discovery alone
+is not input-only computation, because `fileText` reads the asset ledger and
+retained bytes. The recursive input-only predicate rejects it along with all
+point/scan producers. The ordinary authored-output/dependency comparisons also
+require a saved computation for store-reading transforms, never a poisoned
+`after` image; input-only legacy cases and exact recomputation agreement keep
+their existing behavior. Controls cover the no-down path as well as validated
+native restoration, with full receipt/absence markers and row/metadata snapshots.
+
+The sixth Codex review found an intermediate-bridge composition that recertified
+an inactive poisoned `after` image. Reverse bookkeeping now captures a missing
+computation only from a pristine active receipt before any authored markers.
+Inactive or already-authored missing certificates remain unknown. The poisoned
+point controls also traverse an intermediate bridge, with/without down and with
+multiple outputs. Unedited derived outputs do not become authored merely because
+a down receipt restores them: their current value must still recompute after
+old dependency edits and repeated cycles. An opposing positive control pins that
+behavior, avoiding a new false refusal while preserving genuine native edits.
+
+### Final independent review disposition
+
+Both fresh round-seven reviewers mark mechanism 1 READY, including intermediate
+bridges, missing computation, multi-output conflicts, file reads, agreement,
+unedited recomputation and refusal atomicity. Mechanisms 2 and 3 have independent
+Codex/Muse READY reviews in round three after the shape/alias and renamed-rule
+composition repairs; mechanism 4 was READY in both round-two reviews. Every
+received review remains verbatim with its source manifest. These are static
+amendment/implementation reviews of the listed snapshots, not author acceptance
+or a claim that the complete publication battery ran. Executed qualification is
+recorded separately in the workstream evidence and report.
+
+### Corpus compatibility control
+
+Integration27 replay exposed a legacy overlapping projection in wave25/005:
+`historyFromReceipts` has no authored marker or computation certificate, its
+retained output equals fresh recomputation, and the visible older projection
+differs. That is a derived view, not evidence of an authored dependency conflict.
+Keep the existing equal-input/equal-output reprojection branch, while the earlier
+authored gate independently requires `computation_same`. A matching old `after`
+image never certifies an authored output. The lane-shaped regression retains the
+legacy no-preimage/retained-column state through two cycles; all poisoned authored
+and intermediate-bridge controls remain opposing refusals.
+
+Both fresh round-eight reviewers mark mechanism 1 READY after examining this
+compatibility branch together with the poisoned authored-output controls.
+
+### Legacy pointer initialization
+
+A filesystem `current` pointer without persisted selected-release metadata is
+source context for comparison, not a live backend. Explicit deploy initializes
+that backend with the store's actual predecessor (`None`), while preserving the
+pointer's source context for compatibility and security comparison. It must not
+pass the pointer back as its own activation predecessor. Serving still refuses
+before this explicit deploy. Rollback also refuses without persisted live metadata,
+directing the operator to deploy once; neither a same-pointer no-op nor an invented
+non-self predecessor is valid here. Generation advances and rows survive initialization.
+Both normal activation branches use the persisted predecessor paired with the
+held revision. The strict core self-transition guard is unchanged.
+
+The existing packed-client legacy-pointer upgrade regression found this caller
+normalization gap after that guard became strict. The additional lane-041 control
+keeps an existing row, clears only legacy selection/backend metadata, explicitly
+deploys, and checks that history has no self-event and repeated rollback is inert. Its
+rollback refusals preserve metadata, generation records, events and rows before
+initialization; generation advancement is relative to the captured starting value.
+
+
+Rounds nine through eleven independently reviewed this caller change. Round nine
+missed the SDK control in its source packet; its two responses remain verbatim.
+Muse also read the fresh-app regression as an already-rolled fixture; the test
+now asserts generation relative to its captured value. Round ten identified the
+remaining rollback caller that still treated a filesystem hint as live. Rollback
+now requires persisted live metadata and all three refusal forms preserve state.
+Both round-eleven reviewers mark the complete corrected snapshot READY, including
+the SDK control, attachment fixtures and private mutation-result control. The
+follow-up execution passed all 43 SDK activation tests, 8 REL3 tests, 58 rollback
+view tests, 10 result tests and 128 guide compilation tests. These reviews do not
+constitute author acceptance of this Draft.
+
+## 5. Loosen-required and release refusals (REL4)
+
+Commission: wave-33 #5 and #10b, 2026-10-27. Preserve §20–22's current
+policy, immutable definitions, migration custody and writer-time validation.
+Prepare an ordinary rollback bridge from **valid nullable current source first**.
+For an explicitly declared null-hiding column, remove registration-only `rollback
+hides` directives from generated executable source, narrow only that column's
+null domain, and wrap its explicitly authored write values in ordinary metered
+non-null assertions. A null write in this selected view refuses `ROLLBACK_NULL`;
+selecting forward restores the nullable workflow. Do not change ordinary source,
+input domains, other guards, independent invariants or migration definitions.
+Unsupported spread/migration compositions refuse at preview with the named
+column and visible-optional-view or original-source preview repair.
+
+An intentional hiding view that fails its transactional population safety check
+is unavailable for that rollback; it cannot veto otherwise valid forward
+activation. Deploy previews report each view's readiness/refusal separately and
+name the exact `rollback DIR --to N --exact --check` request for inspecting the
+original workflow, as well as removing the hiding declaration to register a
+visible optional view. Exact source remains an explicit historical-workflow
+choice with its existing authority/data-fit checks; never describe an untested
+exact alternative as safe. Ordinary visible views remain required to qualify.
+Actual hiding rollback still enforces its safety-population check atomically.
+
+Adoption preflight precedes enforcement of the security gate, including at
+`deploy --check`. A failing adoption names that first failure; a failing security
+gate says adoption passed first. This changes preview composition, not security
+rule families or their severity. Unchanged source still enforces current gates.
+
+Reprinting a global bare `cap N` preserves its empty grouping key, never emits
+`by` without columns. Extraction refuses unmapped nonliteral child defaults at
+compile/check, naming the child column and the literal-default, optional-without-
+default or mapped-retained-timestamp repairs. A failed rollback compilation for
+retired required/defaulted columns names every missing `down` output, rather
+than an unrelated generic guard location. Never infer missing business values.
+
+Verify lane-derived 033/024/037 fixtures and quiet safe variants, 150 archived
+stores on private copies, focused crate/CLI tests, short ordinary and Lean
+differential runs, affected packed consumers and the final affected selector.
+
+### REL4 round-one disposition
+
+Codex found unwrapped row-variable writes, changed enum-transform identity and
+an unchanged-source strict-review bypass. Muse found overly broad spread refusal
+and hidden-column migration compositions. Resolve each write target from the
+valid bound source map before adapting syntax (including helper/row-variable
+writes). Permit unrelated spreads when every hidden column is explicitly
+supplied; name ambiguous hidden fields. Reject migrations writing hidden outputs
+and any compiled migration-identity change before registration. The forward
+exception recognizes only the population-safety refusal, never arbitrary
+`E_ADOPT`. Unchanged `--strict` deployments re-evaluate existing gate families;
+ordinary unchanged-source advisory behavior remains as before. Both original
+reviews remain verbatim; these dispositions do not claim readiness.
+
+## 6. Staging snapshot promotion (REL4 stretch proposal)
+
+Author commission: wave-33 #10b. This explicit new-deployment operation amends
+LLP 3000.000.000.001 §1's no-promote boundary only as follows. Ordinary copying
+still preserves staging purpose, and no production store may be relabelled.
+`snapback4 promote STAGING PRODUCTION [--check] [--json]` creates a **new**
+production deployment from a stopped SQLite staging deployment. It never merges
+or overwrites an existing destination (including an empty directory), never
+changes the source, and refuses nested/source-equal destinations. Running source
+owners refuse with the exact `snapback4 stop STAGING` repair. The source release
+command lock and exclusive store-owner lock remain held through snapshot,
+release/asset copying and publication, so no release/asset writer can race it.
+
+Copy a coherent SQLite snapshot using the existing backup surface, not database
+file bytes. Copy immutable release trees (including ordinary/view history,
+native/worker artifacts) and immutable retained asset bytes under the same
+source exclusion. Omit process ownership/control/credential sidecars and cached
+absolute `.snapback4` store links; recreate relative links to the new store.
+Keep stored account/password identities, rows, assets, migration receipts,
+release ids/revisions/events. Revoke **all** copied full/read sessions and refresh
+families, including service/operator tokens; preserve account ids, credential
+hashes and row ownership so users sign in again with the same accounts. Give
+the destination a fresh store incarnation: staging devices/watermarks and pending
+writes must reacquire rather than treating two independently writable stores as
+one history. Keep historical receipt and release identities unchanged. Do not
+re-seed, re-import or re-run a migration. Local operator/service credentials are minted
+for the new destination by the existing local-token command; no bearer token
+is printed by promote. Worker/native content must remain intact and validate.
+
+Promotion cannot reinterpret test time as production time. Require an unpaused
+staging clock with zero effective offset and no future retained clock frontier;
+otherwise refuse with a named clock diagnostic and require a fresh real-time
+staging deployment for promotion. Preserve all data timestamps. On the private
+snapshot, atomically set production purpose, mint the new store incarnation,
+revoke inherited authentication/refresh authority and record promotion provenance,
+then reopen and attach its exact
+persisted backend, compile/check its selected immutable source and run the
+existing production security preflight with strict enforcement (including
+unchanged source). No security family is weakened, no rationale is synthesized,
+and staging seed/clock doors close on the candidate. Refuse queued/running jobs,
+actions/effects or started external steps: finish or explicitly settle them on
+staging and stop it again, rather than automatically replaying copied external
+work in two stores. Completed work history remains unchanged; promotion makes
+no claim to rewind external side effects or coordinate future independent writes.
+A refusal leaves source
+and destination untouched. Purpose change is confined to the unpublished copy.
+
+Build and verify in a private sibling candidate, flush its database, immutable
+files and directories, then atomically rename with **no replacement** into the
+absent destination (`renameat2(RENAME_NOREPLACE)` on Linux,
+`renamex_np(RENAME_EXCL)` on macOS; unsupported hosts refuse) and sync its parent
+directory. Never fall back to replacing rename. A crash leaves either no
+published destination or a complete production snapshot; a private leftover is
+recoverable and never implicitly served. A publication error after the rename
+must say the destination may already be complete and must not delete it. Check
+runs the same copy, attach and security checks, prints counts/selected release
+and clock status, and removes its private candidate without creating the target.
+
+Prove stopped/running source behavior, existing/nested/raced destination
+refusals, future/paused clock refusal, strict security refusal, preserved real
+password login/account ids, rejection of every copied full/read/service token
+and refresh descendant, fresh destination store identity and forced client
+reacquisition, promotion provenance, current rows and asset bytes/homes, immutable
+release/history equality and rollback/forward cycles. Execute affected installed
+consumer proofs from packed tarballs. Do not claim data merging, live-source
+promotion, clock rebasing or replacement of an existing production deployment.
+
+### REL4 round-two readiness and promotion disposition
+
+Muse and fresh Codex mark §5's release fixes READY; their actual executed
+language/harness checks and limitations remain in the verbatim artifacts.
+Both mark promotion NOT_READY. Codex demonstrates inherited operator authority
+and identical store identity after purpose-only copying; Muse also requires
+ordinary-session separation and origin provenance. The revised proposal revokes
+all inherited sessions/families, mints a new destination incarnation and records
+promotion provenance while preserving account credentials and release/migration
+history. It also requires quiescent execution queues, so copied external work is
+not automatically run twice. These are proposal corrections, not implemented or
+qualified promotion claims. The six release fixes proceed independently.

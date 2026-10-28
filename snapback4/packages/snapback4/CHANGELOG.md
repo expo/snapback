@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.46
+
+### Guide changes
+
+- `promote STAGING PRODUCTION` preserves password accounts, data, assets and release history in a new production deployment. Stop real-time staging first; preview with `promote STAGING PRODUCTION --check`. Users sign in again, devices reacquire, and inherited service credentials are revoked. Existing targets, live guest sessions, advanced clocks, unfinished work and production security refusals remain explicit.
+
+- Required-to-optional rollback views retain independent invariants. Intentional null hiding narrows the generated view and refuses null writes with `ROLLBACK_NULL`; forward keeps the nullable workflow. Deploy previews report unavailable hiding views separately, so their population-safety refusal cannot brick forward activation. The release card explains visible optional views and exact-source preview commands.
+- `deploy --check` runs adoption preflight before enforcing security and labels the first failure. Global bare `cap N` survives rollback generation. `check` refuses an extraction's unmapped nonliteral defaults with the column and remedies; retired required-column refusals name the missing `down` outputs.
+
 ## 0.4.45
 
 ### Guide changes

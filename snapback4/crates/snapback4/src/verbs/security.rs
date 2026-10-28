@@ -128,7 +128,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
             ||serde_json::to_vec(&old.invariants).map_err(|e|e.to_string())?!=serde_json::to_vec(&bound.invariants).map_err(|e|e.to_string())?
             ||serde_json::to_vec(&old.programs.iter().map(|p|&p.program).collect::<Vec<_>>()).map_err(|e|e.to_string())?!=serde_json::to_vec(&bound.programs.iter().map(|p|&p.program).collect::<Vec<_>>()).map_err(|e|e.to_string())?,
     };
-    if !changed{return Ok(None);}
+    if !changed&&!options.flags.contains_key("strict"){return Ok(None);}
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
     let started=std::time::Instant::now();
     if let Some(previous)=prior_sources{release_create::select(project,previous)?;}

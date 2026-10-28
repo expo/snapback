@@ -21,15 +21,16 @@ test('publication check catches 0.4.28 deploy --schema omission and covers every
     assert.deepEqual(changelogFlags(`- Run the new helper: ${pm} install --save-exact snapback4@0.4.31; deploy --schema saved.q`), [['deploy','--schema']]);
     assert.deepEqual(changelogFlags(`- JSON output uses ${pm} run --silent; run --source saved.q runs the selected source`), [['run','--source']]);
   }
+  assert.deepEqual(changelogFlags('- Stop staging first; preview with promote STAGING PRODUCTION --check'), [['promote','--check']]);
   checkVerbHelp(binary,changelog);
   const help=cli('deploy','--help');assert.match(help,/--schema file.q.*saved complete source; keep it outside snapback\//);
 });
 
 test('guide discovery accepts unambiguous names, successful section keywords and quoted/unquoted OR', () => {
-  assert.equal(cli('guide','produc'),cli('guide','production'));
-  const topic=cli('guide','totals','--section','count');assert.doesNotMatch(topic,/No heading|no section/);assert.match(topic,/count/);
-  const quoted=cli('guide','deploy','--find','widening OR generation');
-  const unquoted=cli('guide','deploy','--find','widening','OR','generation');
+  assert.equal(cli('guide','produc','--repeat'),cli('guide','production','--repeat'));
+  const topic=cli('guide','totals','--repeat','--section','count');assert.doesNotMatch(topic,/No heading|no section/);assert.match(topic,/count/);
+  const quoted=cli('guide','deploy','--repeat','--find','widening OR generation');
+  const unquoted=cli('guide','deploy','--repeat','--find','widening','OR','generation');
   assert.equal(quoted,unquoted);assert.match(quoted,/^\s*\d+: .*widening/im);assert.match(quoted,/^\s*\d+: .*generation/im);
 });
 
@@ -50,7 +51,7 @@ test('a staged standalone binary owns every native verb help without companion J
   const staged=join(dir,'snapback4');copyFileSync(binary,staged);chmodSync(staged,0o755);
   const poison=join(dir,'must-not-load.js');writeFileSync(poison,'throw Error("help delegated to companion JS")');
   const env={...process.env,SNAPBACK4_UPGRADE_HELPER:poison,SNAPBACK4_WEB_HELPER:poison};
-  for (const verb of ['init','new','check','device','types','dev','deploy','rollback','prune','releases','serve','run','clock','seed','reset','test','why','guide','data','sql','token','doctor','upgrade','witness','version']) {
+  for (const verb of ['init','new','check','device','types','dev','deploy','rollback','promote','prune','releases','serve','stop','run','clock','seed','reset','test','why','guide','data','sql','token','doctor','upgrade','witness','version']) {
     const result=spawnSync(staged,[verb,'--help'],{cwd:dir,env,encoding:'utf8',timeout:30000});
     assert.equal(result.status,0,verb+': '+result.stdout+result.stderr);
     assert.match(result.stdout,/Flags \(validated before any project or store work\)/,verb);

@@ -78,6 +78,7 @@ fn compile_uncached(sources: &[(String, String)]) -> Bound {
 }
 
 pub mod release_bridge;
+mod release_bridge_hiding;
 mod release_presence_allowance;
 
 mod release_bridge_constraints;

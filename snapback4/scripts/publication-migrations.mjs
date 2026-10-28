@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { proveRollInstalled } from "./publication-roll.mjs";
 import { proveREL3 } from "./publication-rel3.mjs";
+import { proveREL4 } from "./publication-rel4.mjs";
+import { provePromote } from "./publication-promote.mjs";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -37,6 +39,8 @@ export async function proveMigrations(client, platform, directory) {
     await run(process.execPath,["day-two-production.mjs"]);
     const roll=await proveRollInstalled(cwd,binary,run);
     const rel3=await proveREL3(cwd);
-    return {roll,rel3,status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
+    const rel4=await proveREL4(cwd);
+    const promotion=await provePromote(cwd);
+    return {roll,rel3,rel4,promotion,status:"passed",guide:"deploy",recipe:"verbatim installed card",runs:2,persistentProduction:true,realUsers:true,backfill:true,privacyInvariant:true,rollback:true,forwardCatchup:true,fullPopulationAssertions:true};
   } finally { rmSync(cwd,{recursive:true,force:true}); }
 }
