@@ -48,7 +48,7 @@ export function assertChangelogHelp(changelog, help) {
   }
   if (failures.length) throw new Error(failures.join('\n'));
 }
-export function checkVerbHelp(binary, changelog = readFileSync(new URL('../packages/snapback4/CHANGELOG.md', import.meta.url), 'utf8')) {
+export function checkVerbHelp(binary, changelog = readFileSync(new URL('../packages/snapback4/reference/CHANGELOG.md', import.meta.url), 'utf8')) {
   const cache = new Map();
   assertChangelogHelp(changelog, verb => {
     if (!cache.has(verb)) {

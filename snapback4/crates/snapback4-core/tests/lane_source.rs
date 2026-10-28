@@ -102,7 +102,7 @@ fn every_corpus_lane_source_matches_and_keeps_canonical_bytes() {
 #[test]
 fn every_published_quarry_lane_source_matches_and_keeps_canonical_bytes() {
     use snapback4_lang::guide::{KEYWORDS, LANGUAGE, card, quarry};
-    let readme = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
+    let readme = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/reference/SERVER.md"));
     let mut docs: Vec<(&str, &str)> = KEYWORDS.iter().map(|k| (*k, card(k).unwrap())).collect();
     docs.extend([("language", LANGUAGE), ("README", readme)]);
     let (mut blocks, mut sources, mut variants) = (0, Vec::new(), [0usize; 4]);

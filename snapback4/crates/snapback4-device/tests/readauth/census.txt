@@ -131,39 +131,39 @@ card/from-sql/3:setReminder | never
 card/indexes/2:addCategory | eligible
 card/indexes/3:signUp | never
 card/indexes/4:checkin | never
-card/language/16:checkin | never
-card/language/16:createRoom | eligible
-card/language/16:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:edit | eligible
-card/language/16:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:join | eligible
-card/language/16:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:leave | eligible
-card/language/16:pagePass | never
-card/language/16:post | eligible
-card/language/16:react | eligible
-card/language/16:react | postLikes/maintain | "Deny" | read rule
-card/language/16:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/language/16:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/language/16:registerProfile | never
-card/language/16:sendBrief | eligible
-card/language/16:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/16:split | never
-card/language/17:timelineFollow | never
-card/language/17:timelinePublish | eligible
-card/language/17:timelineRegister | eligible
-card/language/17:timelineRemove | eligible
-card/language/18:markRead | eligible
-card/language/19:timelineFollow | never
-card/language/19:timelinePublish | eligible
-card/language/19:timelineRegister | eligible
-card/language/19:timelineRemove | eligible
-card/language/22:react | eligible
-card/language/22:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:checkin | never
+card/language/17:createRoom | eligible
+card/language/17:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:edit | eligible
+card/language/17:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:join | eligible
+card/language/17:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:leave | eligible
+card/language/17:pagePass | never
+card/language/17:post | eligible
+card/language/17:react | eligible
+card/language/17:react | postLikes/maintain | "Deny" | read rule
+card/language/17:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/17:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/17:registerProfile | never
+card/language/17:sendBrief | eligible
+card/language/17:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/17:split | never
+card/language/18:timelineFollow | never
+card/language/18:timelinePublish | eligible
+card/language/18:timelineRegister | eligible
+card/language/18:timelineRemove | eligible
+card/language/19:markRead | eligible
+card/language/20:timelineFollow | never
+card/language/20:timelinePublish | eligible
+card/language/20:timelineRegister | eligible
+card/language/20:timelineRemove | eligible
+card/language/23:react | eligible
+card/language/23:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:addNote | eligible
 card/language/2:addNote | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/language/3:checkin | never
@@ -188,6 +188,28 @@ card/language/3:sendBrief | eligible
 card/language/3:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/3:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/3:split | never
+card/language/4:checkin | never
+card/language/4:createRoom | eligible
+card/language/4:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:edit | eligible
+card/language/4:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:join | eligible
+card/language/4:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:leave | eligible
+card/language/4:pagePass | never
+card/language/4:post | eligible
+card/language/4:react | eligible
+card/language/4:react | postLikes/maintain | "Deny" | read rule
+card/language/4:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/4:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/4:registerProfile | never
+card/language/4:sendBrief | eligible
+card/language/4:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/4:split | never
 card/language/program:checkin | never
 card/language/program:createRoom | eligible
 card/language/program:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
@@ -636,9 +658,9 @@ card/rules/6:claimLadderKey | never
 card/rules/7:writeLadderNote | never
 card/rules/8:ladderPut | never
 card/security/1:writePrivateNote | never
-card/security/2:approve | never
-card/security/2:create | never
-card/security/2:finish | never
+card/security/3:approve | never
+card/security/3:create | never
+card/security/3:finish | never
 card/sequences/1:createConversation | never
 card/sequences/1:delivered | never
 card/sequences/1:send | never
@@ -738,9 +760,6 @@ card/sharing/9:placeOrder | orderParties/insert | {"Exists":{"table":"orderParti
 card/sharing/9:placeOrder | orders/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/staging/1:add | never
 card/staging/1:provision | never
-card/start/1:approve | never
-card/start/1:openRequest | never
-card/start/1:provision | never
 card/time/1:addShift | eligible
 card/time/1:addShift | shifts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -773,6 +792,12 @@ card/types/1:createProfile | never
 card/wire/1:add | never
 card/wire/2:add | never
 card/wire/3:addExpense | never
+card/workflow/1:approve | never
+card/workflow/1:checkUsage | never
+card/workflow/1:deliver | never
+card/workflow/1:fit | never
+card/workflow/1:openRequest | never
+card/workflow/1:provision | never
 card/writes/1:checkin | never
 card/writes/1:createRoom | eligible
 card/writes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

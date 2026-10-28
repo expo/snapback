@@ -51,7 +51,7 @@ test('first check recovers older versions from locks/generated metadata and matc
     const { dir, schema, run } = fixture(t); writeFileSync(schema, v1);
     mkdirSync(join(dir, 'snapback/generated'), { recursive: true }); writeFileSync(join(dir, name), contents);
     const checked = run('check', '--json'); const facts = JSON.parse(checked.stdout); assert.ok(facts.ok);
-    const expected = runtimeChanges(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'), '0.4.25', installed);
+    const expected = runtimeChanges(readFileSync(new URL('../reference/CHANGELOG.md', import.meta.url), 'utf8'), '0.4.25', installed);
     assert.ok(checked.stderr.includes(expected), checked.stderr);
     assert.match(expected, /0\.4\.26[\s\S]*run\(\).*sent \| failed/);
     assert.match(expected, /0\.4\.27/);
@@ -89,7 +89,7 @@ test('downgrade ordering includes prereleases and numeric prerelease identifiers
 });
 
 test('real check shows the stable release after a prerelease acknowledgment exactly once', t => {
-  const history = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  const history = readFileSync(new URL('../reference/CHANGELOG.md', import.meta.url), 'utf8');
   for (const previous of ['0.4.28-rc', '0.4.28-rc.1', '0.4.28-rc.9007199254740993']) {
     const {dir,schema,run} = fixture(t); writeFileSync(schema,v1); mkdirSync(join(dir,'.snapback4'));
     writeFileSync(join(dir,'.snapback4/runtime-version.json'),JSON.stringify({version:previous}));

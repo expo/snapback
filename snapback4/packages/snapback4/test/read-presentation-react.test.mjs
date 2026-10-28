@@ -25,7 +25,7 @@ test('published Expo recipe: Strict Mode, withdrawal, denied membership, and acc
   const dir = mkdtempSync(join(tmpdir(), 'sb4-read-presentation-'));
   let browser, vite;
   t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
-  const docs = readFileSync(join(root, 'packages/snapback4/CLIENT-AND-OPERATIONS.md'), 'utf8');
+  const docs = readFileSync(join(root, 'packages/snapback4/reference/CLIENT-AND-OPERATIONS.md'), 'utf8');
   const recipe = docs.split('### A stable conversation screen')[1].match(/```tsx\n([\s\S]*?)\n```/)[1];
   writeFileSync(join(dir, 'recipe.jsx'), ts.transpileModule(recipe, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText);
   const guide = ({status:0,stderr:'',stdout:guideReference(process.env.SNAPBACK4_BIN ?? join(root,'target/debug/snapback4'),'social')});

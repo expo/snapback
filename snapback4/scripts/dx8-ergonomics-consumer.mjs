@@ -95,7 +95,7 @@ try {
 
 const proofModule = fileURLToPath(import.meta.resolve("snapback4/proof"));
 const packageRoot = dirname(dirname(proofModule));
-const clientOperations = readFileSync(join(packageRoot, "CLIENT-AND-OPERATIONS.md"), "utf8");
+const clientOperations = readFileSync(join(packageRoot, "reference/CLIENT-AND-OPERATIONS.md"), "utf8");
 const typescriptBlocks = [...clientOperations.matchAll(/^```ts\n([\s\S]*?)^```\s*$/gm)].map(match => match[1]);
 async function installedExample(name, needle) {
   const matches = typescriptBlocks.filter(block => block.includes(needle));

@@ -11,7 +11,7 @@ import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { hangBudget } from "./helpers/wait.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const dist = process.env.SNAPBACK4_CLIENT_DIST ?? join(root, "packages/snapback4/dist");
-const guide = () => readFileSync(process.env.SNAPBACK4_CLIENT_DIST ? join(dist, "../CLIENT-AND-OPERATIONS.md") : join(root, "packages/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8");
+const guide = () => readFileSync(process.env.SNAPBACK4_CLIENT_DIST ? join(dist, "../reference/CLIENT-AND-OPERATIONS.md") : join(root, "packages/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "utf8");
 const recipe = () => [...guide().matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m => m[1]).find(s => s.includes("function ShortScreen"));
 
 test("short query types preserve generated arguments, null and typed refusal", () => {

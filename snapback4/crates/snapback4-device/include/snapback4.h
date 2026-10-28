@@ -17,7 +17,7 @@
  * A `query` answer is not always the device's to give: `unknown` without
  * `retained` means ask the server (POST /q/<op>), and `speculative` data is a
  * placeholder. The reply contract is "The device reply" in the snapback4
- * package's CLIENT-AND-OPERATIONS.md.
+ * package's reference/CLIENT-AND-OPERATIONS.md.
  * `apply.first` must be true on the first page of a snapshot. It defaults
  * to false so an omitted marker cannot discard a snapshot already staged.
  */

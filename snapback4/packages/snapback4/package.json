@@ -100,11 +100,7 @@
     "dist",
     "bin",
     "README.md",
-    "CHANGELOG.md",
-    "SERVER.md",
-    "CLIENT-AND-OPERATIONS.md",
-    "FOLLOWING-ADOPTION.md",
-    "OFFLINE-UPLOADS.md",
+    "reference",
     "THIRD-PARTY-NOTICES"
   ],
   "optionalDependencies": {

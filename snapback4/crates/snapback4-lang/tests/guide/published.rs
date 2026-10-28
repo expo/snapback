@@ -1,5 +1,5 @@
 //! Prose references must be usable from an installed package, without a checkout.
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{collections::BTreeSet, fs, path::{Path, Component}};
 use super::card;
 
 fn shipped_files() -> BTreeSet<String> {
@@ -110,6 +110,10 @@ pub(super) fn contains_llp_reference(text: &str) -> bool {
 }
 
 fn unshipped(doc: &str, shipped: &BTreeSet<String>) -> Vec<String> {
+    unshipped_at(doc, shipped, Path::new(""))
+}
+
+fn unshipped_at(doc: &str, shipped: &BTreeSet<String>, parent: &Path) -> Vec<String> {
     let mut failures = Vec::new();
     let mut fenced = false;
     for line in doc.lines() {
@@ -137,7 +141,18 @@ fn unshipped(doc: &str, shipped: &BTreeSet<String>) -> Vec<String> {
                 ((path.contains('/') && ext.chars().any(|c| c.is_ascii_alphabetic()) && ext.chars().all(|c| c.is_ascii_alphanumeric())) ||
                 ["md", "rs", "ts", "tsx", "js", "mjs", "cjs", "json", "jsonl", "toml", "q", "wasm", "h", "html", "sqlite", "sh", "txt", "mp4"].contains(&ext)));
             if token.ends_with("]:") { continue; }
-            if (linked || file) && !accessible(token, shipped, !linked) { failures.push(token.to_owned()); }
+            let relative = parent.join(token);
+            let mut normalized = std::path::PathBuf::new();
+            for component in relative.components() {
+                match component {
+                    Component::ParentDir => { if !normalized.pop() { normalized.push(".."); } },
+                    Component::CurDir => {},
+                    other => normalized.push(other.as_os_str()),
+                }
+            }
+            let relative_accessible = !parent.as_os_str().is_empty()
+                && accessible(&normalized.to_string_lossy(), shipped, false);
+            if (linked || file) && !accessible(token, shipped, !linked) && !relative_accessible { failures.push(token.to_owned()); }
         }
     }
     failures
@@ -152,7 +167,7 @@ fn published_file_references_resolve_against_package_contents() {
     }
     let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4");
     for name in shipped.iter().filter(|p| p.ends_with(".md")) {
-        failures.extend(unshipped(&fs::read_to_string(package.join(name)).unwrap(), &shipped).into_iter().map(|p| format!("{name}: {p}")));
+        failures.extend(unshipped_at(&fs::read_to_string(package.join(name)).unwrap(), &shipped, Path::new(name).parent().unwrap()).into_iter().map(|p| format!("{name}: {p}")));
     }
     assert!(failures.is_empty(), "unshipped references:\n{}", failures.join("\n"));
 }
@@ -184,23 +199,25 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
         "Read [escape](../README.md).",
         "Read [details](https://example.com/private/new.md).",
     ] { assert!(!unshipped(text, &shipped).is_empty(), "accepted {text}"); }
-    for text in ["Run `node scripts/install.mjs`.", "Barrier: `<deployment>/store.sqlite`.", "Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
+    for text in ["Run `node scripts/install.mjs`.", "Barrier: `<deployment>/store.sqlite`.", "Read [client](./reference/CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./reference/FOLLOWING-ADOPTION.md).", "[client]: ./reference/CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
         assert!(unshipped(text, &shipped).is_empty(), "refused {text}");
     }
     for text in [
-        "Read **FOLLOWING-ADOPTION.md**.",
+        "Read **reference/FOLLOWING-ADOPTION.md**.",
         "Read [client](https://github.com/expo/snapback/blob/main/snapback4/packages/snapback4/README.md).",
         "Read https://raw.githubusercontent.com/expo/snapback/main/snapback4/packages/snapback4/README.md.",
     ] { assert!(unshipped(text, &shipped).is_empty(), "refused {text}"); }
-    let without_adoption = shipped.into_iter().filter(|p| p != "FOLLOWING-ADOPTION.md").collect();
-    assert!(!unshipped("[adoption](./FOLLOWING-ADOPTION.md)", &without_adoption).is_empty());
+    assert!(unshipped_at("Read [entry](../README.md) and [server](./SERVER.md).", &shipped, Path::new("reference")).is_empty());
+    assert!(!unshipped_at("Read [escape](../../README.md).", &shipped, Path::new("reference")).is_empty());
+    let without_adoption = shipped.into_iter().filter(|p| p != "reference/FOLLOWING-ADOPTION.md").collect();
+    assert!(!unshipped("[adoption](./reference/FOLLOWING-ADOPTION.md)", &without_adoption).is_empty());
 }
 
 #[test]
 fn client_teaches_sdk_delivery_and_screen_seen() {
     let client = card("client").unwrap();
-    assert!(client.contains("CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details"));
-    let client = include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
+    assert!(client.contains("reference/CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details"));
+    let client = include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
     assert!(client.contains("SDK owns delivery reporting"));
     assert!(client.contains("screen owns visible `seen` reporting"));
     for name in ["client", "receipts", "sync"] {
@@ -211,4 +228,14 @@ fn client_teaches_sdk_delivery_and_screen_seen() {
     let receipts = card("receipts").unwrap();
     assert!(receipts.contains("SDK reports delivered positions"));
     assert!(receipts.contains("even with no\nconversation mounted"));
+}
+
+#[test]
+fn package_root_has_one_markdown_entry() {
+    let shipped = shipped_files();
+    let root_docs: Vec<_> = shipped.iter().filter(|p| !p.contains('/') && p.ends_with(".md")).map(String::as_str).collect();
+    assert_eq!(root_docs, ["README.md"]);
+    for name in ["SERVER", "CLIENT-AND-OPERATIONS", "FOLLOWING-ADOPTION", "OFFLINE-UPLOADS", "CHANGELOG"] {
+        assert!(shipped.contains(&format!("reference/{name}.md")));
+    }
 }

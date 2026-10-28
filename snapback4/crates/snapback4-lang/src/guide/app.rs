@@ -122,7 +122,7 @@ and schedules, in any order. `snapback4 guide` prints the card index;
 `guide language` prints the core program, followed by a "With `use server`"
 section, and the idiom for each thing the language leaves out on purpose.
 
-The example's §4 (identity) and §5 (personas) refer to CLIENT-AND-OPERATIONS.md.
+The example's §4 (identity) and §5 (personas) refer to reference/CLIENT-AND-OPERATIONS.md.
 
 Offline `edit` predicts after the author leaves the conversation. Its new
 image is hidden because the membership read rule no longer holds; a server

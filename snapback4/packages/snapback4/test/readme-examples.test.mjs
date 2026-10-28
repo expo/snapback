@@ -14,7 +14,7 @@ import { runInNewContext } from "node:vm";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(path, "utf8");
 const pkg = JSON.parse(read(join(root, "package.json")));
-const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./contract").map(([key, value]) => {
+const publicSources = Object.entries(pkg.exports).filter(([key, value]) => key !== "./contract" && typeof value === "object" && typeof value.types === "string").map(([key, value]) => {
   const stem = value.types.replace("./dist/", "src/").replace(/\.d\.ts$/, "");
   return { key, path: join(root, stem + (key === "./react" ? ".tsx" : ".ts")) };
 });
@@ -96,7 +96,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name)).split("## Your first working account screen")[0]).join("\n");
+  const readme = ["reference/CLIENT-AND-OPERATIONS.md", "reference/SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name)).split("## Your first working account screen")[0]).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -160,8 +160,8 @@ test("the React entry index names every function snapback4/react exports", () =>
   const source = read(join(root, "src/react.tsx"));
   const reexported = source.match(/^export \{([^}]*)\} from "\.\/contract\.ts";$/m)[1].split(",").map(name => name.trim()).filter(name => name && !name.startsWith("type "));
   const exported = [...new Set([...source.matchAll(/^export function (\w+)/gm)].map(match => match[1]))];
-  const index = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/#### The React entry at a glance\n([\s\S]*?)\n####/)?.[1];
-  assert.ok(index, "CLIENT-AND-OPERATIONS.md has the React entry index");
+  const index = read(join(root, "reference/CLIENT-AND-OPERATIONS.md")).match(/#### The React entry at a glance\n([\s\S]*?)\n####/)?.[1];
+  assert.ok(index, "reference/CLIENT-AND-OPERATIONS.md has the React entry index");
   assert.ok(exported.length > 20 && reexported.includes("matchRead"));
   assert.deepEqual([...exported, ...reexported].filter(name => !new RegExp("`" + name + "[`(]").test(index)), []);
 });
@@ -172,12 +172,12 @@ test("Queries teach predicate reads and engine-chosen scope lanes", () => {
   assert.ok(queries.includes("last 20 by .at after c"));
   const why = execFileSync(process.env.SNAPBACK4_BIN ?? join(root, "../../target/debug/snapback4"), ["why", "N_SPARSE_FILTER"], {encoding: "utf8"}).replace(/\s+/g, " ");
   assert.ok(why.includes("the author writes no lane list"));
-  assert.ok(read(join(root, "README.md")).includes("CLIENT-AND-OPERATIONS.md"));
-  assert.ok(read(join(root,"CLIENT-AND-OPERATIONS.md")).includes("`guide reads`"));
+  assert.ok(read(join(root, "README.md")).includes("reference/CLIENT-AND-OPERATIONS.md"));
+  assert.ok(read(join(root,"reference/CLIENT-AND-OPERATIONS.md")).includes("`guide reads`"));
 });
 
 test("Expo Go README session store preserves encoded SecureStore keys and round-trips a session", async () => {
-  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["README.md", "reference/CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
   const source = readme.match(/const sessionStore = [\s\S]*?;/)?.[0];
   assert.ok(source, "README declares its SecureStore adapter");
   const values = new Map();
@@ -206,7 +206,7 @@ test("Expo Go README session store preserves encoded SecureStore keys and round-
 
 // Execute the published hook with a controlled provider clock. React's actual
 // subscriptions, replacement deadlines and unmount run in react.test.mjs.
-const expiryPaths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "CLIENT-AND-OPERATIONS.md"];
+const expiryPaths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "reference/CLIENT-AND-OPERATIONS.md"];
 function expiryRecipe(path, clock, deadlines) {
   const source = read(join(root, path)).match(/function useExpiringRows[\s\S]*?\n}/)?.[0];
   assert.ok(source, `${path}: published server-answer hook`);
@@ -333,7 +333,7 @@ test("client card composer disables only denied or fresh non-revalidating absent
 });
 
 test("profile screen waits for proven existence and uses each replacement", async () => {
-  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/async function profileScreen[\s\S]*?\n}/)?.[0];
+  const source = read(join(root, "reference/CLIENT-AND-OPERATIONS.md")).match(/async function profileScreen[\s\S]*?\n}/)?.[0];
   assert.ok(source);
   const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, existence });
   for (const [answer, expected] of [

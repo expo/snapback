@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.48
+
+### Guide changes
+
+- README is the only Markdown file at the package root. Detailed server, client, adoption, upload and release references now live in `reference/`, reached through `guide package-reference`; existing apps keep their source and runtime behavior. Update any scripts that read those reference files by path.
+- Every `Write<R>` permits reading `.why`: it is undefined while pending or sent and carries the refusal on failure. Existing pending `.reason` strings and failure `.why` callers keep compiling. `refusalOf(write)` from `snapback4/client`, `snapback4/react` or `snapback4/contract` returns the failure or undefined; `guide api client` includes both shapes.
+
 ## 0.4.47
 
 ### Guide changes
