@@ -152,7 +152,7 @@ pub(super) fn thread_cpu() -> Option<Duration> {
 
 /// Created before worker admission; aborted admission counts without a header.
 /// Accepted time originates before HTTP body prebuffering.
-pub(super) struct Sample { registry: Arc<Registry>, path: String, accepted: Instant, timing: Option<Timing>, headers: bool }
+pub(super) struct Sample { registry: Arc<Registry>, path: String, accepted: Instant, timing: Option<Timing>, headers: bool, detached: bool }
 impl Sample {
     #[cfg(test)]
     pub fn new(request: &Request, registry: &Arc<Registry>) -> Option<Self> {
@@ -170,16 +170,20 @@ impl Sample {
             _ if headers => "", // Timing on other dev responses, no new registry names.
             _ => return None,
         };
-        Some(Self { registry: registry.clone(), path: path.to_owned(), accepted: request.accepted_at(), timing: None, headers })
+        Some(Self { registry: registry.clone(), path: path.to_owned(), accepted: request.accepted_at(), timing: None, headers, detached: false })
     }
     pub fn run(mut self, handle: impl FnOnce()) {
-        let timing = Timing { accepted: self.accepted, wait: Duration::ZERO, engine: Duration::ZERO,
-            engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), worker_cpu: Some(Duration::ZERO), headers: self.headers, finished: None };
+        let mut timing = self.timing.take().unwrap_or(Timing { accepted: self.accepted, wait: Duration::ZERO, engine: Duration::ZERO,
+            engine_started: None, depth: 0, acquiring: false, cpu_start: thread_cpu(), worker_cpu: Some(Duration::ZERO), headers: self.headers, finished: None });
+        timing.cpu_start=thread_cpu();
+        ACTIVE_SAMPLE.with(|slot| *slot.borrow_mut()=Some((self.registry.clone(),self.path.clone(),self.accepted,self.headers)));
         CURRENT.with(|current| { assert!(current.get().is_none()); current.set(Some(timing)); });
         struct Clear<'a>(&'a mut Sample);
         impl Drop for Clear<'_> { fn drop(&mut self) {
             finished(true);
             self.0.timing = CURRENT.with(|current| current.take());
+            self.0.detached = self.0.timing.is_none();
+            ACTIVE_SAMPLE.with(|slot| slot.take());
         } }
         let _clear = Clear(&mut self);
         handle();
@@ -187,11 +191,21 @@ impl Sample {
 }
 impl Drop for Sample {
     fn drop(&mut self) {
+        if self.detached {return;}
         let (total, refused, cpu, engine) = self.timing.and_then(|t| t.finished)
             .unwrap_or_else(|| (self.accepted.elapsed(), true, None, Duration::ZERO));
         let wait = self.timing.map_or(Duration::ZERO, |t| t.wait);
         self.registry.record(&self.path, self.accepted, total, wait, engine, cpu, refused);
     }
+}
+thread_local! { static ACTIVE_SAMPLE: std::cell::RefCell<Option<(Arc<Registry>,String,Instant,bool)>> = const {std::cell::RefCell::new(None)}; }
+// Transfer timing across a parked continuation without charging another thread's CPU.
+pub(super) fn suspend() -> Option<Sample> {
+    let mut timing=CURRENT.with(|slot|slot.take())?;
+    timing.worker_cpu=timing.cpu_elapsed();
+    timing.cpu_start=None;
+    let (registry,path,accepted,headers)=ACTIVE_SAMPLE.with(|slot|slot.take())?;
+    Some(Sample {registry,path,accepted,headers,timing:Some(timing),detached:false})
 }
 // Finish before automatic response/body cleanup on an unanswered handler.
 pub(super) struct FinishOnDrop;

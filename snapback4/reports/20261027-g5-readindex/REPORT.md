@@ -300,3 +300,112 @@ its new postmaster PID before using `measure.py --stage measure` (or
 `--scope w1fresh`). Final PID/free-space and executable receipts are in
 [cleanup.json](./cleanup.json). No push, stash, Git configuration change or
 credential copy is performed.
+
+
+## Round 2 — G5R2 on expo-build-450a (2026-10-28)
+
+Worktree `/home/ccheever/projects/sb4-g5r2`, branch `sb4-pg/g5r2`, starts
+at the requested `08a9731b597f27cb7e79b47f7268fd3472b5efa2`. The hostname
+is `expose-builder-nothing`; its Tailscale address `100.84.186.119` resolves
+as expo-build-450a. This is the Ryzen 5 3600 (six physical/twelve logical
+CPUs), not Round 1's EPYC host. 450b is untouched.
+
+### Continuation design
+
+The flag remains default off. HTTP reads select an immutable cached candidate,
+return the detached reader and publication lease, and park their continuation
+while retaining their bounded socket-admission slot. They retain no execution
+worker, PG connection/transaction or transport permit. A single timer closes
+collection after 200 microseconds and pipelines at most two validation flights
+through two workers borrowing the unchanged pool. The 30 request workers and
+32 physical application-connection cap are unchanged. Enrollment closes before
+statement submission; the statement snapshot remains each successful read's
+linearization point. A proof belongs to its original cache and request key.
+
+The independent timer bounds proof waiting to 8 ms before ordinary G5 fallback.
+It does not cancel a statement needed by other readers. Resumption preserves
+the original intake/body deadline, reacquires publication admission and a
+reader, rechecks the program/arguments, authority/expiry and uncertainty latch,
+and consumes its proof once. HTTP fallback and generation handoff cannot
+re-enter blocking RI. The deadline is a wait bound, not a freshness clock
+assumption. Aborted response chains are removed while parked; a TCP half-close
+continues to have the existing semantics described in the LLP. Direct core
+callers retain their synchronous API; the scarce HTTP execution pool uses
+continuations.
+
+The explicit qualification trace now transfers wall/CPU timing across the
+continuation. Separate opt-in release tracing (`SNAPBACK4_READ_TRACE_ALL=1`,
+with `SNAPBACK4_READ_TRACE` naming a new private output file) records intake,
+parse/preparation, candidate lookup, parked/resumed, query, encoding and write
+stages without credentials, arguments or answers. Normal cohorts leave it off.
+
+### Reproducer and verification record
+
+[`round2.py`](./round2.py) extends the checked-in `s1-onehost.py` lifecycle,
+fixture, affinity, quiet gate, native load generator and SLO. The registered
+matrix is W1/W2 A/B at 8,000/9,514/11,313; W3 also 16,000; W4/A at
+800/2,262; three rotating interleaved arms and three repetitions. Default
+windows retain S1's 10 s warm-up plus 20 s measurement. A/B proxy RTTs
+500/1,000 microseconds split into 250/500 microseconds per direction.
+PG/app/load affinities are `0-2,6-8` / `3-4,9-10` / `5,11`.
+
+Private witness PG uses port 55742; campaign PG uses 55743. All native tools
+build under this worktree's `target`, with `CARGO_PROFILE_DEV_DEBUG=line-tables-only`
+and incremental compilation disabled. Preflight requires 24 GiB; continuous
+monitoring stops below 22 GiB. No old SPR target artifact, release binary or
+fixture is removed. No push, origin fetch, stash, Git configuration change,
+credential copy or 450b access is performed.
+
+The first private-PG launcher was killed with its tool process group after its
+short controller exited. That setup supplied no usable test result; all three
+HTTP and all 39 cache tests initially refused the absent socket. Restart uses
+recorded postmaster identity and its own session, without deleting the cluster.
+The first real cache run passes 38/39; the new uncertainty witness incorrectly
+asked an unowned fixture for an owned-handle latch. It now uses an actual
+fenced owner. The first HTTP fixture used a constant-only query, which the
+bounded read-closure cache deliberately excludes; the corrected witness uses
+an ordinary indexed row read. Compilation/setup failures remain disclosed and
+supply no passing witness counts.
+
+
+### Round 2 verification before measurement
+
+| Check | Result |
+| --- | --- |
+| Core unit suite, default posture | 881 passed, 0 failed |
+| CLI unit suite, serial | 674 passed, 0 failed, 78 ignored |
+| Private-PG cache/G6/D + coordinator suite | 42 passed, 0 failed |
+| Final core receipt/probation/RYW/uncertainty witnesses | 3 passed, 0 failed |
+| Final HTTP parking/deadline/disconnect/ownership witnesses | 3 passed, 0 failed |
+| Private-PG CLI round-trip group | 11 passed, 0 failed; two explicitly gated measurement helpers do no measurement |
+| Ref checker | Passed: 575 LLPs, 12,176 refs, no errors/unchecked refs |
+| Whitespace check | Passed |
+
+The broad runs precede the final candidate-probe hardening. Its focused
+witness verifies that a probe is read-only: the first real read still cannot
+admit a fill, and the second does. Receipt tests reject a previously completed
+proof supplied to a later enrollment and recheck a sticky uncertainty latch.
+The final HTTP witness accounts both parked reads and legitimate ordinary-G5
+fallback from a contended nonblocking cache-directory probe; it checks zero
+active short workers, all reader loans free, preserved bounded admission and
+progress on `/auth/config` while both validators are held. Deliberately held
+exchanges use the existing held-exchange guard. A failed earlier exact-count
+witness is retained, not interpreted as a product worker leak.
+
+The initial broad CLI attempt was stopped after worker-watchdog failures
+because only test executables had been built. Building its normal sibling CLI
+resolves that setup precondition; the complete serial rerun above passes.
+The compiler/profile settings use the repository's SQLite durability flags
+as well as the requested line-table debug profile.
+
+`check-inventories` ran and remains red on unchanged Snapback 1 inputs:
+missing ignored generated demo/Contract leaves and an existing diagnostics
+removal-ledger mismatch. All changed Rust is outside the diagnostics registry's
+production roots (`scripts/diagnostics-registry-source.mjs`); no registered
+emitting site moved, so no registry regeneration or unrelated root bootstrap
+is performed. This is not publication qualification.
+
+[Structured verification receipt](./round2-verification.json). The private
+port-55742 postmaster is stopped, its PID file absent, and its test cluster and
+this lane's completed debug artifacts are removed. The SPR release and fixtures
+remain untouched. Pre-release `/home` free: 28.1 GiB.

@@ -8,6 +8,7 @@ pub fn serve(
     inherited: Option<std::net::TcpListener>,
     capacity: crate::host_limits::Capacity,
 ) -> Result<(), String> {
+    trace::install_parser_clock();
     crate::host_limits::initialize();
     let capacity = capacity.fit()?;
     crate::host_limits::install(capacity);
@@ -288,6 +289,8 @@ pub fn serve(
         poll_notified: Mutex::new(None),
         #[cfg(test)]
         query_wait: Mutex::new(None),
+        #[cfg(test)]
+        read_index_validation: Mutex::new(None),
         #[cfg(test)]
         adoption_committed: Mutex::new(None),
         #[cfg(test)]

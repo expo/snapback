@@ -1,0 +1,59 @@
+{
+  "core_default": {
+    "passed": 881,
+    "failed": 0,
+    "ignored": 504,
+    "private_log": "/tmp/g5r2-core-suite.log"
+  },
+  "cli_serial": {
+    "passed": 674,
+    "failed": 0,
+    "ignored": 78,
+    "private_log": "/tmp/g5r2-cli-suite2.log"
+  },
+  "private_pg_cache_grant_coordinators": {
+    "passed": 42,
+    "failed": 0,
+    "ignored": 0,
+    "private_log": "/tmp/g5r2-cache-final.log"
+  },
+  "final_core_receipt_probation_ryw_uncertainty": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0,
+    "private_log": "/tmp/g5r2-core-late-witnesses.log"
+  },
+  "final_http_park_deadline_disconnect_owner": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0,
+    "private_log": "/tmp/g5r2-http-final3.log"
+  },
+  "private_pg_cli_round_trips": {
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0,
+    "private_log": "/tmp/g5r2-http-roundtrips.log"
+  },
+  "scope_note": "Broad core/CLI runs preceded the final read-only candidate-probe hardening; its added cold-probation witness and final HTTP witnesses cover that delta. The Postgres-only enrollment guard has no semantic delta in these PG witnesses.",
+  "ref_check": {
+    "passed": true,
+    "documents": 575,
+    "references": 12176,
+    "errors": 0,
+    "unchecked": 0,
+    "private_log": "/tmp/g5r2-ref-check-precommit.log"
+  },
+  "inventory": {
+    "passed": false,
+    "private_log": "/tmp/g5r2-inventories.log",
+    "reason": "unchanged Snapback 1 generated-artifact preconditions and existing diagnostics removal ledger mismatch; no diagnostics production root changed"
+  },
+  "excluded_attempts": [
+    "absent private PG after short launcher process-group cleanup",
+    "constant-only HTTP fixture outside admitted cache fragment",
+    "unowned fixture has no uncertainty latch",
+    "held-read witness assumed every nonblocking cache probe succeeds and used ordinary 3s socket guard",
+    "first broad CLI run lacked the normal worker-watchdog CLI executable and was stopped"
+  ]
+}

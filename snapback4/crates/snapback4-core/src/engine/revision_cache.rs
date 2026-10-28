@@ -16,6 +16,9 @@ static PROCESS_USED: AtomicUsize = AtomicUsize::new(0);
 type Key = [u8; 32];
 #[path = "revision_cache_read_index.rs"]
 mod read_index;
+#[path = "revision_cache_park.rs"]
+mod park;
+pub use park::{ReadIndexCandidate, ReadIndexProof, ReadIndexValidation};
 
 /// Hard limits include bookkeeping, candidate references and reserved fills.
 // @ref LLP 3000.009.001.000.002#4.5 — entry/byte/fill/per-principal bounds and process-wide retention accounting.
@@ -682,6 +685,8 @@ impl Engine {
         manifest: DeliveryManifest,
         digest: &str,
         snapshot: &mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
+        parked: Option<ReadIndexProof>,
+        allow_blocking: bool,
     ) -> (
         Result<QueryOutcome, Refusal>,
         Option<u64>,
@@ -705,9 +710,12 @@ impl Engine {
         } else {
             self.cache_key(name, &context, retained, manifest, digest)
         };
-        let (candidate, admit) = key
+        let (mut candidate, admit) = key
             .map(|(key, _)| cache.lookup(key))
             .unwrap_or((None, false));
+        if let Some(proof) = &parked
+            && Arc::ptr_eq(&proof.cache, &cache) && key.map(|v|v.0) == Some(proof.key)
+        { candidate = Some(proof.entry.clone()); }
         if let Some(entry) = candidate {
             // @ref LLP 3000.009.001.000.002#sqlite-local-hits — an exclusive flock survives pauses; a stable complete revision certifies the frozen authority facts.
             if self.store.sqlite_cache_revision() == Some(entry.stamp.revision) {
@@ -797,10 +805,14 @@ impl Engine {
                     if cache.read_index.enabled.load(Ordering::Relaxed)
                         && self.store.durability().is_none()
                         && grant.as_ref().is_none_or(|g| !g.revoked.load(Ordering::Acquire) && !g.uncertain.load(Ordering::Acquire))
-                        && let Some(stamp) = cache.read_index.validate(
-                            std::time::Instant::now() + std::time::Duration::from_secs(1),
-                            || self.store.read_index_validation(),
-                        )
+                        && let Some(stamp) = match &parked {
+                            Some(proof) if Arc::ptr_eq(&proof.cache, &cache) && key.map(|v|v.0) == Some(proof.key) => proof.validation.as_ref().map(|v|v.0.clone()),
+                            Some(_) => None,
+                            None if allow_blocking => cache.read_index.validate(
+                                std::time::Instant::now() + std::time::Duration::from_secs(1),
+                                || self.store.read_index_validation()),
+                            None => None,
+                        }
                     {
                         if stamp != entry.stamp { return Ok(None); }
                         let tx = self.store.cached_authority_snapshot(digest, entry.facts.clone())?;

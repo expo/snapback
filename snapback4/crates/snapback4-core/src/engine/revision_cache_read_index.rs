@@ -21,6 +21,7 @@ pub(super) struct ReadIndex {
     changed: Condvar,
     pub rounds: AtomicU64,
     pub reads: AtomicU64,
+    pub enrollments: AtomicU64,
 }
 impl ReadIndex {
     #[cfg(test)]

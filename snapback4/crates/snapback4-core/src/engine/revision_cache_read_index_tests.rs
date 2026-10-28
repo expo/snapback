@@ -92,3 +92,74 @@ fn read_index_takeover_and_uncertainty_keep_existing_g5_policy() {
     // The full existing takeover witness also runs with RI enabled in the
     // process-wide private-PG suite, including a successor's session revocation.
 }
+
+#[test]
+#[ignore = "private PG16"]
+fn g5r2_detached_candidate_ryw_and_uncertainty_recheck() {
+    let (mut bootstrap,d,v)=fixture(true);
+    let namespace:String=bootstrap.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT current_schema()",&[]).unwrap().get(0);
+    let id=bootstrap.store_id.clone();drop(bootstrap);
+    let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut lease=crate::store_port::StoreLease::connect(&url,&namespace,&id,"a001",Default::default()).unwrap();
+    lease.acquire().unwrap().unwrap();
+    let mut writer=Engine::open_at(crate::store_port::AnyStore::open_postgres_owned(&url,&namespace,&lease).unwrap(),1000).unwrap();
+    enable(&writer);
+    let mut reader=writer.reader().unwrap();
+    let old=warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+    let context=||Context::new(&v,args("W1")).at(1001).with_request_credential("account").with_revision_cache(true);
+    let candidate=reader.prepare_read_index("W1",&context(),None,DeliveryManifest::Build,&d).unwrap();
+    // The enrollee's reader is actually gone throughout the parked interval.
+    drop(reader);
+    let mut row=old.data;let Value::Row(fields)=&mut row else {panic!()};
+    fields.insert("body".into(),Value::String("ACK while caller is parked".into()));
+    sql(&mut writer,"UPDATE r SET data=$1 WHERE t='messages' AND id='m0000-0'",&[&crate::value::canonical_json(&row)]);
+    let mut validator=writer.reader().unwrap();
+    let validation=validator.validate_read_index();drop(validator);
+    let mut reader=writer.reader().unwrap();
+    let proof=candidate.complete(validation);
+    let (out,_,_)=reader.query_materialized_search_with_read_index("W1",context(),None,DeliveryManifest::Build,&d,proof,|snapshot,_| {
+        assert!(snapshot.request_authority(&d,identity::ServiceSample {now:1001,supervisor_revision:0}).unwrap().capability.is_some());Ok(())
+    });
+    assert_eq!(out.unwrap().data,row);
+    warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+    let candidate=reader.prepare_read_index("W1",&context(),None,DeliveryManifest::Build,&d).unwrap();
+    let validation=reader.validate_read_index();
+    let grant=reader.store.read_grant().unwrap();
+    grant.uncertain.store(true,Ordering::Release);
+    let before=reader.revision_cache_stats().read_index_hits;
+    let (out,_,_)=reader.query_materialized_search_with_read_index("W1",context(),None,DeliveryManifest::Build,&d,candidate.complete(validation),|_,_|Ok(()));
+    assert!(out.is_ok(),"ordinary G5 retains its uncertainty policy");
+    assert_eq!(reader.revision_cache_stats().read_index_hits,before,"a completed proof cannot reopen an uncertain cache epoch");
+}
+
+
+#[test]
+#[ignore="private PG16"]
+fn g5r2_completed_proof_cannot_certify_a_later_enrollment() {
+    let (writer,d,v)=fixture(true);enable(&writer);
+    let mut reader=writer.reader().unwrap();warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+    let completed=reader.validate_read_index().unwrap();
+    let context=Context::new(&v,args("W1")).at(1001).with_request_credential("account").with_revision_cache(true);
+    let later=reader.prepare_read_index("W1",&context,None,DeliveryManifest::Build,&d).unwrap();
+    let proof=later.complete(Some(completed));
+    let before=reader.revision_cache_stats().read_index_hits;
+    let trips=Scope::begin();
+    let (out,_,_)=reader.query_materialized_search_with_read_index("W1",context,None,DeliveryManifest::Build,&d,proof,|_,_|Ok(()));
+    assert!(out.is_ok());
+    assert_eq!(reader.revision_cache_stats().read_index_hits,before);
+    assert_eq!(trips.counts().postgres,1,"a late enrollee needs an ordinary fresh G5 validation");
+}
+
+
+#[test]
+#[ignore="private PG16"]
+fn g5r2_candidate_probe_preserves_cold_probation() {
+    let (writer,d,v)=fixture(true);enable(&writer);
+    let mut reader=writer.reader().unwrap();
+    let context=Context::new(&v,args("W1")).at(1001).with_request_credential("account").with_revision_cache(true);
+    assert!(reader.prepare_read_index("W1",&context,None,DeliveryManifest::Build,&d).is_none());
+    read(&mut reader,&d,&v,"W1",true,SessionScope::Full,1001).unwrap();
+    assert_eq!(reader.revision_cache_stats().entries,0,"one real observation cannot admit a fill");
+    read(&mut reader,&d,&v,"W1",true,SessionScope::Full,1001).unwrap();
+    assert_eq!(reader.revision_cache_stats().entries,1,"the second real observation admits the ordinary fill");
+}

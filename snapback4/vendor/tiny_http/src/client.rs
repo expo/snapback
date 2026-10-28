@@ -141,6 +141,7 @@ impl ClientConnection {
     /// Reads a request from the stream.
     /// Blocks until the header has been read.
     fn read(&mut self) -> Result<Request, ReadError> {
+        let parser_cpu=crate::request::parser_cpu();
         self.header_bytes = 0;
         if let Some(limits) = &self.limits { limits.headers(); }
         let (method, path, version, headers) = {
@@ -228,7 +229,7 @@ impl ClientConnection {
         })?;
 
         // return the request
-        Ok(request.with_limits(self.limits.clone()))
+        Ok(request.with_limits(self.limits.clone()).with_parser_cpu(parser_cpu))
     }
 }
 

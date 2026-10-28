@@ -16,6 +16,9 @@ pub(super) fn deadline(request: &super::Request, age: std::time::Duration) -> In
 }
 
 impl Workers {
+    #[cfg(test)]
+    pub(super) fn active(&self)->usize {let state=self.0.state.lock().unwrap();state.threads-state.idle}
+
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — queued work retains its intake deadline and opens no snapshot before execution.
     #[cfg(test)]
     pub(super) fn submit(&self, limit: usize, builder: thread::Builder, job: Job) -> std::io::Result<()> {

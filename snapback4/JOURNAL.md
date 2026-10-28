@@ -109884,3 +109884,25 @@ cohort ACKs with exact counter deltas; no RI write statement/flight is added.
 All rates, pilots, limits, source/executable provenance and cleanup receipts are
 in `reports/20261027-g5-readindex/REPORT.md`. Private port-55731 PG is stopped
 and its fixture retained. No push, stash or Git-config change.
+
+
+## 2026-10-28 — G5R2: clock-free RI continuations outside execution workers
+
+The author-commissioned 450a lane starts from `08a9731b59` in `sb4-g5r2`.
+Eligible HTTP reads retain a charged immutable candidate and bounded socket
+admission, return their reader/publication lease, and park without an execution
+worker or PG custody. A 200 microsecond collection timer pipelines two flights;
+8 ms proof-wait expiry resumes ordinary G5 under the original request deadline.
+A monotonic enrollment receipt rejects earlier completed proofs, and candidate
+probing preserves two-observation cold-fill probation. Authority, RYW,
+uncertainty and the Stage R/E exclusions remain as LLP 3000.009.001.000.002 §4.2
+states. The flag remains default off.
+
+Core 881 and serial CLI 674 pass. Private cache/grant/coordinator 42, final
+core witnesses 3, HTTP continuation witnesses 3 and CLI round-trip group 11
+pass. A held HTTP witness accounts legitimate cache-lock fallback rather than
+requiring every try-lock probe to park. Ref-check passes. The root inventory
+checker retains unrelated Snapback 1 generated-output/removal-ledger failures;
+Snapback 4 changed no diagnostics-registry production root. The report records
+setup exclusions, exact scope and receipts. Release/S1 measurement follows;
+no default promotion, publication, push or 450b access is claimed here.
