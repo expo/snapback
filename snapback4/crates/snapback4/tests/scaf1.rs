@@ -136,7 +136,7 @@ fn symlinks_are_never_followed() {
 fn role_guards_refusals_uploads_clock_and_approval_are_bound_to_the_schema() {
     let p = Project::new("facts");
     let source = format!(
-        "{SOURCE}\ntable notes:\n  owner: principal\n  picture: image <=10000\n  document: file <=10000 ('text/plain')\n  dueAt: time\n  approvedBy: principal ? default null\n  reason: text <=100 default ''\n  read <- .owner = viewer or exists roles[viewer, role = 'admin']\n  insert <- .owner = viewer\n  update <- .owner = viewer or exists roles[viewer, role = 'admin']\n  online only\nmutation add(picture: image <=10000, document: file <=10000):\n  require exists roles[viewer] else NOT_MEMBER\n  return insert notes {{owner: viewer, picture, document, dueAt: now + 1d}}\nmutation approve(note: notes, reason: text 1..100):\n  require exists roles[viewer, role = 'admin'] else NOT_ADMIN\n  r = notes[note] ! else NOT_FOUND\n  update notes[note] {{approvedBy: viewer, reason}}\nmutation finish(note: notes):\n  r = notes[note] ! else NOT_FOUND\n  require now < r.dueAt else DEADLINE\n  return null\n"
+        "{SOURCE}\ntable notes:\n  owner: principal\n  picture: image <=10000\n  document: file <=10000 ('text/plain')\n  dueAt: time\n  waivedBy: principal ? default null\n  reason: text <=100 default ''\n  read <- .owner = viewer or exists roles[viewer, role = 'admin']\n  insert <- .owner = viewer\n  update <- .owner = viewer or exists roles[viewer, role = 'admin']\n  online only\nmutation add(picture: image <=10000, document: file <=10000):\n  require exists roles[viewer] else NOT_MEMBER\n  return insert notes {{owner: viewer, picture, document, dueAt: now + 1d}}\nmutation approve(note: notes, reason: text 1..100):\n  require exists roles[viewer, role = 'admin'] else NOT_ADMIN\n  r = notes[note] ! else NOT_FOUND\n  update notes[note] {{waivedBy: viewer, reason}}\nmutation finish(note: notes):\n  r = notes[note] ! else NOT_FOUND\n  clock = now\n  require clock < r.dueAt else DEADLINE\n  return null\n"
     );
     fs::write(p.0.join("snapback/schema.q"), source).unwrap();
     let out = p.check();
@@ -150,7 +150,7 @@ fn role_guards_refusals_uploads_clock_and_approval_are_bound_to_the_schema() {
         serde_json::from_str(&fs::read_to_string(p.file("schema.json")).unwrap()).unwrap();
     let operations = facts["operations"].as_array().unwrap();
     let approve = operations.iter().find(|o| o["name"] == "approve").unwrap();
-    assert_eq!(approve["approvals"][0]["by"], "approvedBy");
+    assert_eq!(approve["approvals"][0]["by"], "waivedBy");
     assert_eq!(approve["approvals"][0]["why"], "reason");
     let finish = operations.iter().find(|o| o["name"] == "finish").unwrap();
     assert!(
@@ -220,4 +220,45 @@ fn dangling_manifest_symlink_is_not_created_or_followed() {
     symlink(p.0.join("must-not-exist"), p.file(".generated-hashes.json")).unwrap();
     assert!(p.check().status.success());
     assert!(!p.0.join("must-not-exist").exists());
+}
+
+#[test]
+fn custom_argument_mapping_suppresses_undeclared_defaults_and_multiwrite_inference_stops() {
+    let p = Project::new("custom-args");
+    let source = SOURCE
+        .replace(
+            "provision(principal: principal, role:",
+            "provision(member: principal, level:",
+        )
+        .replace(
+            "roles[principal] { principal, role }",
+            "roles[member] { principal: member, role: level }",
+        );
+    fs::write(p.0.join("snapback/schema.q"), source).unwrap();
+    assert!(p.check().status.success());
+    let cases = fs::read_to_string(p.file("cases.mjs")).unwrap();
+    assert!(
+        cases.contains("\"principal\": undefined") && cases.contains("\"role\": undefined"),
+        "{cases}"
+    );
+    assert!(
+        cases.contains("\"member\": account.principal")
+            && cases.contains("\"level\": account.role")
+    );
+    let p = Project::new("multiwrite-roles");
+    let source=SOURCE.replace("return upsert roles[principal] { principal, role }","upsert roles[principal] { principal, role }\n  update roles[principal] {role:'admin'}\n  return null");
+    fs::write(p.0.join("snapback/schema.q"),format!("{source}\nmutation adminOnly():\n  require exists roles[viewer, role = 'admin'] else NOT_ADMIN\n  return null\n")).unwrap();
+    assert!(p.check().status.success());
+    let cases = fs::read_to_string(p.file("cases.mjs")).unwrap();
+    let case = cases
+        .split("  { op: \"adminOnly\", role: \"member\"")
+        .nth(1)
+        .unwrap()
+        .split("  { op:")
+        .next()
+        .unwrap();
+    assert!(
+        !case.contains("code: \"NOT_ADMIN\""),
+        "must not infer the intermediate roster: {case}"
+    );
 }

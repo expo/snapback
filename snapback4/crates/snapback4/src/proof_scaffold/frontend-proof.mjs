@@ -1,12 +1,16 @@
 // EDIT frontend.assert in cases.mjs. Same real sessions/roles as acceptance and probe.
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import { command, startStatic, withBrowser, fillRN, bounded, renderedText, waitForFresh, cleanup } from 'snapback4/proof';
 import { frontend } from './cases.mjs';
 import { startProof } from './host.mjs';
 assert.equal(typeof frontend.assert, 'function', 'E_FRONTEND_SCENARIO: fill frontend.assert in cases.mjs with a UI write, SDK receipt and fresh rendered result per role');
-const build = await command('npm',['run',frontend.build],{timeoutMs:300000});
+const scripts=JSON.parse(readFileSync('package.json','utf8')).scripts ?? {};
+const buildScript=frontend.build ?? (scripts.build ? 'build' : scripts['build:web'] ? 'build:web' : null);
+assert.ok(buildScript,'E_FRONTEND_SCENARIO: choose frontend.build in cases.mjs');
+const build = await command('npm',['run',buildScript],{timeoutMs:300000});
 assert.equal(build.code,0,`frontend build failed; ${build.logs.stderr}`);
-const ctx=await startProof(); let web;
+const ctx=await startProof({signIn:false}); // Each browser signs in through the screen. let web;
 try {
   web=await startStatic(frontend.directory);
   // Separate browser context per account prevents one role's login leaking into another.
@@ -17,6 +21,7 @@ try {
       await fillRN(page.getByLabel('Email',{exact:true}),account.email);
       await fillRN(page.getByLabel('Password',{exact:true}),account.password);
       await page.getByRole('button',{name:'Sign in',exact:true}).click();
+      // For delayed uploads, use beginForm('OP', null, el) and witnessForm(app,event,handler) in the UI.
       // In frontend.assert: await button.evaluate(el => window.__snapback4Witness.beginForm('OP', ARGS, el));
       // await button.click(); const receipt=await bounded(page.evaluate(() => window.__snapback4Witness.formResult()),30000,'UI write');
       // assert.equal(receipt.state,'sent'); await waitForFresh(renderedText(page,uniqueText),null);

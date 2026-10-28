@@ -32,7 +32,7 @@ TIME_CASES
 // and reason, e.g. ctx.assertApproval(row, account, args.reason, {by:'approvedBy',why:'approvalReason'}).
 // Keep excluded-role and post-approval-edit controls among cases above.
 export const frontend = {
-  build: 'build', directory: 'dist',
+  build: null, directory: 'dist', // auto: package build or build:web; override for a custom toolchain
   // TODO: drive a real UI write per role; use beginForm/formResult and fresh rendered text.
   assert: null, // async (page, ctx, account) => { ... }
 };

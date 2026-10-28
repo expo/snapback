@@ -81,9 +81,7 @@ fn approvals(body: &[Stmt], args: &BTreeMap<String, ArgType>) -> Vec<Value> {
         };
         if let Some((table, Expr::Object(fields))) = target {
             for (by, value) in fields {
-                if matches!(value, Expr::Input(Input::Viewer))
-                    && by.to_ascii_lowercase().contains("approv")
-                {
+                if matches!(value, Expr::Input(Input::Viewer)) {
                     for (why, value) in fields {
                         if let Expr::Variable(reason) = value
                             && matches!(args.get(reason), Some(ArgType::Text { .. }))
@@ -128,11 +126,41 @@ fn walk(value: &Value, guards: &mut Vec<Value>) {
         _ => {}
     }
 }
-fn uses_clock(value: &Value) -> bool {
+fn uses_clock(value: &Value, names: &std::collections::BTreeSet<String>) -> bool {
     match value {
-        Value::Object(m) => m.get("Input") == Some(&json!("Now")) || m.values().any(uses_clock),
-        Value::Array(v) => v.iter().any(uses_clock),
+        Value::Object(m) => {
+            m.get("Input")
+                .is_some_and(|v| v == "Now" || v == "ReadTime")
+                || m.get("Variable")
+                    .and_then(Value::as_str)
+                    .is_some_and(|n| names.contains(n))
+                || m.values().any(|v| uses_clock(v, names))
+        }
+        Value::Array(v) => v.iter().any(|v| uses_clock(v, names)),
         _ => false,
+    }
+}
+fn clock_bindings(value: &Value, names: &mut std::collections::BTreeSet<String>) {
+    match value {
+        Value::Object(m) => {
+            for tag in ["Let", "Const", "Assign"] {
+                if let Some(binding) = m.get(tag)
+                    && uses_clock(&binding["value"], names)
+                    && let Some(name) = binding["name"].as_str()
+                {
+                    names.insert(name.into());
+                }
+            }
+            for v in m.values() {
+                clock_bindings(v, names);
+            }
+        }
+        Value::Array(v) => {
+            for v in v {
+                clock_bindings(v, names);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -165,7 +193,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
                 && (p.program.name=="provision" || service_guard)
                 && roles.len() == 1
                 && roles[0].1.len() <= 48
-                && infer::Roster::from(
+                && infer::Roster::shape(
                     &p.program,
                     principal[0].0,
                     roles[0].0,
@@ -239,7 +267,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             })
             .collect::<Vec<_>>();
         format!(
-            "{{ roles: {}, users: {}, provision: {{ name: {} }}, service: {}, args: (account) => ({{ {}: account.principal, {}: account.role{} }}) }}",
+            "{{ roles: {}, users: {}, provision: {{ name: {} }}, service: {}, args: (account) => ({{ {}{}: account.principal, {}: account.role{} }}) }}",
             serde_json::to_string(&variants.iter().map(|r| (r, 2)).collect::<BTreeMap<_, _>>())
                 .unwrap(),
             if variants.iter().any(|r| r == "users") {
@@ -255,6 +283,11 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
                     .map(String::as_str)
                     .unwrap_or("operator")
             ),
+            ["principal", "role"]
+                .iter()
+                .filter(|name| !p.args.contains_key(**name))
+                .map(|name| format!("{}: undefined, ", quoted(name)))
+                .collect::<String>(),
             quoted(principal),
             quoted(role),
             if extra.is_empty() {
@@ -287,9 +320,18 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         if p.kind == ProgramKind::Job {
             continue;
         }
+        let body = serde_json::to_value(&p.body).unwrap();
+        let mut clock_names = std::collections::BTreeSet::new();
+        loop {
+            let count = clock_names.len();
+            clock_bindings(&body, &mut clock_names);
+            if count == clock_names.len() {
+                break;
+            }
+        }
         let mut guards = Vec::new();
-        walk(&serde_json::to_value(&p.body).unwrap(), &mut guards);
-        let guards=guards.into_iter().enumerate().map(|(i,g)|json!({"id":format!("guard-{i}"),"code":g["code"],"site":g["site"],"clock":uses_clock(&g),"condition":g["condition"]})).collect::<Vec<_>>();
+        walk(&body, &mut guards);
+        let guards=guards.into_iter().enumerate().map(|(i,g)|json!({"id":format!("guard-{i}"),"code":g["code"],"site":g["site"],"clock":uses_clock(&g,&clock_names),"condition":g["condition"]})).collect::<Vec<_>>();
         let approvals = approvals(&p.body, &p.args);
         facts.push(json!({"name":p.name,"kind":p.kind.word(),"args":p.args,"guards":guards,"approvals":approvals}));
         for role in &roles {

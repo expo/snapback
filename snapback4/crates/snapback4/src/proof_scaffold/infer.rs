@@ -20,6 +20,39 @@ impl Roster {
         role: &str,
         schema: &Schema,
     ) -> Option<Self> {
+        fn writes(value: &serde_json::Value) -> usize {
+            match value {
+                serde_json::Value::Object(m) => {
+                    usize::from(
+                        [
+                            "Insert",
+                            "InsertIfAbsent",
+                            "Upsert",
+                            "Update",
+                            "WriteTarget",
+                            "Delete",
+                            "DeleteTarget",
+                        ]
+                        .iter()
+                        .any(|tag| m.contains_key(*tag)),
+                    ) + m.values().map(writes).sum::<usize>()
+                }
+                serde_json::Value::Array(v) => v.iter().map(writes).sum(),
+                _ => 0,
+            }
+        }
+        if writes(&serde_json::to_value(&program.body).ok()?) != 1 {
+            return None;
+        }
+        Self::shape(program, principal, role_arg, role, schema)
+    }
+    pub(super) fn shape(
+        program: &Program,
+        principal: &str,
+        role_arg: &str,
+        role: &str,
+        schema: &Schema,
+    ) -> Option<Self> {
         let mut env = Env::from([
             (principal.into(), Value::String(VIEWER.into())),
             (role_arg.into(), Value::String(role.into())),

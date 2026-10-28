@@ -4,6 +4,7 @@ import { cases, timeCases } from './cases.mjs';
 import { schema, startProof } from './host.mjs';
 export function validate() {
   const missing = [];
+  if(!cases.length) missing.push('no operation business cases');
   for (const op of schema.operations) {
     for (const role of schema.roles) if (!cases.some(c => c.op === op.name && c.role === role && !c.guard)) missing.push(`${op.name}/${role}`);
     for (const g of op.guards) if (!cases.some(c => c.op === op.name && c.guard === g.id && c.expected?.code === g.code)) missing.push(`${op.name}/${g.id}:${g.code}`);

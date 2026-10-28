@@ -25,11 +25,11 @@ export async function startProof(options = {}) {
     host = await startServe(release, { seedUsers: accountPlan });
     const sessions = host.sessions;
     // Explicit sign-in proves the ordinary password path, not just signup's first token.
-    for (const accounts of Object.values(sessions)) for (const account of accounts) {
+    if(options.signIn !== false) for (const accounts of Object.values(sessions)) for (const account of accounts) {
       const signed = await login(host.url, account.email, account.password);
       assert.equal(signed.ok, true, `sign-in ${account.role}`);
       assert.equal(signed.session.principal, account.principal);
-      Object.assign(account, signed.session);
+      // Keep the kit-labelled signup session for role-aware refusal diagnostics.
     }
     const ctx = { host, directory, release, sessions, schema, rows: Object.create(null),
       async call(op, account, args) {
