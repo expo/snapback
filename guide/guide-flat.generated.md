@@ -1190,7 +1190,8 @@ cited sources are gitignored codegen outputs
 with "snippet source does not exist" — plus a consequent stale-manifest
 error — until demo codegen has run. That failure is the checker being
 honest, not the corpus being broken. In a fresh tree, run
-`bun install --frozen-lockfile`, then `scripts/check-generated-artifacts`
+`bun install --frozen-lockfile`, then
+`node scripts/ensure-workspace-hoist.mjs`, then `scripts/check-generated-artifacts`
 (node-only; regenerates every committed backend and verifies the committed
 review manifests), or just the per-demo codegen for the demos the failing
 snippets cite, e.g.
@@ -1202,6 +1203,8 @@ capability manifest only when that variable is set, and otherwise fails
 with `SNAPBACK_CAPABILITY_UNSUPPORTED` because the base local target does
 not declare `bounded_response_stream_v1`.
 Regeneration writes only gitignored paths; the tracked tree stays clean.
+The hoist helper creates ignored root workspace links needed by runtime export
+parity and generated declarations; Bun otherwise links them only into dependents.
 
 ## Freshness
 

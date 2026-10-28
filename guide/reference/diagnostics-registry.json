@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v2",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ed5a09c00769e76c1e1ecc67c2b462a6ab81221e366ceae3ea13983c793daea0"
+    "sourceDigest": "sha256:e80e441abebe11920281955ffd33faaaadcb96b558b332c0f629e3ad13413143"
   },
   "limits": {
     "lookupBytes": 16384

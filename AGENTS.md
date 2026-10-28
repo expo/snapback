@@ -291,8 +291,8 @@ silent wedge trap (ENG-22659).
   the docs the demo touches) before each demo lands; the complete corpus
   audit runs on LLP 0016's reconcile cadence and after each LLP 0032 phase,
   not as a landing precondition (LLP 0189 D-2).
-- A fresh checkout or worktree needs `bun install --frozen-lockfile` and
-  `scripts/check-generated-artifacts` before
+- A fresh checkout or worktree needs `bun install --frozen-lockfile`,
+  `node scripts/ensure-workspace-hoist.mjs`, and `scripts/check-generated-artifacts` before
   `node scripts/generate-guide-manifest.mjs` will succeed. The full
   `node scripts/check-guide.mjs` pass also cannot succeed until then; without
   deps it still runs, prints the missing-install precondition, skips
