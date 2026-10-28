@@ -561,6 +561,7 @@ pub fn deploy(options: &Options) -> i32 {
             validation.flags.insert("deploy-direction".into(),String::new());
             validation.flags.insert("validation-only".into(),String::new());
             let details=super::release_preview::plan(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation,_deployment.as_ref())?;
+            timing.step("deploy.preview");
             let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
             if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
             n=n.checked_add(1).ok_or("release identity exhausted")?;

@@ -73,6 +73,7 @@ pub(super) fn apply(
             restore_dormant,
             allow_feed_adoption,
         } => {
+            let mut timing=crate::verbs::phase::Sequence::new();
             if activation_protocol != crate::release_control::ACTIVATION_PROTOCOL {
                 return Err("release activation protocol differs; restart serve with this CLI before switching releases".into());
             }
@@ -94,6 +95,7 @@ pub(super) fn apply(
             if crate::release_files::digest(&project.root)? != digest {
                 return Err("staged release content changed; redeploy its exact source".into());
             }
+            timing.step("release.host.custody");
             if project.sources().map_err(|e| e.to_string())?.is_empty() {
                 return Err(format!(
                     "release {release} has no Quarry source; select a complete immutable release"
@@ -108,6 +110,7 @@ pub(super) fn apply(
                     .collect::<Vec<_>>()
                     .join("\n"));
             }
+            timing.step("release.host.schema_materialization");
             let prepared = crate::native::prepare(&project, &bound).map_err(|e| e.to_string())?;
             crate::dev_worker::prepare_release(&project, &bound.schema)?;
             crate::release_files::link_store(&project.root)?;
@@ -126,8 +129,10 @@ pub(super) fn apply(
                 native_digest: prepared.installed.as_ref().map(|m| m.digest.clone()),
                 operation: if rollback { "rollback" } else { "deploy" }.into(),
             };
+            timing.step("release.host.materialize_fsync");
             let _requests=shared.release_requests.write();
             shared.engine.attempt(move |engine, shared| {
+            timing.step("release.host.await_writer");
             lock(&shared.readers).begin_adoption(&bound);
             let generation = match engine.adopt_release_at(
                 bound.schema.clone(),
@@ -142,6 +147,7 @@ pub(super) fn apply(
                     return Err(error.to_string());
                 }
             };
+            timing.step("release.host.adoption_backfills");
             #[cfg(test)]
             test_work(&shared.release_committed);
             engine.set_prepared_native(prepared.module);
@@ -163,7 +169,9 @@ pub(super) fn apply(
             crate::lifecycle::generation(generation);
             shared.publish_engine(engine);
             // Completion I/O can fail, but never abandons the new runtime.
+            timing.step("release.host.publish_readers");
             pointer.finish(generation)?;
+            timing.step("release.host.pointer_fsync");
             snapback4_core::diagnostic!(
                 "snapback4 serve: release {release} activated without restart as generation {generation}"
             );
