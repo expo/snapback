@@ -1,0 +1,34 @@
+// @ref LLP 3000.011.003.000.000#19-explicit-proof-completion-lat4 — the awaited suite, including its finally cleanup, owns completion.
+import { getActiveResourcesInfo } from 'node:process';
+import { setImmediate as turn } from 'node:timers/promises';
+
+const counts = () => {
+  const result = new Map();
+  for (const name of getActiveResourcesInfo()) result.set(name, (result.get(name) ?? 0) + 1);
+  return result;
+};
+
+/** Run one explicitly awaited finite suite and exit with its status after cleanup.
+ * The callback must await every test and its cleanup. Background service entry
+ * points and suites which schedule unawaited tests must not use this runner. */
+export async function runProofSuite(suite) {
+  // Open stdio before the baseline; report resource types/counts, never objects,
+  // paths, socket endpoints, arguments or timer callback contents.
+  const streams = [process.stdout, process.stderr];
+  const initial = counts();
+  const baseline = new Map(['PipeWrap', 'TTYWrap'].map(name => [name, Math.min(3, initial.get(name) ?? 0)]));
+  try { await suite(); }
+  catch (error) { console.error(error); if (!process.exitCode) process.exitCode = 1; }
+  await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
+  // Let completed I/O callbacks close their handles before diagnosing residue.
+  await turn();
+  const lingering = [...counts()].flatMap(([name, count]) => {
+    const extra = count - (baseline.get(name) ?? 0);
+    return extra > 0 ? [`${name}(${extra})`] : [];
+  }).sort();
+  const code = process.exitCode ?? 0;
+  if (lingering.length) console.error(`snapback4 proof: lingering handles after suite: ${lingering.join(', ')}; exiting with status ${code}`);
+  // Exit only after the suite's complete stdout and stderr have drained.
+  await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
+  process.exit(code);
+}

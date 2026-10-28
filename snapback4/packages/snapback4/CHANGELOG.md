@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Generated finite proof suites exit after their awaited tests and cleanup, preserving their status and draining reports. If timers or handles remain, one line names their resource types so builders can fix them. Custom suites can explicitly wrap their fully awaited body with `runProofSuite` from `snapback4/proof-runner`; service scripts keep their lifetime.
+
 - Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
 
 ## 0.4.45

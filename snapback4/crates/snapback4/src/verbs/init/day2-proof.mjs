@@ -7,6 +7,8 @@ import { mkdtemp, rm, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deploy, rollback, startServe, testSource, cli, cleanup } from "snapback4/proof";
+import { runProofSuite } from "snapback4/proof-runner";
+await runProofSuite(async () => {
 const args = process.argv.slice(2);
 // npm appends caller arguments after the script's default pair.
 const supplied = args.length > 3 && args[0] === "versions/v1" && args[1] === "versions/v2" ? args.slice(2) : args;
@@ -158,3 +160,5 @@ try {
   assert.deepEqual(await Promise.all([snapshot(v1), snapshot(v2)]), before);
   console.log("day2:proof passed: persisted ids and values across two rollback/forward cycles; sources unchanged (add business assertions for policy coverage)");
 } finally { await cleanup(() => serve?.stop(), () => temporary && rm(directory, { recursive: true, force: true })); }
+
+});
