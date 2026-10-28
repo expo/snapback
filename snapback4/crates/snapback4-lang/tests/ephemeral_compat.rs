@@ -339,6 +339,16 @@ fn strip_reference_actions(text: &str) -> String {
 // @ref LLP 3000.000.000.000#3 — retain the durable pre-capability golden files;
 // validate and remove REL3's SDK import/member/descriptor and SURF's unwrap hint.
 fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
+    // GEN1 is an inert reading packet, independently compiled/budgeted by the
+    // generated-usage client test. Keep every historical contract byte pinned.
+    let start = snapback4_lang::emit::usage::START;
+    let end = snapback4_lang::emit::usage::END;
+    let packet = types.split_once(start).unwrap().1.split_once(end).unwrap().0;
+    assert!(!packet.contains("*/"));
+    assert_eq!(packet.matches("\n## ").count(), bound.programs.iter().filter(|p| p.program.kind != snapback4_core::ProgramKind::Job).count());
+    let types = types.replacen(&format!("{start}{packet}{end}\n\n"), "", 1)
+        .replacen("// Client usage: search for `Client usage` below, or run snapback4 guide api generated.\n", "", 1);
+    let types = types.as_str();
     use snapback4_core::ProgramKind;
     const IMPORTS: &str = include_str!("../src/emit/availability.ts");
     const MEMBER: &str = " & { available(release: ReleaseSnapshot): boolean }";

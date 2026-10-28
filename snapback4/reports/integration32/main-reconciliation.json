@@ -1,0 +1,10 @@
+{
+  "head": "1fe573198478905e581d8b1b5c3aa36fcbbf06dd",
+  "tree": "b7d3a2d9f03772003a091c2200d324895ab5578f",
+  "main": "d6f0253bfa0455f4742f55cef0e803f39324b2af",
+  "censusIdentical": true,
+  "incomingCommits": "d6f0253bfa test(snapback4): refresh the readauth authoring census for moved guide snippets",
+  "merge": "56c3becf555793fde6868de6de609f51255d0631",
+  "mergedTree": "b7d3a2d9f03772003a091c2200d324895ab5578f",
+  "treeUnchanged": true
+}

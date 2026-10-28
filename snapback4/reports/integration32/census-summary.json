@@ -1,0 +1,8 @@
+{
+  "generatedRows": 932,
+  "sha256": "2fc3dcdc85be781aa715c0fddacbe30cd5063a4a6eb0223f192796a453e3a821",
+  "byteIdentical": true,
+  "testBinary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/deps/readauth-29d79fe949e7980e",
+  "binarySha256": "0594efd83ee49214714d0e23e3b17a8d837ce15493c4736be660e33ff268c78c",
+  "summary": "CENSUS 586 mutation occurrences; 95 distinct private write sites: {"
+}

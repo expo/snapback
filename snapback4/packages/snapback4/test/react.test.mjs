@@ -275,7 +275,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
   }
 });
 
-const expiryRecipe = ts.transpile(readFileSync(new URL("../CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
+const expiryRecipe = ts.transpile(readFileSync(new URL("../reference/CLIENT-AND-OPERATIONS.md", import.meta.url), "utf8")
   .match(/function useExpiringRows[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });
 const receiptsRecipe = ts.transpile(readFileSync(new URL("../../../crates/snapback4-lang/src/guide/receipts.rs", import.meta.url), "utf8")
   .match(/function useReceipts[\s\S]*?\n}/)[0], { target: ts.ScriptTarget.ES2022 });

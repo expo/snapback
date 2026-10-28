@@ -110266,6 +110266,67 @@ whole-session performance win; the 40-lane rerun measures the landed release.
 Durable evidence is reports/integration31/REPORT.md. Publication owns the full
 platform/client battery and npm release.
 
+
+### 2026-10-28 — TOK5 package entry and write refusal ergonomics
+
+Move the five detailed package-root Markdown references under reference/, leaving
+README as the sole root document. Guide pointers, upgrade history and executable
+packed consumers follow the new paths. Add optional undefined why to nonfailed
+Write arms and refusalOf without changing pending reason or runtime outcomes.
+The client API digest includes both. LLP 3000.037.000 §15 records the rerun
+mechanisms and compatibility; WORKSTREAM-REPORT.md owns validation evidence.
+
+
+### 2026-10-28 — TOK5 qualification and affected repair closure
+
+Packed consumer-only qualification passed at 7055fc7a7b, including the installed
+root Markdown census, Write.why/refusalOf compile case, all host starters and
+clean Ubuntu/Alpine builds. Both source reviews are READY. The affected run
+exposed the selector's root-only Markdown pattern plus inherited frozen census
+and stale periphery fixtures. Recognize reference/ docs, refresh census membership
+after proving Quarry fences unchanged and no normalized private/read-rule loss,
+and retain complete JSON/readiness/dependency assertions in the fixture repairs.
+The report retains original failures and final rerun evidence; no full battery,
+publication, push, version bump or whole-session performance claim is made.
+
+### 2026-10-28 — GEN1: this app's generated client usage
+
+The generated API now carries one compact usage block per client operation,
+including the correct React/plain call, argument/result shapes, declared guards
+and session guidance. Shared row shapes preserve hidden-field optionality and
+nullability. Green check and client/react/generated API digests point to that
+packet; generic card budgets and structure stay intact. Three verbatim wave-34
+fixtures regenerate exactly, compile their literal snippets, and enforce both
+per-operation and complete-packet token budgets. Review, packed consumers and
+measured limits are recorded in the GEN1 workstream report.
+
+### 2026-10-28 — Integration 32 / 0.4.48
+
+Merge TOK5 and GEN1. Preserve the complete release history and both lane records;
+GEN1 is section 16 alongside TOK5 section 15. Generated usage demonstrates
+refusalOf against the merged Write types. API-index resolves the script-valued
+proof-runner export and lists the previously omitted proof helpers.
+
+Integration 32 locked web device: 2,416,601 raw / 738,518 gzip / 555,443 Brotli
+bytes. Budget739,018 = measurement+500; unchanged raw length and -122 gzip from
+0.4.47 include the version/layout effect, without a runtime ceiling change.
+Strict family/server-only absence audits pass. Both conflict-repair reviews are
+READY; original NOT READY records remain under llp/reviews/.
+
+### 2026-10-28 — Integration 32 final evidence
+
+TOK5/GEN1 cut 0.4.48. Conflict-repair Muse and fresh Codex reviews are READY;
+original failures remain verbatim. Affected evidence passes 879 Rust tests
+(five existing ignored) and 510 client tests across 31 files. Root checks pass.
+The complete packed consumer-only chain passes on 1fe5731984, including six
+host starters, frontend controls and clean Ubuntu/Alpine; no publication receipt.
+The 1,020-schema waves 15–34 survey uses the same optimized binary, with zero
+new gates/refusals or output-line growth; existing legitimate security refusals
+remain. Clean wasm is 738,518 gzip bytes; budget739,018 = measurement+500.
+Main's census refresh is byte-identical; reconciliation changes ancestry only.
+Reports/integration32 retains compact bindings. Full platform qualification and
+whole-session token/wall measurement remain with publication and the rerun.
+
 ### 2026-10-28 — MUSE1 optional exhaustive proof drafts
 
 The wave34r1/r2 per-call decomposition finds the default expanded matrix driving
@@ -110274,6 +110335,6 @@ input tokens per lane, with extra authoring and verification calls. Check now
 requires --proof-scaffold to emit/refresh code drafts; ordinary checks keep
 existing packets' bound coverage facts current. Start/workflow keep verify as
 the default loop and describe the matrix as optional. Coverage, stale-fact
-refusals, first-red output and cleanup remain. See LLP 3000.037.000 §15 and the
+refusals, first-red output and cleanup remain. See LLP 3000.037.000 §17 and the
 MUSE1 report for measured controls; no performance or publication claim follows
 from these source changes alone.

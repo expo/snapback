@@ -53,15 +53,15 @@ fn authoring_census() {
         collect(name,vec![("schema.q".into(),source.into())],&mut seen,&mut private);
     }
     for (name,doc) in [("README",include_str!("../../../../packages/snapback4/README.md")),
-        ("CLIENT-AND-OPERATIONS",include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md")),
-        ("SERVER",include_str!("../../../../packages/snapback4/SERVER.md"))] {
+        ("CLIENT-AND-OPERATIONS",include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md")),
+        ("SERVER",include_str!("../../../../packages/snapback4/reference/SERVER.md"))] {
         for (n,block) in guide::quarry(doc).iter().enumerate() {
             let source = guide_context::source(block);
             collect(&format!("package/{name}/{}",n+1),vec![("schema.q".into(),source)],&mut seen,&mut private);
         }
     }
     let recipe = snapback4_lang::recipe::following("feed","feed").unwrap();
-    let adoption_blocks=guide::quarry(include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md"));
+    let adoption_blocks=guide::quarry(include_str!("../../../../packages/snapback4/reference/FOLLOWING-ADOPTION.md"));
     assert_eq!(adoption_blocks.len(),1,"pair new adoption fragments with their example program");
     for (n,adoption) in adoption_blocks.into_iter().enumerate() {
         collect(&format!("recipe/installed/{}",n+1),vec![("feed.q".into(),recipe.clone()),("social.q".into(),adoption)],&mut seen,&mut private);
@@ -78,7 +78,7 @@ fn authoring_census() {
 // The preserved generated bridge has fn helpers rather than public operations.
 // These two wrappers are the existing backfill verbs from tests/feed_bridge.rs.
 pub(super) fn installed_bridge() -> Bound {
-    let original = guide::quarry(include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md")).into_iter()
+    let original = guide::quarry(include_str!("../../../../packages/snapback4/reference/FOLLOWING-ADOPTION.md")).into_iter()
         .find(|b| b.starts_with("-- Existing installed feed module;")).unwrap();
     let app=original;
     let mut sources=vec![("feed.q".into(),snapback4_lang::recipe::following("feed","feed").unwrap()),("social.q".into(),app)];

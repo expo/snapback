@@ -70,7 +70,7 @@ export function runtimeChanges(history, previous, installed) {
 export function installedHistory(root) {
   // The parent process resolved the old package already. Resolve the new
   // symlink in a fresh process, just like upgrade's post-install check.
-  const script = `import {createRequire} from 'node:module';import {join,dirname} from 'node:path';const require=createRequire(join(process.argv[1],'package.json'));console.log(join(dirname(dirname(require.resolve('snapback4/bin-path'))),'CHANGELOG.md'));`;
+  const script = `import {createRequire} from 'node:module';import {join,dirname} from 'node:path';const require=createRequire(join(process.argv[1],'package.json'));console.log(join(dirname(dirname(require.resolve('snapback4/bin-path'))),'reference/CHANGELOG.md'));`;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', script, root], { encoding: 'utf8' });
   if (result.error || result.status !== 0) throw Error('installed release history unavailable');
   return readFileSync(result.stdout.trim(), 'utf8');

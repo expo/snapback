@@ -12,7 +12,7 @@ const binary=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
 const version=JSON.parse(readFileSync(new URL('../package.json',import.meta.url))).version;
 
 test('starter qualification selects the named application-host guide fence',()=>{
-  const reference=readFileSync(new URL('../CLIENT-AND-OPERATIONS.md',import.meta.url),'utf8');
+  const reference=readFileSync(new URL('../reference/CLIENT-AND-OPERATIONS.md',import.meta.url),'utf8');
   const section=reference.split('### Application proofs in Node')[1];
   assert.ok(section.indexOf('export async function readEveryRow')<section.indexOf('export async function developmentHosts'));
   const block=guideTypeScriptExport(reference,'### Application proofs in Node','developmentHosts');
@@ -29,7 +29,7 @@ test('quiet upgrade retains project actions and exposes package-manager failures
   write('package.json',JSON.stringify({name:'quiet-project',packageManager:'npm@10',dependencies:{snapback4:version}}));
   write('node_modules/snapback4/package.json',JSON.stringify({name:'snapback4',version,exports:{'./bin-path':'./dist/bin-path.js'}}));
   write('node_modules/snapback4/dist/bin-path.js','');
-  write('node_modules/snapback4/CHANGELOG.md',`## ${version}\nLOUD HISTORY\n`);
+  write('node_modules/snapback4/reference/CHANGELOG.md',`## ${version}\nLOUD HISTORY\n`);
   write('tools/npm',`#!${process.execPath}\nif(process.argv[2]==='view'){console.log(JSON.stringify('${version}'));}else{console.log('INSTALL NOISE');if(process.env.FAIL_INSTALL){console.log('actual stdout install error');console.error('actual install error');process.exit(17)}}\n`);
   const {chmodSync}=process.getBuiltinModule('node:fs');chmodSync(join(cwd,'tools/npm'),0o755);
   const run=(fail,json=false)=>spawnSync(binary,['upgrade','--quiet','--to',version,...(json?['--json']:[])],{cwd,encoding:'utf8',timeout:60000,env:{...process.env,PATH:join(cwd,'tools')+':'+process.env.PATH,...(fail?{FAIL_INSTALL:'1'}:{})}});

@@ -2,7 +2,7 @@ import { guideReference } from "./publication-guide.mjs";
 // Packed client contracts: execute the guide's narrowing recipe verbatim and
 // typecheck the handler argument shapes against the installed declarations.
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -17,6 +17,18 @@ export async function proveClientRecipes(client, platform, directory) {
   const run = (command, args, overrides = {}) => runToolchainCommand(command, args, { cwd, env: { ...env, ...overrides }, timeout: 300_000 });
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", resolve(client), resolve(platform),
     "typescript@5.9.3", "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "@types/react-dom@19.3.0"]);
+  const packageRoot = join(cwd, "node_modules/snapback4");
+  assert.deepEqual(readdirSync(packageRoot).filter(name => name.endsWith(".md")).sort(), ["README.md"], "packed root has one entry document");
+  writeFileSync(join(cwd, "write-refusal.ts"), `import {refusalOf, type Write, type Refusal} from "snapback4/client";
+import {refusalOf as reactRefusal} from "snapback4/react";
+import {refusalOf as contractRefusal} from "snapback4/contract";
+declare const write: Write<{id:string}>;
+if(write.state !== "sent") { const why: Refusal | undefined = write.why; why?.message; }
+const why: Refusal | undefined = refusalOf(write);
+reactRefusal(write); contractRefusal(write);
+if(write.state === "pending") { const reason: string | undefined = write.reason; }
+if(write.state === "sent" && !write.replayed) { const id:string = write.result.id; }
+`);
   const cli = join(cwd, "node_modules/snapback4/bin/snapback4.js");
   const guide = ({status:0,stderr:"",stdout:guideReference(cli,"client",{cwd,env})});
   assert.equal(guide.status, 0, guide.stdout + guide.stderr);
@@ -36,7 +48,7 @@ export async function proveClientRecipes(client, platform, directory) {
   const fileColumn = guide.stdout.match(/`(doc: file <=10000000 \?)`/)?.[1];
   assert.ok(fileColumn, "packed PDF recipe states its backend file-column declaration");
   writeFileSync(join(cwd, "snapback/schema.q"), schema.replace("  priority: text <=20 ?", `  priority: text <=20 ?\n  ${fileColumn}`));
-  const reference = readFileSync(join(cwd, "node_modules/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8");
+  const reference = readFileSync(join(cwd, "node_modules/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "utf8");
   const short = [...reference.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
   assert.ok(short, "packed guide has the short-screen recipe");
   writeFileSync(join(cwd, "src/short-screen.tsx"), short);
@@ -52,7 +64,7 @@ export async function proveClientRecipes(client, platform, directory) {
   writeFileSync(join(cwd, "money.mjs"), money);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
-    "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts", "pdf.ts"]);
+    "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts", "pdf.ts", "write-refusal.ts"]);
   // Bundler resolution preserves the extensionless generated-api import exactly
   // as the guide writes it; this same form is used by both starter toolchains.
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
@@ -71,7 +83,7 @@ export async function proveClientRecipes(client, platform, directory) {
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs"), join(root, "packages/snapback4/test/front-data-react.test.mjs")], {
     SNAPBACK4_CLIENT_GUIDE: join(cwd, "guide-client.md"), SNAPBACK4_CLIENT_DIST: join(cwd, "node_modules/snapback4/dist"),
   });
-  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf", "client reference ReadNotice/WriteNote/Messages"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
+  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf", "client reference ReadNotice/WriteNote/Messages"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal", "Write.why/refusalOf", "one root README"] };
 }
 
 const schema = `use identity

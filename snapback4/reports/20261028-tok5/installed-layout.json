@@ -1,0 +1,15 @@
+{
+  "installedPackage": "target/tok5-consumer/expo-upgrade-literal-install/node_modules/snapback4",
+  "rootMarkdown": [
+    "README.md"
+  ],
+  "references": [
+    "CHANGELOG.md",
+    "CLIENT-AND-OPERATIONS.md",
+    "FOLLOWING-ADOPTION.md",
+    "OFFLINE-UPLOADS.md",
+    "SERVER.md"
+  ],
+  "whyUndefinedArms": 3,
+  "refusalOf": "export declare function refusalOf<R>(write: Write<R> | null | undefined): Refusal | undefined;"
+}

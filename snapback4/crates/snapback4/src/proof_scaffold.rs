@@ -391,7 +391,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
 }
 
 /// Called only after a green check, never during deploy/private source checks.
-// @ref LLP 3000.037.000#15-optional-proof-scaffolding-muse1 — draft code is opt-in; existing packets retain fresh coverage facts.
+// @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — draft code is opt-in; existing packets retain fresh coverage facts.
 pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool) -> io::Result<Option<String>> {
     let dir = project.root.join("scripts/proof-scaffold");
     // Refuse symlink custody for directories and files, including the manifest.

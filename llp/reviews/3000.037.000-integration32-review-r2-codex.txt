@@ -1,0 +1,3 @@
+No material concerns in the scoped repair. Verified exact journal-prefix and changelog-suffix retention, matching §15/§16 references, and 2,400-token fixture assertions. Both API-index tests pass. No files changed.
+
+READY

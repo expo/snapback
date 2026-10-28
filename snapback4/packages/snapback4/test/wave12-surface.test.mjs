@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {assertChangelogHelp,checkVerbHelp,changelogFlags} from '../../../scripts/check-verb-help.mjs';
 import {createClient} from '../dist/client.js';
 const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../target/debug/snapback4',import.meta.url));
-const changelog = readFileSync(new URL('../CHANGELOG.md',import.meta.url),'utf8');
+const changelog = readFileSync(new URL('../reference/CHANGELOG.md',import.meta.url),'utf8');
 const cli = (...args) => { const result=spawnSync(binary,args,{encoding:'utf8',timeout:30000});assert.equal(result.status,0,result.stdout+result.stderr);return result.stdout; };
 
 test('publication check catches 0.4.28 deploy --schema omission and covers every announced flag', () => {

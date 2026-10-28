@@ -3,7 +3,7 @@
 Reference for client lifecycle, offline behavior or the account/avatar walkthrough. Building an app: run `snapback4 guide start`
 then `snapback4 guide workflow`; this file is outside that reading path.
 
-[Back to the package guide](./README.md).
+[Back to the package guide](../README.md).
 
 `usePage(op, args)` returns `items`, `hasMore`, `loadMore`, `read`, `loading`
 and `why`. `loading` is true only while the combined read loads; `why` is its
@@ -1639,7 +1639,19 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise`; `read` may be a `usePage` result |
 | `otherwiseAll(fallback, overrides?)` | spread anywhere into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included; named handlers win in any order |
 | `isReady`, `isPresent`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
+| `refusalOf(write)` | the failed write's refusal, or `undefined` while pending, sent, or before the first run |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
+
+Every `Write<R>` permits reading `.why`, including after excluding `sent`;
+it is undefined unless the write failed. Pending `.reason` remains a status
+string, not a terminal refusal. The helper also accepts an unset hook result:
+
+```ts
+import { refusalOf, type Write } from "snapback4/client";
+export function writeNotice(write: Write | undefined): string {
+  return refusalOf(write)?.message ?? (write?.state === "pending" ? write.reason ?? "Waiting to send" : "");
+}
+```
 
 #### Narrowing reads and writes in TypeScript
 
@@ -4378,6 +4390,31 @@ service uses --hold or SNAPBACK4_PROBE_HOLD=1:
 import { probeServeGuard } from "snapback4/proof";
 export const acquireProbeLifetime = (directory: string) => probeServeGuard({ directory });
 ```
+
+
+### Isolated reruns and proof failure reports
+
+Use fresh real accounts and unique row names for independent reruns. A runner
+prints a bounded report and preserves the original assertion on failure;
+`proofFailure(error)` also supplies refusal text for an application-owned report.
+
+```ts
+import { freshUser, uniqueName, proofFailure, reportProofFailure, printProofReport,
+  type ServeHost, type StagingAccount, type ServeCheckReport } from "snapback4/proof";
+export function refusalText(error: unknown): string { return proofFailure(error); }
+export async function isolatedProof(host: ServeHost,
+  verify: (user: StagingAccount, rowName: string) => Promise<ServeCheckReport>): Promise<void> {
+  try {
+    const user = await freshUser(host);
+    const report = await verify(user, uniqueName("proof"));
+    printProofReport("probe:check", report);
+  } catch (error) {
+    reportProofFailure(error);
+    throw error;
+  }
+}
+```
+
 
 ## Your first working account screen
 

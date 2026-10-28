@@ -1,7 +1,7 @@
 # API client: exact signature digest
 
 Import from "snapback4/client". Generated from dist declarations; types named below retain their declaration meaning.
-observe returns getSnapshot/subscribe/close; query returns Read, mutate returns Write; asset returns a URL handle or denied. Upload each image column separately. sentResult is from snapback4/react or contract.
+observe returns getSnapshot/subscribe/close; query returns Read, mutate returns Write (why is undefined unless failed; refusalOf(write) returns Refusal | undefined); asset returns a URL handle or denied. Upload each image column separately. sentResult is from snapback4/react or contract.
 
 ```ts
 export function createClient(options: ClientOptions): Client;
@@ -11,7 +11,8 @@ export interface Observed<T> { getSnapshot(): Read<T>; subscribe(notify: () => v
 export interface ObserveOptions { readonly keep?: boolean; }
 export type Read<T> = Ready<T> | { readonly loading: true; } | { readonly denied: Refusal; };
 export type Ready<T> = Present<T> | Partial<T> | Absent<T>;
-export type Write<R = unknown> = { readonly state: "pending"; readonly id: string; readonly reason?: string; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
+export type Write<R = unknown> = { readonly state: "pending"; readonly id: string; readonly reason?: string; readonly why?: undefined; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R; readonly why?: undefined; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never; readonly why?: undefined; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
+export function refusalOf<R>(write: Write<R> | null | undefined): Refusal | undefined;
 export type Signal<R = unknown> = { readonly state: "sent"; readonly id: string; readonly result: R; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
 export type Cursor = string & { readonly __cursor: "Cursor"; };
 // AssetRead: import type from snapback4/contract
@@ -34,4 +35,4 @@ export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true; }>;
 export type MutationPromise<R = unknown> = Promise<Write<R>> & { readonly state?: "failed"; readonly id?: string; readonly why?: Refusal; };
 ```
 
-Declaration fingerprint: f1335e13b1914be7bae62c311af401d3283423f8f34d64aec61e8701c3570b40
+Declaration fingerprint: c22b9b0a6d52e610be14faa18ecaea7b85dbe04a7b7cee6bde953b6cddf0d394

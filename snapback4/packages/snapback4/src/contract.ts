@@ -136,11 +136,18 @@ export interface Pending {
  * collide this way; another unique value can. After such an unproved insert, a later refusal
  * in the same mutation queues for the server's verdict. */
 // @ref LLP 3000.007#17 — replay confirms execution without historical read authority
+// @ref LLP 3000.037.000#15-package-entry-and-write-refusals-tok5 — every write permits reading why without conflating a pending reason with failure.
 export type Write<R = unknown> =
-  | { readonly state: "pending"; readonly id: string; readonly reason?: string }
-  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R }
-  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never }
+  | { readonly state: "pending"; readonly id: string; readonly reason?: string; readonly why?: undefined }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R; readonly why?: undefined }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never; readonly why?: undefined }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
+
+/** The refusal of a failed write, or undefined while pending, sent, or before
+ * the first write. Pending `reason` remains a nonterminal status string. */
+export function refusalOf<R>(write: Write<R> | null | undefined): Refusal | undefined {
+  return write?.state === "failed" ? write.why : undefined;
+}
 
 /** An admitted intent, oldest first. `sent` here means dispatch began and the
  * outcome is unknown; only Write.sent is a receipt. Held reasons are refusal

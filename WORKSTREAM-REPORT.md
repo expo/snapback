@@ -121,3 +121,11 @@ exact harness CLI/flags/brief and terminal response. Copies under
 Pending affected packed starters/proof-kit/consumer-only qualification, reviews,
 ref-check and final affected run. Main currently fetched at d6f0253bfa;
 Integration 32 must be merged when available before finishing.
+
+Integration 32 merged from origin/main 1e9a50c8a7 before branch replays.
+Documentation-only conflicts retain TOK5 §15, GEN1 §16, and MUSE1 §17;
+release-history content stays under main’s reference/ layout with MUSE1 in
+Next. Root workstream report retains this lane’s report; Integration 32’s
+durable report remains under snapback4/reports/integration32/. The provisional
+.47 consumer build was stopped during compilation before proofs; it makes no
+qualification claim. Branch measurements will use integrated .48 bytes.

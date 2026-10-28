@@ -61,6 +61,7 @@ export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, 
 export function isDenied<R extends Read<unknown>>(read: R): read is Extract<R, { readonly denied: Refusal; }>;
 export function isFailed<W>(outcome: W & OutcomeInput<W>): outcome is FailedOutcome<W>;
 export function sentResult<R>(write: Write<R> | null | undefined): R | undefined;
+export function refusalOf<R>(write: Write<R> | null | undefined): Refusal | undefined;
 export function existence(read: SettledRead<unknown>): "denied" | "present" | "absent" | "partial";
 export function existence(read: Read<unknown>): "loading" | "denied" | "present" | "absent" | "partial";
 export function readPresentation(read: Read<unknown>): ReadPresentation;
@@ -75,7 +76,7 @@ export type Principal = string & { readonly __principal: "Principal"; };
 export type Read<T> = Ready<T> | { readonly loading: true; } | { readonly denied: Refusal; };
 export type Ready<T> = Present<T> | Partial<T> | Absent<T>;
 export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true; }>;
-export type Write<R = unknown> = { readonly state: "pending"; readonly id: string; readonly reason?: string; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
+export type Write<R = unknown> = { readonly state: "pending"; readonly id: string; readonly reason?: string; readonly why?: undefined; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R; readonly why?: undefined; } | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never; readonly why?: undefined; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
 export type Signal<R = unknown> = { readonly state: "sent"; readonly id: string; readonly result: R; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; };
 export type Act<R = unknown> = { readonly state: "done"; readonly id: string; readonly result: R; } | { readonly state: "failed"; readonly id: string; readonly why: Refusal; } | { readonly state: "pending"; readonly id: string; } | { readonly denied: Refusal; readonly id: string; };
 export type Outcome<R = unknown> = Write<R> | Signal<R> | Act<R>;

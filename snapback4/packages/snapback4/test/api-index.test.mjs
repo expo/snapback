@@ -11,14 +11,21 @@ import ts from "typescript";
 
 const root = join(import.meta.dirname, "..");
 const card = readFileSync(join(root, "../../crates/snapback4-lang/src/guide/api.md"), "utf8");
-const subpaths = Object.keys(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).exports).map(key => key.slice(2));
-const entry = sub => [".ts", ".tsx"].map(ext => join(root, "src", sub + ext)).find(existsSync);
+const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const subpaths = Object.keys(manifest.exports).map(key => key.slice(2));
+const entry = sub => {
+  const exported = manifest.exports[`./${sub}`];
+  const file = typeof exported === "string" ? join(root, exported)
+    : [".ts", ".tsx"].map(ext => join(root, "src", sub + ext)).find(existsSync);
+  assert.ok(file && existsSync(file), `missing export source: snapback4/${sub}`);
+  return file;
+};
 
 function exportsBySubpath() {
   const files = subpaths.map(entry);
   const program = ts.createProgram(files, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, allowImportingTsExtensions: true,
-    noEmit: true, skipLibCheck: true, paths: { "#fetch": ["./src/default-fetch.ts"] }, baseUrl: root });
+    noEmit: true, allowJs: true, skipLibCheck: true, paths: { "#fetch": ["./src/default-fetch.ts"] }, baseUrl: root });
   const checker = program.getTypeChecker();
   return new Map(subpaths.map((sub, index) => {
     const source = program.getSourceFile(files[index]);

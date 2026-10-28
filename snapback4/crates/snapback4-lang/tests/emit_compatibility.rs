@@ -194,3 +194,13 @@ fn unrepresentable_enum_text_selections_never_gain_unknown_assignment_authority(
         assert!(!compile(&[("schema.q".into(),source)]).diagnostics.is_empty(),"unsafe local flow cannot acquire Unknown authority");
     }
 }
+
+#[test]
+fn spanning_usage_labels_current_shapes_and_preserves_quoted_guard_values() {
+    let old = checked("table notes:\n  value: int\n  public 'notes'\n  online only\nquery list():\n  return notes first 10 by .id\n");
+    let new = checked("table notes:\n  value: int\n  added: int default 1\n  public 'notes'\n  online only\nquery list():\n  require viewer != 'senior  therapist' else NO_CALLER\n  return notes first 10 by .id\n");
+    let api = emit::typescript_spanning(&new, &old, 2);
+    assert!(api.contains("Compatibility: shapes below describe the current schema only."));
+    assert!(api.contains("require viewer != 'senior  therapist' else NO_CALLER"));
+    assert!(api.contains("added?: number"));
+}

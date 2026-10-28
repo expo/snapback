@@ -8,7 +8,7 @@ Governing: LLP 3000 §7 (candidate fence and decisions),
 LLP 3000.011.003.000.000 §20 (packet coverage, edited-file custody, current facts,
 real users and private staging lifecycle), LLP 3000.037.000 §14 (ordered first-red
 verify loop and owner cleanup), §12 (bounded output), §11 (bounded workflow),
-§15 (this amendment). LLP 0189 D-2 and LLP 0232 govern affected verification.
+§17 (this amendment). LLP 0189 D-2 and LLP 0232 govern affected verification.
 Source refs resolve to these constraints; the new default supersedes only the
 old automatic emission/default route. Hand-off: scoped amendment/source reviews.
 

@@ -1,0 +1,110 @@
+{
+  "baselineSource": "4a228b0c04",
+  "finalSource": "6fa122d7d9",
+  "binarySha": [
+    "7da66d7756e081d308b9fcfb1bb542f6c151aa624e27c7c214b970fc9bc78c74",
+    "68a4ede6924fdb659b671101b96066b2a52d5525291a9ad4c25fea996fbf41d7"
+  ],
+  "records": [
+    {
+      "source": "proof-kit/snapback",
+      "sourceSha": "e8fa4dd44e6bb5f3a7f5befa915941024af48fa01920ea35dc61310dbcb47f18",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "28d2b8ea588394c1f2d4866cc5011b216d3ba36fa44dc3ff0045cd7ac27bebe3",
+        "28d2b8ea588394c1f2d4866cc5011b216d3ba36fa44dc3ff0045cd7ac27bebe3"
+      ]
+    },
+    {
+      "source": "scaf1/custom/snapback",
+      "sourceSha": "cab9cac57cf49bbc337c5cb3a4a0b1fe931c96f2eb87b9a2d9a67b919ad8846a",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "80f8ddcffcf09bd4e2be614de32351051d5c2033e8bccc00d06c13892bea406b",
+        "80f8ddcffcf09bd4e2be614de32351051d5c2033e8bccc00d06c13892bea406b"
+      ]
+    },
+    {
+      "source": "scaf1/empty/snapback",
+      "sourceSha": "1f5f64c4777fca412070bdf0d0c983f1a910ee800be94d0f495d7176a4c91693",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "38f883a0977bd524a2dc71beb69b8a3d95baa6d6540a4dd5dbc4bad22c15a614",
+        "38f883a0977bd524a2dc71beb69b8a3d95baa6d6540a4dd5dbc4bad22c15a614"
+      ]
+    },
+    {
+      "source": "scaf1/snapback",
+      "sourceSha": "8215b05e893cb5482de16794664e6380852eda31ddee87a5e0c0954d30d4e317",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "34d7c5b5917f6147396a844e8b327001a5f5a7bd34aaeb7e17b45997bcd65f85",
+        "34d7c5b5917f6147396a844e8b327001a5f5a7bd34aaeb7e17b45997bcd65f85"
+      ]
+    },
+    {
+      "source": "starter-expo/deployment/releases/1/snapback",
+      "sourceSha": "64ecdb98e9ff73760d320cd33265b000bf22abd6bf05c4ced23d8e33d161a893",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "ca82abbde73f40216ee6beba64a0cbc732c5c88b9904569c53aab11372138d17",
+        "ca82abbde73f40216ee6beba64a0cbc732c5c88b9904569c53aab11372138d17"
+      ]
+    },
+    {
+      "source": "starter-expo/snapback",
+      "sourceSha": "a386a7bd41c288874bd24a475e783cc7b4e03c1716e944a77a63b9ed66b34216",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "dd1458659a54bd1886b041a7cd9439b7903399543f57e051138c15c6a28a9062",
+        "dd1458659a54bd1886b041a7cd9439b7903399543f57e051138c15c6a28a9062"
+      ]
+    },
+    {
+      "source": "starter-expo-chat/deployment/releases/1/snapback",
+      "sourceSha": "62abfa9c4bb256f453f8394942ceede1973ed1a29d9e74a25b78e928db601a2b",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "f8fea03b8ed5757edad17f587447bb5a003667d410dcc1512b677b91ce02ba2d",
+        "f8fea03b8ed5757edad17f587447bb5a003667d410dcc1512b677b91ce02ba2d"
+      ]
+    },
+    {
+      "source": "starter-expo-social/deployment/releases/1/snapback",
+      "sourceSha": "b29cb5a02d837e8700f58c8fdb5cf7dbd52706574d0ede8d5a8828b5228bbc03",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "c2ebbfea93b1ce22f8b6a6c01449c738d65abb871c48a8335b9cb62c99b825af",
+        "c2ebbfea93b1ce22f8b6a6c01449c738d65abb871c48a8335b9cb62c99b825af"
+      ]
+    },
+    {
+      "source": "starter-web-chat/deployment/releases/1/snapback",
+      "sourceSha": "01b4832b88c73e014cc5733d48880e4850ce5f62f9a7bcb77a3cea8242de56d8",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "7ed81345e3946c031d231c8626f4c2c5dca7f1b13045d1cce3cec88b56526e77",
+        "7ed81345e3946c031d231c8626f4c2c5dca7f1b13045d1cce3cec88b56526e77"
+      ]
+    },
+    {
+      "source": "starter-web-online/deployment/releases/1/snapback",
+      "sourceSha": "0c58356094ef8123b1f48d1647c6f3117b552d549e0499ce6525b38ea3b8c4a5",
+      "fullApiIdentical": true,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "5ff859070d0aab05847baeccab289829c7c1cd39e4ef9e95965bb98ad89833ce",
+        "5ff859070d0aab05847baeccab289829c7c1cd39e4ef9e95965bb98ad89833ce"
+      ]
+    }
+  ]
+}

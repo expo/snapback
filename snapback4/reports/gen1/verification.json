@@ -1,0 +1,61 @@
+{
+  "sourceCommit": "6fa122d7d9628162f5e98bd2bf53f6e4efaf7922",
+  "setup": {
+    "bunInstall": "passed frozen",
+    "native": "passed incremental=0 dev debug=0 test debug=0",
+    "wasm": {
+      "rawBytes": 2416601,
+      "gzipBytes": 738640,
+      "budgetBytes": 739140,
+      "unchanged": true
+    },
+    "sdkBuild": "passed"
+  },
+  "initialTargetedRust": {
+    "guide": 134,
+    "emit_compatibility": 16,
+    "ephemeral_compat": 1,
+    "check": 107,
+    "tok3": 2,
+    "snapshot": 1,
+    "status": "passed"
+  },
+  "refined": {
+    "generatedUsageTests": 7,
+    "fixtureOperations": 35,
+    "stressCases": 151,
+    "stressDistinctEnumSizes": 150,
+    "emit_compatibility": 17,
+    "ephemeral_compat": 1,
+    "snapshot": 1,
+    "status": "passed",
+    "browserSetupOwnership": "literal fence executes with original app client; bare-client reconstruction negative control",
+    "mixedDensityCases": 150
+  },
+  "rootChecks": {
+    "generatedArtifacts": "passed",
+    "diagnosticsRegeneration": "passed, no tracked drift",
+    "guideManifestRegeneration": "passed, no tracked drift",
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 121
+    },
+    "refCheck": {
+      "documents": 579,
+      "references": 12879,
+      "errors": 0
+    }
+  },
+  "docsBudget": "passed README 8/320 and named self-containment test",
+  "extraInheritedFailure": "issues/20261028-snapback4-api-index-proof-runner-export.md",
+  "scope": {
+    "qualification": false,
+    "mac": false,
+    "completeBattery": false,
+    "wholeSessionReplay": false
+  },
+  "reviewRounds": "Round 5: fresh Muse and fresh Codex READY on 6fa122d7d9; all earlier verdicts retained."
+}

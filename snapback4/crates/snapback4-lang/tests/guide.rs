@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 mod rollback;
 use std::path::{Path, PathBuf};
 
-const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
+const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/reference/SERVER.md"));
 
 // A relocated assertion checks the actual orientation door as well as its destination.
 fn readme_reference(name: &str) -> &'static str {
@@ -125,8 +125,8 @@ fn w11r2_native_boundary_sentence_matches_both_published_copies() {
 fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     assert!(readme.contains("guide start") && readme.contains("guide workflow"));
-    assert!(card("package-reference").unwrap().contains("CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
-    let reference = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
+    assert!(card("package-reference").unwrap().contains("reference/CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
+    let reference = include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md");
     let path = reference.split_once("## Your first working account screen").expect("one linked optional walkthrough").1;
     for text in [
         "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npm run backend",
@@ -171,12 +171,12 @@ fn w14b_first_account_screen_is_self_contained() {
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme;
-    for text in ["CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "guide workflow"] {
+    for text in ["reference/CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "guide workflow"] {
         assert!(opening.contains(text), "first read omits {text}");
     }
     assert!(readme.len() < 2500, "README is a pointer, not a second tutorial");
     assert!(!readme.to_lowercase().contains("there is no other documentation"));
-    assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("## 4. The client"));
+    assert!(include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").contains("## 4. The client"));
 }
 
 #[test]
@@ -743,7 +743,7 @@ fn every_card_compiles_clean() {
     }
     assert!(errors.is_empty(), "unclean blocks: {errors:?}");
     // The relocation preserves compiling adoption instructions for already installed apps.
-    let adoption = quarry(include_str!("../../../packages/snapback4/FOLLOWING-ADOPTION.md"));
+    let adoption = quarry(include_str!("../../../packages/snapback4/reference/FOLLOWING-ADOPTION.md"));
     assert!(!adoption.is_empty(), "installed-app adoption must remain executable");
     for (index, block) in adoption.iter().enumerate() {
         clean(&format!("existing feed adoption block {}", index + 1), &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));
@@ -1095,7 +1095,7 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
 
 #[test]
 fn onboarding_recipe_recovers_a_taken_handle_for_the_same_principal() {
-    let source = quarry(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md")).into_iter().find(|block| block.contains("query handleAvailable(")).unwrap();
+    let source = quarry(include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md")).into_iter().find(|block| block.contains("query handleAvailable(")).unwrap();
     let bound = clean("onboarding recipe", &source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(engine.query("handleAvailable", Context::new("guest:visitor", args(&[("handle", text("alice"))]))).unwrap().data, Value::Bool(true));

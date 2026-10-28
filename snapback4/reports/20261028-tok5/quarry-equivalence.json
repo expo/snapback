@@ -1,0 +1,102 @@
+{
+  "base": "11fb847329",
+  "changedQuarryBlocks": [],
+  "files": [
+    {
+      "file": "snapback4/JOURNAL.md",
+      "oldBlocks": 2,
+      "newBlocks": 2,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide.rs",
+      "oldBlocks": 7,
+      "newBlocks": 7,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/actions.rs",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/app.rs",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/bounds.rs",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "oldBlocks": 3,
+      "newBlocks": 3,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/discovery.rs",
+      "oldBlocks": 3,
+      "newBlocks": 3,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/feeds.md",
+      "oldBlocks": 5,
+      "newBlocks": 5,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/personas.rs",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/services.rs",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/wire.md",
+      "oldBlocks": 3,
+      "newBlocks": 3,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/writes.rs",
+      "oldBlocks": 6,
+      "newBlocks": 6,
+      "identical": true
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/tests/fixtures/legacy-feed-recipes.md",
+      "oldBlocks": 7,
+      "newBlocks": 7,
+      "identical": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/reference/CLIENT-AND-OPERATIONS.md",
+      "oldBlocks": 4,
+      "newBlocks": 4,
+      "identical": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/reference/FOLLOWING-ADOPTION.md",
+      "oldBlocks": 1,
+      "newBlocks": 1,
+      "identical": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/reference/SERVER.md",
+      "oldBlocks": 3,
+      "newBlocks": 3,
+      "identical": true
+    }
+  ]
+}

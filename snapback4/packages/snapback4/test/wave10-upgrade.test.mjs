@@ -138,7 +138,8 @@ test('schema-less upgrade reads the new changelog after package symlink replacem
   for (const [folder, version] of [['old', '0.4.25'], ['new', releaseVersion]]) {
     const pack = join(dir, folder); mkdirSync(join(pack, 'dist'), { recursive: true });
     writeFileSync(join(pack, 'package.json'), JSON.stringify({ name: 'snapback4', version, exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(pack, 'dist/bin-path.js'), '');
-    writeFileSync(join(pack, 'CHANGELOG.md'), folder === 'old' ? '# no new history' : readFileSync(new URL('../CHANGELOG.md', import.meta.url)));
+    mkdirSync(join(pack, 'reference'), {recursive:true});
+    writeFileSync(join(pack, 'reference/CHANGELOG.md'), folder === 'old' ? '# no new history' : readFileSync(new URL('../reference/CHANGELOG.md', import.meta.url)));
   }
   symlinkSync(join(dir, 'old'), join(dir, 'node_modules/snapback4'));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10', dependencies: { snapback4: '0.4.25' } }));
@@ -158,7 +159,8 @@ function upgradeFixture(t, installed = releaseVersion, latest = releaseVersion) 
   const pack = join(dir, 'node_modules/snapback4'); mkdirSync(join(pack, 'dist'), { recursive: true }); mkdirSync(join(pack, 'bin'));
   writeFileSync(join(pack, 'dist/bin-path.js'), '');
   writeFileSync(join(pack, 'package.json'), JSON.stringify({ name: 'snapback4', version: installed, exports: { './bin-path': './dist/bin-path.js' } }));
-  writeFileSync(join(pack, 'CHANGELOG.md'), readFileSync(new URL('../CHANGELOG.md', import.meta.url)));
+  mkdirSync(join(pack, 'reference'), {recursive:true});
+  writeFileSync(join(pack, 'reference/CHANGELOG.md'), readFileSync(new URL('../reference/CHANGELOG.md', import.meta.url)));
   writeFileSync(join(pack, 'bin/snapback4.js'), `const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;`);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { snapback4: installed }, packageManager: 'npm@10' }));
   mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}

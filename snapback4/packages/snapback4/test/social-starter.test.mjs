@@ -245,7 +245,7 @@ test("published social starter and guide snippets typecheck against generated op
 test("bounded substitution in both installed and client documentation typechecks", t => {
   const dir = starter(t), route = join(dir, "app/conversation/[id].tsx");
   const original = readFileSync(route, "utf8");
-  for (const doc of [join(dir, "README.md"), join(root, "packages/snapback4/CLIENT-AND-OPERATIONS.md")]) {
+  for (const doc of [join(dir, "README.md"), join(root, "packages/snapback4/reference/CLIENT-AND-OPERATIONS.md")]) {
     const source = readFileSync(doc, "utf8");
     const imported = source.match(/`(import [^`]+ from "\.\.\/\.\.\/src\/BoundedConversation")`/);
     assert.ok(imported, `${doc}: executable substitution import`);

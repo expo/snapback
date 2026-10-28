@@ -1,11 +1,14 @@
 // W14b revision 2 §6: count physical lines and require the in-file first-screen path.
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = new URL("../", import.meta.url);
 const budget = JSON.parse(readFileSync(new URL("metrics/docs-budget.json", root), "utf8"));
 const readme = readFileSync(new URL("packages/snapback4/README.md", root), "utf8");
+const rootMarkdown = readdirSync(new URL("packages/snapback4/", root)).filter(name => name.endsWith(".md")).sort();
+const oneRootDoc = JSON.stringify(rootMarkdown) === JSON.stringify(["README.md"]);
+if (!oneRootDoc) console.error(`docs budget: README must be the only root Markdown file: ${rootMarkdown.join(", ")}`);
 const actual = (readme.match(/\n/g)?.length ?? 0) + Number(readme.length > 0 && !readme.endsWith("\n"));
 const valid = Number.isSafeInteger(budget.readmeLines) && budget.readmeLines > 0 &&
   typeof budget.set === "string" && budget.set.length > 0 && typeof budget.why === "string" && budget.why.length > 0;
@@ -20,4 +23,4 @@ process.stderr.write(sufficient.stderr ?? "");
 const ran = /test result: ok\. 1 passed; 0 failed;/.test(sufficient.stdout ?? "");
 if (sufficient.status === 0 && !ran) console.error("docs budget: the named self-containment test must run exactly once");
 if (sufficient.error) console.error(`docs budget: self-containment test could not run: ${sufficient.error.message}`);
-process.exitCode = valid && actual <= budget.readmeLines && sufficient.status === 0 && ran ? 0 : 1;
+process.exitCode = oneRootDoc && valid && actual <= budget.readmeLines && sufficient.status === 0 && ran ? 0 : 1;

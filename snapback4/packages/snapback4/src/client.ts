@@ -21,6 +21,7 @@ import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 // The card's words, from the module that returns them: `import { createClient, type Client } from "snapback4/client"`.
+export { refusalOf } from "./contract.ts";
 export { settleMutation } from "./write-settlement.ts";
 export { saveAsset, type Saved } from "./files.ts";
 export type { Client, Principal, Session, Refusal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, ActOptions, MutateOptions, MutationPromise, PendingWrite, Link, Query, Mutation, Ephemeral, Action, ArgsOf, ResultOf, RowOf, Observed, ObserveOptions, Cursor } from "./contract.ts";

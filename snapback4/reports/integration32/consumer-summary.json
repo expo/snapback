@@ -1,0 +1,126 @@
+{
+  "source": "1fe573198478905e581d8b1b5c3aa36fcbbf06dd",
+  "version": "0.4.48",
+  "mode": "consumer-only",
+  "route": "proot",
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "binarySha256": "006bb09d51d52b369a6eca78122ed42890dacaa08c4a3ba9aca5e324cc3a5af3",
+  "clientIntegrity": "sha512-1E/KGSPPD3DUGYBaC40JrUrsJ+Nm+al5KDurEW3bbAvtOwJBeYkKaOFtsvUqvhcUHXD6vVVSqAnahh/TOfCSxA==",
+  "expoIntegrity": "sha512-aYD1G0pQ8V3SIQgDXATTG+To5dJM8Lp0jGDNorppnaqB7hOLFvnqWsnRct/XCSi9682VKynPKzl7QmuIiZBUHA==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.48",
+    "filename": "snapback4-linux-x64-0.4.48.tgz",
+    "integrity": "sha512-kcWCtPohAMNu1B44AyL6jyqBhwLmDc8raJRdVdJYITObnPpUdFb9hVnyw82O59eK30EpLWoD3WDTXCN+6W2ULQ==",
+    "bytes": 18782743
+  },
+  "exit": 0,
+  "seconds": 2535.5331321230624,
+  "receipt": "/home/ccheever/sb4-loop/reports/integration32/consumer/consumer.json",
+  "receiptSha256": "b7c1d14dd5907091a1ce982c2d31697d0bb4519dc3fefbd131a8ed27ed8db3b2",
+  "rootMarkdown": [
+    "README.md"
+  ],
+  "references": [
+    "reference/CHANGELOG.md",
+    "reference/CLIENT-AND-OPERATIONS.md",
+    "reference/FOLLOWING-ADOPTION.md",
+    "reference/OFFLINE-UPLOADS.md",
+    "reference/SERVER.md"
+  ],
+  "starters": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    }
+  ],
+  "frontendEntries": 12,
+  "frontendAllPassed": true,
+  "proofSections": [
+    "regressions",
+    "day2Proof",
+    "dx8Proof",
+    "dx5Proof",
+    "day4Proof",
+    "day5Proof",
+    "productionProofs",
+    "proofKit",
+    "clientRecipes",
+    "ruleRecipes",
+    "frontendProofs",
+    "starterProofs",
+    "stagingProof",
+    "migrationProof",
+    "securityProof",
+    "proofs"
+  ],
+  "distributionProofs": [
+    {
+      "base": "ubuntu:24.04",
+      "runtime": "proot",
+      "route": "proot",
+      "status": "passed",
+      "node": "24.13.1",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "runtime": "proot",
+      "route": "proot",
+      "status": "passed",
+      "node": "24.18.1",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ]
+}
