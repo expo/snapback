@@ -131,3 +131,34 @@ Next. Root workstream report retains this lane’s report; Integration 32’s
 durable report remains under snapback4/reports/integration32/. The provisional
 .47 consumer build was stopped during compilation before proofs; it makes no
 qualification claim. Branch measurements will use integrated .48 bytes.
+
+
+## 5. First complete replay: opt-in-only candidate (rejected)
+
+All 18 empty-directory sessions reached their terminal response and exited 0;
+installed native/client pins were verified and all replay application copies
+were deleted. Frozen candidate source: 8f60156e9d (.48 including TOK5/GEN1).
+See snapback4/reports/20261028-muse1/replays-v1.json for exact per-idea results.
+
+| Model | Version | Median calls | Median input | Median wall min |
+|---|---|---:|---:|---:|
+| muse | v46 | 96 | 8,993,342 | 16.31 |
+| muse | v47 | 117.5 | 16,457,696 | 23.43 |
+| muse | branch | 118.5 | 13,175,756 | 18.98 |
+| codex | v46 | 41.5 | 2,397,016 | 11.51 |
+| codex | v47 | 34.5 | 2,227,055 | 10.74 |
+| codex | branch | 40.5 | 2,718,899 | 12.85 |
+
+The candidate MISSES both Muse bars against .46 and both Codex bars against
+.47. Source correctness/reviews do not override this outcome. No same-code
+retry or favorable-result selection will replace these failures.
+
+Second mechanism decision: preserve the low-cost account/lifecycle convenience
+that Codex used, with a default three-file <=8KB draft containing ONE authored
+business scenario. Never rewrite/expand it on check; derive operation handles
+from the existing generated API, without a second large schema facts packet.
+The exhaustive operation/role/guard matrix remains opt-in and its stale-fact
+coverage refusal remains unchanged. Missing/empty business assertions still
+refuse. Coverage is explicitly application-owned, not a global matrix claim.
+Run six new candidate sessions on the same fixed draws, retaining the twelve
+completed before controls and all six rejected candidate sessions.

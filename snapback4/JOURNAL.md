@@ -110338,3 +110338,14 @@ the default loop and describe the matrix as optional. Coverage, stale-fact
 refusals, first-red output and cleanup remain. See LLP 3000.037.000 §17 and the
 MUSE1 report for measured controls; no performance or publication claim follows
 from these source changes alone.
+
+### 2026-10-28 — MUSE1 complete controls reject opt-in-only; compact default
+
+All 18 sessions completed. Muse candidate medians 118.5 calls / 13.176M input
+miss .46's 96 / 8.993M; Codex 40.5 / 2.719M miss .47's 34.5 / 2.227M.
+Keep these negative measurements. Revised default emits a <=8KB, three-file,
+one-scenario business draft once, preserving the real-account/lifecycle helpers
+without an exhaustive matrix or automatic code rewrites. Matrix remains opt-in;
+empty/unfilled/refusal-only drafts refuse; coverage stays application-owned.
+Six new after sessions reuse the fixed draws and twelve completed controls.
+Source reviews and packed controls must be repeated for this amendment.

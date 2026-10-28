@@ -372,11 +372,21 @@ fn ordinary_check_leaves_drafts_optional_and_refreshes_only_opted_in_facts() {
         .arg("check").current_dir(&p.0).output().unwrap();
     assert!(ordinary().status.success());
     assert!(!p.file("").exists(), "ordinary checks must not emit a proof matrix");
+    let draft = p.0.join("scripts/proof-draft");
+    let before: Vec<_> = ["cases.mjs", "host.mjs", "acceptance.mjs"].iter().map(|name| {
+        let path = draft.join(name);
+        let syntax = Command::new("node").arg("--check").arg(&path).output().unwrap();
+        assert!(syntax.status.success(), "{}", String::from_utf8_lossy(&syntax.stderr));
+        (*name, fs::read(path).unwrap())
+    }).collect();
+    assert!(before.iter().map(|(_, bytes)| bytes.len()).sum::<usize>() <= 8000);
+
     assert!(p.check().status.success());
     let cases = fs::read(p.file("cases.mjs")).unwrap();
     let runner = fs::read(p.file("acceptance.mjs")).unwrap();
     fs::write(p.0.join("snapback/schema.q"), format!("{SOURCE}\nquery added():\n  return 1\n")).unwrap();
     assert!(ordinary().status.success());
+    for (name, bytes) in &before { assert_eq!(&fs::read(draft.join(name)).unwrap(), bytes, "compact draft is never rewritten"); }
     assert_eq!(fs::read(p.file("cases.mjs")).unwrap(), cases, "no unrequested draft expansion");
     assert_eq!(fs::read(p.file("acceptance.mjs")).unwrap(), runner);
     assert!(fs::read_to_string(p.file("schema.json")).unwrap().contains("added"), "coverage facts must see new operations");
@@ -409,7 +419,7 @@ fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
         .current_dir(&p.0).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let next = String::from_utf8_lossy(&out.stdout);
-    assert!(next.contains("optional exhaustive drafts: snapback4 check --proof-scaffold"), "{next}");
+    assert!(next.contains("Optional exhaustive drafts: snapback4 check --proof-scaffold"), "{next}");
     assert!(!next.contains("start app proofs from scripts/proof-scaffold"));
     let readme = fs::read_to_string(p.0.join("README.md")).unwrap();
     assert!(readme.contains("Optional exhaustive drafts:"), "{readme}");
@@ -419,4 +429,25 @@ fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
         .arg("check").current_dir(&p.0).output().unwrap();
     assert!(checked.status.success());
     assert!(!p.file("").exists());
+}
+
+#[test]
+fn compact_draft_respects_existing_files_and_dangling_links() {
+    let p = Project::new("compact-collision");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    fs::create_dir_all(p.0.join("scripts")).unwrap();
+    let draft = p.0.join("scripts/proof-draft");
+    fs::write(&draft, "application-owned").unwrap();
+    let run = || Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("check").current_dir(&p.0).output().unwrap();
+    assert!(run().status.success());
+    assert_eq!(fs::read_to_string(&draft).unwrap(), "application-owned");
+    fs::remove_file(&draft).unwrap();
+    #[cfg(unix)] {
+        std::os::unix::fs::symlink(p.0.join("absent"), &draft).unwrap();
+        assert!(run().status.success());
+        assert!(!p.0.join("absent").exists());
+        fs::remove_file(&draft).unwrap();
+    }
+    assert!(run().status.success());
+    assert!(draft.join("cases.mjs").exists());
 }

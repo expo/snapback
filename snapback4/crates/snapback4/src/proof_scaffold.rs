@@ -1,11 +1,12 @@
 //! Schema-bound, editable proof recipes. No new runtime or authorization analysis.
 // @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
 mod infer;
+mod compact;
 use crate::project::Project;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use snapback4_core::{
-    ir::{ArgType, Expr, Input, ProgramKind, Stmt},
+    ir::{ArgType, Expr, Input, Program, ProgramKind, Stmt},
     schema::ColumnType,
 };
 use snapback4_lang::Bound;
@@ -164,7 +165,8 @@ fn clock_bindings(value: &Value, names: &mut std::collections::BTreeSet<String>)
     }
 }
 
-fn files(bound: &Bound) -> Vec<(&'static str, String)> {
+type Provision<'a> = (&'a Program, &'a String, &'a String, &'a Vec<String>);
+fn account_plan(bound: &Bound) -> (Vec<String>, String, Option<Provision<'_>>) {
     let candidates = bound
         .programs
         .iter()
@@ -208,7 +210,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
     let provision = candidates
         .iter()
         .find(|(p, _, _, _)| p.name == "provision")
-        .or_else(|| (candidates.len() == 1).then(|| &candidates[0]));
+        .or_else(|| (candidates.len() == 1).then(|| &candidates[0])).copied();
     let mut roles = provision
         .map(|(_, _, _, v)| (*v).clone())
         .unwrap_or_else(|| {
@@ -254,7 +256,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         let extra = p
             .args
             .iter()
-            .filter(|(n, _)| *n != *principal && *n != *role)
+            .filter(|(n, _)| n.as_str() != principal.as_str() && n.as_str() != role.as_str())
             .map(|(n, k)| {
                 format!("{}: {}", quoted(n), {
                     let v = sample(k, n);
@@ -313,6 +315,17 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             )
         }
     };
+    (roles, plan, provision)
+}
+
+fn host_template(facts: &str, full: bool) -> String {
+    include_str!("proof_scaffold/host.mjs")
+        .replacen("SCHEMA_IMPORTS", if full { "import {createHash} from 'node:crypto';\nimport {readFileSync} from 'node:fs';" } else { "" }, 1)
+        .replacen("SCHEMA_FACTS", facts, 1)
+}
+
+fn files(bound: &Bound) -> Vec<(&'static str, String)> {
+    let (roles, plan, provision) = account_plan(bound);
     let mut facts = Vec::new();
     let mut cases = String::new();
     for p in &bound.programs {
@@ -373,7 +386,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             format!("{}\n", serde_json::to_string_pretty(&schema).unwrap()),
         ),
         ("cases.mjs", cases),
-        ("host.mjs", include_str!("proof_scaffold/host.mjs").into()),
+        ("host.mjs", host_template(include_str!("proof_scaffold/schema-facts.mjs.inc"), true)),
         (
             "acceptance.mjs",
             include_str!("proof_scaffold/acceptance.mjs").into(),
@@ -406,7 +419,9 @@ pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool) -> io:
     // An ordinary check creates no packet and takes no custody of a collision.
     // Existing opted-in packets still need current facts so new guards cannot
     // disappear behind an old (possibly application-edited) cases file.
-    if !requested && !regular(&manifest)? { return Ok(None); }
+    if !requested && !regular(&manifest)? {
+        return if dir.exists() { Ok(None) } else { compact::generate(project, bound) };
+    }
     std::fs::create_dir_all(&dir)?;
     let old: BTreeMap<String, String> = if regular(&manifest)? {
         serde_json::from_slice(&std::fs::read(&manifest)?).unwrap_or_default()

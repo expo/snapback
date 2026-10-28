@@ -414,7 +414,7 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     if web || expo {
-        println!("init: write application acceptance and frontend assertions; optional exhaustive drafts: snapback4 check --proof-scaffold. verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
+        println!("init: after check, edit scripts/proof-draft/cases.mjs and set acceptance to node scripts/proof-draft/acceptance.mjs; keep its host/runner. Optional exhaustive drafts: snapback4 check --proof-scaffold. verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
         if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
             match install_frontend(dir) {
                 Ok(0) => println!("init: frontend dependencies ready; next: npm run verify (no install join needed)"),

@@ -4,7 +4,7 @@
 
 ### Guide changes
 
-- `npm run verify` retains its compact first-failure loop. Exhaustive operation/role/guard proof drafts are optional: request them with `snapback4 check --proof-scaffold`. Ordinary checks create no packet and refresh only bound facts in existing packets; code drafts refresh only on an explicit request, preserving builder edits.
+- `npm run verify` retains its compact first-failure loop. Exhaustive operation/role/guard proof drafts are optional: request them with `snapback4 check --proof-scaffold`. Green checks create a compact, one-scenario `scripts/proof-draft/` once (at most 8KB); edit its cases and wire its acceptance runner. Later checks never rewrite this draft. Existing exhaustive packets refresh bound facts only; their code refresh remains explicit.
 
 ## 0.4.48
 
