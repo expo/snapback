@@ -6,7 +6,7 @@
 
 - Start app proofs from the schema-generated `scripts/proof-scaffold/cases.mjs`, fill business assertions and route acceptance, frontend and probe scripts to its runners. `npm run verify` checks Quarry and TypeScript, then runs acceptance, frontend proof and probe shutdown, stopping at the first failure. Check preserves edited scaffold files; existing app scripts remain application-owned.
 - Finite suites can await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`; reports drain before exit with the suite status and one line names residual resource types. New frontend/day-two recipes use it. Release commands reuse pure compilation within one invocation; source reads, security, admission and durable activation still run.
-- An empty unheld `probe:serve` exits after 10 seconds ready; another empty idle attempt refuses early. Harness `--hold` is preserved. Foreground installation remains default; the app installer supports explicit detached background admission, request-bound status and one blocking join.
+- An empty unheld `probe:serve` exits after 10 seconds ready; another empty idle attempt refuses early. Intentional harness service uses `SNAPBACK4_PROBE_HOLD=1`. Foreground installation remains default; the app installer supports explicit detached background admission, request-bound status and one blocking join.
 
 ## 0.4.46
 
