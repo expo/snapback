@@ -1,0 +1,12 @@
+{
+  "reason": "Exploratory development-profile packages differ from the harness production profile; performance bar will use matched optimized packages. Completed Codex sessions retained separately, Muse sessions aborted before completing.",
+  "scope": "run-r8acdd66cdecc418a8e7f7b3566b5bc30.scope",
+  "abortedPids": [
+    1523021,
+    1516165
+  ],
+  "completedIdeas": [
+    1,
+    39
+  ]
+}

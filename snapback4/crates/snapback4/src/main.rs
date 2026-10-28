@@ -28,6 +28,7 @@ mod release_control;
 mod release_requests;
 mod release_files;
 mod project;
+mod proof_scaffold;
 mod serve;
 mod dev_worker;
 mod worker_graph;

@@ -427,6 +427,14 @@ pub fn check(options: &Options) -> i32 {
     check_surface::report(&project, &bound, options.json, Some((&security, &dispositions)));
     check_surface::remember(&project, &bound, Some((&security, &dispositions)));
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
+    let proof_scaffold = if !security_failed {
+        match crate::proof_scaffold::generate(&project, &bound) {
+            Ok(notice) => notice,
+            Err(error) => { failed_check(&bound, options.json, "E_STORE", format!("cannot write proof scaffold: {error}")); return 2; }
+        }
+    } else { None };
+    if options.json { if let Some(notice) = &proof_scaffold { eprintln!("{notice}"); } }
+
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
     let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().filter(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review).map(|n|(*n).clone()).collect::<Vec<_>>());
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
@@ -450,6 +458,7 @@ pub fn check(options: &Options) -> i32 {
         println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
+        if let Some(notice) = &proof_scaffold { println!("{notice}"); }
         security::enforced(&security,&bound);
         if review && !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {

@@ -1,0 +1,369 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "broad": true,
+  "checks": [
+    "chat-check",
+    "chat-typecheck",
+    "diagnostics",
+    "docs-budget",
+    "expo-typecheck",
+    "fixture-tests",
+    "generated",
+    "guide",
+    "inventories",
+    "packaged-docs",
+    "ref-check",
+    "release-guard",
+    "selector-tests",
+    "wasm-measurement"
+  ],
+  "steps": [
+    {
+      "id": "build-cli",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4"
+      ],
+      "reason": "selected clients spawn/import CLI",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "build-client",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "reason": "selected tests import dist",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "typecheck:snapback4",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "typecheck"
+      ],
+      "reason": "package source change",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "rust:scaf1-cli",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "scaf1",
+        "--test",
+        "check",
+        "--test",
+        "tok1",
+        "--test",
+        "tok2_output",
+        "--test",
+        "tok3",
+        "--test",
+        "dx12_output",
+        "--test",
+        "dx14_output",
+        "--",
+        "--test-threads=4",
+        "--skip",
+        "a_long_card_prints_its_opening_and_index_and_full_prints_it_all",
+        "--skip",
+        "guide_lists_aliases_and_resolves_them_on_stdout"
+      ],
+      "cwd": "snapback4",
+      "timeoutSeconds": 2400,
+      "requires": []
+    },
+    {
+      "id": "rust:init",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "init",
+        "--",
+        "--test-threads=4",
+        "--skip",
+        "w8b_residency_measures_the_wired_calibration_shape",
+        "--skip",
+        "web_and_expo_starters_are_one_small_screen_with_product_comments",
+        "--skip",
+        "init_beside_a_projects_own_schema_leaves_its_tests_green"
+      ],
+      "cwd": "snapback4",
+      "timeoutSeconds": 2400,
+      "requires": []
+    },
+    {
+      "id": "rust:guide",
+      "argv": [
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "--",
+        "--test-threads=4",
+        "--skip",
+        "deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race",
+        "--skip",
+        "cards_meet_word_targets_and_preserve_every_original_compiled_block",
+        "--skip",
+        "wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget"
+      ],
+      "cwd": "snapback4",
+      "timeoutSeconds": 2400,
+      "requires": []
+    },
+    {
+      "id": "client:proof",
+      "argv": [
+        "node",
+        "--test",
+        "packages/snapback4/test/proof.test.mjs",
+        "packages/snapback4/test/proof-contract.test.mjs"
+      ],
+      "cwd": "snapback4",
+      "timeoutSeconds": 2400,
+      "requires": []
+    },
+    {
+      "id": "diagnostics",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/generate-diagnostics-registry.mjs",
+        "--check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "docs-budget",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "generated",
+      "cwd": ".",
+      "argv": [
+        "bash",
+        "scripts/check-generated-artifacts"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "guide",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/check-guide.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "inventories",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/check-inventories.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "packaged-docs",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    }
+  ],
+  "base": "2034c0de728a21250fac5686b88987f64c113a44",
+  "mergeBase": "2034c0de728a21250fac5686b88987f64c113a44",
+  "head": "8626bfb493ebd7e1f4e0b1ebd5b17ce48b89f961",
+  "worktree": true,
+  "inputDigest": "e832d491922ef0e49ebe7ccf193e30d601416390c30663e767fa5e12cd60df7c",
+  "fullSelectorPlanExecuted": false,
+  "omissions": {
+    "inherited": "issues/20261028-snapback4-inherited-check-guide-assertion-drift.md (seven baseline-proven failures)",
+    "expensiveUnrelated": "w8b residency calibration",
+    "install": "lockfiles unchanged; frozen installs and SDK build already completed"
+  },
+  "qualification": false,
+  "scope": "SCAF1 CLI-only codegen/green-check side effects, generated proof kit consumers, guide/changelog, custody/output/init, inventories and references; explicit brief excludes full multi-crate/client/model/difftest battery",
+  "started": "2026-10-28T06:22:11.024Z",
+  "results": [
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 29644
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 6967
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2877
+    },
+    {
+      "id": "rust:scaf1-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 85656
+    },
+    {
+      "id": "rust:init",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 24024
+    },
+    {
+      "id": "rust:guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 26082
+    },
+    {
+      "id": "client:proof",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 24440
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 195650
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 233
+    },
+    {
+      "id": "generated",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 240191
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 212602
+    },
+    {
+      "id": "inventories",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 197701
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 44
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5247
+    }
+  ],
+  "complete": true,
+  "finished": "2026-10-28T06:39:42.582Z",
+  "unchanged": true,
+  "ok": true,
+  "summaryOf": {
+    "file": "affected-scoped.full.json.gz",
+    "sha256": "bbcb66dd84a71376e282e8e5e9ccea10a1a60ce5903884c4590025d405db5f34",
+    "uncompressedSha256": "78cd8f725ec78bfaff279d715de9d7b7b8e65b66b2aa033872425c936fc36357"
+  },
+  "omittedLargeLists": {
+    "files": {
+      "count": 681,
+      "sha256": "4532e48461430dda0dc3cfee884ece6fbf059dedec0ea843ba161f1092a7c67f"
+    },
+    "reasons": {
+      "count": 5571,
+      "sha256": "4444fbfb37dcf829bf026de55be248b2754ce07183ce57b347c428920eafce70"
+    },
+    "rustPackages": {
+      "count": 7,
+      "sha256": "f6cadd72cef823a28a5f72133f41cfd5ed54abb5d2c4f78c121ce4e90bea322e"
+    },
+    "fixtureFiles": {
+      "count": 1,
+      "sha256": "fe55810db788a67576257e0e7061fa823ee4dd18af7d24c7ea751be076c19685"
+    },
+    "rustTargets": {
+      "count": 0,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    "clientFiles": {
+      "count": 456,
+      "sha256": "17aff0340a0626cd16728cfd440ab5dc3dbc537c9dcc0d0dee9c18316d18d995"
+    },
+    "observedFiles": {
+      "count": 681,
+      "sha256": "4532e48461430dda0dc3cfee884ece6fbf059dedec0ea843ba161f1092a7c67f"
+    }
+  }
+}

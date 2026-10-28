@@ -1,0 +1,55 @@
+[
+  {
+    "source": "1c4c51b551",
+    "profile": "production (opt-level 3, fat LTO, one codegen unit, stripped)",
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "1.97.0",
+    "binarySha256": "a2d35d9f911d09c66d64fcf5864dcb53488c68be7f62f17098f88b66df7e5f52",
+    "binaryBytes": 46319440,
+    "phase": "optimized-before",
+    "packages": [
+      {
+        "file": "snapback4-0.4.46.tgz",
+        "sha256": "3a8d19713f9ae3540734cbe42a1912bf6ffc1255d393110bbc7035ce1e252182",
+        "bytes": 1408061
+      },
+      {
+        "file": "snapback4-expo-0.4.46.tgz",
+        "sha256": "5e3f88546898c80b48beddff7d0a9ab234959b2cdeeb7ccaa53bc483fc65328a",
+        "bytes": 24276
+      },
+      {
+        "file": "snapback4-linux-x64-0.4.46.tgz",
+        "sha256": "5ddce488f025dac81e6d932ac1b781121ec7f6e000a30ca8be486d3232e68ed5",
+        "bytes": 19200955
+      }
+    ]
+  },
+  {
+    "source": "1ccf620a0a (product), 8626bfb493 (ready review records)",
+    "profile": "production (opt-level 3, fat LTO, one codegen unit, stripped)",
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "1.97.0",
+    "binarySha256": "2f6052989aba6c92184d3546104861eda749dd7202c8a44bd50ac215746ff4ce",
+    "binaryBytes": 46455440,
+    "smoke": "check: ok \u2014 1 table (0 synced), 1 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 68.5 ms; API index: `guide api generated`\nproof scaffold: scripts/proof-scaffold/ (7 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs\ncheck: enforced by the language \u2014 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)\n",
+    "phase": "final-after",
+    "packages": [
+      {
+        "file": "snapback4-0.4.46.tgz",
+        "sha256": "455a565d4fa467c51ac6cfaf37080f5c05e4406ef8b6407c540b52512244aea3",
+        "bytes": 1408231
+      },
+      {
+        "file": "snapback4-expo-0.4.46.tgz",
+        "sha256": "5e3f88546898c80b48beddff7d0a9ab234959b2cdeeb7ccaa53bc483fc65328a",
+        "bytes": 24276
+      },
+      {
+        "file": "snapback4-linux-x64-0.4.46.tgz",
+        "sha256": "0c8314f0960d13d5c568a7d3c2fbe1a82dc55f48964ac31187fd159188639400",
+        "bytes": 19250217
+      }
+    ]
+  }
+]

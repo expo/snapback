@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "roles": {
+    "admin": 2,
+    "member": 2,
+    "users": 2
+  },
+  "realPasswordSignins": true,
+  "privateRosterMode": "0600",
+  "readinessLines": 1,
+  "signalExit": 0,
+  "limitations": "backend-only generated preview; app-owned frontend/build/readiness integration remains explicit"
+}

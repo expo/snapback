@@ -110216,3 +110216,14 @@ Explicit background installation detaches the owner with file-backed admission,
 status and logs, retaining the worker's existing IPC custody inside that session.
 Foreground installation remains default. Process-group teardown passes 10/10;
 packed qualification and whole-session measurements are recorded in VER1's report.
+
+### 2026-10-28 — SCAF1: schema-derived proof packet
+
+Wave-34 fix #3 moves proof setup off the guide lookup path. A green check emits
+scripts/proof-scaffold with real password signups/sign-ins, ordinary role grants,
+operation/role/guard cases, uploads, clock steps, approval attribution helpers,
+and separate frontend/probe runners. Null business assertions refuse before
+setup. Per-file content hashes preserve edits; no npm script is changed. The
+proof-kit amendment is LLP 3000.011.003.000.000 §19. Before/after whole-session
+measurements and packed controls are recorded in the workstream report; targets
+remain measurements rather than guarantees of generated security coverage.

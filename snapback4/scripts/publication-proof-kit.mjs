@@ -1,3 +1,4 @@
+import { proveScaffolds } from "./publication-scaf1.mjs";
 import { guideReference } from "./publication-guide.mjs";
 // Packed guide recipes and pre-wave controls. Every example executes unchanged.
 import assert from 'node:assert/strict';
@@ -36,7 +37,8 @@ export async function proveProofKit(client,platform,directory) {
   await run(process.execPath,['clock-controls.mjs']);
   const testEnv={...env,SNAPBACK4_BIN:join(cwd,`node_modules/snapback4-${process.platform}-${process.arch}/snapback4`),SNAPBACK4_PROOF_PACKAGE:join(cwd,'node_modules/snapback4')};
   await runToolchainCommand(process.execPath,['--test',join(root,'packages/snapback4/test/wire-first.test.mjs')],{cwd,env:testEnv,timeout:60000});
-  return {status:'passed',dayTwo:'production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions',wire:'literal first section, actual packed CLI trace',clock:'30-day coalesced jump, each-boundary cap, memory replay command, page sampling',aliases:'array index path through packed test'};
+  const scaffolds=await proveScaffolds(client,platform,directory);
+  return {scaffolds,status:'passed',dayTwo:'production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions',wire:'literal first section, actual packed CLI trace',clock:'30-day coalesced jump, each-boundary cap, memory replay command, page sampling',aliases:'array index path through packed test'};
 }
 const clockControls=String.raw`
 import assert from 'node:assert/strict';

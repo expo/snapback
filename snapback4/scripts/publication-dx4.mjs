@@ -80,7 +80,7 @@ try {
  const reset=await fetch(host.url+"/dev/reset",{method:"POST",body:"{}"}).then(r=>r.json());assert.match(reset.sessionNotice,/removed its accounts/);
 }finally{await host.stop();}
 const {upgradeWarnings}=await import("../node_modules/snapback4/bin/upgrade-warnings.js");
-mkdirSync("scripts");writeFileSync("scripts/accept.mjs",'startDev(); fetch("/seed"); fetch("/dev/reset");');
+mkdirSync("scripts",{recursive:true});writeFileSync("scripts/accept.mjs",'startDev(); fetch("/seed"); fetch("/dev/reset");');
 const warnings=upgradeWarnings(process.cwd(),"use identity password");assert.match(warnings.join("\n"),/scripts\/accept.mjs/);assert.match(warnings.join("\n"),/--memory/);
 console.log("DX4 packed local/provisioning/upgrade cases passed");
 `;

@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "syntax": 5,
+  "realAccounts": "admin/member/roleless signup plus sign-in",
+  "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+  "negative": [
+    "unfilled acceptance",
+    "unfilled frontend",
+    "wrong refusal code",
+    "missing excluded role",
+    "new operation with preserved edits"
+  ],
+  "qualification": false
+}

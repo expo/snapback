@@ -9,6 +9,8 @@
 - New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
 - An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle attempt refuses early. `SNAPBACK4_PROBE_HOLD=1` retains deliberate harness service. Foreground installs stay the default. The app-local dependency installer also offers explicit background admission, a private install log, request-bound status and one blocking join; its script owns those options.
 
+- A green `check` writes a schema proof packet under `scripts/proof-scaffold/`: acceptance, frontend and probe recipes with real role accounts, upload options and staging clocks. Edit the generated cases; missing business assertions refuse. Content hashes preserve edited files across checks. Run the acceptance command printed by check; existing npm scripts remain application-owned.
+
 ## 0.4.46
 
 ### Guide changes
