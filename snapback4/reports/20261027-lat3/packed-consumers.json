@@ -1,0 +1,88 @@
+{
+  "qualification": false,
+  "nativeProfile": "lean dev, debug=0; affected consumer proofs, not a production publication qualification",
+  "artifacts": [
+    {
+      "name": "snapback4-0.4.44.tgz",
+      "sha256": "f3d0ee371ec4e1b99a1ce547b3806bb28465668ae9c08fb2409ec78dd977e604"
+    },
+    {
+      "name": "snapback4-linux-x64-0.4.44.tgz",
+      "sha256": "ad0d46cc9056cf7be70ced8e32e616681b0dabcae6b3dfd70777e62fe1d72408"
+    },
+    {
+      "name": "snapback4-expo-0.4.44.tgz",
+      "sha256": "077ae35841424fa42452d7789be547f032f90ca9ecec158623b7d601eb5ef5f5"
+    }
+  ],
+  "results": [
+    {
+      "name": "starters",
+      "status": "failed",
+      "seconds": 207.607448976,
+      "message": "@expo/cli: a fix is available; update the starter toolchain",
+      "classification": "inherited live dependency audit; same rejection and foreign dependency graph with retained baseline",
+      "coverage": "web and web-online complete; Expo typecheck/build/fixture checks reach audit; later starter/browser cases not run after canonical gate rejects"
+    },
+    {
+      "name": "proof-kit",
+      "status": "passed",
+      "seconds": 79.29015555600002,
+      "checks": {
+        "status": "passed",
+        "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+        "wire": "literal first section, actual packed CLI trace",
+        "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+        "aliases": "array index path through packed test"
+      }
+    },
+    {
+      "name": "staging",
+      "status": "passed",
+      "seconds": 69.44400916199997,
+      "checks": {
+        "status": "passed",
+        "guide": "staging",
+        "recipes": "verbatim installed card",
+        "roles": {
+          "admin": 2,
+          "member": 2
+        },
+        "mode": "serve",
+        "realPasswordLogin": "passed",
+        "data": "passed",
+        "selfGrant": "refused",
+        "productionBulkSeed": "refused before mint",
+        "productionRelabel": "refused",
+        "firstAdmin": "passed",
+        "privateCredentials": "0600"
+      }
+    },
+    {
+      "name": "production",
+      "status": "passed",
+      "seconds": 127.39113934199995,
+      "checks": {
+        "status": "passed",
+        "starters": [
+          {
+            "kind": "web",
+            "status": "passed",
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          },
+          {
+            "kind": "expo",
+            "status": "passed",
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          }
+        ]
+      }
+    }
+  ]
+}
