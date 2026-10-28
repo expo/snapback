@@ -39,7 +39,8 @@ def execute(binary,app,args,log,clock):
  return {'code':r.returncode,'seconds':seconds,'preflightSeconds':phases['deploy.security'],'withoutPreflightSeconds':seconds-phases['deploy.security'],'phases':dict(phases),'stdoutSha256':hashlib.sha256(r.stdout).hexdigest(),'stderrSha256':hashlib.sha256(r.stderr).hexdigest()}
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--before',type=pathlib.Path,required=True);ap.add_argument('--after',type=pathlib.Path,required=True);ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--lanes');ap.add_argument('--clock-control',action='store_true');a=ap.parse_args();ROOT.mkdir(parents=True,exist_ok=True)
+ global ROOT
+ ap=argparse.ArgumentParser();ap.add_argument('--before',type=pathlib.Path,required=True);ap.add_argument('--after',type=pathlib.Path,required=True);ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--lanes');ap.add_argument('--clock-control',action='store_true');ap.add_argument('--out',type=pathlib.Path);a=ap.parse_args();ROOT=a.out or ROOT;ROOT.mkdir(parents=True,exist_ok=True)
  cases=sorted(pathlib.Path('/home/ccheever/sb4-loop/wave33/apps').glob('*-snapback-*'))
  if a.lanes:cases=[p for p in cases if p.name[:3]in a.lanes.split(',')]
  for index,source in enumerate(cases):

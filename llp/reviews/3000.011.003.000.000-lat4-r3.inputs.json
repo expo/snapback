@@ -1,0 +1,25 @@
+{
+  "commit": "96eca668c80aa26ae7d64fa5ce64e34d3f051c6b",
+  "briefSha256": "5da18d11222da85f325110c71569f84b2225a156af3711bb4a00f33f062e7b64",
+  "paths": {
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "4d23c3869d76a09922f09f9f3739ff7f13e206a6d88a42f1180920cb314ca9d8",
+    "snapback4/packages/snapback4/bin/proof-runner.js": "710f8b7a2a06d4802c407b426741221e5d83a80ca0c06d0ca5c8c2c14ac84a09",
+    "snapback4/packages/snapback4/bin/proof-runner.d.ts": "5623e0528eca25131da19040bedcbcafb46aa83f6eef32dd84c4933ea40651ec",
+    "snapback4/packages/snapback4/test/proof-runner.test.mjs": "60127b47c7498005ad32b8e01c050055b46f72a6c411ec477e26cfd28224b373",
+    "snapback4/crates/snapback4/src/verbs/init/frontend-proof.mjs": "44ef3cb9729adbf1f9076629b56bff6d4771317ee5f90f4f249c604387999c12",
+    "snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs": "df2e81a31c7ee87f2438668215d5f911284d6ae7c2965edb8a1feae050c4cf99",
+    "snapback4/crates/snapback4-lang/src/release_compile.rs": "154bf1f02ef4db922774c9aace33331ab86367b145084d13bd196d8937f82bb4",
+    "snapback4/crates/snapback4-lang/src/lib.rs": "c96dfdc049b461f22ff71436ad78249ee73827ff555fa14beb8dac0180120616",
+    "snapback4/crates/snapback4/src/verbs/init/proof.rs": "c4cb9af3503d75d3dca34e085aa348db0f744b8c572786146f380d3e2be5c36a",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "16b07b14cecbbd32909f4c8af3d78ad744a02cce6f1582d243bec56aedaaad2f",
+    "snapback4/crates/snapback4-lang/src/release_bridge_constraints.rs": "fad1e8709019fd08beaddb6939b81b22f7af9c11a03473da5b5e13929ca615ce",
+    "snapback4/crates/snapback4-lang/src/release_bridge_current.rs": "13d53e9e9a0345c57903caea07974b790b291a53095e9fe6c83ad95541316957",
+    "snapback4/crates/snapback4-lang/src/release_bridge_results.rs": "bbc9cdf0cefc56c3e52e7ac32af353bf61e3b70267e0b1a77da32f0b251ae2ea",
+    "snapback4/crates/snapback4-lang/src/release_bridge_rules.rs": "7a59d38e7a4d098476872126a08b965a034d566e23ba7b545cb4c72753e1da16"
+  },
+  "reviewers": {
+    "codex": "fresh codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox",
+    "muse": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file <brief>"
+  },
+  "disposition": "Both READY for the same supplied implementation. Not author acceptance or publication qualification. Codex ran private snapshot compiler/bridge tests; Muse attempted Cargo from the repository root and that failed outside the Snapback4 fence. Lane executed tests are recorded separately."
+}
