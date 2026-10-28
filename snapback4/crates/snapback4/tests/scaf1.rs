@@ -399,3 +399,24 @@ fn scaffold_flag_requires_current_project_check() {
         assert!(!p.file("").exists());
     }
 }
+
+#[test]
+fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
+    let p = Project::new("starter-route");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .args(["init", ".", "--web", "--online", "--password", "--no-install"])
+        .current_dir(&p.0).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let next = String::from_utf8_lossy(&out.stdout);
+    assert!(next.contains("optional exhaustive drafts: snapback4 check --proof-scaffold"), "{next}");
+    assert!(!next.contains("start app proofs from scripts/proof-scaffold"));
+    let readme = fs::read_to_string(p.0.join("README.md")).unwrap();
+    assert!(readme.contains("Optional exhaustive drafts:"), "{readme}");
+    assert!(readme.contains("scripts/frontend-proof.mjs"));
+    assert!(!readme.contains("route frontend:proof\\nand probe:serve to that packet too"));
+    let checked = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .arg("check").current_dir(&p.0).output().unwrap();
+    assert!(checked.status.success());
+    assert!(!p.file("").exists());
+}
