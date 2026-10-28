@@ -1,0 +1,14 @@
+{
+  "baselineSource": "1c4c51b551",
+  "binarySha256": "a2d35d9f911d09c66d64fcf5864dcb53488c68be7f62f17098f88b66df7e5f52",
+  "command": [
+    "guide",
+    "start",
+    "--repeat"
+  ],
+  "exit": 0,
+  "containsGuideStaging": false,
+  "actualHeading": "# Start: install, choose a frontend, read one recipe",
+  "unchangedAssertion": "publication-dx4.mjs:39 expects /guide staging/",
+  "finalConsumerOutcome": "stopped at that assertion after day2 and DX16 passed; no consumer.json or publication qualification"
+}

@@ -17,3 +17,5 @@ Unchanged guide source/fixture inputs also retain three independent assertion re
 - guide::wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget: old start-card staging-in-opening assertion.
 
 Evidence: snapback4/reports/20261028-scaf1/inherited-test-controls.json records the baseline binary SHA, actual successful outputs and unchanged guide-input hashes. Update expectations to the current bounded/compact surface without relaxing meaningful proof assertions, with the owning guide/CLI changes. SCAF1 separately fixes its introduced verdict ordering and new changelog generated-file references; those are not deferred here. No publication qualification is claimed by this ticket.
+
+The final consumer-only qualification also stops at publication-dx4.mjs:39: default `guide start` must match `/guide staging/`. The original optimized 1c4c51b551 binary returns exit 0 without that phrase. Day-two and DX16 consumer evidence pass before the stop; there is no complete consumer/publication qualification. SCAF1 separately repaired the introduced scripts-directory EEXIST setup error.

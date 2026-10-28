@@ -1,0 +1,8 @@
+{
+  "reason": "Affected test proves scaffold notice violates verdict-first contract; final source/artifact must preserve leading verdict. Excluded from final performance comparison independently of measured outcomes.",
+  "scope": "run-rbb0c8480ccd942ff83de04036a790d28.scope",
+  "recordedLaunchPids": [
+    2399869,
+    2363401
+  ]
+}

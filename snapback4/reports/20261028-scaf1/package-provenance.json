@@ -26,19 +26,19 @@
     ]
   },
   {
-    "source": "31f2011304",
+    "source": "1ccf620a0a (product), 8626bfb493 (ready review records)",
     "profile": "production (opt-level 3, fat LTO, one codegen unit, stripped)",
     "target": "x86_64-unknown-linux-gnu",
     "rustc": "1.97.0",
-    "binarySha256": "e5023d5b6d8e392c7f26f68b6195639c79ec78ce36f500f15b45f2a19f4290f0",
-    "binaryBytes": 46455376,
-    "smoke": "green check emits current packet; source-named API index and ordinary sent expectations verified",
-    "phase": "optimized-after",
+    "binarySha256": "2f6052989aba6c92184d3546104861eda749dd7202c8a44bd50ac215746ff4ce",
+    "binaryBytes": 46455440,
+    "smoke": "check: ok \u2014 1 table (0 synced), 1 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 68.5 ms; API index: `guide api generated`\nproof scaffold: scripts/proof-scaffold/ (7 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs\ncheck: enforced by the language \u2014 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)\n",
+    "phase": "final-after",
     "packages": [
       {
         "file": "snapback4-0.4.46.tgz",
-        "sha256": "b389c5884062219974e8b01ba3175012728d1240b042fd20009fdb30dd0fc73c",
-        "bytes": 1408215
+        "sha256": "455a565d4fa467c51ac6cfaf37080f5c05e4406ef8b6407c540b52512244aea3",
+        "bytes": 1408231
       },
       {
         "file": "snapback4-expo-0.4.46.tgz",
@@ -47,8 +47,8 @@
       },
       {
         "file": "snapback4-linux-x64-0.4.46.tgz",
-        "sha256": "21c367922a8e4f121b8ff74955c9014747f90ca77f3136abdb2ac475a43ab30d",
-        "bytes": 19250121
+        "sha256": "0c8314f0960d13d5c568a7d3c2fbe1a82dc55f48964ac31187fd159188639400",
+        "bytes": 19250217
       }
     ]
   }
