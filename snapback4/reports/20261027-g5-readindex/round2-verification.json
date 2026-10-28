@@ -24,10 +24,11 @@
     "private_log": "/tmp/g5r2-core-late-witnesses.log"
   },
   "final_http_park_deadline_disconnect_owner": {
-    "passed": 3,
+    "passed": 4,
     "failed": 0,
     "ignored": 0,
-    "private_log": "/tmp/g5r2-http-final3.log"
+    "private_log": "/tmp/g5r2-final-deadline-witnesses2.log",
+    "profile": "test opt-level=0, debug assertions enabled; line-tables-only"
   },
   "private_pg_cli_round_trips": {
     "passed": 11,
@@ -35,7 +36,7 @@
     "ignored": 0,
     "private_log": "/tmp/g5r2-http-roundtrips.log"
   },
-  "scope_note": "Broad core/CLI runs preceded the final read-only candidate-probe hardening; its added cold-probation witness and final HTTP witnesses cover that delta. The Postgres-only enrollment guard has no semantic delta in these PG witnesses.",
+  "scope_note": "Broad core/CLI runs preceded the final read-only candidate-probe hardening; its added cold-probation witness and final HTTP witnesses cover that delta. The Postgres-only enrollment guard has no semantic delta in these PG witnesses. The final four HTTP witnesses additionally cover the saved dispatch deadline; continuation loop budgets are carried unchanged.",
   "ref_check": {
     "passed": true,
     "documents": 575,

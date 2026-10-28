@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) struct Resume {
-    pub shared: Arc<Shared>, pub admission: Arc<RequestAdmission>, pub _permit: RequestPermit,
+    pub shared: Arc<Shared>, pub admission: Arc<RequestAdmission>, pub _permit: RequestPermit, pub deadline: Option<Instant>,
 }
 #[cfg(feature="postgres")]
 mod enabled {
@@ -70,7 +70,7 @@ mod enabled {
         fn complete(waiter: Waiter, validation: Option<ReadIndexValidation>) {
             let Waiter {request,candidate,ready,resume,until}=waiter;
             if request.is_aborted() {request.abort();return;}
-            let deadline=request_workers::deadline(&request,SHORT_REQUEST_DEADLINE);
+            let deadline=resume.deadline.unwrap_or_else(||request_workers::deadline(&request,SHORT_REQUEST_DEADLINE));
             if Instant::now()>=deadline {resume.admission.refuse(request,RequestClass::Short);return;}
             let proof=candidate.complete(if Instant::now()<until {validation} else {None});
             let admission=resume.admission.clone();
@@ -97,7 +97,7 @@ mod enabled {
             #[cfg(not(test))]
             let budget=WAIT;
             #[cfg(test)] let budget=Duration::from_micros(self.admission.ri_wait_micros.load(Ordering::Relaxed));
-            let until=(Instant::now()+budget).min(request_workers::deadline(&request,SHORT_REQUEST_DEADLINE));
+            let until=(Instant::now()+budget).min(self.deadline.unwrap_or_else(||request_workers::deadline(&request,SHORT_REQUEST_DEADLINE)));
             let mut state=lock(&queue.state);
             if state.pending.waiters.is_empty() {state.pending.opened=Instant::now();}
             state.pending.waiters.push(Waiter {request,candidate,ready,resume:self.clone(),until});

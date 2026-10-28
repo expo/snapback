@@ -370,7 +370,7 @@ const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 const CLASSES: usize = 8;
 
-struct RequestAdmission { limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], ri: std::sync::OnceLock<Arc<read_index::Queue>>, #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64, short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
+struct RequestAdmission { limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], ri: std::sync::OnceLock<Arc<read_index::Queue>>, #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64, #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64, short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
 
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — viewers' waits and workers' claims are separate classes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -394,7 +394,7 @@ impl RequestAdmission {
         Self {
             limits: [REQUEST_WORKERS, MUTATION_WORKERS, SYNC_WORKERS, capacity.long_waits, ROUTE_WORKERS, REGISTRY_WORKERS, VERIFIER_WORKERS, capacity.claim_waits],
             pool_refusals: long_waits::PoolRefusals::new(capacity),
-            workers: Default::default(), ri: Default::default(), #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64::new(8000), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
+            workers: Default::default(), ri: Default::default(), #[cfg(test)] ri_wait_micros: std::sync::atomic::AtomicU64::new(8000), #[cfg(test)] ri_deadline_micros: std::sync::atomic::AtomicU64::new(0), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
             routes: AtomicUsize::new(0), registries: AtomicUsize::new(0), verifiers: AtomicUsize::new(0), claims: AtomicUsize::new(0),
             refused: Default::default(), undelivered: Default::default(),
         }
@@ -465,8 +465,12 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         return;
     };
     let deadline = (class == RequestClass::Short).then(|| request_workers::deadline(&request, SHORT_REQUEST_DEADLINE));
+    #[cfg(test)]
+    let deadline = if class==RequestClass::Short && admission.ri_deadline_micros.load(Ordering::Relaxed)>0 {
+        Some(deadline.unwrap().min(request.accepted_at()+Duration::from_micros(admission.ri_deadline_micros.load(Ordering::Relaxed))))
+    } else {deadline};
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
-    let lane=Arc::new(read_index::Resume {shared: shared.clone(), admission: admission.clone(), _permit: permit});
+    let lane=Arc::new(read_index::Resume {shared: shared.clone(), admission: admission.clone(), _permit: permit, deadline});
     let job: Box<dyn FnOnce() + Send> = Box::new(move || {
         // Intake time survives the queue; neither execution nor body reading
         // receives a renewed lease. Refuse without draining an expired body.
@@ -861,7 +865,8 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
 fn handle(request: Request, shared: &Arc<Shared>) {
     let admission=Arc::new(RequestAdmission::new(&crate::host_limits::Capacity::default()));
     let permit=admission.acquire(request_class(&request,shared)).unwrap();
-    let resume=Arc::new(read_index::Resume {shared:shared.clone(),admission,_permit:permit});
+    let deadline=Some(request_workers::deadline(&request,SHORT_REQUEST_DEADLINE));
+    let resume=Arc::new(read_index::Resume {shared:shared.clone(),admission,_permit:permit,deadline});
     handle_resumable(request,shared,resume);
 }
 fn handle_resumable(mut request: Request, shared: &Shared, resume: Arc<read_index::Resume>) {

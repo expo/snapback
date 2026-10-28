@@ -109906,3 +109906,19 @@ checker retains unrelated Snapback 1 generated-output/removal-ledger failures;
 Snapback 4 changed no diagnostics-registry production root. The report records
 setup exclusions, exact scope and receipts. Release/S1 measurement follows;
 no default promotion, publication, push or 450b access is claimed here.
+
+
+## 2026-10-28 — G5R2: preserve original deadline and continuation loop budgets
+
+The continuation now carries the exact dispatch deadline, settlement start
+and spent generation handoffs, so parser-phase advancement or resume cannot
+renew an admitted request. A fourth private-PG HTTP witness expires a 30 ms
+original request while its five-second validation wait is held; all four
+HTTP witnesses pass. The final narrow run uses an unoptimized debug test
+profile; the prior broad core/CLI checks retain their normal profile.
+
+The native S1 seed helper's lockfile is aligned with the current workspace
+core and compatible dependency pins. Public index metadata is refreshed in a
+lane-owned Cargo home because the shared sparse index is stale/read-only;
+no Cargo configuration or credentials are copied. Only owned stopped test
+PG data and debug artifacts are pruned before release measurement.

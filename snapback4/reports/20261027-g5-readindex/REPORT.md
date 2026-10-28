@@ -376,7 +376,7 @@ supply no passing witness counts.
 | CLI unit suite, serial | 674 passed, 0 failed, 78 ignored |
 | Private-PG cache/G6/D + coordinator suite | 42 passed, 0 failed |
 | Final core receipt/probation/RYW/uncertainty witnesses | 3 passed, 0 failed |
-| Final HTTP parking/deadline/disconnect/ownership witnesses | 3 passed, 0 failed |
+| Final HTTP parking/deadline/disconnect/ownership witnesses | 4 passed, 0 failed |
 | Private-PG CLI round-trip group | 11 passed, 0 failed; two explicitly gated measurement helpers do no measurement |
 | Ref checker | Passed: 575 LLPs, 12,176 refs, no errors/unchecked refs |
 | Whitespace check | Passed |
@@ -409,3 +409,21 @@ is performed. This is not publication qualification.
 port-55742 postmaster is stopped, its PID file absent, and its test cluster and
 this lane's completed debug artifacts are removed. The SPR release and fixtures
 remain untouched. Pre-release `/home` free: 28.1 GiB.
+
+
+The final continuation stores the absolute deadline once at dispatch; later
+parser phases cannot replace it. Its settlement start and spent generation
+handoffs also cross the park unchanged. The fourth HTTP witness gives a read
+a 30 ms original deadline and a five-second proof budget, holds validation,
+and requires the original admission to expire without data. All four pass in
+an unoptimized debug witness build; the broad suites above used the normal
+optimized test profile. The first attempt at that focused build omitted psql
+from PATH; rerunning with the private PG tools available passes unchanged.
+
+The S1 seed helper's separate lockfile did not match its current workspace
+core and referred to uncached browser metadata. It is aligned with the
+workspace's compatible versions. An isolated Cargo home refreshes only public
+crates.io index metadata and reuses public dependency archives; no credentials
+or Cargo configuration is copied. CLI, load generator and native seed helper
+all build in the lane's own target. No benchmark query or fixture source is
+changed by the lock alignment.

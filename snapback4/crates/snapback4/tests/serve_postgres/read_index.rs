@@ -107,3 +107,21 @@ fn g5r2_ownership_loss_while_parked_cannot_serve_the_old_entry() {
         assert_eq!(lock(&host.shared.engine).revision_cache_stats().read_index_hits,hits);
     });
 }
+
+
+#[test]
+#[ignore="private PG; SNAPBACK4_G5_READ_INDEX=1"]
+fn g5r2_original_request_deadline_expires_while_parked() {
+    let (host,headers,_)=fixture();let held=hold(&host,5_000_000);let _release=Release(held.clone());
+    // Capture a shorter original deadline at dispatch; the proof wait still
+    // has five seconds. Recomputing a deadline from the request on resume
+    // would incorrectly renew this admission.
+    host.admission.ri_deadline_micros.store(30_000,Ordering::Relaxed);
+    let reply=host.request("POST","/q/read",&headers,ARGS);
+    assert_eq!(status(&reply),503,"{reply}");
+    assert_eq!(body(&reply)["denied"]["code"],"E_RATE_LIMIT");
+    assert!(body(&reply).get("data").is_none());
+    assert!(!*lock(&held.open));
+    held.release();
+    until(||host.admission.short.load(Ordering::Acquire)==0);
+}

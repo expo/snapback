@@ -8,19 +8,20 @@ pub(super) struct Query {
     op: String, principal: String, credential_kind: String,
     scope: snapback4_core::identity::SessionScope,
     payload: Json, args_json: Json, context: Context, manifest: DeliveryManifest,
+    settlement_started: Option<Instant>, handoffs: usize,
 }
 pub(super) fn start(request: Request, shared: &Shared, resume: Arc<read_index::Resume>,
     op: String, principal: String, credential_kind: String, scope: snapback4_core::identity::SessionScope,
     payload: Json, args_json: Json, context: Context, manifest: DeliveryManifest,
 ) {
     trace::mark("parsed");
-    run(request, shared, resume, Query {op,principal,credential_kind,scope,payload,args_json,context,manifest}, None);
+    run(request, shared, resume, Query {op,principal,credential_kind,scope,payload,args_json,context,manifest,settlement_started:None,handoffs:0}, None);
 }
 fn run(request: Request, shared: &Shared, resume: Arc<read_index::Resume>, query: Query,
     #[cfg(feature="postgres")] mut proof: Option<ReadIndexProof>,
     #[cfg(not(feature="postgres"))] _proof: Option<()>,
 ) {
-    let Query {op,principal,credential_kind,scope,payload,args_json,mut context,manifest}=query;
+    let Query {op,principal,credential_kind,scope,payload,args_json,mut context,manifest,settlement_started,mut handoffs}=query;
     #[cfg(feature="postgres")]
     let already_parked=proof.is_some();
     let viewer=principal.clone();
@@ -44,7 +45,7 @@ fn run(request: Request, shared: &Shared, resume: Arc<read_index::Resume>, query
                     }
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
-                let (settlement_started, mut handoffs) = (Instant::now(), 0);
+                let settlement_started = settlement_started.unwrap_or_else(Instant::now);
                 let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = loop {
                 let reader = if handoffs == 0 { shared.reader() } else { shared.reader_after_handoff() };
                 let evaluated = match reader {
@@ -60,7 +61,7 @@ fn run(request: Request, shared: &Shared, resume: Arc<read_index::Resume>, query
                         #[cfg(feature="postgres")]
                         if let Some(candidate) = pending {
                             lock(&shared.readers).put(&epoch, reader.into_inner());
-                            let query=Query {op,principal,credential_kind,scope,payload,args_json,context,manifest};
+                            let query=Query {op,principal,credential_kind,scope,payload,args_json,context,manifest,settlement_started:Some(settlement_started),handoffs};
                             let sample=latency::suspend();
                             let mut trace=trace::suspend();
                             let continuation=resume.clone();
