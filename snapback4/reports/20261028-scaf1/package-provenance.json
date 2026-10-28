@@ -1,0 +1,55 @@
+[
+  {
+    "source": "1c4c51b551",
+    "profile": "production (opt-level 3, fat LTO, one codegen unit, stripped)",
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "1.97.0",
+    "binarySha256": "a2d35d9f911d09c66d64fcf5864dcb53488c68be7f62f17098f88b66df7e5f52",
+    "binaryBytes": 46319440,
+    "phase": "optimized-before",
+    "packages": [
+      {
+        "file": "snapback4-0.4.46.tgz",
+        "sha256": "3a8d19713f9ae3540734cbe42a1912bf6ffc1255d393110bbc7035ce1e252182",
+        "bytes": 1408061
+      },
+      {
+        "file": "snapback4-expo-0.4.46.tgz",
+        "sha256": "5e3f88546898c80b48beddff7d0a9ab234959b2cdeeb7ccaa53bc483fc65328a",
+        "bytes": 24276
+      },
+      {
+        "file": "snapback4-linux-x64-0.4.46.tgz",
+        "sha256": "5ddce488f025dac81e6d932ac1b781121ec7f6e000a30ca8be486d3232e68ed5",
+        "bytes": 19200955
+      }
+    ]
+  },
+  {
+    "source": "31f2011304",
+    "profile": "production (opt-level 3, fat LTO, one codegen unit, stripped)",
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "1.97.0",
+    "binarySha256": "e5023d5b6d8e392c7f26f68b6195639c79ec78ce36f500f15b45f2a19f4290f0",
+    "binaryBytes": 46455376,
+    "smoke": "green check emits current packet; source-named API index and ordinary sent expectations verified",
+    "phase": "optimized-after",
+    "packages": [
+      {
+        "file": "snapback4-0.4.46.tgz",
+        "sha256": "b389c5884062219974e8b01ba3175012728d1240b042fd20009fdb30dd0fc73c",
+        "bytes": 1408215
+      },
+      {
+        "file": "snapback4-expo-0.4.46.tgz",
+        "sha256": "5e3f88546898c80b48beddff7d0a9ab234959b2cdeeb7ccaa53bc483fc65328a",
+        "bytes": 24276
+      },
+      {
+        "file": "snapback4-linux-x64-0.4.46.tgz",
+        "sha256": "21c367922a8e4f121b8ff74955c9014747f90ca77f3136abdb2ac475a43ab30d",
+        "bytes": 19250121
+      }
+    ]
+  }
+]

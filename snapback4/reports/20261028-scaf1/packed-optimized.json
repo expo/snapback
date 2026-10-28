@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "syntax": 5,
+  "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
+  "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
+  "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+  "negative": [
+    "unfilled acceptance",
+    "unfilled frontend",
+    "UI click without a durable write",
+    "wrong refusal code",
+    "missing excluded role",
+    "new operation with preserved edits",
+    "edited stale schema facts",
+    "empty acceptance"
+  ],
+  "qualification": false
+}
