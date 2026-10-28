@@ -144,19 +144,22 @@ pub fn markdown(bound: &Bound, spanning: bool) -> String {
         let args = args_ts_with_aliases(&arg_shapes, &p.program.arg_aliases);
         // Literal/identifier-heavy signatures can be token-dense well below a
         // byte threshold. Count their structural lexical payload separately.
-        let dense = p
+        let type_cost = p
             .args
             .iter()
             .map(|(name, ty)| name.len() + detail_cost(ty))
             .sum::<usize>()
-            + detail_cost(&p.result)
-            > 180;
+            + detail_cost(&p.result);
+        let mut dense = type_cost > 180;
         let result = compact_ty(&p.result);
         let codes = if fact.requires.is_empty() {
             "none".into()
         } else {
             fact.requires.join(", ")
         };
+        // Guard and refusal lists share the operation's reading budget with
+        // its types. Independent thresholds miss moderately dense combinations.
+        dense |= type_cost + session.len() + codes.len() > 450;
         let note = if fact.held {
             " Device-only: call on app.client with held facts; the online tier refuses E_QUERY_HELD."
         } else if following {

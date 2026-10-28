@@ -148,3 +148,20 @@ test('generated browser setup retains app admission ownership and app.auth login
   assert.throws(()=>new Function('app','createClient',js.replace('const client = app.client;','const client = createClient({});'))(app,()=>{throw Error('E_ADMISSION: bare browser client');}),/E_ADMISSION/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('mixed enum, caller-guard and refusal-code density shares one operation budget',()=>{
+ const dir=mkdtempSync(join(root,'target/gen1-'));
+ try{
+  mkdirSync(join(dir,'snapback'));symlinkSync(join(root,'node_modules'),join(dir,'node_modules'),'dir');
+  const sources=[];
+  for(const enums of [1,5,7,9,12])for(const guards of [0,1,3,5,8,10])for(const extra of [0,5,15,22,30]){
+   const values=Array.from({length:enums},(_,i)=>`'v${i}_x${i}'`).join(',');
+   const lines=Array.from({length:guards+extra},(_,i)=>i<guards?`  require viewer != 'u${i}_x${i}_y${i}_z${i}' else C_${i}_X`:`  require 1 = 1 else C_${i}_X`);
+   sources.push(`query mix_${enums}_${guards}_${extra}(v: enum(${values})):\n${lines.join('\n')}\n  return v\n`);
+  }
+  writeFileSync(join(dir,'snapback/schema.q'),sources.join('\n'));run(dir,['types']);
+  const text=compileSnippets(dir,readFileSync(join(dir,'snapback/generated/api.ts'),'utf8'));
+  const blocks=text.split('\n## ').slice(1);assert.equal(blocks.length,150);
+  for(const b of blocks)assert.ok(encoding.encode(b).length<=480,`${b.split('\n')[0]}: ${encoding.encode(b).length}/480`);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
