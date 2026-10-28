@@ -110312,3 +110312,17 @@ bytes. Budget739,018 = measurement+500; unchanged raw length and -122 gzip from
 0.4.47 include the version/layout effect, without a runtime ceiling change.
 Strict family/server-only absence audits pass. Both conflict-repair reviews are
 READY; original NOT READY records remain under llp/reviews/.
+
+### 2026-10-28 — Integration 32 final evidence
+
+TOK5/GEN1 cut 0.4.48. Conflict-repair Muse and fresh Codex reviews are READY;
+original failures remain verbatim. Affected evidence passes 879 Rust tests
+(five existing ignored) and 510 client tests across 31 files. Root checks pass.
+The complete packed consumer-only chain passes on 1fe5731984, including six
+host starters, frontend controls and clean Ubuntu/Alpine; no publication receipt.
+The 1,020-schema waves 15–34 survey uses the same optimized binary, with zero
+new gates/refusals or output-line growth; existing legitimate security refusals
+remain. Clean wasm is 738,518 gzip bytes; budget739,018 = measurement+500.
+Main's census refresh is byte-identical; reconciliation changes ancestry only.
+Reports/integration32 retains compact bindings. Full platform qualification and
+whole-session token/wall measurement remain with publication and the rerun.

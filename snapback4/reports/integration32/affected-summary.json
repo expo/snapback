@@ -1,0 +1,498 @@
+{
+  "source": "1fe573198478905e581d8b1b5c3aa36fcbbf06dd",
+  "ok": true,
+  "unchanged": true,
+  "receipt": "/home/ccheever/projects/snapback-sb4loop/target/affected/1fe573198478-1793215485613.json",
+  "receiptSha256": "ee765775ac5041c6be968c6c34fb6a325529a353b39859602f36e47b8e12059e",
+  "scope": "commissioned affected-only; conservative complete original plan explicitly not executed",
+  "canonicalComplete": false,
+  "originalWholeCrates": 7,
+  "originalClientFiles": 460,
+  "selectedClientFiles": 31,
+  "rust": {
+    "rust:snapback4:affected": {
+      "passed": 177,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 9
+    },
+    "rust:snapback4-core:affected": {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "rust:snapback4-device:affected": {
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 1
+    },
+    "rust:snapback4-sim:affected": {
+      "passed": 254,
+      "failed": 0,
+      "ignored": 1,
+      "targets": 1
+    },
+    "rust:snapback4-lang:affected": {
+      "passed": 350,
+      "failed": 0,
+      "ignored": 4,
+      "targets": 13
+    }
+  },
+  "rustTotals": {
+    "passed": 879,
+    "failed": 0,
+    "ignored": 5,
+    "targets": 25
+  },
+  "clients": {
+    "passed": 510,
+    "failed": 0,
+    "skipped": 0
+  },
+  "originalReceipt": "/home/ccheever/projects/snapback-sb4loop/target/affected/e98de6641c86-1793214934984.json",
+  "originalLiteralVerdict": false,
+  "repairedTestOnlyDelta": [
+    "snapback4/crates/snapback4-lang/tests/server_opt_in.rs"
+  ],
+  "steps": [
+    {
+      "id": "rust:snapback4-lang:affected",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 12668
+    },
+    {
+      "id": "client:integration-seams",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 12823
+    },
+    {
+      "id": "declaration-digests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3654
+    },
+    {
+      "id": "proof-api-digest",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1639
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5282
+    }
+  ],
+  "originalPassedStepsReused": [
+    "typecheck:snapback4",
+    "rust:snapback4:affected",
+    "rust:snapback4-core:affected",
+    "rust:snapback4-device:affected",
+    "rust:snapback4-sim:affected",
+    "client-tests",
+    "selector-tests",
+    "chat-check",
+    "chat-typecheck",
+    "expo-typecheck",
+    "packaged-docs",
+    "declaration-digests",
+    "proof-api-digest"
+  ],
+  "commands": [
+    {
+      "id": "typecheck:snapback4",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "typecheck"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "rust:snapback4-lang:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "--test",
+        "aggregate_copies",
+        "--test",
+        "maintains",
+        "--test",
+        "residency_notes",
+        "--test",
+        "server_opt_in",
+        "--test",
+        "emit_compatibility",
+        "--test",
+        "ephemeral_compat",
+        "--test",
+        "list_lower_bounds",
+        "--test",
+        "mutation_result_types",
+        "--test",
+        "maintained_result_types",
+        "--test",
+        "actions",
+        "--test",
+        "ephemeral",
+        "--test",
+        "following_history",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "rust:snapback4:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4",
+        "--test",
+        "check",
+        "--test",
+        "tok3",
+        "--test",
+        "tok1",
+        "--test",
+        "dx11",
+        "--test",
+        "dx12_output",
+        "--test",
+        "dx14_output",
+        "--test",
+        "tok2_output",
+        "--test",
+        "feed_bridge",
+        "--test",
+        "scale",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "rust:snapback4-core:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "lane_source",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "rust:snapback4-device:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "rust:snapback4-sim:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-sim",
+        "--test",
+        "clique",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "client-tests",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "3",
+        "files",
+        "packages/snapback4/test/api-index.test.mjs",
+        "packages/snapback4/test/day5-proofs.test.mjs",
+        "packages/snapback4/test/dx5-react.test.mjs",
+        "packages/snapback4/test/expo-session-store.test.mjs",
+        "packages/snapback4/test/first-account.test.mjs",
+        "packages/snapback4/test/front-data-react.test.mjs",
+        "packages/snapback4/test/generated-modules.test.mjs",
+        "packages/snapback4/test/generated-usage.test.mjs",
+        "packages/snapback4/test/init-typecheck.test.mjs",
+        "packages/snapback4/test/online-session.test.mjs",
+        "packages/snapback4/test/package-typecheck.test.mjs",
+        "packages/snapback4/test/packaged-docs.test.mjs",
+        "packages/snapback4/test/pending-items-round3.test.mjs",
+        "packages/snapback4/test/periphery.test.mjs",
+        "packages/snapback4/test/publish-linux.test.mjs",
+        "packages/snapback4/test/publish-signing.test.mjs",
+        "packages/snapback4/test/qualify-linux.test.mjs",
+        "packages/snapback4/test/react.test.mjs",
+        "packages/snapback4/test/read-presentation-react.test.mjs",
+        "packages/snapback4/test/read-types.test.mjs",
+        "packages/snapback4/test/readme-examples.test.mjs",
+        "packages/snapback4/test/social-starter.test.mjs",
+        "packages/snapback4/test/tok1-reading.test.mjs",
+        "packages/snapback4/test/tok2-output.test.mjs",
+        "packages/snapback4/test/tok3-reading.test.mjs",
+        "packages/snapback4/test/tok5-write.test.mjs",
+        "packages/snapback4/test/wave10-upgrade.test.mjs",
+        "packages/snapback4/test/wave11-guide-types.test.mjs",
+        "packages/snapback4/test/wave11-upgrade-history.test.mjs",
+        "packages/snapback4/test/wave12-surface.test.mjs",
+        "packages/snapback4/test/worker-regressions.test.mjs"
+      ],
+      "timeoutSeconds": 7200
+    },
+    {
+      "id": "selector-tests",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "--test",
+        "snapback4/scripts/affected.test.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/local_proof_inventory_v0.mjs",
+        "tests/ci_workflows_v0.mjs"
+      ],
+      "timeoutSeconds": 300
+    },
+    {
+      "id": "chat-check",
+      "cwd": "snapback4/apps/chat",
+      "argv": [
+        "../../target/debug/snapback4",
+        "check"
+      ],
+      "timeoutSeconds": 10800
+    },
+    {
+      "id": "chat-typecheck",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "apps/chat",
+        "typecheck"
+      ],
+      "timeoutSeconds": 10800
+    },
+    {
+      "id": "expo-typecheck",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "apps/chat-expo",
+        "typecheck"
+      ],
+      "timeoutSeconds": 10800
+    },
+    {
+      "id": "packaged-docs",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"
+      ],
+      "timeoutSeconds": 300
+    },
+    {
+      "id": "declaration-digests",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "packages/snapback4/scripts/guide-api.mjs",
+        "--check"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "proof-api-digest",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/generate-proof-api.mjs",
+        "--check"
+      ],
+      "timeoutSeconds": 3600
+    }
+  ],
+  "selectedClientFilePaths": [
+    "packages/snapback4/test/api-index.test.mjs",
+    "packages/snapback4/test/day5-proofs.test.mjs",
+    "packages/snapback4/test/dx5-react.test.mjs",
+    "packages/snapback4/test/expo-session-store.test.mjs",
+    "packages/snapback4/test/first-account.test.mjs",
+    "packages/snapback4/test/front-data-react.test.mjs",
+    "packages/snapback4/test/generated-modules.test.mjs",
+    "packages/snapback4/test/generated-usage.test.mjs",
+    "packages/snapback4/test/init-typecheck.test.mjs",
+    "packages/snapback4/test/online-session.test.mjs",
+    "packages/snapback4/test/package-typecheck.test.mjs",
+    "packages/snapback4/test/packaged-docs.test.mjs",
+    "packages/snapback4/test/pending-items-round3.test.mjs",
+    "packages/snapback4/test/periphery.test.mjs",
+    "packages/snapback4/test/publish-linux.test.mjs",
+    "packages/snapback4/test/publish-signing.test.mjs",
+    "packages/snapback4/test/qualify-linux.test.mjs",
+    "packages/snapback4/test/react.test.mjs",
+    "packages/snapback4/test/read-presentation-react.test.mjs",
+    "packages/snapback4/test/read-types.test.mjs",
+    "packages/snapback4/test/readme-examples.test.mjs",
+    "packages/snapback4/test/social-starter.test.mjs",
+    "packages/snapback4/test/tok1-reading.test.mjs",
+    "packages/snapback4/test/tok2-output.test.mjs",
+    "packages/snapback4/test/tok3-reading.test.mjs",
+    "packages/snapback4/test/tok5-write.test.mjs",
+    "packages/snapback4/test/wave10-upgrade.test.mjs",
+    "packages/snapback4/test/wave11-guide-types.test.mjs",
+    "packages/snapback4/test/wave11-upgrade-history.test.mjs",
+    "packages/snapback4/test/wave12-surface.test.mjs",
+    "packages/snapback4/test/worker-regressions.test.mjs"
+  ],
+  "finalRepairCommands": [
+    {
+      "id": "rust:snapback4-lang:affected",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-fail-fast",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "--test",
+        "aggregate_copies",
+        "--test",
+        "maintains",
+        "--test",
+        "residency_notes",
+        "--test",
+        "server_opt_in",
+        "--test",
+        "emit_compatibility",
+        "--test",
+        "ephemeral_compat",
+        "--test",
+        "list_lower_bounds",
+        "--test",
+        "mutation_result_types",
+        "--test",
+        "maintained_result_types",
+        "--test",
+        "actions",
+        "--test",
+        "ephemeral",
+        "--test",
+        "following_history",
+        "--",
+        "--test-threads=4"
+      ],
+      "timeoutSeconds": 3600
+    },
+    {
+      "id": "client:integration-seams",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "3",
+        "files",
+        "packages/snapback4/test/generated-usage.test.mjs",
+        "packages/snapback4/test/api-index.test.mjs",
+        "packages/snapback4/test/tok5-write.test.mjs",
+        "packages/snapback4/test/tok1-reading.test.mjs",
+        "packages/snapback4/test/tok3-reading.test.mjs"
+      ],
+      "timeoutSeconds": 1800
+    },
+    {
+      "id": "declaration-digests",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "packages/snapback4/scripts/guide-api.mjs",
+        "--check"
+      ],
+      "timeoutSeconds": 1800
+    },
+    {
+      "id": "proof-api-digest",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/generate-proof-api.mjs",
+        "--check"
+      ],
+      "timeoutSeconds": 1800
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check",
+        "--verbose"
+      ],
+      "timeoutSeconds": 1800
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "schemas": 1020,
+  "sourceMatchedBaselineSchemas": 1020,
+  "baseline": "/home/ccheever/sb4-loop/reports/integration31/survey-qualified/results.json",
+  "falseNewGates": 0,
+  "newProductionRefusals": 0,
+  "gates": 7,
+  "freshRefusals": 20,
+  "enforcedRefutations": 21,
+  "defaultCheckLines": {
+    "median": 4.0,
+    "p90": 7,
+    "max": 17
+  },
+  "defaultDeployLines": {
+    "median": 3.0,
+    "p90": 3,
+    "max": 5
+  },
+  "sourceMismatches": [],
+  "newGates": [],
+  "removedGates": [],
+  "newProductionRefusalRows": [],
+  "changedCheckExits": [],
+  "changedDefaultDeployExits": [],
+  "newRefutations": [],
+  "removedRefutations": [],
+  "hiddenGateOrWitnessIds": [],
+  "defaultLineGrowth": [],
+  "rowsSha256": "db05bb86200a1d684a9f714a7afa63ad97c100fefded124d1b3846e067564d79",
+  "measurement": {
+    "binarySha256": "006bb09d51d52b369a6eca78122ed42890dacaa08c4a3ba9aca5e324cc3a5af3",
+    "projects": 1020,
+    "workers": 4,
+    "waves": "15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34",
+    "checkOnly": false,
+    "stripIntent": false,
+    "defaultOutput": true,
+    "predecessorV1": true,
+    "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-lg1z7aep/snapback4",
+    "watchdogSeconds": {
+      "check": 120,
+      "test": 900,
+      "deploy": 900
+    }
+  },
+  "ok": true,
+  "packedConsumerBinaryMatches": true
+}
