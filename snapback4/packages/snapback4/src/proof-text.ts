@@ -207,12 +207,20 @@ export async function armFreshText(locator: Locator, previous: string | null, ti
   finally { await element.dispose(); }
 }
 
-// Optional peer: CLI/process helpers still import and run when it is absent.
-// Keep this graph synchronously require-able. Registration starts during import;
-// withBrowser awaits that same promise before creating its context. Caller-owned
-// browsers finish asynchronous launch before running a selector.
-try { void registerRenderedSelector(createRequire(import.meta.url)("playwright-core").selectors).catch(() => {}); }
-catch (error) { if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND" && (error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND") throw error; }
+// @ref LLP 3000.011.003.000.000#18-proof-command-startup-lat3 — process-only proofs do not load the browser peer.
+// Keep locator construction synchronous for CommonJS and caller-owned pages.
+// Actions below still await registration, including on already-open pages.
+let defaultRegistrationStarted = false;
+function registerDefaultSelector(): void {
+  if (defaultRegistrationStarted) return;
+  defaultRegistrationStarted = true;
+  try { void registerRenderedSelector(createRequire(import.meta.url)("playwright-core").selectors).catch(() => {}); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND" && (error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND") {
+      defaultRegistrationStarted = false; throw error;
+    }
+  }
+}
 
 // Locator construction stays synchronous for CommonJS callers. Actions wait
 // for optional-peer selector registration, including when the page predates
@@ -221,6 +229,7 @@ export const scopedLocators = new WeakSet<object>();
 const locatorWrappers = new WeakMap<object, object>();
 const locatorChains = new Set(["locator", "filter", "describe", "first", "last", "nth", "and", "or", "frameLocator", "contentFrame", "owner"]);
 export function registeredLocator<T extends Locator | FrameLocator>(locator: T): T {
+  registerDefaultSelector();
   const known = locatorWrappers.get(locator);
   if (known) return known as T;
   const wrapped = new Proxy(locator, {

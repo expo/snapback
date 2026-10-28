@@ -1,0 +1,113 @@
+{
+  "qualification": false,
+  "purpose": "diagnose the original w33/009 paired UI mismatch; repeats never replace performance observations",
+  "expectedPortRange": [
+    51000,
+    52999
+  ],
+  "repeatResults": [
+    {
+      "iteration": 0,
+      "variant": "before",
+      "script": "acceptance",
+      "code": 0,
+      "seconds": 3.2706967548001558
+    },
+    {
+      "iteration": 0,
+      "variant": "before",
+      "script": "frontend:proof",
+      "code": 0,
+      "seconds": 7.530396832153201
+    },
+    {
+      "iteration": 0,
+      "variant": "before",
+      "script": "day2:proof",
+      "code": 1,
+      "seconds": 66.55651195091195
+    },
+    {
+      "iteration": 1,
+      "variant": "after",
+      "script": "acceptance",
+      "code": 0,
+      "seconds": 3.3711383480113
+    },
+    {
+      "iteration": 1,
+      "variant": "after",
+      "script": "frontend:proof",
+      "code": 0,
+      "seconds": 11.235535467043519
+    },
+    {
+      "iteration": 1,
+      "variant": "after",
+      "script": "day2:proof",
+      "code": 1,
+      "seconds": 64.69761370588094
+    },
+    {
+      "iteration": 2,
+      "variant": "after",
+      "script": "acceptance",
+      "code": 0,
+      "seconds": 3.0701406609732658
+    },
+    {
+      "iteration": 2,
+      "variant": "after",
+      "script": "frontend:proof",
+      "code": 0,
+      "seconds": 12.035987559938803
+    },
+    {
+      "iteration": 2,
+      "variant": "after",
+      "script": "day2:proof",
+      "code": 1,
+      "seconds": 65.41344049596228
+    },
+    {
+      "iteration": 3,
+      "variant": "before",
+      "script": "acceptance",
+      "code": 0,
+      "seconds": 3.4212518869899213
+    },
+    {
+      "iteration": 3,
+      "variant": "before",
+      "script": "frontend:proof",
+      "code": 0,
+      "seconds": 6.726948159048334
+    },
+    {
+      "iteration": 3,
+      "variant": "before",
+      "script": "day2:proof",
+      "code": 1,
+      "seconds": 60.53770635300316
+    }
+  ],
+  "observedFrozenUiRequests": [
+    {
+      "case": "2-after",
+      "origin": "http://127.0.0.1:21090",
+      "path": "/auth/login",
+      "error": "net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "case": "3-before",
+      "origin": "http://127.0.0.1:21090",
+      "path": "/auth/login",
+      "error": "net::ERR_CONNECTION_REFUSED"
+    }
+  ],
+  "notes": [
+    "Request-failure hooks were added before iterations 2 and 3; absence in earlier traces is not proof of no failed requests.",
+    "No application source or assertion was changed. Original-range correction uses a new paired revision, retaining the invalid generic-range attempt.",
+    "The wrong fallback origin is observed; Expo cache/environment-inlining root cause is not established."
+  ]
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, execFileSync } from "node:child_process";
@@ -18,6 +18,77 @@ function fixture(t) {
   t.after(() => rmSync(cwd, { recursive: true, force: true })); return cwd;
 }
 const bind = server => new Promise(resolve => server.listen(0, "127.0.0.1", () => resolve(server.address().port)));
+test("process-only proof imports leave Playwright and SQLite unloaded", async t => {
+  const cwd = fixture(t);
+  const result = await command(process.execPath, ["--input-type=module", "-e", `
+    import { createRequire } from 'node:module';
+    import assert from 'node:assert/strict';
+    await import(${JSON.stringify(new URL('../dist/proof.js', import.meta.url).href)});
+    const require = createRequire(import.meta.url);
+    assert.ok(!Object.keys(require.cache).some(path => path.includes('playwright-core')));
+    assert.ok(!process.moduleLoadList.some(name => name.includes('sqlite')));
+    const Module = require('node:module'), load = Module._load;
+    const {registeredLocator} = await import(${JSON.stringify(new URL('../dist/proof-text.js', import.meta.url).href)});
+    let attempts = 0;
+    Module._load = function(id, ...args) {
+      if (id === 'playwright-core' && attempts++ === 0) throw Error('transient peer failure');
+      return load.call(this, id, ...args);
+    };
+    try {
+      assert.throws(() => registeredLocator({count: async () => 0}), /transient peer failure/);
+      assert.equal(await registeredLocator({count: async () => 0}).count(), 0);
+      assert.equal(attempts, 2, 'failed require must not latch successful registration');
+    } finally { Module._load = load; }
+  `], {cwd});
+  assert.equal(result.code, 0, result.stderr);
+});
+test("native proof commands retain helper environment, argument boundaries and secret logs", {skip:process.platform === "win32" ? "executable shebang fixture requires Unix" : false}, async t => {
+  const cwd = fixture(t), binary = join(cwd, "native.mjs");
+  writeFileSync(binary, `#!/usr/bin/env node\nconsole.log(JSON.stringify({args:process.argv.slice(2), parent:process.ppid, helpers:Object.fromEntries(['ACQUIRE','UPGRADE','WEB'].map(key=>[key,process.env['SNAPBACK4_'+key+'_HELPER']])),supervisor:process.env.SNAPBACK4_SUPERVISOR_PID}));process.exitCode=7;\n`);
+  chmodSync(binary, 0o700);
+  const result = await cli(["token", "--service", "literal space; $text"], {cwd, env:{SNAPBACK4_BIN:binary,SNAPBACK4_WEB_HELPER:"wrong"}});
+  assert.equal(result.code, 7, result.stderr);
+  const reply = JSON.parse(result.stdout);
+  assert.deepEqual(reply.args, ["token", "--service", "literal space; $text"]);
+  assert.equal(reply.supervisor, String(reply.parent));
+  for (const [key, file] of [["ACQUIRE", "witness-acquire"], ["UPGRADE", "upgrade"], ["WEB", "witness-web"]]) {
+    assert.equal(reply.helpers[key], fileURLToPath(new URL(`../bin/${file}.js`, import.meta.url)));
+  }
+  assert.match(readFileSync(result.logs.stdout, "utf8"), /^stdout withheld: secret command/);
+  await assert.rejects(cli(["token"],{cwd,timeoutMs:0,env:{SNAPBACK4_BIN:binary}}),/proof timeout must be positive and finite/);
+  // A changed invocation resolves its binary afresh; no result or resolver cache.
+  const second = join(cwd, "second.mjs");
+  writeFileSync(second, "#!/usr/bin/env node\nconsole.log('second');\n"); chmodSync(second, 0o700);
+  assert.equal((await cli(["data"], {cwd,env:{SNAPBACK4_BIN:second}})).stdout.trim(), "second");
+  assert.equal((await cli(["token"], {cwd,env:{SNAPBACK4_BIN:"second.mjs"}})).stdout.trim(), "second", "relative override resolves inside command cwd");
+  mkdirSync(join(cwd,"real/child"),{recursive:true});
+  const canonical=join(cwd,"real/second.mjs");writeFileSync(canonical,"#!/usr/bin/env node\nconsole.log('canonical');\n");chmodSync(canonical,0o700);
+  const alias=join(cwd,"alias");symlinkSync(join(cwd,"real/child"),alias,"dir");
+  assert.equal((await cli(["token"], {cwd:alias,env:{SNAPBACK4_BIN:"../second.mjs"}})).stdout.trim(), "canonical", "resolve ../ from the child's canonical cwd");
+  const failed = join(cwd, "not-executable");writeFileSync(failed,"not executable",{mode:0o600});
+  const shim = await command(process.execPath,[fileURLToPath(new URL('../bin/snapback4.js',import.meta.url)),"token"],{cwd,env:{SNAPBACK4_BIN:failed},secret:true});
+  const native = await cli(["token"],{cwd,env:{SNAPBACK4_BIN:failed}});
+  assert.equal(native.code,shim.code);
+  assert.equal(native.signal,shim.signal);
+  const message=text=>text.match(/Error: spawn [^\n]+/)?.[0];
+  assert.ok(message(native.stderr));assert.equal(message(native.stderr),message(shim.stderr));
+  await assert.rejects(command(failed,[],{cwd}),error=>{
+    assert.match(error.message,/EACCES/);assert.deepEqual(Object.keys(error),[]);return true;
+  });
+  const delayed=join(cwd,"delay.mjs");
+  writeFileSync(delayed,`import {setTimeout as sleep} from 'node:timers/promises';
+    if (process.argv[1]?.endsWith('/proof-command.js') && process.argv[2] === ${JSON.stringify(failed)}) await sleep(600);
+    if (process.argv[1]?.endsWith('/bin/snapback4.js')) await sleep(900);
+  `);
+  await assert.rejects(cli(["token"],{cwd,timeoutMs:1200,env:{SNAPBACK4_BIN:failed,NODE_OPTIONS:`--import=${delayed}`}}),/proof cli close timed out after 1200 ms/);
+  const running=join(cwd,"running.mjs"),marker=join(cwd,"executions.txt"),killFailure=join(cwd,"kill-failure.mjs");
+  writeFileSync(running,`#!/usr/bin/env node\nimport {appendFileSync} from 'node:fs';appendFileSync(${JSON.stringify(marker)},'executed\\n');process.kill(process.ppid,'SIGTERM');setTimeout(()=>process.exit(0),500);\n`);chmodSync(running,0o700);
+  writeFileSync(killFailure,`import {ChildProcess} from 'node:child_process';const kill=ChildProcess.prototype.kill;
+    ChildProcess.prototype.kill=function(signal){if(this.pid && this.spawnargs?.[0]===${JSON.stringify(running)}){this.emit('error',Error('post-spawn EPERM'));return false;}return kill.call(this,signal);};
+  `);
+  await assert.rejects(cli(["deploy"],{cwd,env:{SNAPBACK4_BIN:running,NODE_OPTIONS:`--import=${killFailure}`}}),/post-spawn EPERM/);
+  assert.equal(readFileSync(marker,"utf8"),"executed\n","a post-start kill error never retries the executable");
+});
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");
   for (const env of [{ PORT_LO: "2" }, { PORT_HI: "2" }, { PORT_LO: "3", PORT_HI: "2" }, { PORT_LO: "0", PORT_HI: "2" }, { PORT_LO: "2", PORT_HI: "65536" }, { PORT_LO: "x", PORT_HI: "3" }]) assert.throws(() => portRange(env), /PORT_LO/);

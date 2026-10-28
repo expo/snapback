@@ -109930,6 +109930,19 @@ A fresh Codex install replay found that its tool reclaimed init's unjoined backg
 ## 2026-10-27 — CALLS1: refusal-first proof content
 
 Proof-enabled transports observe the caller's single JSON decode, retain only operation/role/code/field labels, and correlate exact refusal objects through a weak map. Conflicting reuse permanently disables exact attribution; historical matches are labelled nearest context. Native npm acceptance/frontend:proof/client:calls entry paths, browser responses and local device admission feed the same formatter. Original assertions and their fields/stacks remain intact. Muse's two reviews were READY; fresh Codex identified nullable unique truncation, missing local admission observation, code-only attribution and shared-refusal reuse, each corrected with a regression. Review records preserve the original verdicts verbatim. Runner layout and guide recipes remain with their workstream owners.
+### 2026-10-27 — LAT3 proof execution startup
+
+Backend proof imports no longer eagerly load Playwright or Node SQLite; selector
+registration remains awaited at the first locator, and production provisioning
+loads its unchanged kernel roster lock before account effects. Common native
+proof verbs skip one Node CLI shim while preserving the installed helper paths,
+per-call resolution, secret token stdout and existing keeper-backed groups.
+No campaign, command, credential or mutable deployment cache was introduced.
+LLP 3000.011.003.000.000 §18 records the execution-only amendment. Copied-lane
+profiles identify campaign time and authored race timers separately; measurements
+and limitations belong to the LAT3 workstream report, not a publication claim.
+
+
 
 ## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
 

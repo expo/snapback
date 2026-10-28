@@ -21,11 +21,18 @@ await new Promise<void>((resolve, reject) => {
 guard.once("exit", () => process.exit(1));
 process.once("exit", abandon);
 
-const child = spawn(command, args, { cwd: process.cwd(), env: process.env, stdio: ["ignore", "inherit", "inherit"] });
+const env = { ...process.env };
+// Native CLI supervision validates the immediate parent, which is this keeper-
+// backed wrapper. Its driver-death pipe remains independently authoritative.
+if (env.SNAPBACK4_PROOF_NATIVE_CLI === "1") env.SNAPBACK4_SUPERVISOR_PID = String(process.pid);
+delete env.SNAPBACK4_PROOF_NATIVE_CLI;
+const child = spawn(command, args, { cwd: process.cwd(), env, stdio: ["ignore", "inherit", "inherit"] });
 process.send?.({ type: "started", pid: child.pid });
 for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, () => child.kill(signal));
 child.once("error", error => {
-  process.send?.({ type: "result", code: null, signal: null, error: error.message }, () => process.exit(1));
+  // kill() can also emit error after a successful spawn. Only absence of the
+  // OS-assigned child PID proves this executable never started.
+  process.send?.({ type: "result", code: null, signal: null, error: error.message, executableSpawnFailed: child.pid === undefined }, () => process.exit(1));
 });
 child.once("close", (code, signal) => {
   process.send?.({ type: "result", code, signal }, () => process.exit(code ?? (signal ? 1 : 0)));

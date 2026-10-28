@@ -14,10 +14,10 @@ export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof
 import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
-import { appendFileSync, mkdirSync, openSync, closeSync, writeSync } from "node:fs";
+import { appendFileSync, mkdirSync, openSync, closeSync, writeSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
@@ -25,7 +25,7 @@ import type { Cursor, ReadCut, Refusal } from "./contract.ts";
 import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText, armFreshText, scopedLocators } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
-import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
+import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir, executableSpawnFailed } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
 export type { ProofHost, ProofOptions } from "./proof-process.ts";
 
@@ -231,14 +231,57 @@ export interface CliResult { code: number | null; signal: NodeJS.Signals | null;
 /** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  // @ref LLP 3000.011.003.000.000#18-proof-command-startup-lat3 — native proof verbs retain the shim's helpers and group custody without another Node process.
+  if (process.platform !== "win32" && ["deploy", "rollback", "test", "token", "serve", "data", "sql", "releases", "clock", "stop"].includes(args[0] ?? "")) {
+    const env = { ...process.env, ...options.env };
+    let binary: string | undefined;
+    try {
+      // Child process.cwd() follows cwd symlinks before resolving ../ segments.
+      if (env.SNAPBACK4_BIN && !isAbsolute(env.SNAPBACK4_BIN)) env.SNAPBACK4_BIN = resolve(realpathSync(resolve(options.cwd ?? ".")), env.SNAPBACK4_BIN);
+      binary = resolveBinary(env);
+    } catch { /* The shim retains its established resolution/cwd refusal and exit code. */ }
+    if (binary) {
+      const closeDeadline = {ms:0, end:0};
+      return executeCommand(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
+        ...env,
+        SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
+        SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("../bin/upgrade.js", import.meta.url)),
+        SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("../bin/witness-web.js", import.meta.url)),
+        SNAPBACK4_SUPERVISOR_PID: String(process.pid),
+        SNAPBACK4_PROOF_NATIVE_CLI: "1",
+      } }, closeDeadline).catch(error => {
+        // A delivered inner spawn error proves the executable never started.
+        // Preserve the shim's returned code/diagnostic; never retry an executing
+        // native command, timeout, signal or ambiguous release operation.
+        if (!executableSpawnFailed(error)) throw error;
+        return executeCommand(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" }, closeDeadline);
+      });
+    }
+  }
   return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  return executeCommand(binary, args, options);
+}
+async function executeCommand(binary: string, args: readonly string[], options: ProofOptions, closeDeadline?: {ms:number;end:number}): Promise<CliResult> {
+  // Initialize inside this async function to retain cli's rejected-Promise
+  // behavior for invalid deadlines. A confirmed-spawn fallback shares it.
+  if (closeDeadline && closeDeadline.end === 0) {
+    closeDeadline.ms = deadline(options.timeoutMs, 120_000);
+    closeDeadline.end = performance.now()+closeDeadline.ms;
+  }
+  const timeout = () => Error(`proof cli close timed out after ${closeDeadline!.ms} ms`);
+  if (closeDeadline && performance.now() >= closeDeadline.end) throw timeout();
   const run = logged(binary, args, { ...options, processGroup: true, env: { ...process.env, ...options.env } });
   try {
-    await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
+    const waitMs = closeDeadline ? Math.max(1, closeDeadline.end-performance.now()) : deadline(options.timeoutMs, 120_000);
+    try { await bounded(run.closed, waitMs, "proof cli close"); }
+    catch(error) {
+      if (closeDeadline && error instanceof Error && error.message === `proof cli close timed out after ${waitMs} ms`) throw timeout();
+      throw error;
+    }
     if (run.error()) throw run.error();
     const stdout=run.stdout(), stderr=logText(run.logs.stderr);
     const advice=run.code() === 0 ? "" : capacityAdvice(stdout + stderr);

@@ -1,0 +1,49 @@
+{
+  "runtimeCommit": "eb80c8c7b3",
+  "unchangedInstalledFiles": 329,
+  "changedInstalledFiles": [
+    {
+      "file": "dist/guide-api/proof.md",
+      "before": "4afafec3f7f1b90ac4233b3e47da8069df51a28ac70e55f9ad677d2ddb353a00",
+      "after": "945932e67cdaa105afcf59c0447e846dc8bc704b08fb88ba4daa5e561ab99513"
+    },
+    {
+      "file": "dist/proof-accounts.js",
+      "before": "e4b8afb483846c11d91d4f21785ba9bd944a393a648755df31f1cc86fe82fa39",
+      "after": "2b2f625ccf873bd427af83d26e6a9652f8672e57c22c0bae8a6c8e77d418b04c"
+    },
+    {
+      "file": "dist/proof-command.js",
+      "before": "7c80fc8ca04b512f95e900fb869e9eb74c6dab4cda70023db3d800181925e54f",
+      "after": "8301ae33f991a1d3d2b19f9b1ae6921ca7cc1a6eb466c2672cb1bb5858800d72"
+    },
+    {
+      "file": "dist/proof-process.d.ts",
+      "before": "f60d9675ed500cab28d02881ba92e8b4122718c16104d8bb0ea2a8f6fe423192",
+      "after": "13c6f41d633bd5df41810df0c9891972a13f827f37758d1ebf2c5d8fd0e98259"
+    },
+    {
+      "file": "dist/proof-process.js",
+      "before": "83acfe7c055041de3a9268600cba7db761effa6e53f57e30052237cfbc00f038",
+      "after": "6c73cb710ccb7a13bec7d244d12d0c6d8da7bdd5032c9402dbb401406fefff65"
+    },
+    {
+      "file": "dist/proof-text.js",
+      "before": "bd136612383fc0f5d919d3e018f3d25cad3485201df596c58b57f41a77c35f52",
+      "after": "c09204737f8dee023e4ac95d5c823bc025e171ed5e4e1719bf36e5bc5f6f1b55"
+    },
+    {
+      "file": "dist/proof.js",
+      "before": "ff7502dedb03c5b407df416580b5a19c1bf7d77b71f3881185b63ee7a8f61f04",
+      "after": "2766c7eb71e913ed3869959389784b88ecc2b77e17354dc10af4acd1715e4613"
+    }
+  ],
+  "publicProofDeclarationIdentical": true,
+  "publicProofDeclarationSha256": "4ac020233f7f81870ac70d6e4680b5ff49c6434461769dd697e1ac06592647a6",
+  "pairedNativeIdentical": true,
+  "pairedNativeSha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c",
+  "installedClientDigests": {
+    "before": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+    "after": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66"
+  }
+}

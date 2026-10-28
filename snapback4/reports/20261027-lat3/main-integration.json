@@ -1,0 +1,42 @@
+{
+  "mergedMain": "e1d857691fc6374778397f12f508254c2eb5f82a",
+  "mergeCommit": "1be33727f8",
+  "priorVerifiedSource": "219d4d6495957ca06696c9c18ecc933bf6ee1fe4",
+  "incomingVersion": "0.4.45",
+  "semanticConflictResolution": false,
+  "conflict": "CHANGELOG only; retained both entries",
+  "reviewedExecutionSources": [
+    {
+      "file": "snapback4/packages/snapback4/src/proof.ts",
+      "sha256": "9dba0fb3cef1b5f783c3b2df13afe153146900b80a1b91fbcf1b655422a457f2",
+      "unchanged": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/src/proof-command.ts",
+      "sha256": "fe75b207ae026cd77acd6ba25509cbbebf31d5d895811e7b278df3b28da229fc",
+      "unchanged": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/src/proof-process.ts",
+      "sha256": "990b83c440d6b7578bf867a5f8a850fd66e7b342c449c83a90241c47da71c28a",
+      "unchanged": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/src/proof-text.ts",
+      "sha256": "b9bbcb9b63bf976549d93ee2910dbe9bb90ec7bf4bb7834c7d7fc7c669460c56",
+      "unchanged": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/src/proof-accounts.ts",
+      "sha256": "55273c1034bc73a418ea71d525f11b6e2986ff0c5aea5721dd8d5d36ffdcdcea",
+      "unchanged": true
+    },
+    {
+      "file": "snapback4/packages/snapback4/bin/snapback4.js",
+      "sha256": "28b532e3d71054846e631726a4eaf615be60292b2dc75d2e9f157ec398155ab1",
+      "unchanged": true
+    }
+  ],
+  "benchmark": "Frozen 0.4.44 comparison; code and inputs remain explicitly pinned. Incoming 0.4.45 engine changes are not attributed to LAT3.",
+  "verification": "Rerun affected composed checks and all four packed consumers; results recorded in WORKSTREAM-REPORT.md and private/target receipts."
+}

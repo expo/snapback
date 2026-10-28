@@ -21,6 +21,8 @@
 - Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in the app's private install log; init owns one blocking install with bounded start/completion output, preserving its exit status. Explicit install joins print a single completion line.
 
 - Safe Quarry fix-its show the exact edited line and check --fix applies context-compiled edits with a source diff. Null defaults, arbitrary bounds and security rules remain manual. Proof failures lead with operation, role, refusal code, field and a likely fix, preserving the original assertion; uncorrelated request/server context is labelled explicitly.
+- Backend-only proof imports no longer load browser tooling. Native proof verbs avoid an extra Node process while retaining command deadlines, private token output and process cleanup. Staging tests still create fresh deployments and real users.
+
 
 ## 0.4.45
 

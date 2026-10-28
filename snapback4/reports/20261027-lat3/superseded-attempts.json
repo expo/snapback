@@ -1,0 +1,4577 @@
+[
+  {
+    "wave": 30,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.586440766928717,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.086367832962424,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.592299358919263,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.787938123103231,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.737526742974296,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.787386440904811,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.780790599994361,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.529700184008107,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.882291705114767,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.580370326992124,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.629136970965192,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.977159213041887,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.03734524990432,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.138349916087463,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.426164403092116,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.22541064908728,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.370159799931571,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.0199845188762993,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "013-snapback-ladder-safety-inspections",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 27.613436502870172,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 27.114550983067602,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "013-snapback-ladder-safety-inspections",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 27.167652372969314,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 27.224180212942883,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "013-snapback-ladder-safety-inspections",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 25.267523237969726,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 25.71761490101926,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "017-snapback-petting-zoo-parties",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.2685321390163153,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.8685270210262388,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "017-snapback-petting-zoo-parties",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.393092983867973,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.590730105061084,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "017-snapback-petting-zoo-parties",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.8269858381245285,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.427272466011345,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "021-snapback-rice-mill-lots",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.0686310939490795,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.8181267629843205,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "021-snapback-rice-mill-lots",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.7697175019420683,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.6696789551060647,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "021-snapback-rice-mill-lots",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.52137389103882,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.1207702851388603,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "025-snapback-chainsaw-safety-certifications",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 69.60717497882433,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 68.56070250086486,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "025-snapback-chainsaw-safety-certifications",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.291230310918763,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.44487874303013,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "025-snapback-chainsaw-safety-certifications",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.8791070762090385,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.428540634224191,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "029-snapback-enclosed-car-shipping",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.841337685938925,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.039840632118285,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "029-snapback-enclosed-car-shipping",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 17.899768813047558,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 16.951141807017848,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "029-snapback-enclosed-car-shipping",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.797581674996763,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.093618263024837,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "033-snapback-garage-floor-coatings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 22.510124661959708,
+      "originalExtractedMessageSha256": "9e6927524b835ddf3b8ee1303aa00b09a1802073618802c4cf781b15a3e02712"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 27.51597065408714,
+      "originalExtractedMessageSha256": "9e6927524b835ddf3b8ee1303aa00b09a1802073618802c4cf781b15a3e02712"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "033-snapback-garage-floor-coatings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 15.995863881893456,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 19.654530690982938,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "033-snapback-garage-floor-coatings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.405674108071253,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.85043938201852,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "037-snapback-bespoke-glove-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.37819667509757,
+      "originalExtractedMessageSha256": "a60d708b2892e8d7e04affd52036c5f981dbe704ab918e87656bc7419898284f"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.024162422865629,
+      "originalExtractedMessageSha256": "5d3c9744a7e9ec99e72da46dd8ba0b1b67005f61f7af71ee5ba835b8b59d8aeb"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "037-snapback-bespoke-glove-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.581697646994144,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.983869147952646,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "037-snapback-bespoke-glove-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.036181078990921,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.228120135841891,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "041-snapback-steamer-trunk-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.7695202741306275,
+      "originalExtractedMessageSha256": "2171b7b23e547e995deb498b8125cc58d5dc7958c4f95d3c5bb25cb9d1818a94"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.471077491994947,
+      "originalExtractedMessageSha256": "2171b7b23e547e995deb498b8125cc58d5dc7958c4f95d3c5bb25cb9d1818a94"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "041-snapback-steamer-trunk-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.7789803920313716,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.37099243584089,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "041-snapback-steamer-trunk-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.477293315110728,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.277821188792586,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "045-snapback-rainwater-cistern-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.8237027709838,
+      "originalExtractedMessageSha256": "c62aeee44e28333067fba9a0ea4b822603898cffea92b9cf988763c9c24cc74b"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.221820753999054,
+      "originalExtractedMessageSha256": "c62aeee44e28333067fba9a0ea4b822603898cffea92b9cf988763c9c24cc74b"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "045-snapback-rainwater-cistern-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.581547734094784,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.13165950984694,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "045-snapback-rainwater-cistern-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 21.507216948084533,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 21.005906725069508,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "049-snapback-wedding-officiant-bookings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.882117239991203,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.732975943014026,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "049-snapback-wedding-officiant-bookings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.235319149913266,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.136057478142902,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "049-snapback-wedding-officiant-bookings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.685082824900746,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.538129481021315,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 78.54024084284902,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 79.72431437601335,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.178619171027094,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.579595339950174,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 75.61480616801418,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 75.02107646106742,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.326798641122878,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.227013104129583,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.975205393042415,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.723790920106694,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.672032270114869,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.521214349893853,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 86.89496583212167,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 83.94801114988513,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.8726877490989864,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.320607580943033,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.721279360819608,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.1205790999811143,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.7292669450398535,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.425944220041856,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 111.78742933389731,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 110.34811556502245,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.983489240985364,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.52407783200033,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.722052830038592,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.320542801171541,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.5211408748291433,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.220180679112673,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 119.75273849302903,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 117.65448765689507,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.477148456964642,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.7757105198688805,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.8194495290517807,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.51892078993842,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.737913812045008,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.894204279175028,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 74.11749400105327,
+      "originalExtractedMessageSha256": "e25eab2fca2802cb195df1615244555754f8228e404f11d2226033cfb8a68416"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 72.97219421807677,
+      "originalExtractedMessageSha256": "e25eab2fca2802cb195df1615244555754f8228e404f11d2226033cfb8a68416"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.371280692052096,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.97061581001617,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 73.07716871285811,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "fb9e7b9f42449b84ed7d65a23bb1b5398dbda2bd797c684435c518f9b6b49ef8"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 72.33551433403045,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "fb9e7b9f42449b84ed7d65a23bb1b5398dbda2bd797c684435c518f9b6b49ef8"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.087653685128316,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.036391749046743,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 80.17952690599486,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 79.88340873108245,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.375664436025545,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.719781817868352,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "009-snapback-tapestry-conservation",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.470549883088097,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.9697305308654904,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "009-snapback-tapestry-conservation",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.678340598009527,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.7281900679226965,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "009-snapback-tapestry-conservation",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 62.49015325400978,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "0ed7153a335d181881772a5362adae22cb5fea6668ad7aaee5a11da8c63cb41b"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 125.10693414183334,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "009-snapback-tapestry-conservation",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.836813592119142,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.727543210145086,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "033-snapback-bathtub-reglazing-jobs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.885670606978238,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "26d22b15087d6d97ec59474e29fe8171e63e19e210195a3a104b18eaf264799b"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.590945894829929,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "26d22b15087d6d97ec59474e29fe8171e63e19e210195a3a104b18eaf264799b"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "033-snapback-bathtub-reglazing-jobs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.123154687928036,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.9217052808962762,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "033-snapback-bathtub-reglazing-jobs",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 25.22007331904024,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "2bc64fa1cf66537f1359e5602608aab0342de77ce2f7e19e9058fc24f68833f6"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 23.518313253996894,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "3d8fa07986ed401a990d65a75fccedb084a3515907e684e64d4d3cc2ec115fd7"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "033-snapback-bathtub-reglazing-jobs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 10.533839900046587,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "eb599c0a89a4e5422a01ae52e9419560b71daf640cc8b66ad1557ab39359fc6f"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 12.641341175884008,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "3c404da2e404a6da4bac2ab33f98571828dc0cc38b7c7533d7159e3e50f69262"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "021-snapback-tattoo-removal-sessions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.4150489440653473,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.21468271291814744,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "021-snapback-tattoo-removal-sessions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 1.0663914408069104,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 1.0666762380860746,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "021-snapback-tattoo-removal-sessions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.175268291030079,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.823141667991877,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 1.667138580000028,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.3666707950178534,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.883846620097756,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.881900091888383,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.174873712938279,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.674087066901848,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.380699176806957,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.281736114062369,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 15.69603360304609,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 15.294390286784619,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.4717099647969007,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.070425054989755,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 78.76502862386405,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 77.62076771585271,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.983812763122842,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.382413687184453,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.29321459098719,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.888666464015841,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 1.7180892599280924,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.3666876128409058,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.070806951029226,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.1705062410328537,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.42728450987488,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.777275203028694,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "018-snapback-orchard-pruning-visits",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.2208750769495964,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.870596944121644,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "018-snapback-orchard-pruning-visits",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.524041704135016,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.423081794986501,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "018-snapback-orchard-pruning-visits",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 22.06477024103515,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 20.858483185060322,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "022-snapback-motorcycle-leathers-fittings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.948227984830737,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.343199399998412,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "022-snapback-motorcycle-leathers-fittings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.79081189003773,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.694464239990339,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "022-snapback-motorcycle-leathers-fittings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.44078854797408,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.038425208069384,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "026-snapback-film-camera-repairs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 22.107805366860703,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 21.310048814164475,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "026-snapback-film-camera-repairs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 28.87427390110679,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 28.921370355878025,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "026-snapback-film-camera-repairs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 23.41192496707663,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 23.01104718190618,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "030-snapback-acoustic-noise-studies",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.6284647670108825,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.128190630814061,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "030-snapback-acoustic-noise-studies",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.523057568119839,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.422422196948901,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "030-snapback-acoustic-noise-studies",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.520693879807368,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.0699399579316378,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "034-snapback-vintage-handbag-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 1.4665884831920266,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.216094217961654,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "034-snapback-vintage-handbag-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.9197236890904605,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.719185773981735,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "034-snapback-vintage-handbag-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.7689881410915405,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.3183962230104953,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "038-snapback-welding-gas-deliveries",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 30.17537534306757,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 25.61147699994035,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "038-snapback-welding-gas-deliveries",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 43.30451021203771,
+      "originalExtractedMessageSha256": "932300610f673698a171a528ac3fe24613ed335a5da3269001a9523014adf056"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 41.699217058951035,
+      "originalExtractedMessageSha256": "277e4ae8bafb59be2799ea7fb31586230e72d268ef70fccd187e5f9b80f9663d"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "038-snapback-welding-gas-deliveries",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 22.770633676089346,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 21.007201266940683,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "042-snapback-sports-memorabilia-consignments",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.524218496866524,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.324522365117446,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "042-snapback-sports-memorabilia-consignments",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.434681669808924,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.985702239908278,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "042-snapback-sports-memorabilia-consignments",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.673318499000743,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.0718868190888315,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "046-snapback-walk-in-cooler-repairs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.384589985013008,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.534035196062177,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "046-snapback-walk-in-cooler-repairs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.287199416896328,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.591781165916473,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "046-snapback-walk-in-cooler-repairs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.63360557705164,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.235473263077438,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "050-snapback-grain-dryer-servicing",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.0584424410481,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 19.804843133082613,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "050-snapback-grain-dryer-servicing",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 15.246031875954941,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 15.446923041949049,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "050-snapback-grain-dryer-servicing",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.642858540872112,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.045690265949816,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.128059851005673,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.375477671856061,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.974059782922268,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.675487254979089,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 107.34269365901127,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 103.49761247215793,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.388224687194452,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.93752817506902,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.876980424160138,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.075262909056619,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 22.310105641838163,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 21.007197219878435,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 89.0000840711873,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 86.5464647419285,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.182829121127725,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.332230424974114,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.370730737922713,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.270083199022338,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 26.818902537226677,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 22.00666807591915,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 129.0957497227937,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 127.68787995399907,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.339233974926174,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.744656984927133,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.024956295965239,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.22301847115159,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.986881760880351,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.087334618903697,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 102.88528534001671,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 102.21848591510206,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.835444370983168,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.38724154420197,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.034290301147848,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.23779322206974,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 51.493338141124696,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 36.036332382122055,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 102.02616092911921,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 98.91880800784566,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 15.84871567087248,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.6423093250487,
+      "clientInputDigest": "1f53ada63d4994c58c0edf950c26a0a1c98b7b104687e2efb5719ff0c5e280b2",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.41509574209339917,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.264682583976537,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 8.383080353029072,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 7.531150010181591,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "95b290927ff2f4447dc915b15059f78fd5abd5a2ebc63f7559e46fa4a12b3214"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.79139316896908,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.340347694931552,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 66.64908616687171,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 66.09402527892962,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.976161289028823,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.975503351073712,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "003-snapback-music-box-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.873955968068913,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.622649244964123,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.823145166970789,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.372440597973764,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.120157929137349,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.119846540968865,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "007-snapback-tile-mosaic-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.6723045280668885,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.3211363840382546,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.085200109053403,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.484957467997447,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.69440132402815,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.689786488888785,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.88445034995675,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.435837828088552,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.876146747963503,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.375805941177532,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.977078384021297,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.776472735917196,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.026401852024719,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.424745033029467,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.3186262641102076,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.0175532661378384,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.134069523075595,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.235435360111296,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.824759698007256,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.2706623419653624,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 72.01965671288781,
+      "originalExtractedMessageSha256": "fb9e7b9f42449b84ed7d65a23bb1b5398dbda2bd797c684435c518f9b6b49ef8"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 70.6620338850189,
+      "originalExtractedMessageSha256": "fb9e7b9f42449b84ed7d65a23bb1b5398dbda2bd797c684435c518f9b6b49ef8"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 40.14492462389171,
+      "originalExtractedMessageSha256": "20d7cece828f88962b5e31793ebd32cfa6b802ef568eec9f4fd0a95042b886a9"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 39.59969885298051,
+      "originalExtractedMessageSha256": "e13ae8629097bd3a2245555c8d5736b83bc0350ecce09488c8fdc6447b08a78f"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "023-snapback-gutter-repair-calls",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.925063212169334,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.422918291063979,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "027-snapback-museum-diorama-builds",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.740587763953954,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.545968936057761,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "027-snapback-museum-diorama-builds",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.257885549915954,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 19.061569205019623,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "027-snapback-museum-diorama-builds",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 70.97538766008802,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 70.1615054961294,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "031-snapback-cooling-tower-cleanings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 16.600621995981783,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.795260396087542,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "031-snapback-cooling-tower-cleanings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 27.623830712167546,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 26.720689239911735,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "031-snapback-cooling-tower-cleanings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 32.38302719290368,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 31.278651111060753,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "035-snapback-drapery-cleaning-batches",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.0706473598256707,
+      "originalExtractedMessageSha256": "8635fbfc650010b046e98eb9dcc025c5d2c56887a596cbf806526c7baa8103bd"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.4690581439062953,
+      "originalExtractedMessageSha256": "8635fbfc650010b046e98eb9dcc025c5d2c56887a596cbf806526c7baa8103bd"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "035-snapback-drapery-cleaning-batches",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.231416699010879,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.431703135138378,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "035-snapback-drapery-cleaning-batches",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.0199832699727267,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.56925635994412,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "039-snapback-parrot-chick-reservations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.891300414921716,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.637532784836367,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "039-snapback-parrot-chick-reservations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 18.30068210302852,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.29318327899091,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "039-snapback-parrot-chick-reservations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.943243328016251,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.539466654881835,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "043-snapback-pool-fence-inspections",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 17.398996043018997,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 15.395906725898385,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "043-snapback-pool-fence-inspections",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 17.52301133610308,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.401254829019308,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "043-snapback-pool-fence-inspections",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.937841932056472,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.837549514137208,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "047-snapback-live-wedding-painters",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.222286416217685,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.821828714804724,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "047-snapback-live-wedding-painters",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.73547011706978,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.537578266812488,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "047-snapback-live-wedding-painters",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.035089144017547,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.883701363112777,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.623458597110584,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.972171361092478,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.824083110783249,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.874208053108305,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 111.27197078987956,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 106.4359949331265,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.432274563936517,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.7301350850611925,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.0321634078864,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.732236881973222,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.1277720190119,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.72834890615195,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 141.8069815079216,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 141.3535620700568,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "005-snapback-spiral-staircase-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.0699603261891752,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.7197095998562872,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.690721644088626,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.737504889024422,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.4289839919656515,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.730205390136689,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.60399688500911,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 19.505599749973044,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "009-snapback-antique-globe-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.9203459511045367,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.5185113849584013,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "025-snapback-chainsaw-safety-certifications",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 11.838042590999976,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "03ed7ee75790c09b15590239b998aa4b715b036605a3a99c276ca64302429b1e"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 11.342731717973948,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "7ac1fdde01b54b010ed707669cba034d2b7ddc0552eadb8b6de90cc536c3e2b1"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "035-snapback-choir-robe-cleaning",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.4224094660021365,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.720638017170131,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "035-snapback-choir-robe-cleaning",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.375164264114574,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.524014168884605,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "035-snapback-choir-robe-cleaning",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 43.40324244694784,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "0ed7153a335d181881772a5362adae22cb5fea6668ad7aaee5a11da8c63cb41b"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 93.81218920997344,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "035-snapback-choir-robe-cleaning",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.194260241929442,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.83163697598502,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.937727241776884,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.288839171873406,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.433903599856421,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.131698046112433,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "004-snapback-accessible-home-remodels",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.241847072029486,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.586893535917625,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 74.13215642096475,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 73.82762701995671,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.091139551950619,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.293802285101265,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "008-snapback-brick-repointing-jobs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.950375796994194,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.293254581047222,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 16.64845223701559,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 16.696611432125792,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.740344589808956,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 18.904150118120015,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.691344704013318,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.845342071959749,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.790577652165666,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.338546046055853,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 14.64350215694867,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.752119213109836,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "016-snapback-fire-engine-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 16.30059296498075,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.39288249798119,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 59.036117694107816,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 61.588261363096535,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 18.756058756029233,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 23.814267467008904,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.75643224082887,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.70313682197593,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "024-snapback-home-gym-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 19.054351347032934,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.91048629907891,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "024-snapback-home-gym-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 15.516792306909338,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.143533057998866,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "024-snapback-home-gym-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.59012471116148,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.547851233975962,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "028-snapback-lamp-post-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 16.246352935908362,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 16.095497861038893,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "028-snapback-lamp-post-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 17.849291320890188,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.65026610600762,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "028-snapback-lamp-post-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 18.501418475992978,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 18.45247154100798,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "032-snapback-private-school-placements",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.773658480029553,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.572921578073874,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "032-snapback-private-school-placements",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.630013573914766,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.140302773099393,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "032-snapback-private-school-placements",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.12221546121873,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.570992478169501,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "036-snapback-mascot-costume-commissions",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.291262913029641,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 14.141757397912443,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "036-snapback-mascot-costume-commissions",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.938694804906845,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.438405388966203,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "036-snapback-mascot-costume-commissions",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.585854285163805,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.994458087952808,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "040-snapback-snowmobile-repairs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.176010846858844,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.525151252979413,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "040-snapback-snowmobile-repairs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 6.380625476129353,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.128243308048695,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "040-snapback-snowmobile-repairs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.826553972205147,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.425671614008024,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "044-snapback-sash-window-restorations",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 12.840224795043468,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.389247382059693,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "044-snapback-sash-window-restorations",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.090347592020407,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 13.040987086016685,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "044-snapback-sash-window-restorations",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 13.59197494504042,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.290199629962444,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "048-snapback-treehouse-builds",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 7.329860848840326,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.1786397059913725,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "048-snapback-treehouse-builds",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.335231952136382,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 15.145486885216087,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 30,
+    "lane": "048-snapback-treehouse-builds",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 9.483950658002868,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.180496916174889,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.118232053006068,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.7173459499608725,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.030739266891032,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.28132584807463,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 14.44328095484525,
+      "originalExtractedMessageSha256": "fcd1605088871484540af673d90245d40625bf08875f155cbb4052077a076582"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 11.33832806092687,
+      "originalExtractedMessageSha256": "ef6eecaad41cf5923e2f816412f8895a31e43d8b8ed5557cf60295ee0f07f05e"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 2.8698675299528986,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.4190603808965534,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.387692691991106,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.785460812970996,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 17.19588147988543,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 17.047418432775885,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 23.96165254106745,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 22.60535996919498,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "006-snapback-fishing-reel-servicing",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 5.324005316011608,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.873595011886209,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 79.57745952391997,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 76.72619265201502,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.288419195218012,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 10.384791363961995,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 3.2698231181129813,
+      "originalExtractedMessageSha256": "eb6d38183992bbfddcfd5ff08114db349d20307e66f91ac07c3d0c4f0cff8f68"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 2.9701862460933626,
+      "originalExtractedMessageSha256": "166857ec3de8316fb7658569f6505a20a0b5df8fba83bbafbaf5c7f95380366d"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "010-snapback-whitewater-rafting-trips",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 4.723561347927898,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 4.172045417129993,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 1.8178399079479277,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 1.516692923149094,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 4.678862543078139,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.6713027611840516,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 8.982093406841159,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 8.331192521145567,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 3.020060040988028,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.6361738129053265,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 32,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.4146848600357771,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "910b656707fb49eb7f0bd67b6270af838b02410656f51fa7d5b604f617f5f0c9"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.26443653902970254,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "910b656707fb49eb7f0bd67b6270af838b02410656f51fa7d5b604f617f5f0c9"
+    }
+  },
+  {
+    "wave": 32,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.36449353815987706,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "910b656707fb49eb7f0bd67b6270af838b02410656f51fa7d5b604f617f5f0c9"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.21428140113130212,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "910b656707fb49eb7f0bd67b6270af838b02410656f51fa7d5b604f617f5f0c9"
+    }
+  },
+  {
+    "wave": 32,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.6653732350096107,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "49e5f004483b1cf3f6fcd8cc83d02e19c14da72b9f24b0ae1b91418d6850df51"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.31444544903934,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "2ea014468fde7dc140601b5985494369c774efb5c1146ede8d7f0b2a52bd0787"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.4648420810699463,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.26453284989111125,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.41476774006150663,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.2147095559630543,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "day2:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.4150159819982946,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.2647549530956894,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "41be5d293ecff4ed8ba8cb2a710d20b5ff0019abbe62323977f90b6b8552b844"
+    }
+  },
+  {
+    "wave": 33,
+    "lane": "012-snapback-picture-book-illustration",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.6654495801776648,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "a5be5c7da926af073ba742f6a2b368b2daecc89686e4f58a3940fd4615149917"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.3148202400188893,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "94cf3c215ebf61c439ce07c2644929a9b28d6a4d0bcc0bf19f970a7dfb1d0d65"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "028-snapback-scuba-certification-courses",
+    "script": "acceptance",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.21425932715646923,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "7289838a840aa468978657a597d169db15e025a701c90f6b30532a4ba5fa4533"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.2143363819923252,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "7289838a840aa468978657a597d169db15e025a701c90f6b30532a4ba5fa4533"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "028-snapback-scuba-certification-courses",
+    "script": "frontend:proof",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.21449969802051783,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "7289838a840aa468978657a597d169db15e025a701c90f6b30532a4ba5fa4533"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.21428301301784813,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "7289838a840aa468978657a597d169db15e025a701c90f6b30532a4ba5fa4533"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "028-snapback-scuba-certification-courses",
+    "script": "probe:serve/client:calls",
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 0.515177636872977,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "575515b158681d87173282243e99cef0934ccd906b6dafc44b36f1402696bf7a"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 0.36444475688040257,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4c8ce21a1bc27cf02705cc88f664f4108035db7a24f65b0067cb05f7c4629891"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "acceptance",
+    "measurementRevision": 2,
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 10.08653064398095,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.535667245043442,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "frontend:proof",
+    "measurementRevision": 2,
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 1,
+      "seconds": 15.600874238880351,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "9382e6cbbbf60a4754bffdd15cabf17e9b60362a37119a946b450f57a20708d2"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 15.60036447015591,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "edfc8e6e0aaab5df7ffd0480a8a206e4315a41964bf444b14f598a2a0b8bced4"
+    }
+  },
+  {
+    "wave": 34,
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "script": "probe:serve/client:calls",
+    "measurementRevision": 2,
+    "reason": "final package identity refresh, explicit original-range/TMPDIR correction or documented whole-lane diagnostic replay; selected by revision, never speed",
+    "before": {
+      "code": 0,
+      "seconds": 11.841627028072253,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.340123906033114,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.721559854922816,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.3206175959203392,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 8.030772543977946,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 7.529995683813468,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "day2:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 1,
+      "seconds": 4.122190564172342,
+      "originalExtractedMessageSha256": "6f0204d19455bcad1419dfe63c5a0251fad201da30ae4dd1771ef9c8f36ffbc8"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 3.574083306128159,
+      "originalExtractedMessageSha256": "df6327aa6019c220ee8c31d50eab9ab29894a190efa3d5c590b2fbe9bcc68312"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs",
+    "script": "probe:serve/client:calls",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 23.921407707966864,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 26.71947684395127,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 4.2794124078936875,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.5713788501452655,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.420538615901023,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.680881050880998,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "day2:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 1,
+      "seconds": 28.221064460929483,
+      "originalExtractedMessageSha256": "01ec0b1f5d9d729872aef1c0fd9ba46fe9a93c435ffa9591f3abb5a049fe48ab"
+    },
+    "after": {
+      "code": 1,
+      "seconds": 23.412755073979497,
+      "originalExtractedMessageSha256": "c32a350bf50df65be04b24dc5f0043e988f92d019e489314c53a4fcee9b65d97"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals",
+    "script": "probe:serve/client:calls",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 6.476467239903286,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.725439253961667,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 2.8693077019415796,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.3686024111229926,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 9.382474780082703,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 11.838802602142096,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "035-snapback-drapery-cleaning-batches",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.0702119229827076,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "fcbcf4058fed444affc14520d294db6cc26b26a515fea6323a97eb8d60a0f241"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.5695878290571272,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "fcbcf4058fed444affc14520d294db6cc26b26a515fea6323a97eb8d60a0f241"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "035-snapback-drapery-cleaning-batches",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 9.231854846933857,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.683519263984635,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.5713693147990853,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.2705023190937936,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 24.826006000861526,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 22.56179615482688,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 9.632742105983198,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 9.481167532037944,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 35.13902335194871,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 41.65396626899019,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "044-snapback-sash-window-restorations",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.4705044580623507,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 2.9687689060810953,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "044-snapback-sash-window-restorations",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 15.342864347156137,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 15.041045951191336,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 4.573506664950401,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.9721984218340367,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 4.823927438817918,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 5.024540765909478,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "013-snapback-ladder-safety-inspections",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 5.574809713056311,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.824306714115664,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "013-snapback-ladder-safety-inspections",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 5.3769494239240885,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.927457016892731,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "018-snapback-orchard-pruning-visits",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 3.5713694219011813,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 3.220529953017831,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "018-snapback-orchard-pruning-visits",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 4.673664767993614,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 4.724062269087881,
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "042-snapback-sports-memorabilia-consignments",
+    "script": "acceptance",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 7.1275938199833035,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 6.72673814999871,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "042-snapback-sports-memorabilia-consignments",
+    "script": "frontend:proof",
+    "reason": "incomplete-lane restart or empty artifact-directory copy precondition repair",
+    "before": {
+      "code": 0,
+      "seconds": 12.338152637006715,
+      "clientInputDigest": "1a18a6b65b36526ab352cdb3927666b0e488afd5158ec3a3337540e30c2dd63a",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "after": {
+      "code": 0,
+      "seconds": 12.238378985086456,
+      "clientInputDigest": "5bc5f23a5a3d8ee63e97f4df21844187086b0887bd44568a2ac8b7fdf1610f66",
+      "originalExtractedMessageSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  }
+]
