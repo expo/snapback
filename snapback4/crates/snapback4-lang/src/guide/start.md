@@ -63,3 +63,5 @@ hosts/accounts/clocks/browser helpers. These replace declaration searches;
 `guide api generated` shows your operation index without reopening api.ts.
 Do not read them all preemptively. `guide <card> --find <words>` answers a specific
 question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.

@@ -142,7 +142,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
         if let Some(previous)=prior_sources{notes.extend(release_create::notes(project,bound,sources,Some(previous))?);}
         Ok(())
     };
-    let (mut report,mut evidence)=if preflight.flags.contains_key("security-deploy"){
+    let (mut report,mut evidence,restoration)=if preflight.flags.contains_key("security-deploy"){
         // Predict only the note vector, never an enforcement verdict. A changed
         // vector discards the pending result and falls back to current replay.
         let predicted=phase::measure("deploy.note_prediction",||{
@@ -154,19 +154,24 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
         })?;
         std::thread::scope(|scope|{
             let worker=scope.spawn(||phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default())));
+            let restoration=scope.spawn(||phase::measure("deploy.restored_questions",||witnesses::restoration(project,bound,sources,&predicted,options)));
             let pending=phase::measure("deploy.witnesses",||witnesses::collect_for_report(project,bound,sources,&predicted,options));
             let mut report=worker.join().expect("production campaign panicked");report.notes.extend(presence::notes(project,bound,prior,sources)?);select_release_notes(&mut report.notes)?;
             let evidence=pending.finish(project,options,&report).unwrap_or_else(||phase::measure("deploy.note_fallback",||witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,Some(&report))));
-            Ok::<_,String>((report,evidence))
+            Ok::<_,String>((report,evidence,Some(restoration.join().expect("restoration campaign panicked"))))
         })?
     }else{
         let mut report=phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default()));report.notes.extend(presence::notes(project,bound,prior,sources)?);select_release_notes(&mut report.notes)?;
-        let evidence=witnesses::collect_and_restore(project,bound,sources,&mut report,options,"deploy");(report,evidence)
+        let evidence=witnesses::collect_and_restore(project,bound,sources,&mut report,options,"deploy");(report,evidence,None)
     };
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
     witnesses::apply_report(project,options,sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
-    if preflight.flags.contains_key("security-deploy"){phase::measure("deploy.restored_questions",||witnesses::restore_questions(project,bound,sources,&mut report,&mut evidence,options));}
+    if let Some(restoration)=restoration {
+        if !restoration.finish(&mut report,&mut evidence) {
+            phase::measure("deploy.restoration_fallback",||witnesses::restore_questions(project,bound,sources,&mut report,&mut evidence,options));
+        }
+    }
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment question replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
     // Current enforced derived refutations are blockers, never advisory questions.

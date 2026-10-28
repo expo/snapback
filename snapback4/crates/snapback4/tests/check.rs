@@ -799,14 +799,14 @@ fn guide_lists_aliases_and_resolves_them_on_stdout() {
     assert!(output.status.success());
     // Wave 6 (074): an alias that names a section prints that section, under the card's title.
     let pagination = String::from_utf8_lossy(&output.stdout);
-    assert!(pagination.starts_with("# Reads\n(pagination -> guide reads, section ") && pagination.contains("### Pages and cursors") && pagination.lines().count() < 30, "{pagination}");
-    for (args, needle) in [(&["recipes", "--find", "capacity"][..], "## Booking"), (&["reads", "--section", "pagination"], "### Pages and cursors"), (&["capacity"], "## Booking"), (&["roles"], "## Roles"), (&["two", "party"], "## Two parties")] {
+    assert!(pagination.starts_with("# Reads\n(pagination -> guide reads, section ") && pagination.contains("## Pages and cursors") && pagination.lines().count() < 30, "{pagination}");
+    for (args, needle) in [(&["recipes", "--find", "capacity"][..], "## Booking"), (&["reads", "--section", "pagination"], "## Pages and cursors"), (&["capacity"], "## Booking"), (&["roles"], "## Roles"), (&["two", "party"], "## Two parties")] {
         let output = Command::new(BIN).arg("guide").args(args).arg("--repeat").output().unwrap();
         let text = String::from_utf8_lossy(&output.stdout);
         assert!(output.status.success() && text.contains(needle), "guide {args:?}: {text}");
     }
-    let full = Command::new(BIN).args(["guide", "pagination", "--full"]).output().unwrap();
-    assert_eq!(full.stdout, Command::new(BIN).args(["guide", "reads", "--full"]).output().unwrap().stdout, "--full still prints the whole card");
+    let full = Command::new(BIN).args(["guide", "pagination", "--full", "--repeat"]).output().unwrap();
+    assert_eq!(full.stdout, Command::new(BIN).args(["guide", "reads", "--full", "--repeat"]).output().unwrap().stdout, "--full aliases share the same bounded reference index");
 }
 
 // L12 final-check omitted all prediction-loss notes once residency.json caught up.
@@ -1594,18 +1594,38 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
 // Wave 3 (LLP 3000.037): 33 lanes lost batched card output to truncation. A card
 // longer than a tool window prints its opening and a numbered index by default.
 #[test]
-fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
+fn a_long_card_prints_bounded_full_index_and_complete_selected_sections() {
     let guide = |args: &[&str]| { let o = Command::new(BIN).arg("guide").args(args).arg("--repeat").output().unwrap(); (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned()) };
     for keyword in snapback4_lang::guide::KEYWORDS {
         let (code, full) = guide(&[keyword, "--full"]);
         assert_eq!(code, Some(0), "{keyword}");
         let card = snapback4_lang::guide::card(keyword).unwrap();
-        assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
+        assert!(full.len() <= snapback4_lang::guide::FULL_BYTES + 1, "{keyword}: --full keeps the hard reading budget");
+        if card.len() > snapback4_lang::guide::FULL_BYTES || *keyword == "evolution" {
+            let (_, index) = guide(&[keyword, "--sections"]);
+            assert_eq!(full, index, "{keyword}: oversized --full is the complete bounded section index");
+            let pages=index.lines().filter_map(|line| {
+                let (number,label)=line.trim().split_once(". ")?;
+                let number=number.parse::<usize>().ok()?;
+                let heading=label.rsplit_once(" (").map_or(label,|(heading,_)|heading);
+                Some((number,heading))
+            }).collect::<Vec<_>>();
+            assert!(!pages.is_empty(),"{keyword}: full index publishes its selectable sections");
+            for (number,heading) in pages {
+                let number=number.to_string();let (status,selected)=guide(&[keyword,"--section",&number]);
+                assert_eq!(status,Some(0),"{keyword}: section {number}");
+                if number!="0" {assert!(selected.contains(heading),"{keyword}: section {number} retains its heading");}
+                assert!(selected.len()<=snapback4_lang::guide::FULL_BYTES+1,"{keyword}: section {number} retains the byte budget");
+                assert_eq!(selected.lines().filter(|line|line.trim_start().starts_with("```")).count()%2,0,"{keyword}: selected recipe fences are complete");
+            }
+        } else {
+            assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword}: a short full read keeps the complete card");
+        }
         let (_, default) = guide(&[keyword]);
         if snapback4_lang::guide::alias_section(keyword).is_some() {
             assert!(default.contains("--full"), "{keyword}: section aliases retain their direct landing");
         } else if card.lines().count() > snapback4_lang::guide::FULL_LINES || card.len() > snapback4_lang::guide::FULL_BYTES {
-            let (title, _)=full.split_once('\n').unwrap();
+            let title=card.lines().next().unwrap();
             assert!(default.starts_with(&format!("{title}\n(Truncated:")), "{keyword}: piped output explains its bounded view before content");
             let canonical = snapback4_lang::guide::resolve(keyword).unwrap_or(keyword);
             assert!(default.len() <= snapback4_lang::guide::FULL_BYTES + 1, "{keyword}: default output retains its hard byte budget");
@@ -1613,12 +1633,16 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
             let section_flag = if snapback4_lang::guide::sections(card).is_empty() { "--full" } else { "--section" };
             assert!(default.contains(&format!("snapback4 guide {canonical} {section_flag}")), "{keyword}: index names the supported selector");
             let (_, index) = guide(&[keyword, "--sections"]);
-            for (_,heading,_,_) in snapback4_lang::guide::sections(card) {assert!(index.contains(&heading),"{keyword}: explicit index retains {heading}");}
+            assert!(index.contains("--section"),"{keyword}: explicit index routes the published bounded sections");
+        } else if *keyword == "evolution" {
+            assert_eq!(default.trim_end(),card.trim_end(),"evolution: the short default card stays complete while --full lists sections");
         } else { assert_eq!(default, full, "{keyword}: short card prints in full"); }
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
-    for words in ["7", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+    let (_, type_index)=guide(&["types","--sections"]);
+    let sequence_number=type_index.lines().find(|line|line.contains("Engine-assigned per-parent sequences")).unwrap().trim().split('.').next().unwrap();
+    for words in [sequence_number, "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
         assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
     }
     // Wave 4: a topic word no heading names prints the section holding most of
@@ -1647,7 +1671,8 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert!(either.contains("E_OVERFLOW") && either.contains("E_DIV_ZERO"), "{either}");
     let (code, opening) = guide(&["actions", "--section", "opening"]);
     assert_eq!(code, Some(0));
-    assert!(opening.starts_with("# Actions") && !opening.contains("\n## "), "{opening}");
+    assert!(opening.starts_with("# Actions") && opening.contains("\n## Opening\n"), "{opening}");
+    assert_eq!(opening.lines().filter(|line|line.starts_with("## ")).collect::<Vec<_>>(),vec!["## Opening"],"only the explicit bounded opening is selected");
     let (code, found) = guide(&["language", "--find", "day("]);
     assert_eq!(code, Some(0));
     assert!(found.contains("Views and calendar keys") && found.contains(": query today():"), "{found}");
@@ -1660,10 +1685,10 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert_eq!(guide(&["types", "--find", "E_OVERFLOW OR E_DIV_ZERO"]), (Some(0), either.replace("E_OVERFLOW|E_DIV_ZERO", "E_OVERFLOW OR E_DIV_ZERO")));
     let (code, any) = guide(&["types", "--find", "enum time principal"]);
     assert_eq!(code, Some(1), "no line holds all three: {any}");
-    assert!(any.starts_with("no line of guide types mentions all of \"enum time principal\"; ") && any.contains("kind: enum(") && any.contains("owner: principal"), "{any}");
+    assert!(any.contains("no line of guide types mentions all of \"enum time principal\"; ") && any.contains("kind: enum(") && any.contains("owner: principal"), "{any}");
     let (code, loops) = guide(&["language", "--section", "loops"]);
     assert_eq!(code, Some(0), "{loops}");
-    assert!(loops.contains("### Loops") && loops.contains("continue") && loops.lines().count() < 60, "{loops}");
+    assert!(loops.contains("## Loops") && loops.contains("continue") && loops.lines().count() < 60, "{loops}");
     assert_eq!(guide(&["queries"]), guide(&["reads"]));
 }
 

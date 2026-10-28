@@ -518,6 +518,24 @@ pub(in crate::verbs) fn collect_and_restore(project:&Project,bound:&Bound,source
     });
     report.notes.extend(notes);evidence.extend(values);evidence
 }
+/// Only the exact joined note vector may consume this independent replay.
+// @ref LLP 3000.036.004.000.000#parallel-question-restoration — speculative work supplies no verdict until the current report matches.
+pub(in crate::verbs) struct PendingRestoration {
+    original:Vec<Diagnostic>, notes:Vec<Diagnostic>, values:Vec<Option<serde_json::Value>>,
+}
+impl PendingRestoration {
+    pub(in crate::verbs) fn finish(self,report:&mut security::Report,evidence:&mut Vec<Option<serde_json::Value>>)->bool {
+        if self.original!=report.notes{return false;}
+        report.notes.extend(self.notes);evidence.extend(self.values);true
+    }
+}
+pub(in crate::verbs) fn restoration(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],options:&Options)->PendingRestoration {
+    let basis=security::question_basis(sources,bound).into_iter().filter(|note|!notes.iter().any(|n|n.code==note.code&&n.site==note.site)).collect::<Vec<_>>();
+    debug_assert!(basis.iter().all(|n|!super::super::security_reviews::gated(&n.code)));
+    let current=if basis.is_empty(){Vec::new()}else{collect_inner(project,bound,sources,&basis,true,options,None,false,false)};
+    let (restored,values)=basis.into_iter().zip(current).filter(|(_,value)|value.as_ref().is_some_and(super::super::security_reviews::witness::concrete)).unzip();
+    PendingRestoration{original:notes.to_vec(),notes:restored,values}
+}
 /// Questions cannot supply derived enforcement until the current report joins.
 pub(in crate::verbs) struct PendingEvidence<'a>{bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],values:Vec<Option<serde_json::Value>>}
 impl PendingEvidence<'_>{
@@ -648,6 +666,15 @@ mod tests {
             let cache=project.schema_dir().join("generated/security-witnesses.json");let _=std::fs::remove_file(&cache);
             let mut old=collect(&project,&bound,&sources,&sequential.notes,true,&options);
             restore_questions(&project,&bound,&sources,&mut sequential,&mut old,&options);
+            let pending=restoration(&project,&bound,&sources,&initial.notes,&options);
+            let mut staged=initial.clone();let mut staged_values=collect(&project,&bound,&sources,&staged.notes,true,&options);
+            assert!(pending.finish(&mut staged,&mut staged_values));
+            assert_eq!(serde_json::to_vec(&(&sequential,&old)).unwrap(),serde_json::to_vec(&(&staged,&staged_values)).unwrap(),"production pending restoration retains the exact sequential suffix");
+            let pending=restoration(&project,&bound,&sources,&initial.notes,&options);
+            let mut changed=initial.clone();changed.notes.push(Diagnostic::new(&Default::default(),"N_ARGUMENT_GRANT","changed actual note vector","repair"));
+            let mut unchanged_values=vec![None;changed.notes.len()];let before=serde_json::to_vec(&(&changed,&unchanged_values)).unwrap();
+            assert!(!pending.finish(&mut changed,&mut unchanged_values));
+            assert_eq!(serde_json::to_vec(&(&changed,&unchanged_values)).unwrap(),before,"a prediction mismatch supplies no note or payload authority");
             let _=std::fs::remove_file(&cache);
             let mut parallel=initial.clone();let new=collect_and_restore(&project,&bound,&sources,&mut parallel,&options,"test");
             assert_eq!(serde_json::to_vec(&(&sequential,&old)).unwrap(),serde_json::to_vec(&(&parallel,&new)).unwrap());
@@ -743,9 +770,6 @@ mod tests {
 /// of this restoration and are not overwritten by it.
 // @ref LLP 3000.036.004.005#integration-tier-boundary — retain every current witnessed question before advisory omission.
 pub(in crate::verbs) fn restore_questions(project:&Project,bound:&Bound,sources:&[(String,String)],report:&mut security::Report,evidence:&mut Vec<Option<serde_json::Value>>,options:&Options){
-    let basis=security::question_basis(sources,bound).into_iter().filter(|note|!report.notes.iter().any(|n|n.code==note.code&&n.site==note.site)).collect::<Vec<_>>();
-    if basis.is_empty(){return;}
-    debug_assert!(basis.iter().all(|n|!super::super::security_reviews::gated(&n.code)));
-    let current=collect_inner(project,bound,sources,&basis,true,options,None,false,false);
-    for (note,value) in basis.into_iter().zip(current){if value.as_ref().is_some_and(super::super::security_reviews::witness::concrete){report.notes.push(note);evidence.push(value);}}
+    let pending=restoration(project,bound,sources,&report.notes,options);
+    let matched=pending.finish(report,evidence);debug_assert!(matched);
 }
