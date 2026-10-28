@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 
 #[derive(Default)]
 struct Transcript {
+    streaming: bool,
     text: String,
     details: String,
     summary: String,
@@ -24,7 +25,7 @@ pub(crate) fn write(args: fmt::Arguments<'_>, stderr: bool, newline: bool) {
             let _ = t.text.write_fmt(args);
             if newline { t.text.push('\n'); }
             t.streams.push((format!("{args}{}",if newline {"\n"} else {""}),stderr));
-            true
+            !t.streaming
         } else { false }
     });
     if !captured {
@@ -99,7 +100,10 @@ pub(crate) fn run(verb: &str, options: &crate::verbs::Options, body: impl FnOnce
     // Existing machine protocols remain byte-for-byte complete. test previously
     // emitted prose for --json; it now supplies a complete transcript envelope.
     if options.json && verb != "test" { return body(); }
-    ACTIVE.with_borrow_mut(|t| *t = Some(Transcript::default()));
+    // Detailed human output retains its progress stream as well as private
+    // transcript custody. Default summaries and machine envelopes stay buffered.
+    let streaming=!options.json && ["verbose","explain","review"].iter().any(|flag|options.flags.contains_key(*flag));
+    ACTIVE.with_borrow_mut(|t| *t = Some(Transcript{streaming,..Transcript::default()}));
     let code = body();
     finish(verb, options, code);
     code
@@ -154,13 +158,13 @@ pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
     if let Err(error) = retain(verb, &detail) {
         // Loss of detail custody must never hide evidence or change the
         // command's already-decided exit status (activation may have committed).
-        for (text,stderr) in t.streams {write(format_args!("{text}"),stderr,false);}
+        if !t.streaming {for (text,stderr) in t.streams {write(format_args!("{text}"),stderr,false);}}
         if !t.details.is_empty() {eprint!("{}",t.details);}
         eprintln!("{verb}: details unavailable: {error}; full output shown");
         return;
     }
     if options.flags.contains_key("verbose") || options.flags.contains_key("explain") || options.flags.contains_key("review") {
-        for (text,stderr) in t.streams {write(format_args!("{text}"),stderr,false);}
+        if !t.streaming {for (text,stderr) in t.streams {write(format_args!("{text}"),stderr,false);}}
         println!("details: {}", display_path(&path));
         return;
     }

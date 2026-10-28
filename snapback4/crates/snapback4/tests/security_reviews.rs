@@ -20,7 +20,7 @@ fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BI
 }
 
 #[test]fn social_optional_attachments_need_no_review_even_after_edits(){
- let p=scratch();let result=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["init","--template","social"]).current_dir(&p.0).output().unwrap();assert!(result.status.success(),"{}",String::from_utf8_lossy(&result.stderr));
+ let p=scratch();let result=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["init","--template","social"]).env("SNAPBACK4_INIT_INSTALL","0").current_dir(&p.0).output().unwrap();assert!(result.status.success(),"{}",String::from_utf8_lossy(&result.stderr));
  let (code,j)=check(&p,&[]);assert_eq!(code,0,"{j}");assert!(!j["securityReviews"].as_array().unwrap().iter().any(|d|d["code"]=="N_OPTIONAL_UPLOAD_CREATE"&&d["gated"]==true));assert!(!p.0.join("snapback/security-reviews.json").exists());
  let schema=p.0.join("snapback/schema.q");let text=fs::read_to_string(&schema).unwrap();fs::write(schema,format!("{text}\n-- app-specific edit\n")).unwrap();assert_eq!(check(&p,&[]).0,0);
 }

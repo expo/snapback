@@ -34,8 +34,9 @@ impl Running {
     }
     fn with_stdout(p: &Project, name: &str, args: &[&str], stdout: Stdio) -> Self {
         let log = p.0.join(format!("{name}.log"));
-        let child = Command::new(BIN).current_dir(&p.0).args(args).stdout(stdout)
-            .stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut command=Command::new(BIN);command.current_dir(&p.0).args(args);
+        if args.first()==Some(&"serve") {command.arg("--verbose");}
+        let child = command.stdout(stdout).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         Self { child, log, started: Instant::now() }
     }
     fn logs(&self) -> String { fs::read_to_string(&self.log).unwrap() }
@@ -196,7 +197,7 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
         // total campaign latency is not a proxy for entering the writer wait.
         let barrier = p.test_support_conn();
         barrier.execute_batch("BEGIN IMMEDIATE").unwrap();
-        let out = p.run(&["test"]);
+        let out = p.run(&["test","--explain"]);
         let error = String::from_utf8(out.stderr).unwrap();
         assert!(out.status.success(), "fixture-free test is isolated from the live developer store: {error}");
         assert!(!error.contains("E_STORE_BUSY"), "{error}");
@@ -297,7 +298,7 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
         // Hot activation uses this deployment's immutable source, despite the external database.
         let current_source=fs::read_to_string(p.0.join("snapback/schema.q")).unwrap();
         fs::write(p.0.join("snapback/schema.q"),format!("{current_source}\n-- changed hot owner fixture\n")).unwrap();
-        let deployed = p.run(&["deploy", first]);
+        let deployed = p.run(&["deploy", first,"--explain"]);
         assert!(deployed.status.success(), "{deployed:?}");
         assert!(String::from_utf8_lossy(&deployed.stdout).contains("is current as generation"), "{deployed:?}");
         let rolled = p.run(&["rollback", first, "--to", "2"]);
@@ -358,7 +359,7 @@ fn release_token_owns_the_resolved_database_before_sqlite_open() {
     let mut token = Running::with_stdout(&p, "token-owner", &["token", "--release", a.to_str().unwrap(), "--service", "worker"], Stdio::from(OwnedFd::from(blocked)));
     wait(|| {
         assert!(token.child.try_wait().unwrap().is_none(), "{}", token.logs());
-        fs::metadata(&lock).is_ok_and(|metadata| metadata.len() == 0)
+        fs::File::open(snapback4_core::private_fs::owner_path(&database)).ok().is_some_and(|file|matches!(file.try_lock(),Err(fs::TryLockError::WouldBlock)))
     });
     // @ref LLP 3000.019#3.4 — the sidecar flock grants ownership; the address hint does not.
     let sidecar = fs::File::open(snapback4_core::private_fs::owner_path(&database)).unwrap();

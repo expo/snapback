@@ -11,13 +11,13 @@ impl Drop for App{fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  body: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add(body: text <=80):\n  return insert notes {owner:viewer,body}\nquery note(id: notes):\n  return notes[id]\ninvariant notes.read only .owner = viewer\n";
 #[test]fn clean_password_campaign_passes_with_populated_fixtures_and_no_authored_cases(){
  let app=App::new(PASSWORD);app.write("fixtures/notes.jsonl","{\"id\":\"note-a\",\"owner\":\"user:alice\",\"body\":\"private\"}\n");
- let out=app.ok(&["test"]);assert!(out.contains("no authored business cases")&&out.contains("trusted-fixture campaign only"),"{out}");
+ let out=app.ok(&["test","--explain"]);assert!(out.contains("no authored business cases")&&out.contains("trusted-fixture campaign only"),"{out}");
  app.ok(&["deploy","deployment"]);
 }
 #[test]fn password_cases_can_name_an_actual_principal_without_personas(){
  let app=App::new(PASSWORD);app.write("fixtures/notes.jsonl","{\"id\":\"note-a\",\"owner\":\"user:alice\",\"body\":\"private\"}\n");
  app.write("fixtures/test.cases.jsonl","{\"op\":\"note\",\"as\":\"user:alice\",\"args\":{\"id\":\"note-a\"},\"match\":{\"body\":\"private\"}}\n");
- let out=app.ok(&["test"]);assert!(out.contains("cases: 1 passed, 0 failed"),"{out}");
+ let out=app.ok(&["test","--explain"]);assert!(out.contains("cases: 1 passed, 0 failed"),"{out}");
 }
 #[test]fn an_existing_case_skipped_by_saved_source_selection_still_refuses(){
  let app=App::new(PASSWORD);app.write("fixtures/test.cases.jsonl","{\"op\":\"add\",\"as\":\"user:alice\",\"args\":{\"body\":\"case\"}}\n");
@@ -59,7 +59,7 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
 #[test]fn private_http_test_keeps_unreachable_media_advisory_without_a_blind_gate(){
  let source="use identity password\ntable docs:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant docs always .photo != null\nmutation add(photo: image <=10000 ?):\n  return insert docs {photo}\n";
  let app=App::new(source);let checked:serde_json::Value=serde_json::from_str(&app.ok(&["check","--json"])).unwrap();assert!(!checked["securityReviews"].as_array().unwrap().iter().any(|d|d["gated"]==true));
- let tested=app.ok(&["test"]);assert!(tested.contains("security unauthenticated serve HTTP")&&tested.contains("no authored business cases"),"{tested}");
+ let tested=app.ok(&["test","--explain"]);assert!(tested.contains("security unauthenticated serve HTTP")&&tested.contains("no authored business cases"),"{tested}");
  app.write("versions/v1/schema.q",source);app.write("snapback/schema.q",&source.replace("10000","20000"));app.ok(&["test","--source","versions/v1"]);app.ok(&["test"]);
 }
 

@@ -46,10 +46,10 @@ fn check_invalidates_positive_test_evidence_when_source_or_fixture_changes(){
 #[test]
 fn rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure(){
  let app=App::new();let source="table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery alive():\n  return true\n";app.write("snapback/schema.q",source);let out=app.run(&["deploy","deployment"]);assert!(out.status.success(),"{}",text(&out));
- app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("advisories (don't block):")&&body.contains("last test: NEVER RECORDED"),"{body}");assert!(body.contains("security: enforced by the language"),"{body}");
+ app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check","--explain"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("advisories (don't block):")&&body.contains("last test: NEVER RECORDED"),"{body}");assert!(body.contains("security: enforced by the language"),"{body}");
  let test=app.run(&["test"]);assert!(test.status.success(),"{}",text(&test));let preview=app.run(&["deploy","deployment","--check","--review"]);assert!(text(&preview).contains("matching test campaign recorded"),"{}",text(&preview));
  // A second source change invalidates the record, including a newly added table.
- app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("advisories (don't block):")&&text(&preview).contains("STALE"),"{}",text(&preview));
+ app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check","--explain"]);assert!(text(&preview).contains("advisories (don't block):")&&text(&preview).contains("STALE"),"{}",text(&preview));
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn a_source_edit_after_fixture_loading_cannot_publish_refutations_for_the_new_so
  use std::io::{BufRead,Read};use std::process::Stdio;
  struct Owned(std::process::Child);impl Drop for Owned{fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
  let app=App::new();let source="table docs:\n  status: enum('safe','unsafe')\n  read <- allow\n  online only\ninvariant docs.read only .status = 'safe'\n";app.write("snapback/schema.q",source);app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");
- let mut child=Owned(Command::new(BIN).args(["test","--fixture-only"]).current_dir(&app.0).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap());
+ let mut child=Owned(Command::new(BIN).args(["test","--fixture-only","--explain"]).current_dir(&app.0).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap());
  let mut stdout=std::io::BufReader::new(child.0.stdout.take().unwrap());let mut line=String::new();let mut changed=false;
  while stdout.read_line(&mut line).unwrap()!=0{if line.contains("test: loaded 1 rows"){app.write("snapback/schema.q",&source.replace("only .status = 'safe'","only allow"));changed=true;break;}line.clear();}
  assert!(changed,"test must actually reach the captured fixture");let mut remaining=String::new();stdout.read_to_string(&mut remaining).unwrap();let status=child.0.wait().unwrap();let mut stderr=String::new();child.0.stderr.take().unwrap().read_to_string(&mut stderr).unwrap();
@@ -92,7 +92,7 @@ fn populated_seed_failures_persist_without_quadratic_snapshot_duplication(){
 #[test]
 fn password_only_ephemeral_auth_refusals_pass_the_real_security_campaign(){
  let app=App::new();app.write("snapback/schema.q","use identity password\ntable docs:\n  read <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nquery alive():\n  return true\nmutation ping():\n  upsert pulses[viewer] {}\n");
- let out=app.run(&["test"]);let body=text(&out);assert!(out.status.success(),"{body}");assert!(body.contains("security unauthenticated serve HTTP: 7 attempts refused"),"{body}");assert!(body.contains("security live-session revocation HTTP: 14 attempts refused"),"{body}");assert!(!body.contains("security HTTP failure"),"{body}");
+ let out=app.run(&["test","--explain"]);let body=text(&out);assert!(out.status.success(),"{body}");assert!(body.contains("security unauthenticated serve HTTP: 7 attempts refused"),"{body}");assert!(body.contains("security live-session revocation HTTP: 14 attempts refused"),"{body}");assert!(!body.contains("security HTTP failure"),"{body}");
 }
 
 #[test]
@@ -118,6 +118,6 @@ fn strict_rule_change_refuses_preview_and_activation_with_prominent_review(){
   let out=app.run(args);let body=text(&out);assert_eq!(out.status.code(),Some(1),"{body}");
   for expected in ["deploy verdict: REFUSED","FIX","last test:","FAILED","age ","E_SECURITY_REVIEW"]{assert!(body.contains(expected),"missing {expected}: {body}");}
  }
- let preview=app.run(&["deploy","deployment","--check"]);let body=text(&preview);assert_eq!(preview.status.code(),Some(1),"{body}");assert!(body.contains("production deploy refuses reachable FIX"),"ordinary production preview also refuses: {body}");
- let staged=app.run(&["deploy","staging-deployment","--check","--staging"]);let body=text(&staged);assert!(staged.status.success(),"{body}");assert!(body.contains("release 1 would be current"),"fresh staging preview remains advisory: {body}");
+ let preview=app.run(&["deploy","deployment","--check","--explain"]);let body=text(&preview);assert_eq!(preview.status.code(),Some(1),"{body}");assert!(body.contains("production deploy refuses reachable FIX"),"ordinary production preview also refuses: {body}");
+ let staged=app.run(&["deploy","staging-deployment","--check","--staging","--explain"]);let body=text(&staged);assert!(staged.status.success(),"{body}");assert!(body.contains("release 1 would be current"),"fresh staging preview remains advisory: {body}");
 }

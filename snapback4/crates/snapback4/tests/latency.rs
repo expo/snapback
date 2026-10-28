@@ -347,10 +347,11 @@ fn doctor_url_inspects_and_resets_ipv6_loopback() {
 fn bounds_guide_growth_recipe_runs_verbatim_against_dev() {
     let fixture = Fixture::new("guide");
     let host = fixture.start();
-    let card = success(fixture.command(&["guide", "bounds", "--full"]));
+    let card = success(fixture.command(&["guide", "bounds", "--full", "--repeat"]));
     for alias in ["latency", "performance", "p95", "benchmark", "load test"] {
-        assert_eq!(success(fixture.command(&["guide", alias, "--full"])), card);
+        assert_eq!(success(fixture.command(&["guide", alias, "--full", "--repeat"])), card);
     }
+    let card = success(fixture.command(&["guide", "bounds", "--section", "Measuring a growth curve", "--repeat"]));
     let recipe = card.split("```sh\n").find(|s| s.starts_with("# Growth curve checkpoint"))
         .unwrap().split("```").next().unwrap();
     let bin = fixture.0.join("bin"); fs::create_dir(&bin).unwrap();

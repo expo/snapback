@@ -8,7 +8,7 @@ impl App {
         let path = std::env::temp_dir().join(format!("surf4-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(&path).unwrap(); Self(path)
     }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).env("SNAPBACK4_INIT_INSTALL","0").env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap() }
 }
 impl Drop for App { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 fn success(output: Output) -> String {

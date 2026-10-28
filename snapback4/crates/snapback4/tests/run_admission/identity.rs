@@ -36,7 +36,7 @@ fn removing_or_replacing_the_address_record_never_admits_another_owner() {
         if record.exists() { fs::remove_file(&record).unwrap(); }
         if replacement { fs::write(&record, "").unwrap(); }
         for args in [vec!["dev", "--port", "0", "--no-watch"], vec!["run", "put"], vec!["token", "--service", "worker"]] {
-            assert_owner_refusal(&p, &args, "owned by another CLI command or a server starting up (address pending);");
+            assert_owner_refusal(&p, &args, "holder metadata unavailable (ownership sidecar is locked)");
         }
         assert!(host.child.try_wait().unwrap().is_none());
     }
@@ -321,9 +321,10 @@ fn unlinking_sidecar_admits_second_owner_documented_boundary() {
     let mut first = server(&p, "unlinked-first");
     fs::remove_file(snapback4_core::private_fs::owner_path(&p.store())).unwrap();
     // @ref LLP 3000.019#3.4 — unlinking ends exclusion; it does not revoke the first process.
-    let second = server(&p, "unlinked-second");
-    let written = http(&second, "/m/put", Some(r#"{"args":{}}"#));
-    assert!(written.get("denied").is_none(), "{written}");
+    // A second host in this directory also meets the live stop listener. An
+    // ordinary offline CLI writer still demonstrates the physical flock boundary.
+    let written=p.run(&["run","put","--json"]);
+    assert!(written.status.success(),"{written:?}");
     let written = http(&first, "/m/put", Some(r#"{"args":{}}"#));
     assert!(written.get("denied").is_none(), "{written}");
     let read = http(&first, "/q/rows", Some(r#"{"args":{}}"#));
