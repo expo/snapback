@@ -1,6 +1,6 @@
 # Snapback 4 API index test cannot read the proof-runner script export
 
-Status: Open
+Status: Resolved
 Found: GEN1 affected client verification, 2026-10-28
 Scope: snapback4/packages/snapback4/test/api-index.test.mjs
 
@@ -16,3 +16,8 @@ The manifest and API card are also unchanged in GEN1. This is outside GEN1's
 codegen and pointer-line ownership. Follow up by distinguishing the finite CLI
 runner script from declaration-bearing module exports while preserving a
 complete guide API index; do not weaken the typed-module export checks.
+
+Resolution (Integration 32, 2026-10-28): census script-valued exports at their
+manifest path using allowJs, retaining typed source export assertions. Add the
+proof-runner row and five missing proof helpers to guide api. Both API-index
+tests pass. No product export or module authority changes.

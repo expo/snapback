@@ -51,6 +51,8 @@ for (const name of ['cpap','trailer','talent']) test(`wave34 ${name}: all operat
   writeFileSync(file,first.replace('Client usage','STALE USAGE'));
   run(dir,['types']);assert.equal(readFileSync(file,'utf8'),first);
   const text=compileSnippets(dir,first);
+  assert.match(text, /refusalOf\(write\)/);
+  assert.match(text, /why is undefined unless failed/);
   const declarations=[...schema.matchAll(/^(query|mutation) (\w+)\([^]*?(?=^(?:query|mutation|invariant|table) |$(?![^]))/gm)];
   const expected=declarations.map(m=>`${m[1]} ${m[2]}`);
   const blocks=text.split('\n## ').slice(1);
@@ -64,8 +66,8 @@ for (const name of ['cpap','trailer','talent']) test(`wave34 ${name}: all operat
    assert.match(block,/Args: .*Result:/);assert.match(block,/Session:/);assert.match(block,/Declared refusals:/);
   }
   const tokens=encoding.encode(text).length;
-  assert.ok(tokens<=4000,`${name}: ${tokens}/4000 tokens`);
-  console.log(`${name}: ${expected.length} operations; ${tokens}/4000 tokens; max operation ${Math.max(...blocks.map(b=>encoding.encode(b).length))}/480`);
+  assert.ok(tokens<=2400,`${name}: ${tokens}/2400 tokens`);
+  console.log(`${name}: ${expected.length} operations; ${tokens}/2400 tokens; max operation ${Math.max(...blocks.map(b=>encoding.encode(b).length))}/480`);
   for(const route of ['client','react','generated']) assert.match(run(dir,['guide','api',route,'--repeat']),/^This app's operations: snapback\/generated\/api.ts/);
   assert.match(run(dir,['guide','api','generated','--repeat']),/Client usage packet/);
   if(name==='cpap') {
