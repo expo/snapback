@@ -1,0 +1,53 @@
+{
+  "sourceCommit": "4a228b0c04",
+  "qualification": false,
+  "platform": "linux-x64",
+  "binaryProfile": "dev, incremental=0 debug=0",
+  "artifacts": [
+    {
+      "path": "/tmp/gen1-final-consumer/snapback4-0.4.47.tgz",
+      "sha256": "9bd04af1a400a8b61c307c778e20d8779f5e8476c6c8e5c10f4bbf93fa084a60"
+    },
+    {
+      "path": "/tmp/gen1-final-consumer/snapback4-linux-x64-0.4.47.tgz",
+      "sha256": "504e00063b6b3d0f989f135a209b832fd2f681a5e2f25c8c720eb45143491329"
+    },
+    {
+      "path": "/tmp/gen1-final-consumer/snapback4-expo-0.4.47.tgz",
+      "sha256": "7f3962fc15dc55e2e2f4611f7bf47c4f71c593bca67b378139d951127516d5d2"
+    }
+  ],
+  "results": [
+    {
+      "name": "proof-kit",
+      "status": "passed",
+      "seconds": 271.67989866299996,
+      "result": {
+        "scaffolds": {
+          "status": "passed",
+          "syntax": 5,
+          "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
+          "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
+          "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+          "negative": [
+            "unfilled acceptance",
+            "unfilled frontend",
+            "UI click without a durable write",
+            "wrong refusal code",
+            "missing excluded role",
+            "new operation with preserved edits",
+            "edited stale schema facts",
+            "empty acceptance"
+          ],
+          "qualification": false
+        },
+        "status": "passed",
+        "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+        "wire": "literal first section, actual packed CLI trace",
+        "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+        "aliases": "array index path through packed test"
+      }
+    }
+  ],
+  "reuseEvidence": "consumer-codegen-equivalence-final.json: all generated API bytes identical on ten retained schema sets between this packed source and 6fa122d7d9. Final generation regressions run on 6fa122d7d9."
+}

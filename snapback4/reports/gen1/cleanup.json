@@ -1,0 +1,11 @@
+{
+  "removed": [
+    "/tmp/gen1-consumers",
+    "/tmp/gen1-final-consumer",
+    "/tmp/gen1-equivalence"
+  ],
+  "disposableTarballsAndAppsRemoved": true,
+  "sourceCommit": "6fa122d7d9",
+  "retained": "lean native/wasm target and dependency caches for final affected checks",
+  "qualification": false
+}
