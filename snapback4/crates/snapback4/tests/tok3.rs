@@ -13,7 +13,7 @@ fn wave34_codex_001_039_muse_019_018_recipe_index_and_starter_edit_regions() {
     let source=snapback4_lang::guide::quarry(snapback4_lang::guide::card("workflow").unwrap()).remove(0);
     fs::write(p.0.join("snapback/schema.q"),source).unwrap();
     let check=p.cli(&["check"]);assert!(check.status.success(),"{}",String::from_utf8_lossy(&check.stderr));
-    let verdict=String::from_utf8_lossy(&check.stdout);assert!(verdict.lines().find(|s|s.starts_with("check: ok")).unwrap().contains("API index: `guide api generated`"));
+    let verdict=String::from_utf8_lossy(&check.stdout);assert!(verdict.lines().find(|s|s.starts_with("check: ok")).unwrap().contains("client usage: snapback/generated/api.ts"));
     let index=p.cli(&["guide","api","generated"]);assert!(index.status.success());let index=String::from_utf8_lossy(&index.stdout);
     assert!(index.contains("board(c:")&&index.contains("usePage / useQuery")&&index.contains("approve(request:")&&index.contains("useMutation"),"{index}");
     for module in ["app","witness","react","proof","client","auth"] {assert!(p.cli(&["guide","api",module]).status.success());}

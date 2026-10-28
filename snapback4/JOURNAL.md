@@ -110265,3 +110265,14 @@ pair adopts verify and scaffold acceptance but regresses input tokens
 whole-session performance win; the 40-lane rerun measures the landed release.
 Durable evidence is reports/integration31/REPORT.md. Publication owns the full
 platform/client battery and npm release.
+
+### 2026-10-28 — GEN1: this app's generated client usage
+
+The generated API now carries one compact usage block per client operation,
+including the correct React/plain call, argument/result shapes, declared guards
+and session guidance. Shared row shapes preserve hidden-field optionality and
+nullability. Green check and client/react/generated API digests point to that
+packet; generic card budgets and structure stay intact. Three verbatim wave-34
+fixtures regenerate exactly, compile their literal snippets, and enforce both
+per-operation and complete-packet token budgets. Review, packed consumers and
+measured limits are recorded in the GEN1 workstream report.
