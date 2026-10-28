@@ -1,0 +1,26 @@
+{
+  "commit": "f374d616c4b0bfd30a3d6c9a891fc905c172aaa7",
+  "briefSha256": "29dbfa65d71b89fad6e397e0e270829ba49627a7fe51fd29d93403fe8b89d25d",
+  "paths": {
+    "snapback4/crates/snapback4/src/verbs/release_compile.rs": "eea1a21344a54d1da7b0eaa488d4735faa981f701532c07dcfa74117973b16db",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "4d23c3869d76a09922f09f9f3739ff7f13e206a6d88a42f1180920cb314ca9d8",
+    "snapback4/packages/snapback4/bin/proof-runner.js": "19db7118fbb15ef488c49e6124cadce111c8463e08c1e86ea63e4ac7fe22ab19",
+    "snapback4/packages/snapback4/bin/proof-runner.d.ts": "5623e0528eca25131da19040bedcbcafb46aa83f6eef32dd84c4933ea40651ec",
+    "snapback4/packages/snapback4/test/proof-runner.test.mjs": "e4e56496369edaa22bbebc6c7d2e087600120f2664c061814b55fdc8238c54ae",
+    "snapback4/crates/snapback4/src/verbs/init/frontend-proof.mjs": "44ef3cb9729adbf1f9076629b56bff6d4771317ee5f90f4f249c604387999c12",
+    "snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs": "df2e81a31c7ee87f2438668215d5f911284d6ae7c2965edb8a1feae050c4cf99"
+  },
+  "reviewers": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <output> - < <brief>"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "command": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file <brief>"
+    }
+  },
+  "disposition": "Codex found custom frontend scaffold truncation omitted the runner closing brace. Fixed in f391fb7d99 with generated-variant parser regression. Muse READY remains the earlier static verdict; it does not cover the extended language bridge cache."
+}
