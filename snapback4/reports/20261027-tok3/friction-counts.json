@@ -1,0 +1,130 @@
+[
+  {
+    "phase": "clean-after",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "areas": {
+      "frontend": 1,
+      "testing": 2,
+      "diagnostics": 1,
+      "docs": 1
+    },
+    "kinds": {
+      "agent-error": 3,
+      "confusing-diagnostic": 1,
+      "docs-gap": 1
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "areas": {
+      "authorization-rules": 1,
+      "testing": 2,
+      "schema-data": 1,
+      "hosting-deploy": 2,
+      "frontend": 1
+    },
+    "kinds": {
+      "ergonomics": 2,
+      "agent-error": 4,
+      "confusing-diagnostic": 1
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "019-snapback-child-talent-bookings",
+    "areas": {
+      "uploads": 1,
+      "testing": 1,
+      "client": 1,
+      "hosting-deploy": 1,
+      "environment": 1
+    },
+    "kinds": {
+      "confusing-diagnostic": 2,
+      "agent-error": 2,
+      "ergonomics": 1
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "areas": {
+      "schema-data": 1,
+      "install": 1,
+      "docs": 2,
+      "scheduling-time": 1,
+      "frontend": 1,
+      "testing": 1,
+      "diagnostics": 1,
+      "other": 1
+    },
+    "kinds": {
+      "agent-error": 4,
+      "environment": 1,
+      "docs-gap": 2,
+      "ergonomics": 2
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "areas": {
+      "scheduling-time": 1,
+      "install": 1,
+      "testing": 2,
+      "diagnostics": 1,
+      "docs": 1
+    },
+    "kinds": {
+      "ergonomics": 3,
+      "agent-error": 3
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "areas": {
+      "authorization-rules": 2,
+      "client": 1,
+      "dev-server": 1,
+      "hosting-deploy": 1
+    },
+    "kinds": {
+      "confusing-diagnostic": 2,
+      "agent-error": 1,
+      "docs-gap": 1,
+      "ergonomics": 1
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "019-snapback-child-talent-bookings",
+    "areas": {
+      "diagnostics": 1,
+      "uploads": 1,
+      "functions-api": 1,
+      "realtime": 1
+    },
+    "kinds": {
+      "confusing-diagnostic": 1,
+      "agent-error": 1,
+      "docs-gap": 2
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "areas": {
+      "install": 1,
+      "testing": 1,
+      "uploads": 1,
+      "frontend": 1,
+      "diagnostics": 1
+    },
+    "kinds": {
+      "ergonomics": 2,
+      "agent-error": 3
+    }
+  }
+]

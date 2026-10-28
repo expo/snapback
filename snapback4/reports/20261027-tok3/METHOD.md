@@ -59,3 +59,14 @@ fullSelectorPlanExecuted:false and qualification:false. The unchanged W8B
 residency calibration already passed in the earlier run and is not repeated.
 No complete publication qualification or performance target is inferred from
 source-byte budgets or a passing literal recipe.
+
+For read counting, the executed measurement helper removes only the original
+parser’s two 300-character command-storage truncations. Native call indexing,
+usage and attribution are unchanged. Counts use complete redacted commands after
+heredoc removal. Declaration searches include mixed read batches; generatedApi
+counts explicit read commands naming generated/api.ts (not the API-index CLI).
+This corrects undercounting of later commands and schema writes in long batches.
+
+Large selector snapshots/receipts and exploratory per-call records are retained
+as deterministic .json.gz files to keep routine diffs small. machine-artifacts.json
+records decoded hashes; inspect with gzip -dc. Primary results remain plain JSON.

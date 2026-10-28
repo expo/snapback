@@ -1,0 +1,7 @@
+{
+  "phase": "final",
+  "lane": "018-snapback-horse-trailer-rentals",
+  "recordedLauncherPid": 3673534,
+  "ownedScope": "run-r2b826eff619d48e0805a619387f5b7b3.scope",
+  "reason": "aborted invalid exploratory long-TMPDIR/development-binary trial; excluded from final clean paired control"
+}

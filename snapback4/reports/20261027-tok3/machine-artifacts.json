@@ -1,0 +1,26 @@
+[
+  {
+    "file": "affected-complete-plan.json.gz",
+    "decodedBytes": 817890,
+    "gzipBytes": 31512,
+    "decodedSha256": "6526b29fe648c58b05916fc6601b992ac5d14bdf701a6b1e35d5634a9cd02ad8"
+  },
+  {
+    "file": "affected-scoped-plan.json.gz",
+    "decodedBytes": 720316,
+    "gzipBytes": 24235,
+    "decodedSha256": "26beb579712ddd3d418061411fb6ba97dac308d226a39768f9bcace9077fc7f6"
+  },
+  {
+    "file": "affected-receipt.json.gz",
+    "decodedBytes": 722080,
+    "gzipBytes": 24489,
+    "decodedSha256": "f5730a2f23cf75038b8bc9fc3909cb9bf8eaa9cdc36c2f74cdf772a8e0b4a8e2"
+  },
+  {
+    "file": "exploratory-replays.json.gz",
+    "decodedBytes": 215717,
+    "gzipBytes": 20833,
+    "decodedSha256": "5e252e95104ab31b31951889663b7b0f125d023e31d54066cf7b655ab3ab3d0c"
+  }
+]
