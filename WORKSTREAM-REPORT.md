@@ -14,7 +14,9 @@ the timing interpretation. Local per-call output is under
 `/tmp/muse1-analysis/`; sanitized durable evidence will accompany the change.
 One additional parser correction recognizes `npm run verify` before the generic
 shell-read classifier: the inherited proof regex duplicated `npm run` around
-that pattern. Both controls were re-parsed identically. Purpose is the first
+that pattern. The purpose classifier also had an unreachable rerun branch
+(`any(... for f in [])`); the local wrapper now assigns a red family’s rerun
+to fix-after-red. Both controls are treated identically. Purpose is the first
 tool in each call; combined shell commands and masked exits limit attribution.
 Token attribution is the parser's context-gap estimate weighted by subsequent
 calls, not an exact tokenizer partition or an independent causal experiment.
@@ -26,9 +28,9 @@ calls, not an exact tokenizer partition or an independent causal experiment.
 | Wall minutes | 15.42 → 25.18 | 14.64 → 11.82 |
 | Tool minutes (union) | 5.01 → 9.59 | 0.72 → 0.78 |
 
-Muse's call growth is authoring +9.7, verification +7.0, own reads +5.2,
+Muse's call growth is authoring +9.7, verification +6.9, own reads +5.2,
 lookup +3.4 and learning +1.8. Waiting falls 4.1 → 3.1 calls; classified
-fix-after-red authoring falls 11.5 → 10.5. The loop is extra proof construction
+fix-after-red calls, including reruns, fall 16.3 → 15.5. The loop is extra proof construction
 and exploration, not an increase in waiting calls. The latter classification
 cannot assign all masked failing proof runs to repair cycles.
 

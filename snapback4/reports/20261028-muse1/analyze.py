@@ -3,7 +3,14 @@ SOURCE=os.environ.get("TX_SOURCE",os.path.expanduser("~/sb4-loop/wave34r1-repro/
 RESULTS=os.environ.get("MUSE1_ANALYSIS","/tmp/muse1-analysis")
 sys.path.insert(0,SOURCE)
 agg=runpy.run_path(SOURCE+'/agg.py')
-calls=runpy.run_path(SOURCE+'/scripts/calls.py')
+# Preserve the original cycle model, correcting its unreachable re-run branch.
+# It used any(... for f in []), so failed-family re-runs were always "verify".
+calls_text=pathlib.Path(SOURCE+'/scripts/calls.py').read_text()
+assert "elif c in FAMILY: p = 'fix-after-red (re-run)'" in calls_text
+calls_text=calls_text.replace("            # a run of a family with an open red closes that cycle", "            closing_red = any(fam in open_red for fam in runs_at.get(k, []))\n            # a run of a family with an open red closes that cycle")
+calls_text=calls_text.replace("'fix-after-red (re-run)' if any(f in runs_at.get(k, []) for f in []) else 'verify'", "'fix-after-red' if closing_red else 'verify'")
+calls={'__name__':'muse1_calls','__file__':SOURCE+'/scripts/calls.py'}
+exec(compile(calls_text,calls['__file__'],'exec'),calls)
 docs=runpy.run_path(SOURCE+'/scripts/docs.py')
 
 A=json.load(open('/home/ccheever/sb4-loop/bakeoff/next37/wave34r2/assignments.json'))
