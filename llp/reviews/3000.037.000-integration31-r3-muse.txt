@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+SHA and source check out: diff SHA256 matches as given, `HEAD` is `4598f2622a`, worktree clean, and `proof.rs` at HEAD hashes to the diff's post-image blob `3db0c3b220`. Diff touches exactly three in-scope files; no other files.
+
+Material findings:
+
+- Four released literals restored exactly: `PREVIOUS_46/40/30/PREVIOUS_README_PROOFS` at HEAD are each byte-identical (`cmp` clean) to `3a81d3f193`. The parent `4d80392391` had mutated all four to scaffold wording (`For scaffold proofs…` present, `After replacing the screen…` absent); the delta restores the app-owned wording in all four.
+- Opt-in alternatives preserved exactly: `PREVIOUS_SCAFFOLD_README_PROOFS` value equals the parent's `README_PROOFS` value; `PREVIOUS_VER1_README_PROOFS` equals `f6a86a6cce`'s `README_PROOFS` value. Both are wired into `without_readme` (now 7 suffixes, active first, all mutually distinct — no shadowing).
+- Frozen appendix exact: `previous/readme-proofs-0.4.46.md` bytes are identical to the `PREVIOUS_46` literal value, so the test's `include_str!` genuinely pins the released bytes. Include path is correct relative to `verbs/init/`.
+- Active/packet-only update: `README_PROOFS` adds only the 3 `probe:serve` 10-second/`--hold`/`SNAPBACK4_PROBE_HOLD=1` lines (unified diff of values confirms insertion only; `PREVIOUS_SCAFFOLD` correctly lacks them). Packet `proof_scaffold/README.md` replaces 1 line with 3 lines naming the 10-second ready-idle exit and explicit hold. `scripts/proof-scaffold/cases.mjs` exists, matching the `frontend.assert` location fact; loop wiring (`verify`/`check`/acceptance/`probe:serve`) is present in the active appendix.
+- Test syntax/correctness: module paths, `format!`, `strip_suffix` chain, and all four `contains` assertions (`frontend.assert`, `after 10 seconds`, `--hold`, `SNAPBACK4_PROBE_HOLD=1`) resolve against the actual strings. Edit-distinguishing logic is sound: every one of the 7 suffixes contains `scripts/frontend-proof.mjs`, so the test's global replace breaks all of them and `without_readme` correctly returns the edited text untouched. `adapt.rs:179` (`without_readme(&wanted) == text`) therefore keeps app-edited suffixes app-owned. The test pins 046/VER1/SCAFFOLD; 40/30/base-previous restoration is verified by the byte comparison above rather than by the test, consistent with the described scope.
+- No scope creep: no changes outside the three files; `readme()` gating (`verify`-script check) unchanged.
+
+No material defects found.
+
+VERDICT: READY

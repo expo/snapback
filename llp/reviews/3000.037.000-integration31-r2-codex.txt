@@ -1,0 +1,5 @@
+- **P2 — Historical README recognition breaks.** [proof.rs:7](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init/proof.rs:7) rewrites all `PREVIOUS_*_README_PROOFS` strings. These are exact historical suffixes used by `without_readme()` during `init --adapt`. Previously generated, untouched READMEs now fail recognition and are classified as application edits, preventing their adaptation. Preserve the historical strings and add recognition for the replaced current appendix.
+
+- **P2 — Generated READMEs omit the required probe idle bound.** The updated [starter appendix](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init/proof.rs:6) routes users to the scaffold probe but documents neither its unheld 10-second idle exit nor explicit hold. The [packet README](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/proof_scaffold/README.md:57) mentions `--hold` but omits the 10-second bound. The corrected guide and transient init message do not satisfy the README requirement.
+
+VERDICT: NOT READY

@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+Review complete. Hash verified (`77f9c0dd…27b71e`, 659 lines) against source `4d80392391` (all three merge commits are ancestors; source is the post-resolution state, so I verified each resolution's final content in source).
+
+## Verified preserved (no findings)
+
+- **REL4**: `release_bridge.rs:348-350` keeps `release_compile::compile` with the `rollback_hides` clause; `releases.rs:634-637` keeps the full first-failure diagnostics mapping (`activation` / `compilation` / `adoption preflight`); both `activation_qualified=true` sites and the `enforce_release` adoption note survive. Union, not a pick-one-side loss.
+- **Main explain, promote, day-two runner**: `main.rs:84-87` keeps `let mut options` + explain→verbose (+ `startup.step` also present); `verbs.rs:1375-1376` keeps both `promote` and `release_compile`; `day2-proof.mjs:9-11,23` keeps both `uniqueName` and the `runProofSuite` await wrapper.
+- **LAT4 admission/reuse**: `deploy` keeps `CompilationReuse` + `Scope` + `timing` + `enforce_release` + `security_sources`/bookkeeping; `deploy` never calls `check_verdict` (only `check` and `decisions.rs` do).
+- **VER1**: both init tests deleted from `tests/init.rs` with no re-addition anywhere in the diff; `tests/init/ver1.rs` carries the 2 moved tests. Not duplicated.
+- **LAT4 §19 / SCAF1 §20**: headings, `Revised` line, and all three `#20` `@ref`s correct.
+- **Gates/cards**: 8001-byte budget assert kept; start/workflow name `npm run verify` + generated packet; wiring stays opt-in (`npm pkg set …`, "do not change npm scripts automatically").
+- **Scaffold notice**: shares the React setup line when present, standalone one-liner otherwise — matches the DX11 budget design exactly.
+- **TOK2/CALLS1**: untouched by the diff.
+
+## Concrete finding (1)
+
+**Starter README omits the unheld probe's 10-second idle bound and explicit hold.** The diff rewrote the README proofs appendix ([proof.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/init/proof.rs)) — it correctly routes acceptance to the packet and names `frontend.assert` in `cases.mjs`, but states only "probe shutdown" in the verify loop. Nowhere in the generated starter README (body templates + appendix) is there any statement that unheld `probe:serve` exits after 10s idle or that `--hold` / `SNAPBACK4_PROBE_HOLD=1` retains deliberate service (verified by exhaustive grep over `verbs/init/`; only the ephemeral `init` console notice, `guide/start.md`, and the CHANGELOG carry it). The packet README mentions `--hold` once without the bound. Fix: add one sentence to the active `README_PROOFS` constant only (historical `PREVIOUS_*` constants must stay byte-identical); the existing `contains("New starters with a \`verify\` script")` guard makes this append-safe.
+
+Observation (non-blocking): the diff drops the `owner.report_reclaim(verbose)` call and the method is gone from source too — consistent deliberate cleanup outside the listed invariants, `timing.step("deploy.owner_store_status")` retained. No action.
+
+VERDICT: NOT READY

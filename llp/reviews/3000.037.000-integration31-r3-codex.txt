@@ -1,0 +1,9 @@
+No material findings. Diff SHA256 matches the supplied value.
+
+All four released suffix literals match `3a81d3f193` byte-for-byte. VER1 and interim scaffold alternatives preserve their exact prior forms. Recognition strips only exact suffixes; application-edited appendices remain app-owned.
+
+The frozen 0.4.46 fixture matches historical bytes. The added regression is syntactically sound by inspection. Active/packet guidance correctly describes frontend.assert, loop wiring, the 10-second ready-idle exit, and explicit hold.
+
+No edits, builds, or tests performed.
+
+VERDICT: READY
