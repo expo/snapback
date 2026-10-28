@@ -153,7 +153,7 @@ fn discovery_names_directory_roles_seed_and_current_release() {
 fn init_port_note_is_conditional_and_preview_rules_are_indented() {
     let app = App::new();
     assert!(!success(app.run(&["init", "web", "--web"])).contains("PORT_LO/PORT_HI set at init"));
-    let output = Command::new(BIN).current_dir(&app.0).args(["init", "ranged", "--web"]).env("PORT_LO", "25000").env("PORT_HI", "25009").output().unwrap();
+    let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").current_dir(&app.0).args(["init", "ranged", "--web"]).env("PORT_LO", "25000").env("PORT_HI", "25009").output().unwrap();
     assert!(success(output).contains("PORT_LO/PORT_HI set at init"));
     fs::create_dir(app.0.join("snapback")).unwrap();
     fs::write(app.0.join("snapback/schema.q"), "use personas alice\ntable members:\n  principal: principal\n  unique principal\n  read <- .principal = viewer -- own seat\n  insert <- deny\n  online only\n").unwrap();
