@@ -369,7 +369,7 @@ fn release_token_owns_the_resolved_database_before_sqlite_open() {
     conn.execute_batch("ROLLBACK").unwrap();
     let b = b.to_str().unwrap();
     for args in [vec!["token", "--release", b, "--service", "other"], vec!["serve", b, "--port", "0"], vec!["deploy", b], vec!["rollback", b]] {
-        assert_owner_refusal(&p, &args, "owned by another CLI command or a server starting up (address pending);");
+        assert_owner_refusal(&p, &args, "command snapback4 token");
     }
     assert!(token.child.try_wait().unwrap().is_none(), "output barrier must retain the owner");
     output.read_exact(&mut vec![0; padding]).unwrap();

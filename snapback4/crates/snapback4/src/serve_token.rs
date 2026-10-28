@@ -144,8 +144,7 @@ fn exchange(address: std::net::SocketAddr, headers: &str, body: &str) -> io::Res
 // @ref LLP 3000.019#3.4 — busy token commands ask the announced loopback owner, never open a second writer.
 pub(crate) fn mint_live(path: &Path, name: &str, days: i64) -> Result<Session, (i32, String)> {
     let store = path.canonicalize().unwrap_or_else(|_| path.to_owned());
-    let owner = crate::store_owner::address(&store).unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
-    let unavailable = |reason: &str| (2, format!("E_STORE_BUSY at {}: owned by {owner}; {reason}. Restore access to that server's loopback listener and private store proof, then rerun `snapback4 token --service <name>` (with the same --release <dir> for serve). For an older or unreachable server, stop it, rerun token offline, then restart it; for another CLI, wait for it to finish. Leave <database>-owner in place", path.display()));
+    let unavailable = |reason: &str| (2, format!("{}; token mint unavailable: {reason}. Restore access to that server's loopback listener and private store proof, then rerun `snapback4 token --service <name>` (with the same --release <dir> for serve). For an older or unreachable server, stop it, rerun token offline, then restart it", crate::store_owner::busy(&store)));
     let address = crate::store_owner::inspector_address(&store).ok_or_else(|| unavailable("no published loopback listener; no mint request sent"))?;
     let secret = read_secret(&store).map_err(|_| unavailable("cannot read the 0600 store token proof; no mint request sent"))?;
     let mint = Mint { service: name.into(), days, store: protocol::store_identity(&store)
