@@ -1,0 +1,131 @@
+{
+  "events": [
+    {
+      "measurement_id": "112-exact-supabase-W5-A-1131-rep1",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-A",
+      "rate": 1131,
+      "repetition": 1,
+      "before_counter_sum": 5278603,
+      "after_counter_sum": 5286961,
+      "counter_check": {
+        "delta": 8358,
+        "acknowledged_including_warmup": 8357,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 1,
+      "measured_errors": {
+        "expired_before_send": 17195,
+        "request_error": 1
+      },
+      "retained": true
+    },
+    {
+      "measurement_id": "113-exact-supabase-W5-A-1131-rep2",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-A",
+      "rate": 1131,
+      "repetition": 2,
+      "before_counter_sum": 5286963,
+      "after_counter_sum": 5295313,
+      "counter_check": {
+        "delta": 8350,
+        "acknowledged_including_warmup": 8349,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 1,
+      "measured_errors": {
+        "expired_before_send": 17290,
+        "request_error": 1
+      },
+      "retained": true
+    },
+    {
+      "measurement_id": "114-exact-supabase-W5-A-1131-rep3",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-A",
+      "rate": 1131,
+      "repetition": 3,
+      "before_counter_sum": 5295315,
+      "after_counter_sum": 5303670,
+      "counter_check": {
+        "delta": 8355,
+        "acknowledged_including_warmup": 8351,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 4,
+      "measured_errors": {
+        "expired_before_send": 17208,
+        "request_error": 2
+      },
+      "retained": true
+    },
+    {
+      "measurement_id": "115-exact-supabase-W5-B-1131-rep1",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-B",
+      "rate": 1131,
+      "repetition": 1,
+      "before_counter_sum": 5303672,
+      "after_counter_sum": 5310929,
+      "counter_check": {
+        "delta": 7257,
+        "acknowledged_including_warmup": 7248,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 9,
+      "measured_errors": {
+        "expired_before_send": 18016,
+        "request_error": 6
+      },
+      "retained": true
+    },
+    {
+      "measurement_id": "116-exact-supabase-W5-B-1131-rep2",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-B",
+      "rate": 1131,
+      "repetition": 2,
+      "before_counter_sum": 5310931,
+      "after_counter_sum": 5318302,
+      "counter_check": {
+        "delta": 7371,
+        "acknowledged_including_warmup": 7363,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 8,
+      "measured_errors": {
+        "expired_before_send": 17845,
+        "request_error": 7
+      },
+      "retained": true
+    },
+    {
+      "measurement_id": "117-exact-supabase-W5-B-1131-rep3",
+      "phase": "exact",
+      "system": "supabase",
+      "cell": "W5-same-B",
+      "rate": 1131,
+      "repetition": 3,
+      "before_counter_sum": 5318304,
+      "after_counter_sum": 5325664,
+      "counter_check": {
+        "delta": 7360,
+        "acknowledged_including_warmup": 7351,
+        "ok": false
+      },
+      "excess_delta_over_observed_ack": 9,
+      "measured_errors": {
+        "expired_before_send": 17910,
+        "request_error": 5
+      },
+      "retained": true
+    }
+  ],
+  "scope": "Durable counter delta versus observed successful ACKs over warmup, measurement and drain. Excess delta is consistent with ambiguous committed HTTP outcomes, but aggregate counters do not map commits to individual request errors; it is not proof of a lost acknowledged write. No repair or replacement. All six affected Supabase exact controls already fail latency/errors."
+}

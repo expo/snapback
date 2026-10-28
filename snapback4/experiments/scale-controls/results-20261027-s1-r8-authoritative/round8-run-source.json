@@ -1,0 +1,107 @@
+{
+  "base": "982e77a600987686239e8f8eb0157df2edb90457",
+  "bundle": "/tmp/main-own.bundle",
+  "bundle_ref": "main-own",
+  "rebased_tip": "6c30550d96",
+  "original_tip": "4472be0c0c",
+  "branch": "sb4-pg/spike-r",
+  "host": "expo-build-450a",
+  "physical_hostname": "expose-builder-nothing",
+  "authorizing": false,
+  "protocol": "R0: prefix ACKs, footprint holds through W, two images, enriched attempt/key race, freshness/deadlines, real catch-up/retention, 29 data loans <=32 product total",
+  "binaries": {
+    "main": {
+      "source": "982e77a600987686239e8f8eb0157df2edb90457",
+      "sha256": "9ea4fac2f73e241ce2097b0b19372ef1c55bbb5d4fef03e680a06b7c298f0905",
+      "size": 333801408
+    },
+    "before": {
+      "source": "6c30550d969914f10efa14d3eedad9fe28568703",
+      "sha256": "807b3dc56fb9dc111ac27e95b05fcbccbe31937d6386bfe48493956c66bd6dfb",
+      "size": 338654232,
+      "source_module_sha256": "71916a0e4e8bc38957a65242605712b70dabc209104d1f97f94aa896f73dabba",
+      "worktree_patch_sha256": "59371c519352bd059bdbbaaa1c4ccd2158d9b79507c8d3f1fa2c6734091e1334"
+    },
+    "final": {
+      "source": "6c30550d969914f10efa14d3eedad9fe28568703",
+      "sha256": "807b3dc56fb9dc111ac27e95b05fcbccbe31937d6386bfe48493956c66bd6dfb",
+      "size": 338654232,
+      "source_module_sha256": "71916a0e4e8bc38957a65242605712b70dabc209104d1f97f94aa896f73dabba",
+      "worktree_patch_sha256": "59371c519352bd059bdbbaaa1c4ccd2158d9b79507c8d3f1fa2c6734091e1334",
+      "selection": "Same rebased source/binary; select ordinary queued HTTP for final campaign to remove inline exact-key mean regression. Earlier queued 2/3 remains evidence."
+    }
+  },
+  "selected_env": {
+    "SNAPBACK4_SPIKE_R_HEAD": "async",
+    "SNAPBACK4_SPIKE_R_DISPATCH": "direct",
+    "SNAPBACK4_SPIKE_R_WIRE": "explicit",
+    "SNAPBACK4_SPIKE_R_IO": "local",
+    "SNAPBACK4_SPIKE_R_HTTP": "queued",
+    "SNAPBACK4_SPIKE_R_PREPARE": "parallel",
+    "SNAPBACK4_SPIKE_R_CLOSURE": "cached",
+    "SNAPBACK4_SPIKE_R_CAPACITY": "outside",
+    "SNAPBACK4_SPIKE_R_PUBLICATION": "coalesce",
+    "SNAPBACK4_SPIKE_R_WIDTH": "29",
+    "SNAPBACK4_SPIKE_R_O_COLLECT": "main"
+  },
+  "trial_count": 150,
+  "phase_counts": {
+    "baseline-native": 12,
+    "baseline-instrumented": 12,
+    "native-mode-control": 9,
+    "instrumented-mode-control": 9,
+    "final-native": 72,
+    "read-smoke-native": 36
+  },
+  "fixture_preflight": {
+    "epoch_relation": false,
+    "epoch_triggers": 0,
+    "epoch_functions": 0,
+    "epoch_registration": false
+  },
+  "rebased_source_sha256": "71916a0e4e8bc38957a65242605712b70dabc209104d1f97f94aa896f73dabba",
+  "rebase_conflicts": "Additive union: JOURNAL, SQLite collection plus R diagnostics, existing overlay regression plus R tests. Compile repair: prepare -> prepare_for_ingress.",
+  "known_control_failure": "queued native exact A remains 2/3 (p99 107.54 ms in rep2); retained regardless of final matrix",
+  "raw_data_location": "/tmp/spike-r8 and R8-labelled files under /tmp/spike-r; private logs, credentials and original HDR buckets stay outside git",
+  "no_origin_fetch": true,
+  "no_push": true,
+  "rebased_commits": [
+    {
+      "commit": "c54917336c27bc33f6f9627143aabbd3ce716a16",
+      "subject": "Prototype opt-in per-request concurrent PostgreSQL writes"
+    },
+    {
+      "commit": "ca766f9d27ee44c3bab5a66f5ab0ea272c7cdd1f",
+      "subject": "Cache Spike R write bodies under Stage P and cap product connections"
+    },
+    {
+      "commit": "e963d011a803d4bb7f5a05c3ad3dd585d9c3eb72",
+      "subject": "perf(snapback4): reduce Spike R dispatch and head-flush residence"
+    },
+    {
+      "commit": "b0ba56777f8471aeeab4211b68a8f53353b9171d",
+      "subject": "Restore the opt-in R0 write protocol and bounded maintenance"
+    },
+    {
+      "commit": "097a4945fd1faa6f79dc5020a1eef993cf16a20d",
+      "subject": "Record restored R0 measurements and correct loan release accounting"
+    },
+    {
+      "commit": "a6d2f9756763bed6bda570ba25127ffd45e66fe4",
+      "subject": "Reduce restored R0 owner residence and record SPR5 gate miss"
+    },
+    {
+      "commit": "d2d447811fc46d8f7f1b880ddef5894b5179f07f",
+      "subject": "Improve hot O collection and record disk-stopped SPR6 experiments"
+    },
+    {
+      "commit": "6c30550d969914f10efa14d3eedad9fe28568703",
+      "subject": "Record SPR7 native gates, fixed matrix, and final validation"
+    }
+  ],
+  "connection_accounting": "Tagged main/R0 product sessions; raw server configured pool=32; PG background processes and external observers excluded",
+  "harnesses": {
+    "/tmp/spike-r3/native-harness": "8332617549144ab07629866328afaeb742fe51d081112d6bd58909e11ce6cc1f",
+    "/tmp/spike-r3/raw-diag-harness": "7a80ea72b0530a30e8d86439a9605f1451857805f7471591469fdc265aae4985"
+  }
+}

@@ -1,0 +1,387 @@
+[
+  {
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "systems": {
+      "r8": {
+        "repetitions": 5,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 60.3057693103651,
+            "min": 57.65127085108172,
+            "max": 67.17048013649278
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 15.66300609508708,
+            "min": 14.920743520055774,
+            "max": 17.31836133222726
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 21.756756095087077,
+            "min": 20.756513897250652,
+            "max": 24.151230665686413
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 20952.529411764706,
+            "min": 18978.87980769231,
+            "max": 29319.349206349205
+          },
+          "syncs_per_all_ack": {
+            "median": 33.58653846153846,
+            "min": 32.67420814479638,
+            "max": 37.02116402116402
+          }
+        }
+      },
+      "main": {
+        "repetitions": 3,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.19975001231243422,
+            "min": 0.19936189391314973,
+            "max": 0.204015833294238
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.3788134802122286,
+            "min": 0.369761964720619,
+            "max": 0.3796135665531686
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.054143861870624165,
+            "min": 0.053957520187024974,
+            "max": 0.054184864910527604
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 630.8759327011024,
+            "min": 608.2136045546199,
+            "max": 631.6207269840506
+          },
+          "syncs_per_all_ack": {
+            "median": 0.09116168298491664,
+            "min": 0.09079587237575613,
+            "max": 0.09201848553410677
+          }
+        }
+      }
+    },
+    "r8_over_main_ratios": {
+      "pg_cpu_ms_per_measured_ack": 301.9062107292352,
+      "server_cpu_ms_per_measured_ack": 41.34754150330645,
+      "proxy_cpu_ms_per_measured_ack": 401.8323655426441,
+      "wal_bytes_per_all_ack": 33.21180651488196,
+      "syncs_per_all_ack": 368.4282404823043
+    },
+    "interleaved": false,
+    "caveat": "Exact controls interleaved per repetition. W4/hot1 main costs are separately scheduled fresh-service controls at the same offered rate; failed traffic has different ACK throughput, and refusal/expiry work stays in the CPU/WAL numerator; no intrinsic successful-write efficiency claim for failing cohorts. CPU measured-window interpolation and whole-cohort WAL divisors differ."
+  },
+  {
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "systems": {
+      "r8": {
+        "repetitions": 5,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 57.34214758026269,
+            "min": 53.517677485590575,
+            "max": 73.54529661300468
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 14.637226865141697,
+            "min": 13.780170602426011,
+            "max": 18.148215152217052
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 20.643283671362845,
+            "min": 19.304646126901535,
+            "max": 25.8598434115439
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 23869.720930232557,
+            "min": 22700.8115942029,
+            "max": 31186.74074074074
+          },
+          "syncs_per_all_ack": {
+            "median": 34.16425120772947,
+            "min": 31.480349344978166,
+            "max": 37.77248677248677
+          }
+        }
+      },
+      "main": {
+        "repetitions": 3,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.20302257476110483,
+            "min": 0.2014839101233377,
+            "max": 0.20455390268787488
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.32934275992804896,
+            "min": 0.32594394828658574,
+            "max": 0.3312291346568787
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.051742593103154905,
+            "min": 0.05173134910085338,
+            "max": 0.051916101489492834
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 624.4405438002786,
+            "min": 616.286030654467,
+            "max": 666.4398893563073
+          },
+          "syncs_per_all_ack": {
+            "median": 0.09121743691357305,
+            "min": 0.09096125247368236,
+            "max": 0.09125799573560768
+          }
+        }
+      }
+    },
+    "r8_over_main_ratios": {
+      "pg_cpu_ms_per_measured_ack": 282.442224209484,
+      "server_cpu_ms_per_measured_ack": 44.443748720449996,
+      "proxy_cpu_ms_per_measured_ack": 398.96113498231614,
+      "wal_bytes_per_all_ack": 38.22577051926189,
+      "syncs_per_all_ack": 374.5364084292295
+    },
+    "interleaved": false,
+    "caveat": "Exact controls interleaved per repetition. W4/hot1 main costs are separately scheduled fresh-service controls at the same offered rate; failed traffic has different ACK throughput, and refusal/expiry work stays in the CPU/WAL numerator; no intrinsic successful-write efficiency claim for failing cohorts. CPU measured-window interpolation and whole-cohort WAL divisors differ."
+  },
+  {
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "systems": {
+      "r8": {
+        "repetitions": 5,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 54.244773264125854,
+            "min": 46.16144968026295,
+            "max": 59.877999662030234
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 14.83299321008178,
+            "min": 13.230203921078992,
+            "max": 16.64421255778505
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 19.4670532469215,
+            "min": 16.946451105063502,
+            "max": 21.907828262202212
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 23177.19170984456,
+            "min": 21831.02538071066,
+            "max": 25222.82162162162
+          },
+          "syncs_per_all_ack": {
+            "median": 30.233502538071065,
+            "min": 27.47222222222222,
+            "max": 32.48108108108108
+          }
+        }
+      },
+      "main": {
+        "repetitions": 3,
+        "passes": 0,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.21117296005219507,
+            "min": 0.2083554957864905,
+            "max": 0.21440543513929167
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.4079597833443265,
+            "min": 0.4040132675654036,
+            "max": 0.41131544723977687
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.058414555645469095,
+            "min": 0.058139788563869615,
+            "max": 0.058603750410209585
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 614.5675386628766,
+            "min": 609.6693387057873,
+            "max": 665.0912257845248
+          },
+          "syncs_per_all_ack": {
+            "median": 0.09184887277670784,
+            "min": 0.09132698664926295,
+            "max": 0.09274868778407891
+          }
+        }
+      }
+    },
+    "r8_over_main_ratios": {
+      "pg_cpu_ms_per_measured_ack": 256.87367005093034,
+      "server_cpu_ms_per_measured_ack": 36.3589594260629,
+      "proxy_cpu_ms_per_measured_ack": 333.25689174238295,
+      "wal_bytes_per_all_ack": 37.71300996513989,
+      "syncs_per_all_ack": 329.16574394517824
+    },
+    "interleaved": false,
+    "caveat": "Exact controls interleaved per repetition. W4/hot1 main costs are separately scheduled fresh-service controls at the same offered rate; failed traffic has different ACK throughput, and refusal/expiry work stays in the CPU/WAL numerator; no intrinsic successful-write efficiency claim for failing cohorts. CPU measured-window interpolation and whole-cohort WAL divisors differ."
+  },
+  {
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "systems": {
+      "r8": {
+        "repetitions": 5,
+        "passes": 5,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.47109440931111785,
+            "min": 0.45904784907357393,
+            "max": 0.47585864880613266
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.5199457565320614,
+            "min": 0.5175075377579701,
+            "max": 0.523161920247335
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.1911641813388631,
+            "min": 0.1884196218481799,
+            "max": 0.191504769666844
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 1166.7116816355472,
+            "min": 798.928216944346,
+            "max": 1290.4431213804514
+          },
+          "syncs_per_all_ack": {
+            "median": 0.21581777357598678,
+            "min": 0.2137138467901563,
+            "max": 0.21752488995243582
+          }
+        }
+      },
+      "main": {
+        "repetitions": 5,
+        "passes": 5,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.47344435805843166,
+            "min": 0.4666442611098107,
+            "max": 0.4797565145632226
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.4897594767111534,
+            "min": 0.4855356990445462,
+            "max": 0.49159485156837057
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.19119167330858333,
+            "min": 0.18818543170287594,
+            "max": 0.19341825845474309
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 548.0363395225464,
+            "min": 543.4939876215739,
+            "max": 593.5442970822281
+          },
+          "syncs_per_all_ack": {
+            "median": 0.22139699381078692,
+            "min": 0.215148835838491,
+            "max": 0.22387267904509284
+          }
+        }
+      }
+    },
+    "r8_over_main_ratios": {
+      "pg_cpu_ms_per_measured_ack": 0.9950364837867097,
+      "server_cpu_ms_per_measured_ack": 1.0616349070437918,
+      "proxy_cpu_ms_per_measured_ack": 0.9998562072853672,
+      "wal_bytes_per_all_ack": 2.128894742001955,
+      "syncs_per_all_ack": 0.9747999277733268
+    },
+    "interleaved": true,
+    "caveat": "Exact controls interleaved per repetition. W4/hot1 main costs are separately scheduled fresh-service controls at the same offered rate; failed traffic has different ACK throughput, and refusal/expiry work stays in the CPU/WAL numerator; no intrinsic successful-write efficiency claim for failing cohorts. CPU measured-window interpolation and whole-cohort WAL divisors differ."
+  },
+  {
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "systems": {
+      "r8": {
+        "repetitions": 5,
+        "passes": 5,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.3949397528608354,
+            "min": 0.39268728451319507,
+            "max": 0.40440127182432944
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.4992856423361492,
+            "min": 0.4894220790392215,
+            "max": 0.5020425128090062
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.15617824414144346,
+            "min": 0.15512326143136548,
+            "max": 0.15872656024738227
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 779.2605615091666,
+            "min": 663.7751601570573,
+            "max": 892.7174388370169
+          },
+          "syncs_per_all_ack": {
+            "median": 0.17719127328550763,
+            "min": 0.17474293818697553,
+            "max": 0.17775219201133646
+          }
+        }
+      },
+      "main": {
+        "repetitions": 5,
+        "passes": 5,
+        "resources": {
+          "pg_cpu_ms_per_measured_ack": {
+            "median": 0.3917850764621213,
+            "min": 0.38975478544045206,
+            "max": 0.4034782864025502
+          },
+          "server_cpu_ms_per_measured_ack": {
+            "median": 0.4698429397344274,
+            "min": 0.45962572982744676,
+            "max": 0.47388435213904945
+          },
+          "proxy_cpu_ms_per_measured_ack": {
+            "median": 0.15673818518513147,
+            "min": 0.15569315859696717,
+            "max": 0.15753056297105505
+          },
+          "wal_bytes_per_all_ack": {
+            "median": 536.0649572649572,
+            "min": 525.1675213675213,
+            "max": 541.6642499263189
+          },
+          "syncs_per_all_ack": {
+            "median": 0.18155025051576776,
+            "min": 0.17945770704391395,
+            "max": 0.1816386678455644
+          }
+        }
+      }
+    },
+    "r8_over_main_ratios": {
+      "pg_cpu_ms_per_measured_ack": 1.0080520586113215,
+      "server_cpu_ms_per_measured_ack": 1.0626649888968511,
+      "proxy_cpu_ms_per_measured_ack": 0.9964275390644173,
+      "wal_bytes_per_all_ack": 1.4536681626887367,
+      "syncs_per_all_ack": 0.9759902439248821
+    },
+    "interleaved": true,
+    "caveat": "Exact controls interleaved per repetition. W4/hot1 main costs are separately scheduled fresh-service controls at the same offered rate; failed traffic has different ACK throughput, and refusal/expiry work stays in the CPU/WAL numerator; no intrinsic successful-write efficiency claim for failing cohorts. CPU measured-window interpolation and whole-cohort WAL divisors differ."
+  }
+]

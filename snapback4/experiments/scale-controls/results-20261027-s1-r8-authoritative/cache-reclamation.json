@@ -1,0 +1,14 @@
+{
+  "start": 1793140533.7428343,
+  "end": 1793140534.8502848,
+  "scope": "only unused compilation cache in the reused own R0/R8 target, after saving and verifying independent R8/main binaries; no running measured service or target executable",
+  "before_free_bytes": 30040539136,
+  "after_free_bytes": 31086284800,
+  "removed": [
+    "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b/release/deps",
+    "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b/release/build"
+  ],
+  "binary_hashes_verified": true,
+  "measured_services_live": [],
+  "profile_lock_held": true
+}
