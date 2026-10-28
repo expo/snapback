@@ -199,3 +199,15 @@ a win. Both drafts become explicit choices: --proof-draft (compact, once),
 --proof-scaffold (exhaustive). Default remains app-owned assertions plus verify.
 No auto-rewiring application package scripts and no same-code reroll. Six new
 fallback after sessions reuse fixed draws and twelve completed before controls.
+
+Fallback source: de211888be plus guide-contract test 5f29c81549. Scaffold CLI
+integration 14/14 passed. Fresh Muse round 3 and Codex round 5 return READY
+from the same restricted snapshot, preserved verbatim. A misleading consumer
+comment was clarified after Muse's non-material nit, without behavior changes.
+
+The second compact-default consumer run executed every installed proof
+successfully, but its final source-stability guard rejected the receipt because
+I committed the fallback while it ran. This was an avoidable sequencing mistake;
+it is NOT a successful qualification claim. Preserve proofs.json, per-proof
+receipts and log. The final fallback qualification must run with the checkout
+frozen: no commits or tracked/untracked repository edits until its receipt.

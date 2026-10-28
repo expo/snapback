@@ -1,0 +1,114 @@
+[
+  {
+    "path": "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md",
+    "sha256": "9c2f47a55f7c2926ffcc8022f549a9b96b2909500e6ca2346f8511fa0b27030c"
+  },
+  {
+    "path": "llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md",
+    "sha256": "93bd056c391cec12f0ef2abc2a53d1d99312743ef2d4b69061f830f9832dfb8b"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/start.md",
+    "sha256": "0338bc5c3cb5840dba4c5e1f2db1dd2f7334660d9f5eac50732c2233f520531b"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/workflow.md",
+    "sha256": "b3ee95dad45d1228ddf23ed9125e07a0488a65d97ed230a520fc6503f4b11d66"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/published.rs",
+    "sha256": "01fe5ac989c288ba93f1347cc51f3487d07120199abc1a91e8b039798120551c"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/start.rs",
+    "sha256": "bbbd1e82564d47b9b451432f7d17c68eaddf40f58bfe875e2b5a3d53d1bc4bba"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/cli_flags.rs",
+    "sha256": "f2c6f24e3569df9840ea0b4ad784617b24280d8ac69b1b4462f445036704701d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold.rs",
+    "sha256": "df10fa3d9354752e92561741e59d054034193d81e154a6fd29b622b67e6596e5"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/README.md",
+    "sha256": "1cc15d1314add3c91ecb3129751b00daca331c8d10212f2f4cf26accb89afb12"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/acceptance.mjs",
+    "sha256": "b37a6bca497c47e18f06a690a24fc13dfd5d041002cd795bf2a8bd56dcb2af9d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/cases.mjs",
+    "sha256": "e12dac03c60e1515d8c5d6e8b8e3e7a59b66619555804f70f361461105c7fd9a"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/compact.rs",
+    "sha256": "941729a62ce24748726762d2808d08c55d6245403c026aee8c2572653ec014ac"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/draft-acceptance.mjs",
+    "sha256": "94d8136c1bac75b71ad2085e40d7e15c5ccb576518b0b2095af7267c28c6b35b"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/draft-cases.mjs",
+    "sha256": "a8358b71679023e6cfd6656b661162e13e81d432c119a126730b430550982c96"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/frontend-proof.mjs",
+    "sha256": "e158c8fee22813e42480eb6e55918a06f97782b35e17b3024d20425a1280a6e3"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/host.mjs",
+    "sha256": "61d367f443cee20e4212db0fc8d9590fae9383658e12d2c3c80b357ccdc1e9f5"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/infer.rs",
+    "sha256": "774eac2d06e8e586092ea079635870b0bee9baa6093d8cb0f2a7d1856bb41b63"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/probe-serve.mjs",
+    "sha256": "632a2f8c6b34c8a0c9a811016f3541cbffece72c104e8b815667d64fc58afabc"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/schema-facts.mjs.inc",
+    "sha256": "f71ea8c908e1b5ce2c80485bf6cf282180e64358ce6dd68bb4764c53fb8338c1"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verb_help.rs",
+    "sha256": "6888bd3fded68eb90ca8f2cf5acb99f63a73229325172c527509df1769313779"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs.rs",
+    "sha256": "dcd61cbed1ec38a0aecc0bb8ba80ad9edb16135e916286f68917603abae01b93"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init.rs",
+    "sha256": "7ced4ff7769d66dd256ab79cd11df297bf2c74dab71253ff4931545a71d7478b"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/proof.rs",
+    "sha256": "e31957248d62aaea4f1daf5584433d06196a6b88e1d632f2496a684fb8806871"
+  },
+  {
+    "path": "snapback4/crates/snapback4/tests/scaf1.rs",
+    "sha256": "dac4ac544ee4885105c515503ce9d8562b51eaca7921042fef84442829af065a"
+  },
+  {
+    "path": "snapback4/packages/snapback4/bin/cli-commands.json",
+    "sha256": "b95b3e02aca4159d5dc9b2298491f420992fb653e2a29506863c99233757afb0"
+  },
+  {
+    "path": "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "sha256": "6b810664a9977abe66194594f085b7f1d850171b3bb55faf49494fd1233748a7"
+  },
+  {
+    "path": "snapback4/scripts/publication-production.mjs",
+    "sha256": "728107ff0e672431174312d5b2b9ec0ef524222d36f9f2ba1e056669fdbbb37f"
+  },
+  {
+    "path": "snapback4/scripts/publication-scaf1.mjs",
+    "sha256": "2d647a1e23470d4a65a5d987ea05671ddee1d30b0eed2baace94da2ce6938e98"
+  }
+]

@@ -89,7 +89,7 @@ export function proveProductionAdaptation(cli, cwd, env, { original } = {}) {
   }
   if (writers.length) assert.match(schema, /require viewer = 'service:ops' else NOT_OPERATOR/);
   capture(cli, ["check"], cwd, env, join(cwd, "production-check.log"));
-  // @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — green check creates a compact draft once; apply preserves it.
+  // @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — check preserves private bytes; explicitly requested drafts have exact output paths.
   const checked = privateSnapshot(cwd), priorPaths = new Set(after.map(([path]) => path));
   const packetPaths = new Set([".generated-hashes.json", "acceptance.mjs", "cases.mjs", "frontend-proof.mjs", "host.mjs", "probe-serve.mjs", "README.md", "schema.json"].map(name => join("scripts", "proof-scaffold", name)));
   for (const name of ["cases.mjs", "host.mjs", "acceptance.mjs"]) packetPaths.add(join("scripts", "proof-draft", name));
