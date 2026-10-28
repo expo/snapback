@@ -171,3 +171,11 @@ Guide checks: the first compact pass was 134/135 because the installed-path
 guard did not yet recognize generated proof-draft outputs. Registered exact
 application filenames (no directory-prefix exemption); rerun 135/135 passed.
 No shipped runtime change was needed for that test correction.
+
+Compact frozen package source: 773f3dfd1f (.48), native SHA-256
+f7c878e89bc917ce8d43c365f7ed2f1d2d6e36b84aa5520c261ff0b4d9aefd03.
+Packed scaffold consumer passed: compact <=8KB syntax, real-account positive
+business assertion and exact refusal, empty/unfilled negatives, unchanged bytes;
+full exhaustive positives/negatives and Chromium proof also passed. Full
+consumer-only qualification is running on these client/expo bytes. Six compact
+whole-session after draws started only after this direct packed control passed.

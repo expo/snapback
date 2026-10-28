@@ -10,7 +10,7 @@ for p in sorted(root.glob('*-captured.json')):
 (root/'measurements.json').write_text(json.dumps(rows,indent=2))
 for model in ['muse','codex']:
  rr=[r for r in rows if r['model']==model];print(model)
- for phase in ['v46','v47','branch']:
+ for phase in ['v46','v47','branch','compact']:
   rs=[r for r in rr if r['phase']==phase];print(phase,len(rs),'calls',[r['calls']for r in rs],'input',[r['input']for r in rs])
  for idea in sorted({r['idea']for r in rr}):
   rs={r['phase']:r for r in rr if r['idea']==idea};print(idea,' | '.join(f"{p}: {r['calls']} calls {r['input']/1e6:.3f}M {r['wallMinutes']:.1f}min"for p,r in rs.items()))

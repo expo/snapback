@@ -13,6 +13,7 @@ for(const f of readdirSync(evidence).filter(f=>f.endsWith('-result.json'))){
  const scenario=join(dir,'scripts/proof-scaffold/cases.mjs');
  const packageData=existsSync(join(dir,'package.json'))?JSON.parse(readFileSync(join(dir,'package.json'))):{};
  const proofRoute={packetCreated:existsSync(scenario),casesBytes:existsSync(scenario)?statSync(scenario).size:0,acceptanceUsesScaffold:String(packageData.scripts?.acceptance??'').includes('proof-scaffold'),frontendUsesScaffold:String(packageData.scripts?.['frontend:proof']??'').includes('proof-scaffold')};
+ const compactPath=join(dir,'scripts/proof-draft/cases.mjs'); proofRoute.compactCreated=existsSync(compactPath); proofRoute.compactCasesBytes=existsSync(compactPath)?statSync(compactPath).size:0; proofRoute.acceptanceUsesCompact=String(packageData.scripts?.acceptance??'').includes('proof-draft');
  const installed={version:existsSync(pkg)?JSON.parse(readFileSync(pkg)).version:null,binarySha256:existsSync(binary)?sha(binary):null};
  const clientPack=join(evidence,'packs',key.split('-')[0],`snapback4-${launch.version}.tgz`);
  const lock=JSON.parse(readFileSync(join(dir,'package-lock.json')));
@@ -20,7 +21,7 @@ for(const f of readdirSync(evidence).filter(f=>f.endsWith('-result.json'))){
  installed.clientFiles=JSON.parse(execFileSync('python3',['/tmp/muse1-evidence/verify-installed.py',dir,clientPack],{encoding:'utf8'}));
  const clientIntegrity='sha512-'+createHash('sha512').update(readFileSync(clientPack)).digest('base64');
  if(installed.clientIntegrity!==clientIntegrity)throw Error('client integrity mismatch '+key);
- const expected=launch.version==='0.4.46'?'43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd':launch.version==='0.4.47'&&launch.a.snapbackVersion==='0.4.47'&&key.startsWith('v47')?'543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea':JSON.parse(readFileSync(join(evidence,'packs/branch/manifest.json'))).binarySha256;
+ const expected=launch.version==='0.4.46'?'43808c530492ea209c7a249c0f9dead1a3100dd2c89c4fcd0027ec011bc0b3cd':launch.version==='0.4.47'&&launch.a.snapbackVersion==='0.4.47'&&key.startsWith('v47')?'543d96b740dc9f449c231128e46dca49006b6c589d75b04f04407828a89b21ea':JSON.parse(readFileSync(join(evidence,'packs',key.split('-')[0],'manifest.json'))).binarySha256;
  if(installed.version!==launch.version||installed.binarySha256!==expected)throw Error('installed pin mismatch '+key+JSON.stringify(installed));
  const to=join(evidence,'lanes',key);mkdirSync(to,{recursive:true,mode:0o700});
  cpSync(join(dir,'.harness'),join(to,'.harness'),{recursive:true});
