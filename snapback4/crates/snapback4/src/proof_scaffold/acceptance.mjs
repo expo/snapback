@@ -17,6 +17,7 @@ export function validate() {
   for (const t of schema.lifetimes) for (const field of [t.expire,t.notBefore].filter(Boolean)) {
     if (!timeCases.some(c => c.table === t.table && c.field === field && typeof c.advance === 'string' && typeof c.assert === 'function')) missing.push(`${t.table}.${field}: clock case`);
   }
+  for(const s of schema.schedules) if(!timeCases.some(c=>c.schedule===s.name && typeof c.advance==='string' && typeof c.assert==='function')) missing.push(`${s.name}: schedule clock case`);
   assert.equal(missing.length, 0, `E_PROOF_SCENARIO: fill/tighten cases.mjs (${missing.length} missing): ${missing.slice(0,12).join(', ')}`);
 }
 validate(); // Refuse incomplete proofs before creating users or deploying anything.
@@ -37,6 +38,6 @@ try {
     }
     if(c.assert) await c.assert(result, ctx, account, args);
   }
-  for(const c of timeCases) { if(c.before) await c.before(ctx); await ctx.host.advance(c.advance); await c.assert(ctx); }
+  for(const c of timeCases) { if(c.before) await c.before(ctx); const report=await ctx.host.advance(c.advance); await c.assert(ctx, report); }
   console.log(`acceptance: ${cases.length} operation/role/guard cases and ${timeCases.length} clock cases passed`);
 } finally { await ctx.stop(); }

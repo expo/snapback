@@ -25,36 +25,54 @@ impl Roster {
             (role_arg.into(), Value::String(role.into())),
         ]);
         for stmt in &program.body {
-            if let Stmt::Let { name, value } = stmt {
+            if let Stmt::Let { name, value } | Stmt::Const { name, value } = stmt {
                 if let Some(v) = eval(value, &env, None, schema) {
                     env.insert(name.clone(), v);
                 }
             }
             let write = match stmt {
-                Stmt::Upsert {
-                    table,
-                    row: Expr::Object(fields),
-                    ..
-                }
-                | Stmt::Insert {
-                    table,
-                    row: Expr::Object(fields),
-                } => Some((table, fields)),
+                Stmt::Upsert { table, row, .. } | Stmt::Insert { table, row } => Some((table, row)),
                 Stmt::WriteTarget {
                     target,
-                    patch: Expr::Object(fields),
+                    patch,
                     upsert: true,
                     condition: None,
                     ..
-                } => Some((&target.table, fields)),
+                } => Some((&target.table, patch)),
                 _ => None,
             };
-            if let Some((table, fields)) = write {
+            if let Some((table, expression)) = write {
+                let Some(Value::Row(fields)) = eval(expression, &env, None, schema) else {
+                    continue;
+                };
                 let mut row = fields
                     .iter()
-                    .filter_map(|(n, v)| eval(v, &env, None, schema).map(|v| (n.clone(), v)))
+                    .map(|(n, v)| (n.clone(), v.clone()))
                     .collect::<Env>();
-                for (n, default) in &schema.table(table)?.defaults {
+                let target = schema.table(table)?;
+                let principal_columns = row
+                    .iter()
+                    .filter_map(|(name, value)| {
+                        (value == &Value::String(VIEWER.into())
+                            && matches!(
+                                target.columns.get(name),
+                                Some(snapback4_core::schema::ColumnType::Principal)
+                            ))
+                        .then_some(name)
+                    })
+                    .collect::<Vec<_>>();
+                let direct_role = row.iter().any(|(name,value)| value==&Value::String(role.into()) && matches!((target.columns.get(name),program.args.get(role_arg)),(Some(snapback4_core::schema::ColumnType::Enum{variants:a}),Some(snapback4_core::ir::ArgType::Enum{variants:b})) if a==b));
+                if !direct_role
+                    || !principal_columns.iter().any(|name| {
+                        target
+                            .indexes
+                            .values()
+                            .any(|i| i.unique && i.columns() == [(*name).clone()])
+                    })
+                {
+                    continue;
+                }
+                for (n, default) in &target.defaults {
                     if let ColumnDefault::Literal(v) = default {
                         row.entry(n.clone()).or_insert(v.clone());
                     }
@@ -111,6 +129,12 @@ fn get(read: &Read, env: &Env, roster: Option<&Roster>, schema: &Schema) -> Opti
 }
 fn eval(expr: &Expr, env: &Env, roster: Option<&Roster>, schema: &Schema) -> Option<Value> {
     match expr {
+        Expr::Object(fields) => Some(snapback4_core::value::object(
+            fields
+                .iter()
+                .map(|(k, v)| Some((k.clone(), eval(v, env, roster, schema)?)))
+                .collect::<Option<Vec<_>>>()?,
+        )),
         Expr::Literal(v) => Some(v.clone()),
         Expr::Variable(n) => env.get(n).cloned(),
         Expr::Input(Input::Viewer) => Some(Value::String(VIEWER.into())),
@@ -151,7 +175,7 @@ pub(super) fn refusal(
     let mut env = Env::new();
     for stmt in &program.body {
         match stmt {
-            Stmt::Let { name, value } => {
+            Stmt::Let { name, value } | Stmt::Const { name, value } => {
                 env.insert(name.clone(), eval(value, &env, roster, schema)?);
             }
             Stmt::Require {

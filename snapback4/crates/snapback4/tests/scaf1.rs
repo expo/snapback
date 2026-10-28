@@ -180,3 +180,44 @@ fn role_guards_refusals_uploads_clock_and_approval_are_bound_to_the_schema() {
         .unwrap();
     assert!(case.contains("code: \"NOT_MEMBER\""), "{case}");
 }
+
+#[test]
+fn insert_provisioning_and_business_enums_keep_distinct_meanings() {
+    let p = Project::new("insert-roles");
+    fs::write(
+        p.0.join("snapback/schema.q"),
+        SOURCE.replace(
+            "return upsert roles[principal] { principal, role }",
+            "return insert roles { principal, role }",
+        ),
+    )
+    .unwrap();
+    assert!(p.check().status.success());
+    let text = fs::read_to_string(p.file("cases.mjs")).unwrap();
+    assert!(
+        text.contains("\"admin\":2") && text.contains("\"member\":2"),
+        "{text}"
+    );
+    let p = Project::new("business-enum");
+    fs::write(p.0.join("snapback/schema.q"),"use identity password\ntable items:\n  principal: principal\n  status: enum('draft','published')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  online only\nmutation setStatus(principal: principal, status: enum('draft','published')):\n  return upsert items[principal] {principal,status}\n").unwrap();
+    assert!(p.check().status.success());
+    let facts: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(p.file("schema.json")).unwrap()).unwrap();
+    assert_eq!(facts["roles"], serde_json::json!(["users"]));
+    assert!(
+        fs::read_to_string(p.file("cases.mjs"))
+            .unwrap()
+            .contains("accountPlan = { users: 2 }")
+    );
+}
+#[cfg(unix)]
+#[test]
+fn dangling_manifest_symlink_is_not_created_or_followed() {
+    use std::os::unix::fs::symlink;
+    let p = Project::new("dangling-manifest");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    fs::create_dir_all(p.file("")).unwrap();
+    symlink(p.0.join("must-not-exist"), p.file(".generated-hashes.json")).unwrap();
+    assert!(p.check().status.success());
+    assert!(!p.0.join("must-not-exist").exists());
+}

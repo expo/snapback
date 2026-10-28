@@ -160,7 +160,9 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
                     }
                 })
                 .collect::<Vec<_>>();
+            let service_guard=p.program.body.iter().any(|stmt| if let Stmt::Require{condition:Expr::Binary{op:snapback4_core::ir::BinaryOp::Eq,left,right},..}=stmt { matches!((&**left,&**right),(Expr::Input(Input::Viewer),Expr::Literal(snapback4_core::Value::Id(s)))|(Expr::Literal(snapback4_core::Value::Id(s)),Expr::Input(Input::Viewer)) if s.starts_with("service:")) }else{false});
             (principal.len() == 1
+                && (p.program.name=="provision" || service_guard)
                 && roles.len() == 1
                 && roles[0].1.len() <= 48
                 && infer::Roster::from(
@@ -181,7 +183,22 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         .or_else(|| (candidates.len() == 1).then(|| &candidates[0]));
     let mut roles = provision
         .map(|(_, _, _, v)| (*v).clone())
-        .unwrap_or_default();
+        .unwrap_or_else(|| {
+            bound
+                .schema
+                .visible_tables()
+                .filter_map(|(_, t)| {
+                    if let Some(ColumnType::Enum { variants }) = t.columns.get("role") {
+                        Some(variants.clone())
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+                .collect()
+        });
+    roles.sort();
+    roles.dedup();
     if !roles.iter().any(|r| r == "users") {
         roles.push("users".into());
     }
@@ -247,7 +264,21 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             }
         )
     } else {
-        "{ users: 2 }".into()
+        if roles.len() == 1 && roles[0] == "users" {
+            "{ users: 2 }".into()
+        } else {
+            format!(
+                "{{ roles: {}, users: 2, provision: null /* TODO: explicit role provisioning handle and args(account) */ }}",
+                serde_json::to_string(
+                    &roles
+                        .iter()
+                        .filter(|r| r.as_str() != "users")
+                        .map(|r| (r, 2))
+                        .collect::<BTreeMap<_, _>>()
+                )
+                .unwrap()
+            )
+        }
     };
     let mut facts = Vec::new();
     let mut cases = String::new();
@@ -284,8 +315,11 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         .filter(|(_, t)| t.expire.is_some() || t.not_before.is_some())
         .map(|(n, t)| json!({"table":n,"expire":t.expire,"notBefore":t.not_before}))
         .collect::<Vec<_>>();
-    let schema = json!({"roles":roles,"operations":facts,"uploads":uploads,"lifetimes":lifetimes,"password":bound.schema.auth.password});
-    let time_cases=lifetimes.iter().flat_map(|t|["expire","notBefore"].into_iter().filter_map(move |k|t[k].as_str().map(|field|format!("  {{ table: {}, field: {}, advance: null, assert: null }}, // TODO: before/after {}; use host.advance, then authorized reads",t["table"],quoted(field),field)))).collect::<Vec<_>>().join("\n");
+    let schema = json!({"roles":roles,"operations":facts,"uploads":uploads,"lifetimes":lifetimes,"schedules":bound.schema.schedules,"password":bound.schema.auth.password});
+    let mut time_cases=lifetimes.iter().flat_map(|t|["expire","notBefore"].into_iter().filter_map(move |k|t[k].as_str().map(|field|format!("  {{ table: {}, field: {}, advance: null, assert: null }}, // TODO: before/after {}; use host.advance, then authorized reads",t["table"],quoted(field),field)))).collect::<Vec<_>>().join("\n");
+    for schedule in &bound.schema.schedules {
+        time_cases.push_str(&format!("\n  {{ schedule: {}, advance: {}, assert: null }}, // TODO: assert job/action results and fired report; choose a fresh boundary", quoted(&schedule.name), quoted(&format!("{}ms",if schedule.months>0 { 32*86400000_u64*schedule.months as u64 }else{schedule.every_ms}))));
+    }
     let cases = include_str!("proof_scaffold/cases.mjs")
         .replace("ACCOUNT_PLAN", &plan)
         .replace("OPERATION_CASES", &cases)
@@ -334,7 +368,19 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
     let mut hashes = old.clone();
     let mut written = Vec::new();
     let mut kept = Vec::new();
-    for (name, text) in files(bound) {
+    let packet = files(bound);
+    hashes.insert(
+        "$current-schema".into(),
+        hash(
+            packet
+                .iter()
+                .find(|(name, _)| *name == "schema.json")
+                .unwrap()
+                .1
+                .as_bytes(),
+        ),
+    );
+    for (name, text) in packet {
         let path = dir.join(name);
         let regular = regular(&path)?;
         let current = if regular {
@@ -369,7 +415,11 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
         hashes.insert(name.into(), hash(text.as_bytes()));
         written.push(name);
     }
-    if hashes != old && (!manifest.exists() || regular(&manifest)?) {
+    if hashes != old
+        && (std::fs::symlink_metadata(&manifest)
+            .is_err_and(|e| e.kind() == io::ErrorKind::NotFound)
+            || regular(&manifest)?)
+    {
         std::fs::write(&manifest, serde_json::to_vec_pretty(&hashes)?)?;
     }
     if written.is_empty() && kept.is_empty() {

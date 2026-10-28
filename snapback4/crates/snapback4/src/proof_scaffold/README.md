@@ -9,6 +9,8 @@ check writes this packet only after success and updates only untouched files
 by SHA-256. Edited files and existing collisions stay yours. To regenerate one
 file deliberately, save your work and delete that file, then check again.
 New operation/role/guard coverage is checked against schema.json at execution.
+The check manifest binds those facts to the current schema; edited/stale facts
+refuse explicitly. Save and delete schema.json, then check to refresh them.
 
 Fill each null args/expected/assert. Success cases require a business assertion;
 refusal cases already assert exact codes. Set query expectations to
