@@ -801,7 +801,7 @@ fn starter_gitignore(text: &str) -> String {
 }
 
 
-// @ref LLP 3000.037.000#9 — init owns one blocking, quiet install; tool cleanup cannot reclaim an unjoined child.
+// @ref LLP 3000.037.000#13-wave-34-refusal-and-install-calls-calls1 — init owns one blocking, quiet install; tool cleanup cannot reclaim an unjoined child.
 fn install_frontend(dir: &Path) -> std::io::Result<i32> {
     println!("init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log");
     let status = std::process::Command::new("node").arg("scripts/install.mjs").current_dir(dir).status()?;

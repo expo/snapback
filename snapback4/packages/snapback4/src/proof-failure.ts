@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#9 — retain assertions and distinguish exact refusal identity from nearest context.
+// @ref LLP 3000.037.000#13-wave-34-refusal-and-install-calls-calls1 — retain assertions and distinguish exact refusal identity from nearest context.
 import { openSync, closeSync, readSync, fstatSync } from 'node:fs';
 import { enableProofObservation, proofEvents, refusalObservation, type RefusalObservation } from './proof-observation.ts';
 const servers = new Set<string>();

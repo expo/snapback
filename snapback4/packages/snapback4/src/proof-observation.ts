@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#9 — bounded refusal labels; conflicting object reuse never establishes request identity.
+// @ref LLP 3000.037.000#13-wave-34-refusal-and-install-calls-calls1 — bounded refusal labels; conflicting object reuse never establishes request identity.
 // Shared with browser bundles; inactive outside proof runs. Never retains
 // arguments, tokens, row data, messages or response bodies.
 export interface RefusalObservation { operation: string; role: string; code: string; field: string }

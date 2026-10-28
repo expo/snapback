@@ -21,7 +21,7 @@ pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
     templates().iter().find(|t| t.file == "native" && t.sha256 == hash)
         .map(|t| (t.version.as_str(), t.template.as_deref() == Some("password")))
 }
-// @ref LLP 3000.037.000#10 — strip only the exact shipped inert lines. CR and
+// @ref LLP 3000.037.000#11-wave-34-day-one-reading-after-start-tok3 — strip only the exact shipped inert lines. CR and
 // Unicode JS line separators must never hide executable application-owned bytes.
 fn without_edit_regions(text: &str) -> String {
     const MARKERS: &[&str] = &[
