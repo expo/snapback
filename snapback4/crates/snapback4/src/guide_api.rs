@@ -2,6 +2,12 @@
 // @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — on-demand module shapes replace d.ts greps.
 pub fn render(module: &str, full: bool) -> Result<String, String> {
     match module {
+        "app" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_app_full.md").into()),
+        "app" => Ok(include_str!("../../snapback4-lang/src/guide/api_app.md").into()),
+        "witness" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_witness_full.md").into()),
+        "witness" => Ok(include_str!("../../snapback4-lang/src/guide/api_witness.md").into()),
+        "react" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_react_full.md").into()),
+        "react" => Ok(include_str!("../../snapback4-lang/src/guide/api_react.md").into()),
         "proof" if full => Ok(include_str!("../../snapback4-lang/src/guide/proof_api_reference.md").into()),
         "proof" => Ok(include_str!("../../snapback4-lang/src/guide/api_proof.md").into()),
         "client" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_client_full.md").into()),
@@ -16,6 +22,6 @@ pub fn render(module: &str, full: bool) -> Result<String, String> {
             if !index.contains("Operation index") { return Err("guide api generated: regenerate api.ts with snapback4 check".into()); }
             Ok(format!("# Your checked API\n\n{index}\n\nImport api from ./snapback/generated/api.ts. Use api.<operation> with its named argument object. Full ArgsOf/ResultOf and row types live below that file's index.\n"))
         }
-        _ => Err("usage: snapback4 guide api <proof|client|auth|generated>".into()),
+        _ => Err("usage: snapback4 guide api <app|react|proof|client|auth|witness|generated>".into()),
     }
 }

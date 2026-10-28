@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — npm death can leave its shell (and inherited pipes) alive.
+// @ref LLP 3000.037.000#10-serve-lifetime-and-store-recovery-srv1 — npm death can leave its shell (and inherited pipes) alive.
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 

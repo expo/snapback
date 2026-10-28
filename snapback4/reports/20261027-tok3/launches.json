@@ -1,0 +1,222 @@
+[
+  {
+    "phase": "clean-after",
+    "lane": "019-snapback-child-talent-bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "cmd": "/home/ccheever/sb4-loop/muse-exec.sh",
+    "args": [
+      "--yolo",
+      "--json",
+      "--model",
+      "muse-spark-1.3-contributor",
+      "--reasoning-effort",
+      "high",
+      "--prompt-file",
+      "/tmp/tok3-replay/clean-after/019-snapback-child-talent-bookings/BRIEF.md"
+    ],
+    "started": "2026-10-28T00:15:44.621Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 1134587,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "model": "codex",
+    "frontend": "expo",
+    "cmd": "/home/ccheever/.local/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6.1-sol",
+      "-c",
+      "model_reasoning_effort=high",
+      "-C",
+      "/tmp/tok3-replay/clean-before/001-snapback-cpap-equipment-setups",
+      "-o",
+      "/tmp/tok3-replay/clean-before/001-snapback-cpap-equipment-setups/.agent-final.md",
+      "-"
+    ],
+    "started": "2026-10-27T23:49:04.277Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 572985,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "model": "muse",
+    "frontend": "react",
+    "cmd": "/home/ccheever/sb4-loop/muse-exec.sh",
+    "args": [
+      "--yolo",
+      "--json",
+      "--model",
+      "muse-spark-1.3-contributor",
+      "--reasoning-effort",
+      "high",
+      "--prompt-file",
+      "/tmp/tok3-replay/clean-before/018-snapback-horse-trailer-rentals/BRIEF.md"
+    ],
+    "started": "2026-10-28T00:01:18.146Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 1356950,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "model": "muse",
+    "frontend": "react",
+    "cmd": "/home/ccheever/sb4-loop/muse-exec.sh",
+    "args": [
+      "--yolo",
+      "--json",
+      "--model",
+      "muse-spark-1.3-contributor",
+      "--reasoning-effort",
+      "high",
+      "--prompt-file",
+      "/tmp/tok3-replay/clean-after/018-snapback-horse-trailer-rentals/BRIEF.md"
+    ],
+    "started": "2026-10-28T00:15:44.630Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 1783453,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "model": "codex",
+    "frontend": "react",
+    "cmd": "/home/ccheever/.local/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6.1-sol",
+      "-c",
+      "model_reasoning_effort=high",
+      "-C",
+      "/tmp/tok3-replay/clean-after/039-snapback-boat-shrink-wrapping",
+      "-o",
+      "/tmp/tok3-replay/clean-after/039-snapback-boat-shrink-wrapping/.agent-final.md",
+      "-"
+    ],
+    "started": "2026-10-28T00:07:01.009Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 511051,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "019-snapback-child-talent-bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "cmd": "/home/ccheever/sb4-loop/muse-exec.sh",
+    "args": [
+      "--yolo",
+      "--json",
+      "--model",
+      "muse-spark-1.3-contributor",
+      "--reasoning-effort",
+      "high",
+      "--prompt-file",
+      "/tmp/tok3-replay/clean-before/019-snapback-child-talent-bookings/BRIEF.md"
+    ],
+    "started": "2026-10-27T23:58:37.264Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 2128219,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-after",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "model": "codex",
+    "frontend": "expo",
+    "cmd": "/home/ccheever/.local/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6.1-sol",
+      "-c",
+      "model_reasoning_effort=high",
+      "-C",
+      "/tmp/tok3-replay/clean-after/001-snapback-cpap-equipment-setups",
+      "-o",
+      "/tmp/tok3-replay/clean-after/001-snapback-cpap-equipment-setups/.agent-final.md",
+      "-"
+    ],
+    "started": "2026-10-28T00:04:32.066Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 591125,
+      "report": true
+    }
+  },
+  {
+    "phase": "clean-before",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "model": "codex",
+    "frontend": "react",
+    "cmd": "/home/ccheever/.local/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6.1-sol",
+      "-c",
+      "model_reasoning_effort=high",
+      "-C",
+      "/tmp/tok3-replay/clean-before/039-snapback-boat-shrink-wrapping",
+      "-o",
+      "/tmp/tok3-replay/clean-before/039-snapback-boat-shrink-wrapping/.agent-final.md",
+      "-"
+    ],
+    "started": "2026-10-27T23:49:04.282Z",
+    "initialPackageInstalled": false,
+    "result": {
+      "status": 0,
+      "wallMs": 733863,
+      "report": true
+    }
+  }
+]

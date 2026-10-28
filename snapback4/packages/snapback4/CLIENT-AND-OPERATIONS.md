@@ -1,5 +1,8 @@
 # Client and operations
 
+Reference for client lifecycle, offline behavior or the account/avatar walkthrough. Building an app: run `snapback4 guide start`
+then `snapback4 guide workflow`; this file is outside that reading path.
+
 [Back to the package guide](./README.md).
 
 `usePage(op, args)` returns `items`, `hasMore`, `loadMore`, `read`, `loading`

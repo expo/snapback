@@ -141,7 +141,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
         // may include app diagnostics or credentials and remains withheld.
         const holder=/owned by ([^;\n]+)/.exec(lock.stderr)?.[1];
         const legacyHolder=holder?.match(/^(?:https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
-        // @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — PID and address are separate bounded fields.
+        // @ref LLP 3000.037.000#10-serve-lifetime-and-store-recovery-srv1 — PID and address are separate bounded fields.
         // Render only bounded PID/literal address shapes, never raw diagnostics.
         const holderPid=holder?.match(/^pid ([1-9]\d{0,9}),/)?.[1];
         const holderAddress=/; address (https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d{1,5});/.exec(lock.stderr)?.[1];

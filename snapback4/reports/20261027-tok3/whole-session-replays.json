@@ -1,0 +1,6613 @@
+[
+  {
+    "phase": "clean-after",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "model": "codex",
+    "frontend": "expo",
+    "calls": 33,
+    "input": 1631247,
+    "cachedInput": 1559296,
+    "uncachedInput": 71951,
+    "output": 28148,
+    "wallMs": 591125,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 9,
+    "reads": {
+      "guide": 15,
+      "guideAfterSchema": 13,
+      "guideCards": 9,
+      "guideApi": 6,
+      "guideCardsAfterSchema": 7,
+      "guideApiAfterSchema": 6,
+      "declarations": 0,
+      "readme": 1,
+      "serverReference": 0,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 8,
+        "command": "node --version && npx snapback4 guide start && npx snapback4 guide workflow"
+      },
+      {
+        "call": 13,
+        "command": "cat App.tsx && cat src/client.ts && cat src/shared.ts && cat src/UploadPicker.tsx && cat tsconfig.json && npx snapback4 guide api proof && npx snapback4 guide api generated"
+      },
+      {
+        "call": 14,
+        "command": "npx snapback4 guide staging && npx snapback4 guide api client && npx snapback4 guide api react && npx snapback4 guide api auth && npx snapback4 guide package-reference --find snapshot"
+      },
+      {
+        "call": 15,
+        "command": "npx snapback4 guide staging --section 2 && npx snapback4 guide staging --section 9 && npx snapback4 guide deploy --find snapshot && npx snapback4 --help"
+      },
+      {
+        "call": 20,
+        "command": "npx snapback4 guide language --find trim && npx snapback4 guide language --find money"
+      },
+      {
+        "call": 26,
+        "command": "date -u +%FT%TZ && du -sh logs .snapback4 artifacts && rg --files logs | head -n 30 && npx snapback4 guide api proof --find ServeScriptReady"
+      }
+    ],
+    "nativeSessionFile": "rollout-2026-10-28T01-04-32-01a17fd2-9f78-7752-bd72-4baa7265f339.jsonl",
+    "nativeSessions": [
+      "rollout-2026-10-28T01-04-32-01a17fd2-9f78-7752-bd72-4baa7265f339.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 18583,
+        "cachedInput": 14464,
+        "output": 164,
+        "toolCategories": [
+          "read-shell:node_modules"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 19022,
+        "cachedInput": 18560,
+        "output": 202,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 19282,
+        "cachedInput": 19072,
+        "output": 137,
+        "toolCategories": [
+          "sb:pkg-source",
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 19680,
+        "cachedInput": 19200,
+        "output": 124,
+        "toolCategories": [
+          "poll:npm-install",
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 19896,
+        "cachedInput": 19584,
+        "output": 125,
+        "toolCategories": [
+          "run-script",
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 20160,
+        "cachedInput": 12288,
+        "output": 63,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 23237,
+        "cachedInput": 20096,
+        "output": 36,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 23437,
+        "cachedInput": 23040,
+        "output": 45,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 26628,
+        "cachedInput": 23296,
+        "output": 2370,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 29055,
+        "cachedInput": 19840,
+        "output": 40,
+        "toolCategories": [
+          "poll:sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 29675,
+        "cachedInput": 28800,
+        "output": 54,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 30468,
+        "cachedInput": 29568,
+        "output": 141,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 33062,
+        "cachedInput": 30464,
+        "output": 71,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 36998,
+        "cachedInput": 28928,
+        "output": 169,
+        "toolCategories": [
+          "sb:guide-api",
+          "poll:sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 40788,
+        "cachedInput": 36992,
+        "output": 111,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 46911,
+        "cachedInput": 40704,
+        "output": 3455,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 50491,
+        "cachedInput": 50176,
+        "output": 113,
+        "toolCategories": [
+          "sb:help",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 51197,
+        "cachedInput": 50432,
+        "output": 5889,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 57175,
+        "cachedInput": 56960,
+        "output": 403,
+        "toolCategories": [
+          "poll:typecheck",
+          "read-shell:generated"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 60829,
+        "cachedInput": 57344,
+        "output": 170,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 61460,
+        "cachedInput": 60800,
+        "output": 1903,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 63478,
+        "cachedInput": 63232,
+        "output": 2970,
+        "toolCategories": [
+          "write-file",
+          "poll:proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 67589,
+        "cachedInput": 66304,
+        "output": 582,
+        "toolCategories": [
+          "write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 68473,
+        "cachedInput": 67968,
+        "output": 952,
+        "toolCategories": [
+          "write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 69612,
+        "cachedInput": 69248,
+        "output": 1530,
+        "toolCategories": [
+          "proofs:acceptance",
+          "poll:write-file"
+        ],
+        "diagnostics": [
+          "E_INPUT"
+        ]
+      },
+      {
+        "index": 26,
+        "input": 72558,
+        "cachedInput": 70912,
+        "output": 235,
+        "toolCategories": [
+          "sb:guide-api",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 73857,
+        "cachedInput": 72576,
+        "output": 595,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "sb:check"
+        ],
+        "diagnostics": [
+          "E_INPUT"
+        ]
+      },
+      {
+        "index": 28,
+        "input": 75095,
+        "cachedInput": 74240,
+        "output": 994,
+        "toolCategories": [
+          "write-file",
+          "poll:sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 80896,
+        "cachedInput": 75904,
+        "output": 919,
+        "toolCategories": [
+          "proofs:acceptance",
+          "write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 83265,
+        "cachedInput": 81664,
+        "output": 614,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "poll:write-file",
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 84452,
+        "cachedInput": 83712,
+        "output": 784,
+        "toolCategories": [
+          "poll:typecheck",
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 85924,
+        "cachedInput": 85120,
+        "output": 2034,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 88014,
+        "cachedInput": 87808,
+        "output": 154,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-after",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "model": "muse",
+    "frontend": "react",
+    "calls": 135,
+    "input": 17541331,
+    "cachedInput": 17332646,
+    "uncachedInput": 208685,
+    "output": 73698,
+    "wallMs": 1783453,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 22,
+    "reads": {
+      "guide": 18,
+      "guideAfterSchema": 5,
+      "guideCards": 16,
+      "guideApi": 2,
+      "guideCardsAfterSchema": 3,
+      "guideApiAfterSchema": 2,
+      "declarations": 8,
+      "readme": 1,
+      "serverReference": 2,
+      "clientReference": 1,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 8,
+        "command": "npx snapback4 --help 2>&1; echo ===; npx snapback4 guide --help 2>&1 | head -n 50"
+      },
+      {
+        "call": 9,
+        "command": "npx snapback4 guide --list 2>&1 | head -n 60"
+      },
+      {
+        "call": 10,
+        "command": "npx snapback4 guide start --full 2>&1 | head -n 400"
+      },
+      {
+        "call": 11,
+        "command": "npx snapback4 guide workflow --full 2>&1 | head -n 500"
+      },
+      {
+        "call": 12,
+        "command": "npx snapback4 guide tasks --full 2>&1 | head -n 300"
+      },
+      {
+        "call": 13,
+        "command": "npx snapback4 guide staging --full 2>&1 | head -n 400"
+      },
+      {
+        "call": 14,
+        "command": "npx snapback4 guide language --sections 2>&1 | head -n 60; echo ====; npx snapback4 guide security --sections 2>&1 | head -n 40"
+      },
+      {
+        "call": 15,
+        "command": "npx snapback4 guide language --section \"Mutations and writes\" --full 2>&1 | head -n 120"
+      },
+      {
+        "call": 16,
+        "command": "npx snapback4 guide language --section 13 --full 2>&1 | head -n 100; echo =====; npx snapback4 guide language --section \"Field authority\" --full 2>&1 | head -n 60"
+      },
+      {
+        "call": 17,
+        "command": "npx snapback4 guide language --full 2>&1 > $TMPDIR/lang.txt; wc -l $TMPDIR/lang.txt; grep -n \"Mutations and writes\" $TMPDIR/lang.txt"
+      },
+      {
+        "call": 20,
+        "command": "npx snapback4 guide rule-recipes --full 2>&1 > $TMPDIR/rules.txt; wc -l $TMPDIR/rules.txt; sed -n '1,140p' $TMPDIR/rules.txt"
+      },
+      {
+        "call": 33,
+        "command": "npx snapback4 guide client --full 2>&1 > $TMPDIR/client.txt; wc -l $TMPDIR/client.txt; grep -n \"^#\\|^##\" $TMPDIR/client.txt | head -n 40"
+      },
+      {
+        "call": 41,
+        "command": "npx snapback4 guide api --full 2>&1 > $TMPDIR/api.txt; wc -l $TMPDIR/api.txt; grep -n \"^#\\|^##\" $TMPDIR/api.txt | head -n 50"
+      },
+      {
+        "call": 42,
+        "command": "cat $TMPDIR/api.txt; echo =====; npx snapback4 guide proof --full 2>&1 | head -n 150"
+      },
+      {
+        "call": 43,
+        "command": "npx snapback4 guide \"api proof\" --full 2>&1 | head -n 200"
+      },
+      {
+        "call": 70,
+        "command": "npx snapback4 guide wire --full 2>&1 | head -n 100"
+      }
+    ],
+    "nativeSessionFile": "session.jsonl",
+    "nativeSessions": [
+      "2026/10/28/01a17fdc-e214-7a72-b64a-183fb258d30d/session.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 32980,
+        "cachedInput": 0,
+        "output": 213,
+        "toolCategories": [
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 33459,
+        "cachedInput": 32881,
+        "output": 48,
+        "toolCategories": [
+          "read-file:brief"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 37493,
+        "cachedInput": 33393,
+        "output": 105,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 37793,
+        "cachedInput": 37489,
+        "output": 69,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 40381,
+        "cachedInput": 37745,
+        "output": 125,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 41370,
+        "cachedInput": 40305,
+        "output": 113,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 41904,
+        "cachedInput": 41329,
+        "output": 54,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 49521,
+        "cachedInput": 41841,
+        "output": 145,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 51598,
+        "cachedInput": 49521,
+        "output": 96,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 52157,
+        "cachedInput": 51569,
+        "output": 98,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 53190,
+        "cachedInput": 52081,
+        "output": 97,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 55609,
+        "cachedInput": 53105,
+        "output": 3933,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 59913,
+        "cachedInput": 55537,
+        "output": 98,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 63951,
+        "cachedInput": 59889,
+        "output": 273,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 65223,
+        "cachedInput": 63857,
+        "output": 108,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 66861,
+        "cachedInput": 65137,
+        "output": 133,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 68809,
+        "cachedInput": 66801,
+        "output": 232,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 69149,
+        "cachedInput": 68721,
+        "output": 77,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 72111,
+        "cachedInput": 69105,
+        "output": 175,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 74123,
+        "cachedInput": 72049,
+        "output": 234,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 75997,
+        "cachedInput": 74097,
+        "output": 5149,
+        "toolCategories": [
+          "agent-meta",
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 81140,
+        "cachedInput": 75889,
+        "output": 1803,
+        "toolCategories": [
+          "write-diary",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 83123,
+        "cachedInput": 81137,
+        "output": 251,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 83508,
+        "cachedInput": 83057,
+        "output": 98,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 83925,
+        "cachedInput": 83441,
+        "output": 783,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 84821,
+        "cachedInput": 83825,
+        "output": 98,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 85105,
+        "cachedInput": 84721,
+        "output": 267,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 85946,
+        "cachedInput": 85105,
+        "output": 109,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 86629,
+        "cachedInput": 85873,
+        "output": 177,
+        "toolCategories": [
+          "read-file:own",
+          "read-file:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 88107,
+        "cachedInput": 86513,
+        "output": 105,
+        "toolCategories": [
+          "read-file:scripts",
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 89211,
+        "cachedInput": 88049,
+        "output": 346,
+        "toolCategories": [
+          "read-file:scripts",
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 91150,
+        "cachedInput": 89201,
+        "output": 308,
+        "toolCategories": [
+          "agent-meta",
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 93596,
+        "cachedInput": 91121,
+        "output": 377,
+        "toolCategories": [
+          "agent-meta",
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 94150,
+        "cachedInput": 93553,
+        "output": 68,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 97405,
+        "cachedInput": 94065,
+        "output": 1327,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 100147,
+        "cachedInput": 97393,
+        "output": 202,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 37,
+        "input": 100565,
+        "cachedInput": 100081,
+        "output": 110,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 101497,
+        "cachedInput": 100465,
+        "output": 969,
+        "toolCategories": [
+          "read-file:own",
+          "read-file:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 102716,
+        "cachedInput": 101489,
+        "output": 3190,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 40,
+        "input": 105963,
+        "cachedInput": 102641,
+        "output": 595,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 41,
+        "input": 106615,
+        "cachedInput": 105841,
+        "output": 204,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 42,
+        "input": 106967,
+        "cachedInput": 106609,
+        "output": 110,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 43,
+        "input": 109074,
+        "cachedInput": 106865,
+        "output": 102,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 44,
+        "input": 109295,
+        "cachedInput": 109041,
+        "output": 139,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 45,
+        "input": 110415,
+        "cachedInput": 109169,
+        "output": 2302,
+        "toolCategories": [
+          "read-shell:generated"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 46,
+        "input": 112971,
+        "cachedInput": 110321,
+        "output": 3386,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 47,
+        "input": 116417,
+        "cachedInput": 112881,
+        "output": 346,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 48,
+        "input": 116976,
+        "cachedInput": 116337,
+        "output": 97,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 49,
+        "input": 117380,
+        "cachedInput": 116849,
+        "output": 335,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 50,
+        "input": 117853,
+        "cachedInput": 117361,
+        "output": 283,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 51,
+        "input": 118294,
+        "cachedInput": 117745,
+        "output": 97,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 52,
+        "input": 118803,
+        "cachedInput": 118257,
+        "output": 336,
+        "toolCategories": [
+          "agent-meta",
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 53,
+        "input": 119321,
+        "cachedInput": 118769,
+        "output": 148,
+        "toolCategories": [
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 54,
+        "input": 119573,
+        "cachedInput": 119281,
+        "output": 786,
+        "toolCategories": [
+          "write-diary",
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 55,
+        "input": 121009,
+        "cachedInput": 119537,
+        "output": 562,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 56,
+        "input": 121664,
+        "cachedInput": 120945,
+        "output": 1860,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 57,
+        "input": 124539,
+        "cachedInput": 121585,
+        "output": 442,
+        "toolCategories": [
+          "agent-meta",
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 58,
+        "input": 125579,
+        "cachedInput": 124529,
+        "output": 845,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 59,
+        "input": 126627,
+        "cachedInput": 125553,
+        "output": 301,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 60,
+        "input": 127203,
+        "cachedInput": 126577,
+        "output": 325,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 61,
+        "input": 127832,
+        "cachedInput": 127089,
+        "output": 95,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 62,
+        "input": 128308,
+        "cachedInput": 127729,
+        "output": 687,
+        "toolCategories": [
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 63,
+        "input": 129556,
+        "cachedInput": 128241,
+        "output": 779,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 64,
+        "input": 130610,
+        "cachedInput": 129521,
+        "output": 95,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 65,
+        "input": 131153,
+        "cachedInput": 130545,
+        "output": 241,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 66,
+        "input": 131468,
+        "cachedInput": 131057,
+        "output": 95,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 67,
+        "input": 131922,
+        "cachedInput": 131441,
+        "output": 812,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 68,
+        "input": 133004,
+        "cachedInput": 131825,
+        "output": 95,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 69,
+        "input": 133249,
+        "cachedInput": 132977,
+        "output": 173,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 70,
+        "input": 133576,
+        "cachedInput": 133233,
+        "output": 561,
+        "toolCategories": [
+          "agent-meta",
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 71,
+        "input": 135761,
+        "cachedInput": 133489,
+        "output": 3517,
+        "toolCategories": [
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 72,
+        "input": 139725,
+        "cachedInput": 135665,
+        "output": 882,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 73,
+        "input": 140668,
+        "cachedInput": 139633,
+        "output": 330,
+        "toolCategories": [
+          "build"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 74,
+        "input": 141453,
+        "cachedInput": 140657,
+        "output": 241,
+        "toolCategories": [
+          "poll:build"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 75,
+        "input": 141822,
+        "cachedInput": 141425,
+        "output": 288,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 76,
+        "input": 142226,
+        "cachedInput": 141809,
+        "output": 519,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 77,
+        "input": 143066,
+        "cachedInput": 142193,
+        "output": 457,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 78,
+        "input": 143729,
+        "cachedInput": 142961,
+        "output": 644,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 79,
+        "input": 144463,
+        "cachedInput": 143729,
+        "output": 958,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 80,
+        "input": 145433,
+        "cachedInput": 144369,
+        "output": 171,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 81,
+        "input": 145741,
+        "cachedInput": 145393,
+        "output": 184,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": [
+          "E_PROBE_IDLE"
+        ]
+      },
+      {
+        "index": 82,
+        "input": 146405,
+        "cachedInput": 145649,
+        "output": 564,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 83,
+        "input": 147522,
+        "cachedInput": 146289,
+        "output": 748,
+        "toolCategories": [
+          "read-file:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 84,
+        "input": 148677,
+        "cachedInput": 147441,
+        "output": 448,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 85,
+        "input": 149571,
+        "cachedInput": 148593,
+        "output": 4041,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 86,
+        "input": 153619,
+        "cachedInput": 149489,
+        "output": 720,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 87,
+        "input": 154604,
+        "cachedInput": 153585,
+        "output": 449,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 88,
+        "input": 155275,
+        "cachedInput": 154481,
+        "output": 300,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 89,
+        "input": 156427,
+        "cachedInput": 155249,
+        "output": 827,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 90,
+        "input": 157739,
+        "cachedInput": 156401,
+        "output": 364,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 91,
+        "input": 158451,
+        "cachedInput": 157681,
+        "output": 397,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 92,
+        "input": 159234,
+        "cachedInput": 158449,
+        "output": 341,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 93,
+        "input": 159806,
+        "cachedInput": 159217,
+        "output": 450,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 94,
+        "input": 160507,
+        "cachedInput": 159729,
+        "output": 351,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 95,
+        "input": 161002,
+        "cachedInput": 160497,
+        "output": 218,
+        "toolCategories": [
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 96,
+        "input": 162484,
+        "cachedInput": 160881,
+        "output": 252,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 97,
+        "input": 162930,
+        "cachedInput": 162417,
+        "output": 179,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 98,
+        "input": 163493,
+        "cachedInput": 162929,
+        "output": 163,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 99,
+        "input": 163823,
+        "cachedInput": 163441,
+        "output": 84,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 100,
+        "input": 164771,
+        "cachedInput": 163697,
+        "output": 406,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 101,
+        "input": 165254,
+        "cachedInput": 164721,
+        "output": 106,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 102,
+        "input": 166358,
+        "cachedInput": 165233,
+        "output": 203,
+        "toolCategories": [
+          "sb:admin/data"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 103,
+        "input": 167015,
+        "cachedInput": 166257,
+        "output": 925,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 104,
+        "input": 168036,
+        "cachedInput": 166897,
+        "output": 236,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 105,
+        "input": 168730,
+        "cachedInput": 167921,
+        "output": 611,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 106,
+        "input": 169492,
+        "cachedInput": 168689,
+        "output": 732,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 107,
+        "input": 171987,
+        "cachedInput": 169457,
+        "output": 529,
+        "toolCategories": [
+          "write-file",
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 108,
+        "input": 172811,
+        "cachedInput": 171889,
+        "output": 518,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 109,
+        "input": 173551,
+        "cachedInput": 172785,
+        "output": 479,
+        "toolCategories": [
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 110,
+        "input": 174107,
+        "cachedInput": 173425,
+        "output": 1409,
+        "toolCategories": [
+          "write-diary",
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 111,
+        "input": 176291,
+        "cachedInput": 174065,
+        "output": 296,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 112,
+        "input": 176817,
+        "cachedInput": 176241,
+        "output": 100,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 113,
+        "input": 177053,
+        "cachedInput": 176753,
+        "output": 242,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 114,
+        "input": 177357,
+        "cachedInput": 177009,
+        "output": 265,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 115,
+        "input": 177738,
+        "cachedInput": 177265,
+        "output": 265,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 116,
+        "input": 178141,
+        "cachedInput": 177649,
+        "output": 323,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 117,
+        "input": 178566,
+        "cachedInput": 178033,
+        "output": 298,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 118,
+        "input": 179099,
+        "cachedInput": 178545,
+        "output": 339,
+        "toolCategories": [
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 119,
+        "input": 190019,
+        "cachedInput": 179057,
+        "output": 677,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 120,
+        "input": 191049,
+        "cachedInput": 189937,
+        "output": 462,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 121,
+        "input": 192051,
+        "cachedInput": 190961,
+        "output": 348,
+        "toolCategories": [
+          "agent-meta",
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 122,
+        "input": 193184,
+        "cachedInput": 191985,
+        "output": 806,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 123,
+        "input": 194163,
+        "cachedInput": 193137,
+        "output": 400,
+        "toolCategories": [
+          "sb:serve"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 124,
+        "input": 194858,
+        "cachedInput": 194161,
+        "output": 339,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 125,
+        "input": 195300,
+        "cachedInput": 194801,
+        "output": 272,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 126,
+        "input": 195873,
+        "cachedInput": 195185,
+        "output": 329,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 127,
+        "input": 196447,
+        "cachedInput": 195825,
+        "output": 241,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 128,
+        "input": 196777,
+        "cachedInput": 196337,
+        "output": 366,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 129,
+        "input": 197297,
+        "cachedInput": 196721,
+        "output": 460,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 130,
+        "input": 197922,
+        "cachedInput": 197233,
+        "output": 347,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 131,
+        "input": 198356,
+        "cachedInput": 197873,
+        "output": 958,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 132,
+        "input": 199371,
+        "cachedInput": 198257,
+        "output": 207,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 133,
+        "input": 199828,
+        "cachedInput": 199281,
+        "output": 128,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 134,
+        "input": 200104,
+        "cachedInput": 199793,
+        "output": 210,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 135,
+        "input": 200353,
+        "cachedInput": 200049,
+        "output": 382,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-after",
+    "lane": "019-snapback-child-talent-bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "calls": 110,
+    "input": 11173763,
+    "cachedInput": 11019805,
+    "uncachedInput": 153958,
+    "output": 54366,
+    "wallMs": 1134587,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 12,
+    "reads": {
+      "guide": 13,
+      "guideAfterSchema": 10,
+      "guideCards": 7,
+      "guideApi": 6,
+      "guideCardsAfterSchema": 4,
+      "guideApiAfterSchema": 6,
+      "declarations": 0,
+      "readme": 1,
+      "serverReference": 1,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 6,
+        "command": "npx snapback4 guide start 2>&1 | head -n 200"
+      },
+      {
+        "call": 7,
+        "command": "npx snapback4 guide workflow 2>&1 | head -n 400"
+      },
+      {
+        "call": 8,
+        "command": "date -u +%FT%TZ; npx snapback4 --help 2>&1 | head -n 60; echo ===; npx snapback4 guide --help 2>&1 | head -n 40"
+      },
+      {
+        "call": 20,
+        "command": "npx snapback4 guide api proof 2>&1 | head -n 250"
+      },
+      {
+        "call": 21,
+        "command": "npx snapback4 guide api client 2>&1 | head -n 200; echo =====AUTH=====; npx snapback4 guide api auth 2>&1 | head -n 120"
+      },
+      {
+        "call": 22,
+        "command": "npx snapback4 guide api react 2>&1 | head -n 120; echo =====GEN=====; npx snapback4 guide api generated 2>&1 | head -n 80"
+      },
+      {
+        "call": 24,
+        "command": "npx snapback4 guide api generated 2>&1 | sed -n '80,200p'; echo ===; cat app.json; echo ===; cat scripts/install.mjs | head -n 40"
+      },
+      {
+        "call": 32,
+        "command": "npx snapback4 guide --list 2>&1 | head -n 60"
+      },
+      {
+        "call": 33,
+        "command": "npx snapback4 guide staging 2>&1 | head -n 150"
+      },
+      {
+        "call": 34,
+        "command": "npx snapback4 guide staging --section \"Stand up staging\" 2>&1 | head -n 100; echo =====; npx snapback4 guide wire 2>&1 | head -n 80"
+      }
+    ],
+    "nativeSessionFile": "session.jsonl",
+    "nativeSessions": [
+      "2026/10/28/01a17fdc-e214-7a70-92cf-1119e96a367d/session.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 33098,
+        "cachedInput": 0,
+        "output": 167,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 33674,
+        "cachedInput": 33009,
+        "output": 48,
+        "toolCategories": [
+          "read-file:brief"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 37826,
+        "cachedInput": 33649,
+        "output": 106,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 38044,
+        "cachedInput": 37745,
+        "output": 110,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 38502,
+        "cachedInput": 38001,
+        "output": 110,
+        "toolCategories": [
+          "sb:docs-files",
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 46322,
+        "cachedInput": 38385,
+        "output": 123,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 47380,
+        "cachedInput": 46321,
+        "output": 97,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 49799,
+        "cachedInput": 47345,
+        "output": 2292,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 53965,
+        "cachedInput": 49777,
+        "output": 148,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 54152,
+        "cachedInput": 53873,
+        "output": 181,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 54388,
+        "cachedInput": 54129,
+        "output": 95,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 54567,
+        "cachedInput": 54385,
+        "output": 1251,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 55875,
+        "cachedInput": 54513,
+        "output": 95,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 56156,
+        "cachedInput": 55793,
+        "output": 188,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 57084,
+        "cachedInput": 56049,
+        "output": 80,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 58555,
+        "cachedInput": 57073,
+        "output": 193,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 59215,
+        "cachedInput": 58481,
+        "output": 175,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 59429,
+        "cachedInput": 59121,
+        "output": 100,
+        "toolCategories": [
+          "read-file:generated",
+          "read-file:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 63756,
+        "cachedInput": 59377,
+        "output": 156,
+        "toolCategories": [
+          "read-file:own",
+          "read-file:scripts",
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 65564,
+        "cachedInput": 63729,
+        "output": 143,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 67082,
+        "cachedInput": 65521,
+        "output": 123,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 68822,
+        "cachedInput": 67057,
+        "output": 123,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 70573,
+        "cachedInput": 68721,
+        "output": 594,
+        "toolCategories": [
+          "read-file:own",
+          "read-file:own",
+          "read-file:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 72508,
+        "cachedInput": 70513,
+        "output": 2126,
+        "toolCategories": [
+          "read-file:scripts",
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 76050,
+        "cachedInput": 72433,
+        "output": 3487,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 79563,
+        "cachedInput": 76017,
+        "output": 293,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 79991,
+        "cachedInput": 79473,
+        "output": 112,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 80189,
+        "cachedInput": 79985,
+        "output": 107,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 80481,
+        "cachedInput": 80113,
+        "output": 284,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 80975,
+        "cachedInput": 80369,
+        "output": 211,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 81377,
+        "cachedInput": 80881,
+        "output": 119,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 81682,
+        "cachedInput": 81265,
+        "output": 3915,
+        "toolCategories": [
+          "agent-meta",
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 86009,
+        "cachedInput": 81649,
+        "output": 96,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 86867,
+        "cachedInput": 86001,
+        "output": 126,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 89223,
+        "cachedInput": 86769,
+        "output": 2889,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 92170,
+        "cachedInput": 89201,
+        "output": 142,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 37,
+        "input": 92518,
+        "cachedInput": 92145,
+        "output": 150,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 92835,
+        "cachedInput": 92401,
+        "output": 1428,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 94719,
+        "cachedInput": 92785,
+        "output": 812,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 40,
+        "input": 96324,
+        "cachedInput": 94705,
+        "output": 93,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 41,
+        "input": 96791,
+        "cachedInput": 96241,
+        "output": 498,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 42,
+        "input": 97346,
+        "cachedInput": 96753,
+        "output": 96,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 43,
+        "input": 97884,
+        "cachedInput": 97265,
+        "output": 103,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 44,
+        "input": 98055,
+        "cachedInput": 97777,
+        "output": 96,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 45,
+        "input": 98360,
+        "cachedInput": 98033,
+        "output": 464,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 46,
+        "input": 98962,
+        "cachedInput": 98289,
+        "output": 96,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 47,
+        "input": 99924,
+        "cachedInput": 98929,
+        "output": 1287,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 48,
+        "input": 101458,
+        "cachedInput": 99825,
+        "output": 584,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 49,
+        "input": 102404,
+        "cachedInput": 101361,
+        "output": 94,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 50,
+        "input": 102845,
+        "cachedInput": 102385,
+        "output": 225,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 51,
+        "input": 103192,
+        "cachedInput": 102769,
+        "output": 94,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 52,
+        "input": 103628,
+        "cachedInput": 103153,
+        "output": 801,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 53,
+        "input": 104461,
+        "cachedInput": 103537,
+        "output": 96,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 54,
+        "input": 104874,
+        "cachedInput": 104433,
+        "output": 735,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 55,
+        "input": 105675,
+        "cachedInput": 104817,
+        "output": 171,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 56,
+        "input": 105987,
+        "cachedInput": 105585,
+        "output": 285,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 57,
+        "input": 106536,
+        "cachedInput": 105969,
+        "output": 116,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 58,
+        "input": 106920,
+        "cachedInput": 106481,
+        "output": 96,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 59,
+        "input": 107410,
+        "cachedInput": 106865,
+        "output": 841,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 60,
+        "input": 108588,
+        "cachedInput": 107377,
+        "output": 94,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 61,
+        "input": 108833,
+        "cachedInput": 108529,
+        "output": 168,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 62,
+        "input": 109137,
+        "cachedInput": 108785,
+        "output": 3539,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 63,
+        "input": 112629,
+        "cachedInput": 109041,
+        "output": 98,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 64,
+        "input": 112878,
+        "cachedInput": 112625,
+        "output": 1099,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 65,
+        "input": 114036,
+        "cachedInput": 112753,
+        "output": 170,
+        "toolCategories": [
+          "proofs:probe-serve"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 66,
+        "input": 114298,
+        "cachedInput": 114033,
+        "output": 186,
+        "toolCategories": [
+          "proofs:probe-serve"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 67,
+        "input": 114735,
+        "cachedInput": 114289,
+        "output": 151,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 68,
+        "input": 115378,
+        "cachedInput": 114673,
+        "output": 478,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 69,
+        "input": 116761,
+        "cachedInput": 115313,
+        "output": 520,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 70,
+        "input": 117345,
+        "cachedInput": 116721,
+        "output": 145,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 71,
+        "input": 118293,
+        "cachedInput": 117233,
+        "output": 104,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 72,
+        "input": 119399,
+        "cachedInput": 118257,
+        "output": 906,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 73,
+        "input": 120417,
+        "cachedInput": 119281,
+        "output": 364,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 74,
+        "input": 121132,
+        "cachedInput": 120305,
+        "output": 952,
+        "toolCategories": [
+          "sb:admin/data"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 75,
+        "input": 122772,
+        "cachedInput": 121073,
+        "output": 1543,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 76,
+        "input": 124320,
+        "cachedInput": 122737,
+        "output": 107,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 77,
+        "input": 124593,
+        "cachedInput": 124273,
+        "output": 80,
+        "toolCategories": [
+          "read-file:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 78,
+        "input": 125388,
+        "cachedInput": 124529,
+        "output": 207,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 79,
+        "input": 125781,
+        "cachedInput": 125297,
+        "output": 118,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 80,
+        "input": 125988,
+        "cachedInput": 125681,
+        "output": 116,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 81,
+        "input": 126329,
+        "cachedInput": 125937,
+        "output": 2801,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 82,
+        "input": 129172,
+        "cachedInput": 126321,
+        "output": 354,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 83,
+        "input": 129738,
+        "cachedInput": 129137,
+        "output": 160,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 84,
+        "input": 130031,
+        "cachedInput": 129649,
+        "output": 255,
+        "toolCategories": [
+          "proofs:probe-serve"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 85,
+        "input": 130496,
+        "cachedInput": 129905,
+        "output": 185,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 86,
+        "input": 130834,
+        "cachedInput": 130417,
+        "output": 138,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 87,
+        "input": 131714,
+        "cachedInput": 130801,
+        "output": 327,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 88,
+        "input": 132160,
+        "cachedInput": 131697,
+        "output": 138,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 89,
+        "input": 132480,
+        "cachedInput": 132081,
+        "output": 195,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 90,
+        "input": 132781,
+        "cachedInput": 132465,
+        "output": 873,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 91,
+        "input": 133753,
+        "cachedInput": 132721,
+        "output": 95,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 92,
+        "input": 133938,
+        "cachedInput": 133745,
+        "output": 609,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 93,
+        "input": 134634,
+        "cachedInput": 133873,
+        "output": 91,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 94,
+        "input": 134941,
+        "cachedInput": 134513,
+        "output": 95,
+        "toolCategories": [
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 95,
+        "input": 135220,
+        "cachedInput": 134897,
+        "output": 620,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 96,
+        "input": 135992,
+        "cachedInput": 135153,
+        "output": 1089,
+        "toolCategories": [
+          "proofs:probe-serve"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 97,
+        "input": 137144,
+        "cachedInput": 135921,
+        "output": 226,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 98,
+        "input": 137469,
+        "cachedInput": 137073,
+        "output": 174,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 99,
+        "input": 137731,
+        "cachedInput": 137457,
+        "output": 123,
+        "toolCategories": [
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 100,
+        "input": 137958,
+        "cachedInput": 137713,
+        "output": 794,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 101,
+        "input": 138839,
+        "cachedInput": 137841,
+        "output": 913,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 102,
+        "input": 140029,
+        "cachedInput": 138737,
+        "output": 174,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 103,
+        "input": 140242,
+        "cachedInput": 140017,
+        "output": 825,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 104,
+        "input": 141122,
+        "cachedInput": 140145,
+        "output": 262,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 105,
+        "input": 141592,
+        "cachedInput": 141041,
+        "output": 252,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 106,
+        "input": 142328,
+        "cachedInput": 141553,
+        "output": 266,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 107,
+        "input": 143672,
+        "cachedInput": 142321,
+        "output": 252,
+        "toolCategories": [
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 108,
+        "input": 144222,
+        "cachedInput": 143601,
+        "output": 342,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 109,
+        "input": 147031,
+        "cachedInput": 144113,
+        "output": 324,
+        "toolCategories": [
+          "write-file",
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 110,
+        "input": 147449,
+        "cachedInput": 146929,
+        "output": 403,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-after",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "model": "codex",
+    "frontend": "react",
+    "calls": 33,
+    "input": 1911886,
+    "cachedInput": 1853312,
+    "uncachedInput": 58574,
+    "output": 28198,
+    "wallMs": 511051,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 6,
+    "reads": {
+      "guide": 16,
+      "guideAfterSchema": 14,
+      "guideCards": 10,
+      "guideApi": 6,
+      "guideCardsAfterSchema": 8,
+      "guideApiAfterSchema": 6,
+      "declarations": 0,
+      "readme": 1,
+      "serverReference": 1,
+      "clientReference": 0,
+      "generatedApi": 0
+    },
+    "guideCommands": [
+      {
+        "call": 5,
+        "command": "node --version && npx snapback4 guide start && npx snapback4 guide workflow"
+      },
+      {
+        "call": 8,
+        "command": "npx snapback4 guide api proof && npx snapback4 guide api client && npx snapback4 guide api react && npx snapback4 guide api auth"
+      },
+      {
+        "call": 9,
+        "command": "node scripts/install.mjs --wait && npx snapback4 guide staging && npx snapback4 guide data && cat tsconfig.json && cat scripts/launch.mjs && cat vite.config.mts"
+      },
+      {
+        "call": 10,
+        "command": "npx snapback4 guide staging && npx snapback4 guide data && cat tsconfig.json && cat scripts/launch.mjs && cat vite.config.mts"
+      },
+      {
+        "call": 11,
+        "command": "cat tsconfig.json && cat scripts/launch.mjs && cat vite.config.mts && npx snapback4 guide staging --section 'Time and reused stores' && npx snapback4 --help"
+      },
+      {
+        "call": 12,
+        "command": "cat scripts/install.mjs && ls -la .snapback4 && tail -n 30 .snapback4/install.log && npx snapback4 guide api generated"
+      },
+      {
+        "call": 18,
+        "command": "npx snapback4 guide staging --section 'Stand up staging' && npx snapback4 data --help"
+      },
+      {
+        "call": 19,
+        "command": "cat scripts/probe-check.mjs && npx snapback4 guide proof --find 'guard' && npx snapback4 guide api proof --full"
+      },
+      {
+        "call": 25,
+        "command": "npx snapback4 guide uploads --find 'image' && npx snapback4 check --review"
+      }
+    ],
+    "nativeSessionFile": "rollout-2026-10-28T01-07-01-01a17fd4-e543-7ea1-b1b6-7ea37758f96c.jsonl",
+    "nativeSessions": [
+      "rollout-2026-10-28T01-07-01-01a17fd4-e543-7ea1-b1b6-7ea37758f96c.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 18458,
+        "cachedInput": 14464,
+        "output": 189,
+        "toolCategories": [
+          "read-shell:node_modules"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 18959,
+        "cachedInput": 18432,
+        "output": 213,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 19231,
+        "cachedInput": 18944,
+        "output": 96,
+        "toolCategories": [
+          "sb:pkg-source",
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 19907,
+        "cachedInput": 19200,
+        "output": 57,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 29442,
+        "cachedInput": 14464,
+        "output": 45,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 32635,
+        "cachedInput": 29312,
+        "output": 2075,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": [
+          "E_QUARRY_TYPE"
+        ]
+      },
+      {
+        "index": 7,
+        "input": 34909,
+        "cachedInput": 34560,
+        "output": 111,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 35670,
+        "cachedInput": 34816,
+        "output": 114,
+        "toolCategories": [
+          "read-shell:config",
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 43310,
+        "cachedInput": 35584,
+        "output": 209,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 43731,
+        "cachedInput": 43392,
+        "output": 59,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 44554,
+        "cachedInput": 43648,
+        "output": 106,
+        "toolCategories": [
+          "sb:guide",
+          "poll:sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 48492,
+        "cachedInput": 44544,
+        "output": 75,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 50886,
+        "cachedInput": 48384,
+        "output": 375,
+        "toolCategories": [
+          "run-script",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 51380,
+        "cachedInput": 51072,
+        "output": 6816,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 58287,
+        "cachedInput": 57984,
+        "output": 490,
+        "toolCategories": [
+          "poll:run-script",
+          "poll:sb:check",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 59087,
+        "cachedInput": 58624,
+        "output": 3338,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 62548,
+        "cachedInput": 62208,
+        "output": 2214,
+        "toolCategories": [
+          "poll:write-file",
+          "poll:write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 65459,
+        "cachedInput": 64640,
+        "output": 365,
+        "toolCategories": [
+          "write-file",
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 67366,
+        "cachedInput": 65664,
+        "output": 189,
+        "toolCategories": [
+          "sb:guide-api",
+          "poll:write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 68318,
+        "cachedInput": 67328,
+        "output": 86,
+        "toolCategories": [
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 69625,
+        "cachedInput": 68224,
+        "output": 1791,
+        "toolCategories": [
+          "write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 71693,
+        "cachedInput": 71296,
+        "output": 564,
+        "toolCategories": [
+          "write-file",
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 72491,
+        "cachedInput": 72064,
+        "output": 148,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 72857,
+        "cachedInput": 72448,
+        "output": 477,
+        "toolCategories": [
+          "typecheck",
+          "poll:write-file",
+          "poll:proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 73799,
+        "cachedInput": 73216,
+        "output": 197,
+        "toolCategories": [
+          "sb:guide",
+          "proofs:probe-check",
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 77441,
+        "cachedInput": 73856,
+        "output": 1024,
+        "toolCategories": [
+          "typecheck",
+          "poll:typecheck",
+          "poll:proofs:probe-check",
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 81191,
+        "cachedInput": 78336,
+        "output": 2076,
+        "toolCategories": [
+          "proofs:acceptance",
+          "poll:proofs:probe-check",
+          "poll:typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 83563,
+        "cachedInput": 83072,
+        "output": 734,
+        "toolCategories": [
+          "run-script",
+          "read-shell:node_modules",
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 85077,
+        "cachedInput": 84096,
+        "output": 640,
+        "toolCategories": [
+          "read-shell:logs",
+          "poll:proofs:acceptance",
+          "poll:run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 86504,
+        "cachedInput": 85504,
+        "output": 412,
+        "toolCategories": [
+          "other",
+          "read-shell:node_modules"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 87139,
+        "cachedInput": 86784,
+        "output": 253,
+        "toolCategories": [
+          "poll:run-script",
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 87561,
+        "cachedInput": 87168,
+        "output": 2546,
+        "toolCategories": [
+          "write-diary",
+          "poll:sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 90316,
+        "cachedInput": 89984,
+        "output": 114,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-before",
+    "lane": "001-snapback-cpap-equipment-setups",
+    "model": "codex",
+    "frontend": "expo",
+    "calls": 43,
+    "input": 2509328,
+    "cachedInput": 2418560,
+    "uncachedInput": 90768,
+    "output": 25900,
+    "wallMs": 572985,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 14,
+    "reads": {
+      "guide": 11,
+      "guideAfterSchema": 10,
+      "guideCards": 8,
+      "guideApi": 3,
+      "guideCardsAfterSchema": 7,
+      "guideApiAfterSchema": 3,
+      "declarations": 2,
+      "readme": 1,
+      "serverReference": 0,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 11,
+        "command": "npx snapback4 guide start"
+      },
+      {
+        "call": 15,
+        "command": "npx snapback4 guide time --section 'Months and years' && npx snapback4 guide api proof && npx snapback4 guide api auth"
+      },
+      {
+        "call": 15,
+        "command": "npx snapback4 guide api client && npx snapback4 guide uploads && cat src/UploadPicker.tsx && cat snapback/generated/api.ts"
+      },
+      {
+        "call": 16,
+        "command": "npx snapback4 guide time --section Values && npx snapback4 guide language --find 'min(' && npx snapback4 guide production"
+      },
+      {
+        "call": 27,
+        "command": "npx snapback4 guide wire --find '/m/' && npx snapback4 guide production --section 'Admin inspection' && cat node_modules/snapback4/dist/proof-inspection.d.ts"
+      }
+    ],
+    "nativeSessionFile": "rollout-2026-10-28T00-49-04-01a17fc4-774b-7431-8859-7c7465fafe09.jsonl",
+    "nativeSessions": [
+      "rollout-2026-10-28T00-49-04-01a17fc4-774b-7431-8859-7c7465fafe09.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 19435,
+        "cachedInput": 14848,
+        "output": 129,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 19929,
+        "cachedInput": 14848,
+        "output": 258,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 20244,
+        "cachedInput": 19968,
+        "output": 40,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 20341,
+        "cachedInput": 20096,
+        "output": 102,
+        "toolCategories": [
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 20502,
+        "cachedInput": 19200,
+        "output": 44,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 20772,
+        "cachedInput": 20224,
+        "output": 40,
+        "toolCategories": [
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 20869,
+        "cachedInput": 20608,
+        "output": 253,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 21178,
+        "cachedInput": 20352,
+        "output": 64,
+        "toolCategories": [
+          "poll:npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 21325,
+        "cachedInput": 20992,
+        "output": 69,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 23964,
+        "cachedInput": 21120,
+        "output": 62,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 33016,
+        "cachedInput": 23808,
+        "output": 33,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 35084,
+        "cachedInput": 32896,
+        "output": 46,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 35642,
+        "cachedInput": 34944,
+        "output": 86,
+        "toolCategories": [
+          "read-shell:config",
+          "read-shell:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 39790,
+        "cachedInput": 35456,
+        "output": 2215,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 42371,
+        "cachedInput": 39552,
+        "output": 124,
+        "toolCategories": [
+          "sb:guide-api",
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 52824,
+        "cachedInput": 20992,
+        "output": 219,
+        "toolCategories": [
+          "sb:guide",
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 57354,
+        "cachedInput": 52864,
+        "output": 457,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 57870,
+        "cachedInput": 57600,
+        "output": 1334,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 59577,
+        "cachedInput": 59008,
+        "output": 417,
+        "toolCategories": [
+          "poll:sb:check",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 60884,
+        "cachedInput": 59776,
+        "output": 105,
+        "toolCategories": [
+          "sb:serve",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 61784,
+        "cachedInput": 60800,
+        "output": 154,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 61997,
+        "cachedInput": 61696,
+        "output": 3808,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 65861,
+        "cachedInput": 65664,
+        "output": 165,
+        "toolCategories": [
+          "poll:npm-install",
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 66186,
+        "cachedInput": 65792,
+        "output": 3194,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 69478,
+        "cachedInput": 69248,
+        "output": 159,
+        "toolCategories": [
+          "poll:typecheck",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 69991,
+        "cachedInput": 69504,
+        "output": 283,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 70397,
+        "cachedInput": 70144,
+        "output": 231,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 73666,
+        "cachedInput": 70400,
+        "output": 2339,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 76120,
+        "cachedInput": 75776,
+        "output": 1121,
+        "toolCategories": [
+          "poll:write-file",
+          "poll:typecheck",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 77821,
+        "cachedInput": 77056,
+        "output": 1566,
+        "toolCategories": [
+          "write-file",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 79541,
+        "cachedInput": 79232,
+        "output": 272,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 80157,
+        "cachedInput": 79616,
+        "output": 165,
+        "toolCategories": [
+          "poll:write-file",
+          "sb:test"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 33,
+        "input": 84212,
+        "cachedInput": 80128,
+        "output": 151,
+        "toolCategories": [
+          "poll:sb:test",
+          "poll:proofs:acceptance",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 84904,
+        "cachedInput": 84224,
+        "output": 251,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 85736,
+        "cachedInput": 84992,
+        "output": 400,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 86212,
+        "cachedInput": 86016,
+        "output": 269,
+        "toolCategories": [
+          "write-file",
+          "poll:sb:test"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 37,
+        "input": 87309,
+        "cachedInput": 86272,
+        "output": 1618,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 88984,
+        "cachedInput": 88704,
+        "output": 192,
+        "toolCategories": [
+          "poll:write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 89385,
+        "cachedInput": 88960,
+        "output": 812,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 40,
+        "input": 90295,
+        "cachedInput": 89984,
+        "output": 563,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 41,
+        "input": 90928,
+        "cachedInput": 90624,
+        "output": 588,
+        "toolCategories": [
+          "poll:write-file",
+          "poll:typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 42,
+        "input": 91952,
+        "cachedInput": 91392,
+        "output": 1424,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 43,
+        "input": 93441,
+        "cachedInput": 93184,
+        "output": 78,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-before",
+    "lane": "018-snapback-horse-trailer-rentals",
+    "model": "muse",
+    "frontend": "react",
+    "calls": 92,
+    "input": 9102138,
+    "cachedInput": 8951211,
+    "uncachedInput": 150927,
+    "output": 59488,
+    "wallMs": 1356950,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 15,
+    "reads": {
+      "guide": 7,
+      "guideAfterSchema": 3,
+      "guideCards": 3,
+      "guideApi": 4,
+      "guideCardsAfterSchema": 2,
+      "guideApiAfterSchema": 1,
+      "declarations": 8,
+      "readme": 1,
+      "serverReference": 0,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 6,
+        "command": "npx snapback4 guide start 2>&1 | head -n 400"
+      },
+      {
+        "call": 10,
+        "command": "npx snapback4 guide api client 2>&1 | head -n 150; echo =====; npx snapback4 guide api auth 2>&1 | head -n 120"
+      },
+      {
+        "call": 13,
+        "command": "cat scripts/probe-check.mjs; echo ===; npx snapback4 guide api proof 2>&1 | head -n 120"
+      },
+      {
+        "call": 24,
+        "command": "cat src/shared.ts; echo ===; npx snapback4 guide api generated 2>&1 | head -n 60"
+      },
+      {
+        "call": 45,
+        "command": "date -u +%FT%TZ; echo ---; cat scripts/probe-check.mjs | head -5; echo ===; npx snapback4 guide staging 2>&1 | head -n 100"
+      },
+      {
+        "call": 46,
+        "command": "npx snapback4 guide staging --section \"Stand up staging\" 2>&1 | head -n 90"
+      }
+    ],
+    "nativeSessionFile": "session.jsonl",
+    "nativeSessions": [
+      "2026/10/28/01a17fcf-a963-7c23-a692-d46508123c1f/session.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 32978,
+        "cachedInput": 0,
+        "output": 162,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 33415,
+        "cachedInput": 32881,
+        "output": 48,
+        "toolCategories": [
+          "read-file:brief"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 37449,
+        "cachedInput": 33393,
+        "output": 121,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 37682,
+        "cachedInput": 37361,
+        "output": 103,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 38602,
+        "cachedInput": 37617,
+        "output": 87,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 39239,
+        "cachedInput": 38513,
+        "output": 97,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 41391,
+        "cachedInput": 39153,
+        "output": 103,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 41917,
+        "cachedInput": 41329,
+        "output": 104,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 44990,
+        "cachedInput": 41841,
+        "output": 120,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 47970,
+        "cachedInput": 44913,
+        "output": 1633,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 51515,
+        "cachedInput": 47857,
+        "output": 79,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 54113,
+        "cachedInput": 51441,
+        "output": 2011,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 56100,
+        "cachedInput": 54001,
+        "output": 110,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 57736,
+        "cachedInput": 56049,
+        "output": 3825,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 61571,
+        "cachedInput": 57713,
+        "output": 2041,
+        "toolCategories": [
+          "write-diary",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 63725,
+        "cachedInput": 61553,
+        "output": 1057,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 64980,
+        "cachedInput": 63601,
+        "output": 162,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 66861,
+        "cachedInput": 64881,
+        "output": 828,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 68110,
+        "cachedInput": 66801,
+        "output": 96,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 20,
+        "input": 68383,
+        "cachedInput": 68081,
+        "output": 118,
+        "toolCategories": [
+          "read-shell:generated"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 72842,
+        "cachedInput": 68337,
+        "output": 290,
+        "toolCategories": [
+          "agent-meta",
+          "sb:test"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 22,
+        "input": 74058,
+        "cachedInput": 72817,
+        "output": 111,
+        "toolCategories": [
+          "sb:admin/data"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 76520,
+        "cachedInput": 73969,
+        "output": 247,
+        "toolCategories": [
+          "agent-meta",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 77641,
+        "cachedInput": 76401,
+        "output": 168,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 78345,
+        "cachedInput": 77553,
+        "output": 120,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 79665,
+        "cachedInput": 78321,
+        "output": 170,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 80577,
+        "cachedInput": 79601,
+        "output": 1315,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 82043,
+        "cachedInput": 80497,
+        "output": 83,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 82653,
+        "cachedInput": 82033,
+        "output": 1055,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 83749,
+        "cachedInput": 82545,
+        "output": 96,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 84200,
+        "cachedInput": 83697,
+        "output": 145,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 84384,
+        "cachedInput": 84081,
+        "output": 216,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 84656,
+        "cachedInput": 84337,
+        "output": 4269,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 88954,
+        "cachedInput": 84593,
+        "output": 100,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 89171,
+        "cachedInput": 88945,
+        "output": 130,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 89402,
+        "cachedInput": 89073,
+        "output": 106,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 37,
+        "input": 89598,
+        "cachedInput": 89329,
+        "output": 549,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 90641,
+        "cachedInput": 89585,
+        "output": 130,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 91543,
+        "cachedInput": 90609,
+        "output": 1178,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 40,
+        "input": 93055,
+        "cachedInput": 91505,
+        "output": 5795,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 41,
+        "input": 98855,
+        "cachedInput": 93041,
+        "output": 97,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 42,
+        "input": 99373,
+        "cachedInput": 98801,
+        "output": 347,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 43,
+        "input": 99872,
+        "cachedInput": 99313,
+        "output": 95,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 44,
+        "input": 100558,
+        "cachedInput": 99825,
+        "output": 181,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 45,
+        "input": 100854,
+        "cachedInput": 100465,
+        "output": 122,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 46,
+        "input": 101836,
+        "cachedInput": 100849,
+        "output": 103,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 47,
+        "input": 103160,
+        "cachedInput": 101745,
+        "output": 689,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 48,
+        "input": 103960,
+        "cachedInput": 103153,
+        "output": 2053,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 49,
+        "input": 106888,
+        "cachedInput": 103921,
+        "output": 1274,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 50,
+        "input": 108207,
+        "cachedInput": 106865,
+        "output": 351,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 51,
+        "input": 108818,
+        "cachedInput": 108145,
+        "output": 761,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 52,
+        "input": 109638,
+        "cachedInput": 108785,
+        "output": 96,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 53,
+        "input": 109864,
+        "cachedInput": 109553,
+        "output": 4381,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 54,
+        "input": 114242,
+        "cachedInput": 109809,
+        "output": 487,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 55,
+        "input": 114999,
+        "cachedInput": 114161,
+        "output": 334,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": [
+          "E_PROOF_SNAPSHOT"
+        ]
+      },
+      {
+        "index": 56,
+        "input": 115489,
+        "cachedInput": 114929,
+        "output": 763,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 57,
+        "input": 116366,
+        "cachedInput": 115441,
+        "output": 170,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 58,
+        "input": 116947,
+        "cachedInput": 116337,
+        "output": 255,
+        "toolCategories": [
+          "read-file:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 59,
+        "input": 117649,
+        "cachedInput": 116849,
+        "output": 236,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 60,
+        "input": 118099,
+        "cachedInput": 117617,
+        "output": 92,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 61,
+        "input": 118461,
+        "cachedInput": 118001,
+        "output": 348,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 62,
+        "input": 119131,
+        "cachedInput": 118385,
+        "output": 1055,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 63,
+        "input": 120397,
+        "cachedInput": 119025,
+        "output": 80,
+        "toolCategories": [
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 64,
+        "input": 120928,
+        "cachedInput": 120305,
+        "output": 456,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 65,
+        "input": 122363,
+        "cachedInput": 120817,
+        "output": 1268,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 66,
+        "input": 123674,
+        "cachedInput": 122353,
+        "output": 294,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 67,
+        "input": 124071,
+        "cachedInput": 123633,
+        "output": 334,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 68,
+        "input": 124610,
+        "cachedInput": 124017,
+        "output": 265,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 69,
+        "input": 125927,
+        "cachedInput": 124529,
+        "output": 1087,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 70,
+        "input": 127922,
+        "cachedInput": 125809,
+        "output": 369,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 71,
+        "input": 128515,
+        "cachedInput": 127857,
+        "output": 260,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 72,
+        "input": 130147,
+        "cachedInput": 128497,
+        "output": 1710,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 73,
+        "input": 132028,
+        "cachedInput": 130033,
+        "output": 215,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 74,
+        "input": 132743,
+        "cachedInput": 131953,
+        "output": 513,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 75,
+        "input": 133359,
+        "cachedInput": 132721,
+        "output": 1751,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 76,
+        "input": 135170,
+        "cachedInput": 133233,
+        "output": 94,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 77,
+        "input": 135483,
+        "cachedInput": 135153,
+        "output": 220,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 78,
+        "input": 135799,
+        "cachedInput": 135409,
+        "output": 248,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 79,
+        "input": 136237,
+        "cachedInput": 135793,
+        "output": 94,
+        "toolCategories": [
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 80,
+        "input": 136669,
+        "cachedInput": 136177,
+        "output": 644,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 81,
+        "input": 137517,
+        "cachedInput": 136561,
+        "output": 95,
+        "toolCategories": [
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 82,
+        "input": 137929,
+        "cachedInput": 137457,
+        "output": 693,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 83,
+        "input": 138858,
+        "cachedInput": 137841,
+        "output": 96,
+        "toolCategories": [
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 84,
+        "input": 139110,
+        "cachedInput": 138737,
+        "output": 220,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 85,
+        "input": 139459,
+        "cachedInput": 138993,
+        "output": 999,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 86,
+        "input": 140527,
+        "cachedInput": 139377,
+        "output": 154,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 87,
+        "input": 140880,
+        "cachedInput": 140401,
+        "output": 74,
+        "toolCategories": [
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 88,
+        "input": 141058,
+        "cachedInput": 140785,
+        "output": 1158,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 89,
+        "input": 142274,
+        "cachedInput": 141041,
+        "output": 945,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 90,
+        "input": 143277,
+        "cachedInput": 142193,
+        "output": 1079,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 91,
+        "input": 144590,
+        "cachedInput": 143217,
+        "output": 298,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 92,
+        "input": 144927,
+        "cachedInput": 144497,
+        "output": 307,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-before",
+    "lane": "019-snapback-child-talent-bookings",
+    "model": "muse",
+    "frontend": "expo",
+    "calls": 103,
+    "input": 11253619,
+    "cachedInput": 10965796,
+    "uncachedInput": 287823,
+    "output": 66327,
+    "wallMs": 2128219,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 17,
+    "reads": {
+      "guide": 14,
+      "guideAfterSchema": 4,
+      "guideCards": 11,
+      "guideApi": 3,
+      "guideCardsAfterSchema": 4,
+      "guideApiAfterSchema": 0,
+      "declarations": 7,
+      "readme": 1,
+      "serverReference": 0,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 7,
+        "command": "npx snapback4 guide start 2>&1 | head -n 400"
+      },
+      {
+        "call": 11,
+        "command": "npx snapback4 guide rules --section \"Column read rules\" 2>&1 | head -n 120; echo =====; npx snapback4 guide api auth 2>&1 | head -n 100"
+      },
+      {
+        "call": 12,
+        "command": "npx snapback4 guide api client 2>&1 | head -n 150; echo =====; npx snapback4 guide uploads --section \"Copy the same image\" 2>&1 | head -n 80"
+      },
+      {
+        "call": 13,
+        "command": "npx snapback4 guide rule-recipes 2>&1 | head -n 200"
+      },
+      {
+        "call": 14,
+        "command": "npx snapback4 guide rule-recipes --section \"Column-level privacy\" 2>&1 | head -n 70; echo =====; npx snapback4 guide rule-recipes --section \"Own-or-staff queries\" 2>&1 | head -n 50; echo =====; npx snapback4 guide rule-recipes --section \"Private bookings with public availability counts\" 2>&1 | head -n 60"
+      },
+      {
+        "call": 16,
+        "command": "date -u +%FT%TZ; echo ---; npx snapback4 guide api proof 2>&1 | head -n 60"
+      },
+      {
+        "call": 30,
+        "command": "npx snapback4 guide staging 2>&1 | head -n 120"
+      },
+      {
+        "call": 31,
+        "command": "npx snapback4 guide staging --section \"Stand up staging\" 2>&1 | head -n 90"
+      },
+      {
+        "call": 50,
+        "command": "npx snapback4 guide uploads 2>&1 | head -n 100"
+      },
+      {
+        "call": 51,
+        "command": "npx snapback4 guide uploads --find \"E_ASSET_TYPE\" 2>&1 | head -n 40"
+      }
+    ],
+    "nativeSessionFile": "session.jsonl",
+    "nativeSessions": [
+      "2026/10/28/01a17fcd-34ed-7a20-ad70-fc7a62880d1b/session.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 33100,
+        "cachedInput": 0,
+        "output": 184,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 33488,
+        "cachedInput": 33009,
+        "output": 48,
+        "toolCategories": [
+          "read-file:brief"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 37640,
+        "cachedInput": 33393,
+        "output": 95,
+        "toolCategories": [
+          "read-shell:own"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 37991,
+        "cachedInput": 37617,
+        "output": 137,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 38240,
+        "cachedInput": 37873,
+        "output": 107,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 39087,
+        "cachedInput": 38129,
+        "output": 53,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 39690,
+        "cachedInput": 39025,
+        "output": 97,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 41842,
+        "cachedInput": 39665,
+        "output": 2453,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 44743,
+        "cachedInput": 41841,
+        "output": 106,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 46905,
+        "cachedInput": 44657,
+        "output": 100,
+        "toolCategories": [
+          "read-shell:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 49963,
+        "cachedInput": 46833,
+        "output": 163,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 50892,
+        "cachedInput": 49905,
+        "output": 128,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 52627,
+        "cachedInput": 50801,
+        "output": 174,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 54453,
+        "cachedInput": 52593,
+        "output": 171,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 56166,
+        "cachedInput": 54385,
+        "output": 3436,
+        "toolCategories": [
+          "read-shell:scripts"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 61155,
+        "cachedInput": 0,
+        "output": 275,
+        "toolCategories": [
+          "agent-meta",
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 62715,
+        "cachedInput": 61041,
+        "output": 3019,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 18,
+        "input": 65751,
+        "cachedInput": 0,
+        "output": 97,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 66101,
+        "cachedInput": 65649,
+        "output": 231,
+        "toolCategories": [
+          "sb:test"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 20,
+        "input": 68676,
+        "cachedInput": 66033,
+        "output": 960,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 70081,
+        "cachedInput": 68593,
+        "output": 324,
+        "toolCategories": [
+          "agent-meta",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 70581,
+        "cachedInput": 70001,
+        "output": 117,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 74020,
+        "cachedInput": 70513,
+        "output": 371,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 74526,
+        "cachedInput": 73969,
+        "output": 119,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 74923,
+        "cachedInput": 74481,
+        "output": 364,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 75588,
+        "cachedInput": 74865,
+        "output": 103,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 76279,
+        "cachedInput": 75505,
+        "output": 277,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": [
+          "E_SECURITY_NOTES"
+        ]
+      },
+      {
+        "index": 28,
+        "input": 77091,
+        "cachedInput": 76273,
+        "output": 216,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 29,
+        "input": 77645,
+        "cachedInput": 77041,
+        "output": 185,
+        "toolCategories": [
+          "read-file:scripts",
+          "read-shell:generated"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 82162,
+        "cachedInput": 77553,
+        "output": 2666,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 85500,
+        "cachedInput": 82161,
+        "output": 105,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 32,
+        "input": 86826,
+        "cachedInput": 85489,
+        "output": 2062,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 89347,
+        "cachedInput": 86769,
+        "output": 135,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 90931,
+        "cachedInput": 89329,
+        "output": 4360,
+        "toolCategories": [
+          "write-file",
+          "read-shell:node_modules"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 95804,
+        "cachedInput": 90865,
+        "output": 664,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 97298,
+        "cachedInput": 95729,
+        "output": 3386,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 37,
+        "input": 100738,
+        "cachedInput": 97265,
+        "output": 509,
+        "toolCategories": [
+          "write-file",
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 101527,
+        "cachedInput": 100721,
+        "output": 120,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 101967,
+        "cachedInput": 101489,
+        "output": 249,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 40,
+        "input": 103637,
+        "cachedInput": 101873,
+        "output": 848,
+        "toolCategories": [
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 41,
+        "input": 104960,
+        "cachedInput": 103537,
+        "output": 106,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 42,
+        "input": 105338,
+        "cachedInput": 104945,
+        "output": 764,
+        "toolCategories": [
+          "agent-meta",
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 43,
+        "input": 106194,
+        "cachedInput": 105329,
+        "output": 76,
+        "toolCategories": [
+          "other"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 44,
+        "input": 106374,
+        "cachedInput": 106097,
+        "output": 2024,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 45,
+        "input": 108871,
+        "cachedInput": 106353,
+        "output": 83,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 46,
+        "input": 109328,
+        "cachedInput": 108785,
+        "output": 2893,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 47,
+        "input": 112234,
+        "cachedInput": 109297,
+        "output": 1389,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 48,
+        "input": 115042,
+        "cachedInput": 112113,
+        "output": 1398,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 49,
+        "input": 117865,
+        "cachedInput": 114929,
+        "output": 293,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 50,
+        "input": 118295,
+        "cachedInput": 117745,
+        "output": 231,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 51,
+        "input": 119974,
+        "cachedInput": 118257,
+        "output": 264,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 52,
+        "input": 120981,
+        "cachedInput": 119921,
+        "output": 480,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 53,
+        "input": 121553,
+        "cachedInput": 120945,
+        "output": 183,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 54,
+        "input": 121839,
+        "cachedInput": 121457,
+        "output": 102,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 55,
+        "input": 122135,
+        "cachedInput": 121713,
+        "output": 97,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 56,
+        "input": 122541,
+        "cachedInput": 122097,
+        "output": 93,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 57,
+        "input": 122903,
+        "cachedInput": 122481,
+        "output": 81,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 58,
+        "input": 123667,
+        "cachedInput": 122865,
+        "output": 331,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 59,
+        "input": 124133,
+        "cachedInput": 123633,
+        "output": 96,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 60,
+        "input": 124368,
+        "cachedInput": 124017,
+        "output": 662,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 61,
+        "input": 125090,
+        "cachedInput": 124273,
+        "output": 116,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 62,
+        "input": 125887,
+        "cachedInput": 125041,
+        "output": 277,
+        "toolCategories": [
+          "agent-meta"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 63,
+        "input": 126203,
+        "cachedInput": 125809,
+        "output": 39,
+        "toolCategories": [],
+        "diagnostics": []
+      },
+      {
+        "index": 64,
+        "input": 126410,
+        "cachedInput": 126193,
+        "output": 225,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 65,
+        "input": 127073,
+        "cachedInput": 126321,
+        "output": 5986,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 66,
+        "input": 133023,
+        "cachedInput": 126961,
+        "output": 785,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 67,
+        "input": 133867,
+        "cachedInput": 132977,
+        "output": 296,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 68,
+        "input": 134221,
+        "cachedInput": 133745,
+        "output": 1484,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 69,
+        "input": 135729,
+        "cachedInput": 134129,
+        "output": 159,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 70,
+        "input": 136326,
+        "cachedInput": 135665,
+        "output": 123,
+        "toolCategories": [
+          "read-file:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 71,
+        "input": 136913,
+        "cachedInput": 136305,
+        "output": 393,
+        "toolCategories": [
+          "write-file",
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 72,
+        "input": 137682,
+        "cachedInput": 136817,
+        "output": 555,
+        "toolCategories": [
+          "write-file",
+          "other"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 73,
+        "input": 138375,
+        "cachedInput": 137585,
+        "output": 83,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 74,
+        "input": 138896,
+        "cachedInput": 138353,
+        "output": 941,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 75,
+        "input": 140405,
+        "cachedInput": 138865,
+        "output": 83,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 76,
+        "input": 140926,
+        "cachedInput": 140401,
+        "output": 872,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 77,
+        "input": 141884,
+        "cachedInput": 140913,
+        "output": 1019,
+        "toolCategories": [
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 78,
+        "input": 143589,
+        "cachedInput": 141809,
+        "output": 321,
+        "toolCategories": [
+          "write-file",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 79,
+        "input": 144055,
+        "cachedInput": 143473,
+        "output": 98,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 80,
+        "input": 144549,
+        "cachedInput": 143985,
+        "output": 301,
+        "toolCategories": [
+          "build"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 81,
+        "input": 145060,
+        "cachedInput": 144497,
+        "output": 144,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 82,
+        "input": 145625,
+        "cachedInput": 145009,
+        "output": 503,
+        "toolCategories": [
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 83,
+        "input": 146221,
+        "cachedInput": 145521,
+        "output": 118,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 84,
+        "input": 146730,
+        "cachedInput": 146161,
+        "output": 117,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 85,
+        "input": 147130,
+        "cachedInput": 146673,
+        "output": 1725,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 86,
+        "input": 149594,
+        "cachedInput": 147057,
+        "output": 267,
+        "toolCategories": [
+          "agent-meta",
+          "poll:proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 87,
+        "input": 150033,
+        "cachedInput": 149489,
+        "output": 119,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 88,
+        "input": 150388,
+        "cachedInput": 150001,
+        "output": 319,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 89,
+        "input": 150941,
+        "cachedInput": 150385,
+        "output": 181,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 90,
+        "input": 151286,
+        "cachedInput": 150897,
+        "output": 340,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 91,
+        "input": 151768,
+        "cachedInput": 151281,
+        "output": 115,
+        "toolCategories": [
+          "proofs:probe-check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 92,
+        "input": 152075,
+        "cachedInput": 151665,
+        "output": 772,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 93,
+        "input": 152877,
+        "cachedInput": 152049,
+        "output": 172,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 94,
+        "input": 154691,
+        "cachedInput": 152817,
+        "output": 379,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 95,
+        "input": 155725,
+        "cachedInput": 154609,
+        "output": 332,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 96,
+        "input": 156326,
+        "cachedInput": 155633,
+        "output": 1005,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 97,
+        "input": 157448,
+        "cachedInput": 156273,
+        "output": 496,
+        "toolCategories": [
+          "serve/wait"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 98,
+        "input": 158046,
+        "cachedInput": 157425,
+        "output": 901,
+        "toolCategories": [
+          "proofs:client-calls"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 99,
+        "input": 159038,
+        "cachedInput": 157937,
+        "output": 633,
+        "toolCategories": [
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 100,
+        "input": 159766,
+        "cachedInput": 158961,
+        "output": 530,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 101,
+        "input": 160797,
+        "cachedInput": 159729,
+        "output": 1113,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 102,
+        "input": 161965,
+        "cachedInput": 160753,
+        "output": 465,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 103,
+        "input": 162695,
+        "cachedInput": 161905,
+        "output": 565,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "phase": "clean-before",
+    "lane": "039-snapback-boat-shrink-wrapping",
+    "model": "codex",
+    "frontend": "react",
+    "calls": 39,
+    "input": 2598576,
+    "cachedInput": 2533504,
+    "uncachedInput": 65072,
+    "output": 32033,
+    "wallMs": 733863,
+    "exit": 0,
+    "report": true,
+    "initialPackageInstalled": false,
+    "firstSchemaCall": 8,
+    "reads": {
+      "guide": 15,
+      "guideAfterSchema": 14,
+      "guideCards": 11,
+      "guideApi": 4,
+      "guideCardsAfterSchema": 10,
+      "guideApiAfterSchema": 4,
+      "declarations": 2,
+      "readme": 1,
+      "serverReference": 1,
+      "clientReference": 0,
+      "generatedApi": 1
+    },
+    "guideCommands": [
+      {
+        "call": 5,
+        "command": "node --version && npx snapback4 guide start"
+      },
+      {
+        "call": 9,
+        "command": "npx snapback4 guide api proof && npx snapback4 guide api client && npx snapback4 guide api auth"
+      },
+      {
+        "call": 10,
+        "command": "npx snapback4 guide production --repeat && npx snapback4 guide jobs --section Operations && npx snapback4 guide language --find computed && npx snapback4 guide language --find query"
+      },
+      {
+        "call": 11,
+        "command": "cat >> snapback/schema.q <<HEREDOC\nnpx snapback4 check\nnode scripts/install.mjs --status\nnpx snapback4 guide production --section 'Admin inspection'"
+      },
+      {
+        "call": 13,
+        "command": "tail -n 25 .snapback4/install.log && ls node_modules/typescript/package.json node_modules/vite/package.json && npx snapback4 guide reads --find absent && npx snapback4 guide api generated"
+      },
+      {
+        "call": 20,
+        "command": "npx snapback4 guide uploads --section 0"
+      },
+      {
+        "call": 24,
+        "command": "npx snapback4 guide wire --find password && npx snapback4 guide wire --find '/m/' && npm run check"
+      },
+      {
+        "call": 31,
+        "command": "node -e \"import('snapback4/bin-path').then(()=>console.log('launcher import ok')).catch(e=>console.log(e.code+': '+e.message))\" && npx snapback4 guide security --section Reference"
+      }
+    ],
+    "nativeSessionFile": "rollout-2026-10-28T00-49-04-01a17fc4-774c-7b30-ac45-2f37cc5cdef8.jsonl",
+    "nativeSessions": [
+      "rollout-2026-10-28T00-49-04-01a17fc4-774c-7b30-ac45-2f37cc5cdef8.jsonl"
+    ],
+    "perCall": [
+      {
+        "index": 1,
+        "input": 18458,
+        "cachedInput": 14464,
+        "output": 157,
+        "toolCategories": [
+          "read-shell:node_modules"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 2,
+        "input": 18755,
+        "cachedInput": 18432,
+        "output": 219,
+        "toolCategories": [
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 3,
+        "input": 19031,
+        "cachedInput": 18816,
+        "output": 98,
+        "toolCategories": [
+          "poll:npm-install",
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 4,
+        "input": 20226,
+        "cachedInput": 18944,
+        "output": 57,
+        "toolCategories": [
+          "sb:docs-files"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 5,
+        "input": 29739,
+        "cachedInput": 20096,
+        "output": 37,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 6,
+        "input": 31817,
+        "cachedInput": 29568,
+        "output": 46,
+        "toolCategories": [
+          "sb:init"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 7,
+        "input": 32260,
+        "cachedInput": 31744,
+        "output": 60,
+        "toolCategories": [
+          "read-shell:config"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 8,
+        "input": 36539,
+        "cachedInput": 32128,
+        "output": 1896,
+        "toolCategories": [
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 9,
+        "input": 38583,
+        "cachedInput": 38272,
+        "output": 254,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 10,
+        "input": 49127,
+        "cachedInput": 38656,
+        "output": 162,
+        "toolCategories": [
+          "sb:guide",
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 11,
+        "input": 56046,
+        "cachedInput": 49152,
+        "output": 314,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 12,
+        "input": 56418,
+        "cachedInput": 56192,
+        "output": 1036,
+        "toolCategories": [
+          "poll:sb:guide",
+          "sb:check"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 13,
+        "input": 57811,
+        "cachedInput": 57216,
+        "output": 94,
+        "toolCategories": [
+          "sb:guide-api"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 14,
+        "input": 57997,
+        "cachedInput": 57728,
+        "output": 223,
+        "toolCategories": [
+          "npm-install",
+          "npm-install"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 15,
+        "input": 58312,
+        "cachedInput": 57984,
+        "output": 2641,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 16,
+        "input": 61077,
+        "cachedInput": 60800,
+        "output": 92,
+        "toolCategories": [
+          "poll:npm-install",
+          "poll:write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 17,
+        "input": 61645,
+        "cachedInput": 60928,
+        "output": 297,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 18,
+        "input": 62066,
+        "cachedInput": 61824,
+        "output": 4639,
+        "toolCategories": [
+          "typecheck"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 19,
+        "input": 66794,
+        "cachedInput": 66560,
+        "output": 4472,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "poll:typecheck",
+          "write-file"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 20,
+        "input": 71620,
+        "cachedInput": 71040,
+        "output": 59,
+        "toolCategories": [
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 21,
+        "input": 74090,
+        "cachedInput": 71552,
+        "output": 242,
+        "toolCategories": [
+          "proofs:acceptance"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 22,
+        "input": 74457,
+        "cachedInput": 74112,
+        "output": 1543,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 23,
+        "input": 76125,
+        "cachedInput": 75776,
+        "output": 1582,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 24,
+        "input": 77970,
+        "cachedInput": 77568,
+        "output": 257,
+        "toolCategories": [
+          "poll:write-file",
+          "sb:guide"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 25,
+        "input": 81457,
+        "cachedInput": 78080,
+        "output": 385,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 26,
+        "input": 81968,
+        "cachedInput": 81664,
+        "output": 982,
+        "toolCategories": [
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 27,
+        "input": 83048,
+        "cachedInput": 82816,
+        "output": 494,
+        "toolCategories": [
+          "poll:proofs:frontend",
+          "poll:sb:guide",
+          "poll:write-file",
+          "read-shell:logs"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 28,
+        "input": 83921,
+        "cachedInput": 83328,
+        "output": 870,
+        "toolCategories": [
+          "sb:test",
+          "proofs:acceptance"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 29,
+        "input": 84948,
+        "cachedInput": 84608,
+        "output": 152,
+        "toolCategories": [
+          "poll:write-file",
+          "poll:sb:test",
+          "read-shell:generated"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 30,
+        "input": 86989,
+        "cachedInput": 84864,
+        "output": 1299,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 31,
+        "input": 88346,
+        "cachedInput": 88064,
+        "output": 441,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "poll:sb:test",
+          "sb:guide"
+        ],
+        "diagnostics": [
+          "E_ASSET_TYPE"
+        ]
+      },
+      {
+        "index": 32,
+        "input": 94582,
+        "cachedInput": 88576,
+        "output": 939,
+        "toolCategories": [
+          "sb:pkg-source"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 33,
+        "input": 97318,
+        "cachedInput": 95360,
+        "output": 1238,
+        "toolCategories": [
+          "proofs:frontend"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 34,
+        "input": 98647,
+        "cachedInput": 98432,
+        "output": 851,
+        "toolCategories": [
+          "proofs:acceptance",
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 35,
+        "input": 99655,
+        "cachedInput": 99328,
+        "output": 691,
+        "toolCategories": [
+          "poll:proofs:frontend",
+          "poll:proofs:acceptance",
+          "run-script"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 36,
+        "input": 101045,
+        "cachedInput": 100224,
+        "output": 542,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "read-shell:brief"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 37,
+        "input": 101960,
+        "cachedInput": 101376,
+        "output": 953,
+        "toolCategories": [
+          "poll:proofs:acceptance",
+          "write-file"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 38,
+        "input": 103020,
+        "cachedInput": 102784,
+        "output": 1633,
+        "toolCategories": [
+          "write-diary"
+        ],
+        "diagnostics": []
+      },
+      {
+        "index": 39,
+        "input": 104709,
+        "cachedInput": 104448,
+        "output": 86,
+        "toolCategories": [],
+        "diagnostics": []
+      }
+    ]
+  }
+]

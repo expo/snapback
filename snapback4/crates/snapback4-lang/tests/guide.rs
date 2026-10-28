@@ -124,7 +124,8 @@ fn w11r2_native_boundary_sentence_matches_both_published_copies() {
 #[test]
 fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
-    assert!(readme.contains("./CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
+    assert!(readme.contains("guide start") && readme.contains("guide workflow"));
+    assert!(card("package-reference").unwrap().contains("CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
     let reference = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
     let path = reference.split_once("## Your first working account screen").expect("one linked optional walkthrough").1;
     for text in [
@@ -170,7 +171,7 @@ fn w14b_first_account_screen_is_self_contained() {
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme;
-    for text in ["CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "probe:check"] {
+    for text in ["CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "guide workflow"] {
         assert!(opening.contains(text), "first read omits {text}");
     }
     assert!(readme.len() < 2500, "README is a pointer, not a second tutorial");
@@ -750,7 +751,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 23, "Start here, paved introduction, familiar forms, the core program, four more preserved language blocks, field-authority, ephemeral declarations, membership paths and historical backfills");
+    assert_eq!(quarry(LANGUAGE).len(), 24, "Start here, paved introduction, familiar forms, the core program, four more preserved language blocks, field-authority, ephemeral declarations, membership paths, historical backfills and executable nullable idioms");
     // The parts are one program: each compiles only as the whole, which the card runs against the engine.
     let parts: Vec<_> = quarry(LANGUAGE).into_iter().filter(|block| guide::language_part(block)).collect();
     assert_eq!((parts.len(), parts.concat()), (12, guide::language()));

@@ -1,5 +1,5 @@
 //! A host is owned by its launching parent, including npm above a surviving shell.
-// @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — parent death must release ports, pipes and store custody.
+// @ref LLP 3000.037.000#10-serve-lifetime-and-store-recovery-srv1 — parent death must release ports, pipes and store custody.
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 #[cfg(target_os = "linux")]

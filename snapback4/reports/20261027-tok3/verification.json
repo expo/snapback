@@ -1,0 +1,134 @@
+{
+  "scopedAffected": {
+    "status": "passed",
+    "head": "a1768f8335729f56e0cb4ed32b9a626849cd5de3",
+    "complete": true,
+    "unchanged": true,
+    "fullSelectorPlanExecuted": false,
+    "qualification": false,
+    "results": [
+      {
+        "id": "install-client",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 28
+      },
+      {
+        "id": "build-cli",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 27985
+      },
+      {
+        "id": "build-client",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 7183
+      },
+      {
+        "id": "typecheck:snapback4",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 2905
+      },
+      {
+        "id": "rust:guide-emitter",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 26747
+      },
+      {
+        "id": "rust:init-unit",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 101804
+      },
+      {
+        "id": "rust:starter-cli",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 67376
+      },
+      {
+        "id": "client:reading",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 11287
+      },
+      {
+        "id": "diagnostics",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 194668
+      },
+      {
+        "id": "docs-budget",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 21203
+      },
+      {
+        "id": "generated",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 238877
+      },
+      {
+        "id": "guide",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 211613
+      },
+      {
+        "id": "inventories",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 196285
+      },
+      {
+        "id": "packaged-docs",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 41
+      },
+      {
+        "id": "ref-check",
+        "status": 0,
+        "signal": null,
+        "elapsedMs": 5124
+      }
+    ]
+  },
+  "packedWorkflow": {
+    "ok": true,
+    "wallMs": 8198,
+    "startBytes": 3478,
+    "workflowBytes": 7975,
+    "acceptanceRuns": 2,
+    "signatures": {
+      "app": 1604,
+      "witness": 842,
+      "react": 4610,
+      "client": 3994,
+      "auth": 2054,
+      "proof": 5369,
+      "generated": 867
+    },
+    "qualification": false
+  },
+  "packedProofKit": {
+    "status": "passed",
+    "exit": 0
+  },
+  "packedStartersEarlier": {
+    "status": "passed",
+    "exit": 0,
+    "source": "e6d0c54816 plus route/calendar revision, lean development CLI; all six starters including adapted/browser/negative controls"
+  },
+  "packedStartersProduction": {
+    "status": "failed",
+    "exit": 1,
+    "reason": "Expo npm-audit gate: @expo/cli fixAvailable; unchanged package versions; see expo-audit files and open issue"
+  },
+  "qualification": false
+}

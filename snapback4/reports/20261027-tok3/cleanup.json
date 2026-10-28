@@ -1,0 +1,42 @@
+{
+  "scopes": [
+    {
+      "unit": "run-r4409e7891d1945e0a3fb730221c1a691.scope",
+      "capturedFromVerifiedNativeCwd": true,
+      "stopScheduled": false
+    },
+    {
+      "unit": "run-r5d2020c49fa84ccfa110aacc1eab9b5d.scope",
+      "capturedFromVerifiedNativeCwd": true,
+      "stopScheduled": false
+    },
+    {
+      "unit": "run-r830a9350b92d46fa9160c40bf486a483.scope",
+      "capturedFromVerifiedNativeCwd": true,
+      "stopScheduled": false
+    },
+    {
+      "unit": "run-ra04e4c101fab421d978d03159e2bd55a.scope",
+      "capturedFromVerifiedNativeCwd": true,
+      "stopScheduled": true
+    }
+  ],
+  "registries": [
+    {
+      "pid": 3946260,
+      "label": "clean-before",
+      "stopRequested": true
+    },
+    {
+      "pid": 4080298,
+      "label": "clean-after",
+      "stopRequested": true
+    }
+  ],
+  "copies": {
+    "path": "/tmp/tok3-replay",
+    "deleted": true
+  },
+  "completed": "2026-10-28",
+  "allOwnedReplayScopesInactive": true
+}

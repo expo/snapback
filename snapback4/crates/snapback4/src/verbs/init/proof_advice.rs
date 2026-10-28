@@ -21,10 +21,20 @@ pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
     templates().iter().find(|t| t.file == "native" && t.sha256 == hash)
         .map(|t| (t.version.as_str(), t.template.as_deref() == Some("password")))
 }
+// @ref LLP 3000.037.000#10 — strip only the exact shipped inert lines. CR and
+// Unicode JS line separators must never hide executable application-owned bytes.
+fn without_edit_regions(text: &str) -> String {
+    const MARKERS: &[&str] = &[
+        "// EDIT REGION: business assertions between the markers below; keep build, hosts and cleanup.",
+        "    // EDIT REGION: sign-in role and screen/write assertions begin.",
+        "  // KEEP REGION: proof result and cleanup.",
+    ];
+    text.split_inclusive('\n').filter(|line| !MARKERS.contains(&line.strip_suffix('\n').unwrap_or(line))).collect()
+}
 pub(super) fn frontend_template(dir: &Path, web: bool) -> Option<(&'static str, Option<&'static str>)> {
     let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
     for template in [None, Some("chat"), Some("social")] {
-        if text == super::proof::frontend_proof(include_str!("frontend-proof.mjs"), template, web) {
+        if without_edit_regions(&text) == without_edit_regions(&super::proof::frontend_proof(include_str!("frontend-proof.mjs"), template, web)) {
             return Some((env!("CARGO_PKG_VERSION"), template));
         }
     }
@@ -142,6 +152,16 @@ pub(super) fn report(dir: &Path) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn region_comments_never_hide_application_code_after_js_line_separators() {
+        let marker = "    // EDIT REGION: sign-in role and screen/write assertions begin.";
+        assert_eq!(without_edit_regions(&format!("before\n{marker}\nafter\n")), "before\nafter\n");
+        for separator in ["\r", "\u{2028}", "\u{2029}", "\r\n"] {
+            let source = format!("before\n{marker}{separator}globalThis.applicationOwned = true;\nafter\n");
+            assert!(without_edit_regions(&source).contains("globalThis.applicationOwned"));
+            assert_ne!(without_edit_regions(&source), "before\nafter\n");
+        }
+    }
     #[test]
     fn every_shipped_proof_template_has_a_digest() {
         let mut expected=Vec::new();

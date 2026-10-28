@@ -1,0 +1,12 @@
+[
+  {
+    "pid": 2603689,
+    "ownedScript": "registry.mjs",
+    "signal": "SIGTERM"
+  },
+  {
+    "pid": 3266088,
+    "ownedScript": "registry-final.mjs",
+    "signal": "SIGTERM"
+  }
+]

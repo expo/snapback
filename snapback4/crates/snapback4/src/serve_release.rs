@@ -23,7 +23,7 @@ pub(super) fn start(
     })
 }
 
-// @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — dev stop uses the same store-bound custody, with no release operations.
+// @ref LLP 3000.037.000#10-serve-lifetime-and-store-recovery-srv1 — dev stop uses the same store-bound custody, with no release operations.
 #[cfg(unix)]
 pub(super) fn start_stop(shared: Arc<Shared>, dir: std::path::PathBuf) -> Result<std::thread::JoinHandle<()>, String> {
     let store = shared.owner.as_ref().ok_or("stop control requires a persisted owner")?.path().map_err(|e|e.to_string())?;

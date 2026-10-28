@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// KEEP REGION: dependency installer; use --wait once before build.
 // A private worker group owns npm; IPC EOF stops it even if this owner is killed.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, openSync, closeSync, unlinkSync, chmodSync } from "node:fs";

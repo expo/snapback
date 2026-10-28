@@ -109903,6 +109903,18 @@ missing release-history tables on dev stores remain readable. This changes
 inspection, not release or write semantics. LLP 3000.037.000 §9 governs the work.
 No version bump, push, Mac or publication qualification is claimed here.
 
+## 2026-10-27 — TOK3: day-one reading after start
+
+Wave-34 found section hopping after the first schema, additive digest/declaration
+reads and starter rereads. Start now routes to one composed workflow recipe;
+README is a pointer and the long package documents are explicit references.
+Generated digests cover React, observation/session and account-plan lookups;
+declarations point to them and operation indexes name hooks. Starter scripts
+mark editable business regions; successful check points to the API index on its
+verdict line. Nullable arithmetic/conditions and required inserts are explained
+where the recipe needs them. LLP 3000.037.000 §10 records scope and measurement
+requirements. No version bump, publication or push.
+
 
 ## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
 

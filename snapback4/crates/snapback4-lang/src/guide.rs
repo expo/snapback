@@ -69,7 +69,8 @@ mod indexes;
 mod types;
 pub use discovery::{bounded_default, reading_blocks, FULL_BYTES, FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "day2", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "day2", "workflow", "package-reference", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
+
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -262,6 +263,9 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "security" => include_str!("guide/security.md"), 
         "start" => start::card(),
         "day2" => include_str!("guide/day2.md"),
+        "workflow" => include_str!("guide/workflow.md"),
+        "package-reference" => include_str!("guide/references.md"),
+
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),
         "wire" => include_str!("guide/wire.md"),

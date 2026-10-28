@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// EDIT REGION: readiness/business setup below; keep guard, hosts and cleanup.
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +14,8 @@ try {
   // Sample this clock for time arguments, including after staging advances.
   const now = await host.now();
   const held = serveUntilSignal([host]);
+  // EDIT REGION: readiness; include sessions for an app harness, keep credentials out of diaries.
   console.log(JSON.stringify({ backendUrl: host.url, credentialsFile, now }));
+  // KEEP REGION: referenced lifetime and shutdown.
   await held;
 } finally { guard.close(); await host.stop(); }

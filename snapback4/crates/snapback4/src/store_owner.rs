@@ -216,7 +216,7 @@ fn owner_pid(_: &Path) -> Option<u32> { None }
 pub(crate) fn address(_: &Path) -> Option<String> { None }
 
 
-// @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — metadata explains a lock; it never authorizes a signal.
+// @ref LLP 3000.037.000#10-serve-lifetime-and-store-recovery-srv1 — metadata explains a lock; it never authorizes a signal.
 fn write_record(file: &mut File, address: Option<std::net::SocketAddr>, control: &Path) -> Result<(), String> {
     let pid = std::process::id();
     let start = crate::supervisor::identity(pid).map(|(_, start)| start).unwrap_or_else(|| "unknown".into());
