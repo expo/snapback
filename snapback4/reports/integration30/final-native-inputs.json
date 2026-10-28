@@ -1,0 +1,18 @@
+{
+  "nativeQualifiedSource": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "binarySha256": "cd4f6de04dd5c972f88e6cff6ad89b32cd6f7bfa7b289cf905e5e9a04d98358d",
+  "nativeInputObjects": {
+    "snapback4/crates": "1594a1f7b796a1f502e57f7a31fbe475ecf4d87f",
+    "snapback4/packages": "2f0360b5a58b579b666487824d87642a7da06df2",
+    "snapback4/scripts": "864b5e245eb0ee18a4edfd64a6f651edb16883c0",
+    "snapback4/vendor": "cd43d6e59579d0f34ec871420856fe083305f4d2",
+    "snapback4/.cargo": "9ee1b20cf538477dfbf4fae898499cc279829c5b",
+    "snapback4/Cargo.toml": "deeca2f4f2cdd48097862f3aa32f5b9cb1f82851",
+    "snapback4/Cargo.lock": "a01055b9fe14f7aac4e6eba7cad0737dbcabd9d6",
+    "snapback4/rust-toolchain.toml": "44a9e3b922d525c1c0d9bb35aa79aaf69d9ce388",
+    "snapback4/package.json": "dcffb3e0247e6547d94996dba00e4c3366322fae",
+    "snapback4/bun.lock": "326a1c7a0af376779ee585f78f308fab0e8f2776",
+    "snapback4/metrics/wasm-budget.json": "03cccb6f613326f7562e45314bb3630a69735611"
+  },
+  "method": "Final report/LLP/journal/metrology-only commits must preserve every listed native/SDK/build input object. Post-report checks compare actual HEAD against these objects before push. The complete R4 engine/SDK proof is bound separately; only self-contained guide prose differs from R4, with its actual final packed delta freshly checked."
+}

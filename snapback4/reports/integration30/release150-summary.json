@@ -1,0 +1,775 @@
+{
+  "stores": 150,
+  "successfulMoves": 728,
+  "expectedRefusals": 22,
+  "consistentRollbackPopulations": 294,
+  "hiddenV1Rows": 0,
+  "timeouts": 0,
+  "physicalFieldLineage": [
+    {
+      "wave": 27,
+      "lane": "014",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "financials",
+          "old": "quotedFee",
+          "column": "stagingFeeQuote"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "014",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "financials",
+          "old": "quotedFee",
+          "column": "stagingFeeQuote"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "treks",
+          "old": "trekDate",
+          "column": "outingDate"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "trekHikers",
+          "old": "trek",
+          "column": "outing"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "receipts",
+          "old": "trek",
+          "column": "outing"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "treks",
+          "old": "trekDate",
+          "column": "outingDate"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "trekHikers",
+          "old": "trek",
+          "column": "outing"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "receipts",
+          "old": "trek",
+          "column": "outing"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "arms",
+          "child": "photoSets",
+          "column": "arms",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "crystals",
+          "child": "photoSets",
+          "column": "crystals",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "frame",
+          "child": "photoSets",
+          "column": "frame",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "arms",
+          "child": "photoSets",
+          "column": "arms",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "crystals",
+          "child": "photoSets",
+          "column": "crystals",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "frame",
+          "child": "photoSets",
+          "column": "frame",
+          "declaration": "extract photoSets from projects via project: {frame:frame, arms:arms, crystals:crystals}"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "032",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "placements",
+          "old": "applicationScan",
+          "child": "packets",
+          "column": "scan",
+          "declaration": "extract packets from placements via placement: {scan:applicationScan, handler:handler, createdAt:createdAt}"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "032",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "placements",
+          "old": "applicationScan",
+          "child": "packets",
+          "column": "scan",
+          "declaration": "extract packets from placements via placement: {scan:applicationScan, handler:handler, createdAt:createdAt}"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "deliveries",
+          "old": "priceCents",
+          "column": "deliveryChargeCents"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "invoices",
+          "old": "amountCents",
+          "column": "deliveryChargeCents"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "deliveries",
+          "old": "priceCents",
+          "column": "deliveryChargeCents"
+        },
+        {
+          "kind": "declared rename",
+          "parent": "invoices",
+          "old": "amountCents",
+          "column": "deliveryChargeCents"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "cars",
+          "old": "conditionNotes",
+          "column": "inspectionNotes"
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared rename",
+          "parent": "cars",
+          "old": "conditionNotes",
+          "column": "inspectionNotes"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "defectKinds",
+          "child": "surveys",
+          "column": "defectKinds",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "defectNotes",
+          "child": "surveys",
+          "column": "defectNotes",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "photos",
+          "child": "surveys",
+          "column": "photos",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "defectKinds",
+          "child": "surveys",
+          "column": "defectKinds",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "defectNotes",
+          "child": "surveys",
+          "column": "defectNotes",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "photos",
+          "child": "surveys",
+          "column": "photos",
+          "declaration": "extract surveys from jobs via job: { photos: photos, defectNotes: defectNotes, defectKinds: defectKinds }"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "012",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "floorPlan",
+          "child": "planApprovals",
+          "column": "floorPlan",
+          "declaration": "extract planApprovals from jobs via job: {floorPlan:floorPlan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "012",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "floorPlan",
+          "child": "planApprovals",
+          "column": "floorPlan",
+          "declaration": "extract planApprovals from jobs via job: {floorPlan:floorPlan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "enginePhoto",
+          "child": "intakeAlbums",
+          "column": "enginePhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "framePhoto",
+          "child": "intakeAlbums",
+          "column": "framePhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "paintPhoto",
+          "child": "intakeAlbums",
+          "column": "paintPhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "enginePhoto",
+          "child": "intakeAlbums",
+          "column": "enginePhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "framePhoto",
+          "child": "intakeAlbums",
+          "column": "framePhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "tractors",
+          "old": "paintPhoto",
+          "child": "intakeAlbums",
+          "column": "paintPhoto",
+          "declaration": "extract intakeAlbums from tractors via tractor: {framePhoto: framePhoto, enginePhoto: enginePhoto, paintPhoto: paintPhoto}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "020",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "bookings",
+          "old": "permitPhoto",
+          "child": "hikerPermits",
+          "column": "permitPhoto",
+          "declaration": "extract hikerPermits from bookings via booking: {permitPhoto:permitPhoto}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "020",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "bookings",
+          "old": "permitPhoto",
+          "child": "hikerPermits",
+          "column": "permitPhoto",
+          "declaration": "extract hikerPermits from bookings via booking: {permitPhoto:permitPhoto}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "accessNotes",
+          "child": "surveys",
+          "column": "accessNotes",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "doorwayPhoto",
+          "child": "surveys",
+          "column": "doorwayPhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "safePhoto",
+          "child": "surveys",
+          "column": "safePhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "stairwayPhoto",
+          "child": "surveys",
+          "column": "stairwayPhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "weightLbs",
+          "child": "surveys",
+          "column": "weightLbs",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "accessNotes",
+          "child": "surveys",
+          "column": "accessNotes",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "doorwayPhoto",
+          "child": "surveys",
+          "column": "doorwayPhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "safePhoto",
+          "child": "surveys",
+          "column": "safePhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "stairwayPhoto",
+          "child": "surveys",
+          "column": "stairwayPhoto",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "moves",
+          "old": "weightLbs",
+          "child": "surveys",
+          "column": "weightLbs",
+          "declaration": "extract surveys from moves via move: {safePhoto: safePhoto, doorwayPhoto: doorwayPhoto, stairwayPhoto: stairwayPhoto, weightLbs: weightLbs, accessNotes: accessNotes}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "basin",
+          "child": "conditionAssessments",
+          "column": "basin",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "statuary",
+          "child": "conditionAssessments",
+          "column": "statuary",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "tiers",
+          "child": "conditionAssessments",
+          "column": "tiers",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "basin",
+          "child": "conditionAssessments",
+          "column": "basin",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "statuary",
+          "child": "conditionAssessments",
+          "column": "statuary",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "projects",
+          "old": "tiers",
+          "child": "conditionAssessments",
+          "column": "tiers",
+          "declaration": "extract conditionAssessments from projects via project: {basin:basin, tiers:tiers, statuary:statuary}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "032",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "placements",
+          "old": "scan",
+          "child": "applicationDocs",
+          "column": "scan",
+          "declaration": "extract applicationDocs from placements via placement: {scan:scan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "032",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "placements",
+          "old": "scan",
+          "child": "applicationDocs",
+          "column": "scan",
+          "declaration": "extract applicationDocs from placements via placement: {scan:scan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "036",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "figures",
+          "old": "likenessScan",
+          "child": "likenessApprovals",
+          "column": "scan",
+          "declaration": "extract likenessApprovals from figures via figure: {scan:likenessScan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "036",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "figures",
+          "old": "likenessScan",
+          "child": "likenessApprovals",
+          "column": "scan",
+          "declaration": "extract likenessApprovals from figures via figure: {scan:likenessScan}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "boards",
+          "child": "photoCollections",
+          "column": "boards",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "railings",
+          "child": "photoCollections",
+          "column": "railings",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "stairs",
+          "child": "photoCollections",
+          "column": "stairs",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "boards",
+          "child": "photoCollections",
+          "column": "boards",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "railings",
+          "child": "photoCollections",
+          "column": "railings",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "jobs",
+          "old": "stairs",
+          "child": "photoCollections",
+          "column": "stairs",
+          "declaration": "extract photoCollections from jobs via job: { boards: boards, railings: railings, stairs: stairs }"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "phase": "rollback1",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "orders",
+          "old": "footingPhoto",
+          "child": "surveys",
+          "column": "footingPhoto",
+          "declaration": "extract surveys from orders via order: {sitePhoto:sitePhoto, footingPhoto:footingPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "orders",
+          "old": "sitePhoto",
+          "child": "surveys",
+          "column": "sitePhoto",
+          "declaration": "extract surveys from orders via order: {sitePhoto:sitePhoto, footingPhoto:footingPhoto}"
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "phase": "rollback2",
+      "fields": [
+        {
+          "kind": "declared extraction",
+          "parent": "orders",
+          "old": "footingPhoto",
+          "child": "surveys",
+          "column": "footingPhoto",
+          "declaration": "extract surveys from orders via order: {sitePhoto:sitePhoto, footingPhoto:footingPhoto}"
+        },
+        {
+          "kind": "declared extraction",
+          "parent": "orders",
+          "old": "sitePhoto",
+          "child": "surveys",
+          "column": "sitePhoto",
+          "declaration": "extract surveys from orders via order: {sitePhoto:sitePhoto, footingPhoto:footingPhoto}"
+        }
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "/home/ccheever/sb4-loop/wave27/apps/014-snapback-home-staging-projects/snapback/schema.q": "90498b0954b57949b8032f720fa3f99101460186cb7237ffa64c1a66f234f283",
+    "/home/ccheever/sb4-loop/wave27/apps/020-snapback-llama-trekking-trips/snapback/schema.q": "67a974be0d95e9a813db55bbe233ee45cd806ebd08c08ae853f206608a6f795a",
+    "/home/ccheever/sb4-loop/wave27/apps/028-snapback-chandelier-restorations/snapback/schema.q": "f2937560f11ed7cb4e1243b0a21836e2ceabbd021d4cec97bbb0075c2fd87160",
+    "/home/ccheever/sb4-loop/wave27/apps/032-snapback-service-dog-placements/snapback/schema.q": "c117a70c2354767875ef9c4230b3a213ea2a61fafa46f587126126411c6126b2",
+    "/home/ccheever/sb4-loop/wave27/apps/038-snapback-water-cooler-deliveries/snapback/schema.q": "7310b94533118088f940258c57eb8c4b08d6d6a47183f4cf320f5c9d8e887393",
+    "/home/ccheever/sb4-loop/wave27/apps/042-snapback-classic-car-consignments/snapback/schema.q": "6f80f19ac7553a7f65d72d3fc29afa9b499f05e4e65e7a29e9d94ee2727aa7df",
+    "/home/ccheever/sb4-loop/wave29/apps/008-snapback-log-home-chinking-repairs/snapback/schema.q": "2b9ecc86bf4f1fba1244b8c8addb4f2c7b151a57c53dfe205380dd2e8d732b1a",
+    "/home/ccheever/sb4-loop/wave29/apps/012-snapback-architectural-rendering-jobs/snapback/schema.q": "820a036acb5302350860950dee81b4331000c15ce86dd3da1728b5fdc9f9f9a2",
+    "/home/ccheever/sb4-loop/wave29/apps/016-snapback-vintage-tractor-restorations/snapback/schema.q": "223ff1923d5eaa3ba5cf74fba4b6f6043868264b1995c67acf06f2ae73e39f71",
+    "/home/ccheever/sb4-loop/wave29/apps/020-snapback-snowshoe-guided-hikes/snapback/schema.q": "0af943046a8030a6d97e46fd284e5fd309d59c9af37d25138ab0ca5eda37c3c1",
+    "/home/ccheever/sb4-loop/wave29/apps/024-snapback-safe-moving-jobs/snapback/schema.q": "b85626433a31be59655d4b3c6faae01c872a3f2e499085c8a9a04ff0ab389fac",
+    "/home/ccheever/sb4-loop/wave29/apps/028-snapback-garden-fountain-restorations/snapback/schema.q": "ef5be67638ecc10345c0389e003a86c86da7fc25db539bac3e94ae14bc6937a0",
+    "/home/ccheever/sb4-loop/wave29/apps/032-snapback-assisted-living-placements/snapback/schema.q": "8d40331d7c471b4690d7c0f050d248ac8634404f93bf38d989c3b8e145b29979",
+    "/home/ccheever/sb4-loop/wave29/apps/036-snapback-wax-figure-commissions/snapback/schema.q": "1f04c433223a16a71a68b96d478430f1b32ae749a6e2a46a343b9dffe1e36394",
+    "/home/ccheever/sb4-loop/wave29/apps/044-snapback-wooden-deck-refinishing/snapback/schema.q": "3f6bbb73012c6a1e9534dcb4a5bc5a057bfbd31e533e4339b7ba195dca1c7149",
+    "/home/ccheever/sb4-loop/wave29/apps/048-snapback-pergola-builds/snapback/schema.q": "ce7e4f9ba0665282e4342d9c22d718a5505cc1812243ce8f0022a9c3cd3301c9"
+  },
+  "newRefusals": [],
+  "unexpectedRefusalCodes": [],
+  "outcomeChanges": [],
+  "binarySha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778",
+  "baselineSha256": "c7077176df9756191056af8e1acc0ec28aaf245776e82ce02eee758fb8b3cf41",
+  "captureSha256": "470e7a5976e772e2eba4f6f31fecfb6d9ceef3ce1c2e429f64f3d8024546eece",
+  "method": "All150stores and every5-move outcome compared with Integration29. Every successful backward move preserves allv1rows and equal preview/status shape. Physical predecessor-name absences must match baseline EXACTLY and EVERY absence must have a current source-declared rename or extraction into an actually served rowShape column/child; no new field/shape delta is allowed. This follows guide release-json guarded-view and rename semantics. SourceDBs never opened; only private regularDB/WAL copies, excluding owner/token sidecars."
+}

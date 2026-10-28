@@ -1,0 +1,10 @@
+import {planAffected,runPlan} from '/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/affected.mjs';
+import {writeFileSync,mkdirSync} from 'node:fs';
+const root='/home/ccheever/projects/snapback-sb4loop',out='/home/ccheever/sb4-loop/reports/integration30/incoming-affected';mkdirSync(out,{recursive:true});
+const original=planAffected({root,base:'2004ad37ee000bbb9ae84bd769ff9d4141446fa3'});
+writeFileSync(out+'/original.json',JSON.stringify(original,null,2)+'\n');
+const files=['proof-contract','proof-serve-check','dx14-proof','dx15-production','day3-proofs','query-observation','sync-generation','auth'].map(f=>`packages/snapback4/test/${f}.test.mjs`);
+const omit=new Set(['rust:snapback4-device','rust:snapback4-difftest','rust:snapback4-native','rust:snapback4-sim','client-models','lean-build','difftest:run-lean','difftest:run']);
+const omitted=[];const steps=original.steps.flatMap(s=>{if(omit.has(s.id)){omitted.push(s);return [];}if(s.id==='client-tests')return[{...s,argv:['node','scripts/run-client-tests.mjs','4','files',...files],fileArgOffset:4,fileRequires:Object.fromEntries(files.map(f=>[f,['build-cli','build-wasm','build-client']]))}];return[s];});
+const plan={...original,steps,clientFiles:files,canonicalComplete:false,omitted,scopeNote:'Incoming-main-only rerun after original Integration30 qualification: three complete changed CLI/core/lang crates, relevant HTTP/proof/authority client targets, root/generated/wasm checks. Core semantic changes are Postgres HTTP read-index only; no security campaign, check/deploy, SQLite/memory evaluator, planner or differential-oracle source changed. No forbidden full client/reverse-dependency/model pool.'};
+writeFileSync(out+'/scoped.json',JSON.stringify(plan,null,2)+'\n');console.log(JSON.stringify({source:plan.head,steps:steps.map(s=>s.id),files},null,2));const result=await runPlan(plan,{root});writeFileSync(out+'/result.json',JSON.stringify(result,null,2)+'\n');if(!result.receipt.ok)process.exitCode=1;

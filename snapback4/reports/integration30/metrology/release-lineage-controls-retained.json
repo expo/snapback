@@ -1,0 +1,486 @@
+{
+  "positiveRollbackPopulations": 32,
+  "negativeControls": 68,
+  "allPass": true,
+  "checks": [
+    {
+      "wave": 27,
+      "lane": "014",
+      "field": "quotedFee",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "014",
+      "field": "quotedFee",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trekDate",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trekDate",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trek",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trek",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trek",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "field": "trek",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "arms",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "arms",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "crystals",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "crystals",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "frame",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "028",
+      "field": "frame",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "032",
+      "field": "applicationScan",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "032",
+      "field": "applicationScan",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "field": "priceCents",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "field": "priceCents",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "field": "amountCents",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "038",
+      "field": "amountCents",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "field": "conditionNotes",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "field": "conditionNotes",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "defectKinds",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "defectKinds",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "defectNotes",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "defectNotes",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "photos",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "008",
+      "field": "photos",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "012",
+      "field": "floorPlan",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "012",
+      "field": "floorPlan",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "enginePhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "enginePhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "framePhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "framePhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "paintPhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "016",
+      "field": "paintPhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "020",
+      "field": "permitPhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "020",
+      "field": "permitPhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "accessNotes",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "accessNotes",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "doorwayPhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "doorwayPhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "safePhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "safePhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "stairwayPhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "stairwayPhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "weightLbs",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "024",
+      "field": "weightLbs",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "basin",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "basin",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "statuary",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "statuary",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "tiers",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "028",
+      "field": "tiers",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "032",
+      "field": "scan",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "032",
+      "field": "scan",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "036",
+      "field": "likenessScan",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "036",
+      "field": "likenessScan",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "boards",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "boards",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "railings",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "railings",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "stairs",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "044",
+      "field": "stairs",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "field": "footingPhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "field": "footingPhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "field": "sitePhoto",
+      "negative": "actual served target column removed",
+      "rejected": true
+    },
+    {
+      "wave": 29,
+      "lane": "048",
+      "field": "sitePhoto",
+      "negative": "authored lineage removed",
+      "rejected": true
+    }
+  ],
+  "toolSha256": "4da695ed190fc4f95c300f011fab35e08f7891199641f6a6d8ce8e55a72ed196",
+  "auditSha256": "84ff6bef9053ee79d7b770cdd9dcb46b7dd21201b839a4bf7edb78ea4d09c775",
+  "controlsSourceSha256": "f61a80e8d4c1671e9fa522dd9633356259b08adfe0224227b12816322bdfa636"
+}

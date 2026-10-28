@@ -1,0 +1,5 @@
+from pathlib import Path
+import subprocess,time,json,os
+p=Path(__file__).parent;args=['cargo','test','--locked','-j','16','-p','snapback4-core','--features','postgres','--lib','--no-run'];start=time.time();env={**os.environ,'CARGO_INCREMENTAL':'0','CARGO_PROFILE_DEV_DEBUG':'0','CARGO_PROFILE_TEST_DEBUG':'0','CARGO_BUILD_JOBS':'16','RUST_MIN_STACK':'33554432'}
+with(p/'core-pg-compile.log').open('w')as log:r=subprocess.run(['timeout','--kill-after=30s','1800s',*args],cwd='/home/ccheever/projects/snapback-sb4loop/snapback4',env=env,stdout=log,stderr=subprocess.STDOUT)
+(p/'core-pg-compile-result.json').write_text(json.dumps(dict(source=subprocess.check_output(['timeout','20s','git','rev-parse','HEAD'],text=True).strip(),exit=r.returncode,seconds=time.time()-start,command=args,scope='Compile feature-gated Postgres core tests; no private live Postgres server is available locally. Incoming lane private-PG qualification remains separately retained.'),indent=2)+'\n');raise SystemExit(r.returncode)

@@ -1,0 +1,11 @@
+{
+  "source": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "binary": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46-final",
+  "sha256": "cd4f6de04dd5c972f88e6cff6ad89b32cd6f7bfa7b289cf905e5e9a04d98358d",
+  "profile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "elf": "passed: static, no interpreter/shared dependencies",
+  "fullConsumerR4Source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "fullConsumerR4BinarySha256": "811295a71cd7929c93027fb31965ead2ccd2cc6ad154ed9f5333a88ef6ba4955",
+  "delta": "Only self-contained guide prose; all executable behavior code and SDK inputs unchanged. Final packed guide delta qualified independently."
+}

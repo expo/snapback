@@ -1,0 +1,49 @@
+[
+  {
+    "name": "guide-repair-target",
+    "exit": 0,
+    "seconds": 38.688613176345825,
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-j",
+      "16",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide"
+    ],
+    "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+  },
+  {
+    "name": "guide-repair-docs-budget",
+    "exit": 0,
+    "seconds": 0.22418785095214844,
+    "command": [
+      "node",
+      "scripts/docs-budget.mjs"
+    ],
+    "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+  },
+  {
+    "name": "guide-repair-native-build",
+    "exit": 0,
+    "seconds": 473.1051788330078,
+    "command": [
+      "bash",
+      "scripts/build-linux-musl.sh"
+    ],
+    "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+  },
+  {
+    "name": "packed-guide-closure",
+    "exit": 1,
+    "seconds": 6.490516901016235,
+    "command": [
+      "python3",
+      "/home/ccheever/sb4-loop/reports/integration30/packed-guide-closure.py"
+    ],
+    "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+  }
+]

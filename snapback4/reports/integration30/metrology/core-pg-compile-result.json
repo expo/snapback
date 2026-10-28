@@ -1,0 +1,19 @@
+{
+  "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "exit": 0,
+  "seconds": 103.9915680885315,
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "-j",
+    "16",
+    "-p",
+    "snapback4-core",
+    "--features",
+    "postgres",
+    "--lib",
+    "--no-run"
+  ],
+  "scope": "Compile feature-gated Postgres core tests; no private live Postgres server is available locally. Incoming lane private-PG qualification remains separately retained."
+}

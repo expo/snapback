@@ -1,0 +1,110 @@
+{
+  "measuredProductSource": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "mainIntegratedSource": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "unchangedAreas": [
+    {
+      "path": "snapback4/crates/snapback4/src/verbs",
+      "before": "4afcae64b5e00cd6fbb7d29648a8fbf46b6aa4d3",
+      "after": "4afcae64b5e00cd6fbb7d29648a8fbf46b6aa4d3",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/main.rs",
+      "before": "46e4fe60acae58688903277d503d19f43dbceb0e",
+      "after": "46e4fe60acae58688903277d503d19f43dbceb0e",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/fixture.rs",
+      "before": "749c21b97fd3ef87cf24f1e8d434de9062e5f285",
+      "after": "749c21b97fd3ef87cf24f1e8d434de9062e5f285",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/store/campaign_assets.rs",
+      "before": "cb415f2bac5ed9766d624a5df202c6d0095a14f9",
+      "after": "cb415f2bac5ed9766d624a5df202c6d0095a14f9",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/packages",
+      "before": "2f0360b5a58b579b666487824d87642a7da06df2",
+      "after": "2f0360b5a58b579b666487824d87642a7da06df2",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/Cargo.toml",
+      "before": "deeca2f4f2cdd48097862f3aa32f5b9cb1f82851",
+      "after": "deeca2f4f2cdd48097862f3aa32f5b9cb1f82851",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/Cargo.lock",
+      "before": "a01055b9fe14f7aac4e6eba7cad0737dbcabd9d6",
+      "after": "a01055b9fe14f7aac4e6eba7cad0737dbcabd9d6",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/bun.lock",
+      "before": "326a1c7a0af376779ee585f78f308fab0e8f2776",
+      "after": "326a1c7a0af376779ee585f78f308fab0e8f2776",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/.cargo",
+      "before": "9ee1b20cf538477dfbf4fae898499cc279829c5b",
+      "after": "9ee1b20cf538477dfbf4fae898499cc279829c5b",
+      "unchanged": true
+    },
+    {
+      "path": "snapback4/scripts",
+      "before": "864b5e245eb0ee18a4edfd64a6f651edb16883c0",
+      "after": "864b5e245eb0ee18a4edfd64a6f651edb16883c0",
+      "unchanged": true
+    }
+  ],
+  "changedRustAndVendoredPaths": [
+    "snapback4/crates/snapback4-core/src/engine/mod.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/deployment.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/handle.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/pipeline.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/read_index.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/store.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_grant_tests.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_park.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_read_index.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_read_index_tests.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/ff3_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/port/fixtures.rs",
+    "snapback4/crates/snapback4-core/src/store/port/lifecycle.rs",
+    "snapback4/crates/snapback4-core/src/store_port.rs",
+    "snapback4/crates/snapback4-lang/src/guide/release-json.md",
+    "snapback4/crates/snapback4/src/latency.rs",
+    "snapback4/crates/snapback4/src/request_workers.rs",
+    "snapback4/crates/snapback4/src/serve.rs",
+    "snapback4/crates/snapback4/src/serve_queries.rs",
+    "snapback4/crates/snapback4/src/serve_read_index.rs",
+    "snapback4/crates/snapback4/src/serve_start.rs",
+    "snapback4/crates/snapback4/src/serve_tests.rs",
+    "snapback4/crates/snapback4/src/serve_trace.rs",
+    "snapback4/crates/snapback4/src/store_config.rs",
+    "snapback4/crates/snapback4/tests/round_trips/mod.rs",
+    "snapback4/crates/snapback4/tests/serve_poison/mod.rs",
+    "snapback4/crates/snapback4/tests/serve_postgres/read_index.rs",
+    "snapback4/crates/snapback4/tests/serve_refusals/mod.rs",
+    "snapback4/vendor/tiny_http/src/client.rs",
+    "snapback4/vendor/tiny_http/src/lib.rs",
+    "snapback4/vendor/tiny_http/src/request.rs"
+  ],
+  "method": "Reuse the source-bound full security/latency/SQLite release evidence for unchanged command/campaign/compiler/planner paths. Incoming changes implement Postgres HTTP read-index continuations and parser-clock timing, plus their guide reference; SQLite/memory keep existing execution paths and direct calls pass no RI proof. Three complete CLI/core/language crates, HTTP/proof/auth clients, wasm/root checks and the complete packed consumer-only chain rerun on the integrated source. No claim that the full final Rust or Snapback4 tree is identical; fresh post-main binary is separately bound.",
+  "languageSourceBinding": {
+    "onlyChangedSourcePath": "snapback4/crates/snapback4-lang/src/guide/release-json.md",
+    "allOtherLanguageSourceBlobsIdentical": true,
+    "identicalSourceFiles": 416,
+    "beforeManifestSha256": "fbcf9a8abbc18806908bf339572bd0c61eae436446784194312978c6e40da392",
+    "afterManifestSha256": "d15fb8cdcf445a93ce9d5371b089dc3cbfa311a35fd2c6200d4d6ae28afb510c"
+  }
+}

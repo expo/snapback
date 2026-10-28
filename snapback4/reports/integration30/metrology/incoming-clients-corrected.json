@@ -1,0 +1,18 @@
+{
+  "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "files": [
+    "packages/snapback4/test/srv1-lifetime.test.mjs",
+    "packages/snapback4/test/dx14-client-proof.test.mjs",
+    "packages/snapback4/test/dx15-proof.test.mjs",
+    "packages/snapback4/test/read-only-server.test.mjs",
+    "packages/snapback4/test/web-session-authority.test.mjs",
+    "packages/snapback4/test/tok2-output.test.mjs",
+    "packages/snapback4/test/server-output.test.mjs"
+  ],
+  "priorPassingFiles": [
+    "packages/snapback4/test/proof-contract.test.mjs",
+    "packages/snapback4/test/day3-proofs.test.mjs",
+    "packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "method": "Correct five nonexistent old path spellings to actual tracked HTTP/proof/authority tests, and include both bounded-output/startup targets for incoming serve_start resolution. No product test/assertion/skip changes; original five file-not-found launches retained."
+}

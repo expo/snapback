@@ -1,0 +1,228 @@
+{
+  "allSelectedSemanticChecksPass": true,
+  "canonicalComplete": false,
+  "originalSource": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "originalComplete": true,
+  "originalUnchanged": true,
+  "originalLiteralPass": false,
+  "originalResults": [
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 44
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 43219
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 68548
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 7178
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2913
+    },
+    {
+      "id": "rust:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1813847
+    },
+    {
+      "id": "rust:snapback4-core",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 725932
+    },
+    {
+      "id": "rust:snapback4-lang",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 1037911
+    },
+    {
+      "id": "fixture-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 11285
+    },
+    {
+      "id": "client-tests",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 135078
+    },
+    {
+      "id": "chat-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 475
+    },
+    {
+      "id": "chat-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1161
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 194308
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 238
+    },
+    {
+      "id": "expo-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1139
+    },
+    {
+      "id": "generated",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 240456
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 211443
+    },
+    {
+      "id": "inventories",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 196011
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 42
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5180
+    },
+    {
+      "id": "release-guard",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 53232
+    },
+    {
+      "id": "selector-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 17213
+    },
+    {
+      "id": "wasm-measurement",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 72680
+    }
+  ],
+  "originalReceiptSha256": "db440189d73f320d37a98d9e318cc446de472b0f075651d0fe736b6dc8998b16",
+  "originalReceiptPath": "/home/ccheever/projects/snapback-sb4loop/target/affected/dc4177b57f9d-1793190571966.json",
+  "rustPackages": [
+    "snapback4",
+    "snapback4-core",
+    "snapback4-lang"
+  ],
+  "guideRepairSource": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "fullGuideTarget": {
+    "tests": 134,
+    "passed": 134,
+    "failed": 0,
+    "exit": 0,
+    "captureSha256": "f02c0e023416a3860a3b52c8b9f1f5083ef0314204c0212557e94ae765098592"
+  },
+  "clientFiles": [
+    "packages/snapback4/test/proof-contract.test.mjs",
+    "packages/snapback4/test/day3-proofs.test.mjs",
+    "packages/snapback4/test/sync-generation.test.mjs",
+    "packages/snapback4/test/srv1-lifetime.test.mjs",
+    "packages/snapback4/test/dx14-client-proof.test.mjs",
+    "packages/snapback4/test/dx15-proof.test.mjs",
+    "packages/snapback4/test/read-only-server.test.mjs",
+    "packages/snapback4/test/web-session-authority.test.mjs",
+    "packages/snapback4/test/tok2-output.test.mjs",
+    "packages/snapback4/test/server-output.test.mjs"
+  ],
+  "actualClientTests": {
+    "tests": 157,
+    "passed": 154,
+    "failed": 0,
+    "existingSkipped": 3
+  },
+  "correctedClientResult": {
+    "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+    "files": [
+      "packages/snapback4/test/srv1-lifetime.test.mjs",
+      "packages/snapback4/test/dx14-client-proof.test.mjs",
+      "packages/snapback4/test/dx15-proof.test.mjs",
+      "packages/snapback4/test/read-only-server.test.mjs",
+      "packages/snapback4/test/web-session-authority.test.mjs",
+      "packages/snapback4/test/tok2-output.test.mjs",
+      "packages/snapback4/test/server-output.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 66.36645221710205,
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "4",
+      "files",
+      "packages/snapback4/test/srv1-lifetime.test.mjs",
+      "packages/snapback4/test/dx14-client-proof.test.mjs",
+      "packages/snapback4/test/dx15-proof.test.mjs",
+      "packages/snapback4/test/read-only-server.test.mjs",
+      "packages/snapback4/test/web-session-authority.test.mjs",
+      "packages/snapback4/test/tok2-output.test.mjs",
+      "packages/snapback4/test/server-output.test.mjs"
+    ]
+  },
+  "featureGatedPostgresCompile": {
+    "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+    "exit": 0,
+    "seconds": 103.9915680885315,
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-j",
+      "16",
+      "-p",
+      "snapback4-core",
+      "--features",
+      "postgres",
+      "--lib",
+      "--no-run"
+    ],
+    "scope": "Compile feature-gated Postgres core tests; no private live Postgres server is available locally. Incoming lane private-PG qualification remains separately retained."
+  },
+  "scopeNote": "Preserve the original complete source-unchanged FAIL: only lang guide134 had two inaccessible-reference failures, and five client launches named nonexistent old paths. All other selected stages/targets passed. Guide-only prose repair passes unchanged full guide134 assertions and fresh packed counterexample; original three real client files plus seven actual tracked correction targets all pass. All executable behavior, compiler/planner, core/store/HTTP/SDK/proof code remains exact original incoming source; only embedded guide prose and journal change. No whole reverse-dependency/client/model-pool or literal full-package retry claim."
+}

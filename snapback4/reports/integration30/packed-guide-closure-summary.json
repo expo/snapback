@@ -1,0 +1,13 @@
+{
+  "source": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "exit": 0,
+  "previousPackedCounterexampleReproduced": true,
+  "fixedPackedGuideClosesAllReferences": true,
+  "serializedFenceAndRevisionContractVisible": true,
+  "binarySha256": "cd4f6de04dd5c972f88e6cff6ad89b32cd6f7bfa7b289cf905e5e9a04d98358d",
+  "sdkSha256": "c4f4a806a8c4a805daffb131a3a6490fc25cfbbcd5fb64ecbc7ed0f0ebf9b52a",
+  "oldPlatformSha256": "7c1e4efabcb86a82541971ad77d11646bb0e7dd0c8315551cb36d0e7b46e5c4c",
+  "newPlatformSha256": "7d08417307005389295d8f692ce4b8358f1dffd26646a91b30f8549d50d775ed",
+  "commandCaptureSha256": "2a9072cd82b365b5bcfa227e4870a0418354c2e48de7f51b7b1f04a3d72636c9",
+  "method": "Fresh packed SDK/platform consumers, no binary override/checkout dependencies. Same closure rule rejects the pre-fix packed content and accepts fixed content; both bounded sections are read; fixed actual continuation must show the supported-writer serialized-fence/same-commit revision contract. All SDK/runtime/HTTP/proof code is unchanged from full R4; only guide prose changed, so unrelated complete R4 consumer proofs are reused with an explicit source binding under LLP0232/FIX43 affected-scope cadence."
+}

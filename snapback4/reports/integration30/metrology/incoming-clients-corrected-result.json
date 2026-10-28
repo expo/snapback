@@ -1,0 +1,27 @@
+{
+  "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "files": [
+    "packages/snapback4/test/srv1-lifetime.test.mjs",
+    "packages/snapback4/test/dx14-client-proof.test.mjs",
+    "packages/snapback4/test/dx15-proof.test.mjs",
+    "packages/snapback4/test/read-only-server.test.mjs",
+    "packages/snapback4/test/web-session-authority.test.mjs",
+    "packages/snapback4/test/tok2-output.test.mjs",
+    "packages/snapback4/test/server-output.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 66.36645221710205,
+  "command": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "4",
+    "files",
+    "packages/snapback4/test/srv1-lifetime.test.mjs",
+    "packages/snapback4/test/dx14-client-proof.test.mjs",
+    "packages/snapback4/test/dx15-proof.test.mjs",
+    "packages/snapback4/test/read-only-server.test.mjs",
+    "packages/snapback4/test/web-session-authority.test.mjs",
+    "packages/snapback4/test/tok2-output.test.mjs",
+    "packages/snapback4/test/server-output.test.mjs"
+  ]
+}

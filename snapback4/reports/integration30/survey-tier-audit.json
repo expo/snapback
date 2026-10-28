@@ -1,0 +1,13 @@
+{
+  "schemas": 1020,
+  "sourceMatchedBaselineSchemas": 980,
+  "uniqueDispositionIds": true,
+  "tiers": {
+    "advisory": 13451,
+    "question": 1455,
+    "gate": 7
+  },
+  "notVisibleInDefault": [],
+  "priorGateOrWitnessEffectsMissing": [],
+  "method": "Cross-version operation misses are exploratory replay changes requiring classification, not cold/warm identity failures. Each current decision ID occurs once; gate/question/advisory disposition is exclusive. Current gated/witnessed decision IDs are checked against actual cold default output. Prior gated/witnessed effects compared by source-identical code/site/operation, independent of ID or evidence changes; misses require assessment."
+}

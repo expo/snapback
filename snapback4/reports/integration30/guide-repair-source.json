@@ -1,0 +1,9 @@
+{
+  "source": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "onlyChangedPaths": [
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-lang/src/guide/release-json.md"
+  ],
+  "guideSha256": "ce5499cbf0efb8a4d9c50d62baca4a767342402b6e149597f37ee34f69ad1028",
+  "method": "Only release guide prose and its journal record change. All runtime/SDK/proof/lifecycle/security/engine code remains exact dc4177; full R4 chain reused only for unchanged semantic inputs, with fresh affected packed guide closure on final bytes."
+}

@@ -1,0 +1,59 @@
+{
+  "ok": true,
+  "source": "95baa8718800aebf46dcbebf59e8db7646625e1f",
+  "originalDriverLiteralExit": 1,
+  "originalPhaseResults": [
+    {
+      "name": "guide-repair-target",
+      "exit": 0,
+      "seconds": 38.688613176345825,
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-j",
+        "16",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide"
+      ],
+      "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+    },
+    {
+      "name": "guide-repair-docs-budget",
+      "exit": 0,
+      "seconds": 0.22418785095214844,
+      "command": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+    },
+    {
+      "name": "guide-repair-native-build",
+      "exit": 0,
+      "seconds": 473.1051788330078,
+      "command": [
+        "bash",
+        "scripts/build-linux-musl.sh"
+      ],
+      "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+    },
+    {
+      "name": "packed-guide-closure",
+      "exit": 1,
+      "seconds": 6.490516901016235,
+      "command": [
+        "python3",
+        "/home/ccheever/sb4-loop/reports/integration30/packed-guide-closure.py"
+      ],
+      "source": "95baa8718800aebf46dcbebf59e8db7646625e1f"
+    }
+  ],
+  "focusedPackedRetryExit": 0,
+  "focusedPackedRetrySha256": "7dff89aec2ad7dd274ba8683bfab58f1b7bb6f363dfb0397923045cb3309cd90",
+  "shippingReadingExit": 0,
+  "shippingReadingSha256": "20baf14e2c0be9e3e85bbc473cfb2878952a19a9606dd256fa1c2e021c5ce48b",
+  "method": "Original packed test read only the first bounded section; the unchanged contract assertion additionally requires the continuation. Corrected test reads both bounded sections, preserves the old-package counterexample, and passes on actual final packed bytes. No product assertion or budget weakened; old attempt and captures retained."
+}

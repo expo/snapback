@@ -1,0 +1,7 @@
+{
+  "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "path": "snapback4/crates/snapback4-lang/src/guide/release-json.md",
+  "beforeSha256": "c36daa2a1e75d46bae0d855f296a2e1273c4a75f139c4e79687e16925fabc14f",
+  "afterSha256": "ce5499cbf0efb8a4d9c50d62baca4a767342402b6e149597f37ee34f69ad1028",
+  "method": "Replace inaccessible checkout LLP/Rust-file references with the same explicit supported-writer revision/fence contract. No assertion, authority rule or guide budget changes."
+}

@@ -1,0 +1,74 @@
+{
+  "ok": true,
+  "source": "7aef642aa38471d70eca0128d0a5ddd3b4cf518a",
+  "binarySha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778",
+  "schemas": 1020,
+  "sourceMatchedBaselineSchemas": 980,
+  "sourceMismatches": 0,
+  "falseGates": 0,
+  "newProductionRefusals": 0,
+  "freshProductionRefusals": 20,
+  "gates": 7,
+  "enforcedFixes": 21,
+  "unclassified": [],
+  "tiers": {
+    "advisory": 13451,
+    "question": 1455,
+    "gate": 7
+  },
+  "defaultCheckLines": {
+    "count": 1020,
+    "median": 3.0,
+    "p90": 6,
+    "max": 16
+  },
+  "defaultDeployLines": {
+    "count": 1020,
+    "median": 3.0,
+    "p90": 3,
+    "max": 5
+  },
+  "calibration": {
+    "30": {
+      "total": 14,
+      "visible": 11,
+      "categories": {
+        "witnessed question on default verdict": 10,
+        "nothing": 2,
+        "advisory only": 1,
+        "gated with witness": 1
+      }
+    },
+    "31": {
+      "total": 16,
+      "visible": 12,
+      "categories": {
+        "witnessed question on default verdict": 11,
+        "nothing": 3,
+        "advisory only": 1,
+        "gated with witness": 1
+      }
+    },
+    "32": {
+      "total": 8,
+      "visible": 6,
+      "categories": {
+        "witnessed question on default verdict": 6,
+        "advisory only": 1,
+        "nothing": 1
+      }
+    },
+    "33": {
+      "total": 15,
+      "visible": 6,
+      "categories": {
+        "witnessed question on default verdict": 6,
+        "nothing": 5,
+        "advisory only": 4
+      }
+    }
+  },
+  "method": "All seven gates and20fresh production refusals match source-reviewed Integration29 cases. No unclassified new gates/FIX/refusals; no prior gate/witness effects missing, and all current gate/question IDs occur in actual default check. Baseline source hashes exact. Every output line and coverage bar asserted.",
+  "captureSha256": "df7b6690fda320728db63ee825fb335eb5e3e9e1920623dac675e5a4cfce7f08",
+  "dayTwoByteIdenticalSkips": 0
+}

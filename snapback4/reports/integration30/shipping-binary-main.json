@@ -1,0 +1,10 @@
+{
+  "source": "dc4177b57f9d281e89c5d3a1e33770256118c209",
+  "binary": "/home/ccheever/sb4-loop/reports/integration30/snapback4-0.4.46-main",
+  "sha256": "811295a71cd7929c93027fb31965ead2ccd2cc6ad154ed9f5333a88ef6ba4955",
+  "profile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "elf": "passed: static, no interpreter/shared dependencies",
+  "originalMeasuredBinary": "snapback4-0.4.46",
+  "originalMeasuredSha256": "e01da19c3cde5ba6c81dae725983e09a4441924fb91c800eeb37a3ea95778778"
+}
