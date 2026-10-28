@@ -203,3 +203,82 @@ fn g5rf_publication_prefix_disables_enrollment_validation_and_saved_proof() {
     assert_eq!(reader.revision_cache_stats().read_index_rounds,before.read_index_rounds);
     assert_eq!(reader.revision_cache_stats().read_index_hits,before.read_index_hits);
 }
+
+#[test]
+#[ignore="private PG16"]
+fn g5rf2_reader_socket_refresh_preserves_ri_but_uncertainty_blocks() {
+    use crate::store_port::{AnyStore, StoreLease};
+    let (mut bootstrap,d,v)=fixture(true);
+    let namespace:String=bootstrap.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT current_schema()",&[]).unwrap().get(0);
+    let id=bootstrap.store_id.clone();drop(bootstrap);
+    let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut lease=StoreLease::connect(&url,&namespace,&id,"a001",Default::default()).unwrap();
+    lease.acquire().unwrap().unwrap();
+    let mut writer=Engine::open_at(AnyStore::open_postgres_owned(&url,&namespace,&lease).unwrap(),1000).unwrap();
+    enable(&writer);
+    let mut reader=writer.reader().unwrap();
+    let expected=warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+    let context=||Context::new(&v,args("W1")).at(1001).with_request_credential("account").with_revision_cache(true);
+    let grant=reader.store.read_grant().unwrap();
+    assert!(!grant.configured.load(Ordering::Acquire));
+    let candidate=reader.prepare_read_index("W1",&context(),None,DeliveryManifest::Build,&d).unwrap();
+    let pid:i32=reader.store_mut().test_postgres_handle_mut().store.get_mut().client.independent("SELECT pg_backend_pid()",&[]).unwrap()[0].get(0);
+    assert!(writer.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_terminate_backend($1)",&[&pid]).unwrap().get::<_,bool>(0));
+    let until=std::time::Instant::now()+std::time::Duration::from_secs(5);
+    while !reader.store_mut().test_postgres_handle_mut().store.get_mut().client.is_closed() {
+        assert!(std::time::Instant::now()<until,"terminated reader socket never closed");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    // A fresh RI statement reconnects, rebinds the store, then checks the full
+    // owner/stamp. No G6 epoch exists to revoke on this transport-only failure.
+    let validation=reader.validate_read_index().expect("RI reconnect and fresh SQL");
+    assert!(!grant.revoked.load(Ordering::Acquire));
+    let before=reader.revision_cache_stats().read_index_hits;
+    assert_eq!(reader.query_materialized_search_with_read_index("W1",context(),None,DeliveryManifest::Build,&d,candidate.complete(Some(validation)),|_,_|Ok(())).0.unwrap(),expected);
+    assert_eq!(reader.revision_cache_stats().read_index_hits,before+1);
+    let mut another=writer.reader().unwrap();
+    assert_eq!(indexed_read(&mut another,&d,&v,"W1").unwrap(),expected);
+    assert_eq!(reader.revision_cache_stats().read_index_hits,before+2,"refresh must not disable RI on other readers");
+
+    let candidate=reader.prepare_read_index("W1",&context(),None,DeliveryManifest::Build,&d).unwrap();
+    let proof=candidate.complete(reader.validate_read_index());
+    grant.uncertain.store(true,Ordering::Release);
+    assert!(reader.prepare_read_index("W1",&context(),None,DeliveryManifest::Build,&d).is_none());
+    assert!(reader.query_materialized_search_with_read_index("W1",context(),None,DeliveryManifest::Build,&d,proof,|_,_|Ok(())).0.is_ok());
+    assert_eq!(reader.revision_cache_stats().read_index_hits,before+2,"uncertainty still blocks saved proofs");
+    drop((reader,another,writer));
+    assert!(lease.release().unwrap());
+}
+
+#[test]
+#[ignore="private PG16"]
+fn g5rf2_saved_proof_rechecks_publication_mode_and_revocation_after_authority() {
+    use crate::store_port::{AnyStore, StoreLease};
+    for mode_change in [true,false] {
+        let (mut bootstrap,d,v)=fixture(true);
+        let namespace:String=bootstrap.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT current_schema()",&[]).unwrap().get(0);
+        let id=bootstrap.store_id.clone();drop(bootstrap);
+        let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+        let mut lease=StoreLease::connect(&url,&namespace,&id,"a001",Default::default()).unwrap();
+        lease.acquire().unwrap().unwrap();
+        let mut owner=Engine::open_at(AnyStore::open_postgres_owned(&url,&namespace,&lease).unwrap(),1000).unwrap();enable(&owner);
+        let mut reader=owner.reader().unwrap();warm(&mut reader,&d,&v,"W1",SessionScope::Full);
+        let context=Context::new(&v,args("W1")).at(1001).with_request_credential("account").with_revision_cache(true);
+        let candidate=reader.prepare_read_index("W1",&context,None,DeliveryManifest::Build,&d).unwrap();
+        let proof=candidate.complete(reader.validate_read_index());
+        let before=reader.revision_cache_stats().read_index_hits;
+        let mut checked=false;
+        assert!(reader.query_materialized_search_with_read_index("W1",context.clone(),None,DeliveryManifest::Build,&d,proof,|_,_| {
+            if !checked {
+                checked=true;
+                if mode_change {owner.store_mut().test_read_index_published_prefix();}
+                else {assert!(lease.release().unwrap());}
+            }
+            Ok(())
+        }).0.is_ok());
+        assert!(checked);
+        assert_eq!(reader.revision_cache_stats().read_index_hits,before,"mode/ownership loss during authority cannot consume a proof");
+        assert!(reader.prepare_read_index("W1",&context,None,DeliveryManifest::Build,&d).is_none());
+        if mode_change {assert!(lease.release().unwrap());}
+    }
+}

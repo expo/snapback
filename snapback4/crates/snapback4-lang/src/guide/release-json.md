@@ -182,6 +182,13 @@ schedule zero RI rounds; G6 misses use ordinary G5. Startup prints that combined
 mode; doctor distinguishes persisted grant evidence from unconfirmed owner-local
 batching. See LLP 3000.009.001.000.002 §4.2.
 
+Publication mode is shared with the existing HTTP reader pool and its factories;
+changing the owner to a W/Stage R mode also rejects previously saved raw-head
+proofs. Replacing a closed reader socket rechecks store binding and fresh RI
+owner/revision SQL, and does not disable RI for other readers when G6 is off.
+Explicit G6 retains its transport-loss revocation; ownership revocation and
+commit uncertainty still block RI reuse.
+
 RI compares the whole immutable fill stamp, including the unified revision, and
 uses fill-time `SessionFacts`; the shared Rust resolver rechecks each caller's
 authority and expiry. Ordinary per-read G5 rereads the digest's session projection.

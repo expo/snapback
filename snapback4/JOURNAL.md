@@ -109989,3 +109989,25 @@ performance qualification. Full dispositions, all windows, validation details
 and cleanup are in [the fix-round report](./reports/20261027-g5-readindex/FIXROUND1.md).
 Only owned private clusters on 55771/55772/55773 were used; their data is
 retained with no live postmasters. Local commit only; no push.
+
+
+## 2026-10-28 — G5RF2: publication mode across warm HTTP pools
+
+The delta review of `c890e2af67` returned Sol READY and Grok NOT READY. Grok
+found that a later owner publication-mode change missed readers and factories
+already copied into the HTTP pool. Publication mode now lives in one private
+owner-shared atomic, inherited by detached readers, factories, writer slots and
+replacements. Enrollment, SQL validation and saved-proof consumption consult
+it; consumption rechecks after the authority callback. The HTTP witness builds
+the full pool under SynchronousHead, captures proofs, flips the owner, and checks
+both an idle reader and a factory-made reader. RFC 003 §14 records that Stage R
+must preserve this shared state and implement W-bound V before reopening RI.
+
+Grok also found a pre-existing process-wide RI disable after one socket refresh.
+Refresh now revokes only a configured G6 epoch; with G6 off, RI reconnects,
+rebinds and validates fresh owner/stamp SQL without poisoning the shared latch.
+Terminal lease release/revocation and commit uncertainty keep their existing
+checks. Real backend-termination and authority-callback witnesses cover those
+distinctions. Dispositions and verification are in
+`reports/20261027-g5-readindex/FIXROUND2.md`. No Stage R composition, publication
+or new performance qualification is claimed.

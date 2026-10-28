@@ -23,13 +23,16 @@ macro_rules! fixture_access {
 fixture_access!(AnyStore, SqliteStore);
 fixture_access!(AnyTx<'_>, SqliteTx);
 
-#[cfg(all(test, feature = "postgres"))]
+#[cfg(feature = "postgres")]
 impl AnyStore {
     /// Simulate a future W/R mode without exposing its adapter representation.
-    pub(crate) fn test_read_index_published_prefix(&mut self) {
-        self.test_postgres_handle_mut().store.get_mut().read_publication =
-            crate::engine::postgres::store::ReadPublication::PublishedPrefix;
+    pub fn test_read_index_published_prefix(&mut self) {
+        let Self::Postgres(super::handles::PostgresStore(handle)) = self else { panic!("Postgres fixture") };
+        handle.store.get_mut().set_read_publication(crate::engine::postgres::store::ReadPublication::PublishedPrefix);
     }
+}
+#[cfg(all(test, feature = "postgres"))]
+impl AnyStore {
     /// Corrupt/restore only a private fixture's owner projection, without a
     /// revision bump: missing owner evidence must force ordinary validation.
     pub(crate) fn test_owner_holder_projection(&mut self, holder: Option<&str>) -> Result<(), RuntimeError> {

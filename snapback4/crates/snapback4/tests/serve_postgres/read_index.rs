@@ -197,3 +197,44 @@ fn g5rf_http_idle_timer_parks_on_condvar() {
     thread::sleep(Duration::from_millis(30));
     assert_eq!(queue.timer_ticks(),ticks,"no periodic idle timer ticks");
 }
+
+#[test]
+#[ignore="private PG; RI enabled"]
+fn g5rf2_http_pool_mode_change_blocks_idle_factory_and_saved_proofs() {
+    use snapback4_core::{engine::DeliveryManifest, identity, Value};
+    let (host,headers,_)=fixture();
+    until(||host.admission.short.load(Ordering::Acquire)==0);
+    assert_eq!(lock(&host.shared.readers).idle.len(),REQUEST_WORKERS,"build the full HTTP pool before the mode change");
+    let token=headers.strip_prefix("Authorization: Bearer ").unwrap().trim();
+    let digest=identity::session_digest(token);
+    let (_,mut reader)=host.shared.reader().unwrap();
+    let now=host.shared.now();
+    let store_id=reader.store().store_identity().unwrap().unwrap();
+    let (principal,kind,_)=identity::resolve_read_only(reader.store(),token,now,Some(&store_id)).unwrap().unwrap();
+    let context=Context::new(&principal,[("key".into(),Value::Id("one".into()))].into()).at(now).with_request_credential(&kind).with_revision_cache(true);
+    let idle=reader.prepare_read_index("read",&context,None,DeliveryManifest::Build,&digest).expect("idle reader eligible before flip");
+    let factory=reader.prepare_read_index("read",&context,None,DeliveryManifest::Build,&digest).unwrap();
+    let validation=reader.validate_read_index().unwrap();
+    let proofs=[idle.complete(Some(validation.clone())),factory.complete(Some(validation))];
+    let before=reader.revision_cache_stats();
+    // Return the exact enrolled reader to the idle population; all factories
+    // were also constructed under SynchronousHead by QueryReaders::new.
+    let epoch=lock(&host.shared.readers).epoch.clone();
+    lock(&host.shared.readers).put(&epoch,reader.into_inner());
+    lock(&host.shared.engine).store_mut().test_read_index_published_prefix();
+    for (i,proof) in proofs.into_iter().enumerate() {
+        if i==1 {lock(&host.shared.readers).idle.clear();} // force the factory branch of Shared::reader
+        let (epoch,mut reader)=host.shared.reader().unwrap();
+        assert!(reader.prepare_read_index("read",&context,None,DeliveryManifest::Build,&digest).is_none(),"idle/factory reader cannot enroll after owner flip");
+        assert!(reader.validate_read_index().is_none(),"idle/factory reader cannot validate raw H");
+        let result=reader.query_materialized_search_with_read_index("read",context.clone(),None,DeliveryManifest::Build,&digest,proof,|_,_|Ok(())).0.unwrap();
+        assert_eq!(result.data.field("n").unwrap(),&Value::Int(7));
+        assert_eq!(reader.revision_cache_stats().read_index_hits,before.read_index_hits,"idle/factory reader cannot consume saved proof");
+        assert_eq!(reader.revision_cache_stats().read_index_rounds,before.read_index_rounds);
+        lock(&host.shared.readers).put(&epoch,reader.into_inner());
+    }
+    assert_eq!(body(&host.request("POST","/q/read",&headers,ARGS))["data"]["n"],7);
+    let after=lock(&host.shared.engine).revision_cache_stats();
+    assert_eq!(after.read_index_hits,before.read_index_hits);
+    assert_eq!(after.read_index_rounds,before.read_index_rounds);
+}

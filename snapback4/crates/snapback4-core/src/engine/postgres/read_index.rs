@@ -4,16 +4,6 @@ use super::{store::Store, read_grant::{Published, PUBLICATION}};
 use crate::RuntimeError;
 
 impl Store {
-    /// The single RI eligibility predicate: enrollment, validation and proof use
-    /// all consult it. Future W/R modes must select PublishedPrefix, including
-    /// on readers and reconnect, until RI validates W-bound V.
-    pub(crate) fn read_index_eligible(&self) -> bool {
-        match self.read_publication {
-            super::store::ReadPublication::SynchronousHead => self.early_release.is_none(),
-            super::store::ReadPublication::PublishedPrefix => false,
-        }
-    }
-
     pub(crate) fn read_index_validation(&mut self) -> Result<Option<Published>, RuntimeError> {
         // Stage E snapshots must first acquire the certified D image. This
         // prototype deliberately leaves that path on its existing G5 check.
@@ -36,6 +26,6 @@ impl Store {
             || stamp.generation != self.generation as i64
             || row.try_get::<_, &str>(10)? != "UTF8"
         { return Ok(None); }
-        Ok(Some(stamp))
+        Ok(self.read_index_eligible().then_some(stamp))
     }
 }

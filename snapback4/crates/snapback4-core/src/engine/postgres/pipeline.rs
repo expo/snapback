@@ -292,7 +292,7 @@ impl Connection {
             Self::Sync(_) | Self::Writer(_) => None,
         }
     }
-    pub(super) fn is_closed(&self) -> bool {
+    pub(crate) fn is_closed(&self) -> bool {
         match self {
             Self::Sync(c) => c.is_closed(),
             Self::Writer(c) => c.is_closed(),

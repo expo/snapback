@@ -81,6 +81,7 @@ pub(super) use crate::round_trips::CallCounter;
 /// RI's raw-head proof is valid only in SynchronousHead mode.
 // @ref LLP 3000.009.001.000.000.003#5.1 — R must bind V from published W, never raw H.
 #[derive(Clone, Copy)]
+#[repr(u8)]
 pub(crate) enum ReadPublication {
     SynchronousHead,
     #[allow(dead_code)] // Reserved fail-closed state for W/Stage R integration.
@@ -88,7 +89,7 @@ pub(crate) enum ReadPublication {
 }
 
 pub struct Store {
-    pub(crate) read_publication: ReadPublication,
+    read_publication: std::sync::Arc<std::sync::atomic::AtomicU8>,
     pub(crate) early_release: Option<std::sync::Arc<super::early_release::Durability>>,
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
@@ -117,7 +118,22 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_publication: ReadPublication::SynchronousHead, check_functions: RefCell::new(None), early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_publication: std::sync::Arc::new(std::sync::atomic::AtomicU8::new(ReadPublication::SynchronousHead as u8)), check_functions: RefCell::new(None), early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+    }
+
+    // @ref LLP 3000.009.001.000.002#g5-read-index-validation — mode changes reach idle readers, factories and saved-proof consumers.
+    pub(crate) fn set_read_publication(&self, mode: ReadPublication) {
+        self.read_publication.store(mode as u8, std::sync::atomic::Ordering::Release);
+    }
+    pub(super) fn share_read_publication(&mut self, source: &Self) {
+        self.read_publication = source.read_publication.clone();
+    }
+    /// The single predicate for enrollment, validation and proof consumption.
+    /// Unknown/future modes fail closed; E additionally refuses reader creation
+    /// after its gate could have been copied (Handle::enable_early_release).
+    pub(crate) fn read_index_eligible(&self) -> bool {
+        self.read_publication.load(std::sync::atomic::Ordering::Acquire) == ReadPublication::SynchronousHead as u8
+            && self.early_release.is_none()
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -132,7 +148,12 @@ impl Store {
         if refreshed {
             self.check_functions.borrow_mut().take();
             if let Some(gate)=&self.early_release {gate.break_history();}
-            if let Some(grant)=&self.read_grant {grant.revoke();}
+            // Only G6 retains socket-independent authority that refresh must
+            // revoke. RI sends fresh owner/stamp SQL after rebinding; do not
+            // poison the shared terminal latch when G6 was never configured.
+            if let Some(grant)=&self.read_grant
+                && grant.configured.load(std::sync::atomic::Ordering::Acquire)
+            {grant.revoke();}
             self.literal_cache.clear(); self.cache.clear();
             self.reader_binding = self.unified;
         }

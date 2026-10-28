@@ -814,7 +814,8 @@ impl Engine {
                         let tx = self.store.cached_authority_snapshot(digest, entry.facts.clone())?;
                         snapshot(&tx, stamp.head)?;
                         tx.rollback()?;
-                        if grant.as_ref().is_some_and(|g| g.uncertain.load(Ordering::Acquire) || g.revoked.load(Ordering::Acquire)) {
+                        if !self.store.read_index_eligible()
+                            || grant.as_ref().is_some_and(|g| g.uncertain.load(Ordering::Acquire) || g.revoked.load(Ordering::Acquire)) {
                             return Ok(None);
                         }
                         let mut outcome = entry.outcome.clone();
