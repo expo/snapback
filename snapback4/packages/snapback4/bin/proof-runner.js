@@ -20,8 +20,9 @@ export async function runProofSuite(suite) {
   // A pending promise alone does not keep Node alive (for example an awaited
   // unref timer). Keep the finite suite alive without imposing a new deadline.
   const running = setInterval(() => {}, 0x7fff_ffff);
+  let failed = false, failure;
   try { await suite(); }
-  catch (error) { console.error(error); if (!process.exitCode) process.exitCode = 1; }
+  catch (error) { failed = true; failure = error; if (!process.exitCode) process.exitCode = 1; }
   finally { clearInterval(running); }
   await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
   // Let completed I/O callbacks close their handles before diagnosing residue.
@@ -34,5 +35,17 @@ export async function runProofSuite(suite) {
   if (lingering.length) console.error(`snapback4 proof: lingering handles after suite: ${lingering.join(', ')}; exiting with status ${code}`);
   // Exit only after the suite's complete stdout and stderr have drained.
   await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
+  if (failed) {
+    // Preserve Node's ordinary uncaught rendering, including multiline error
+    // messages captured by an enclosing proof. A caller/global error handler
+    // may intercept the rejection; the completed suite must still terminate.
+    const fallback = setImmediate(async () => {
+      console.error(failure);
+      await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
+      process.exit(code);
+    });
+    process.once('exit', () => { clearImmediate(fallback); process.exitCode = code; });
+    throw failure;
+  }
   process.exit(code);
 }

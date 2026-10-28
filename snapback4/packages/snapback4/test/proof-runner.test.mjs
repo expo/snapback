@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 const runner = new URL('../bin/proof-runner.js', import.meta.url).href;
-function run(body) {
+function run(body, catchFailure = false) {
   return new Promise((resolve, reject) => {
     const start = performance.now();
-    const child = spawn(process.execPath, ['--input-type=module', '-e', `import {runProofSuite} from ${JSON.stringify(runner)};await runProofSuite(async()=>{${body}})`]);
+    const child = spawn(process.execPath, ['--input-type=module', '-e', `import {runProofSuite} from ${JSON.stringify(runner)};await runProofSuite(async()=>{${body}})${catchFailure ? ".catch(()=>{})" : ""}`]);
     let stdout='', stderr='';
     child.stdout.on('data', data=>stdout+=data); child.stderr.on('data', data=>stderr+=data);
     const guard=setTimeout(()=>{child.kill('SIGKILL');reject(Error('suite exit stalled'));},5000);
@@ -36,4 +36,17 @@ test('large reports drain before process exit and ordinary completed suites are 
 test('awaited unref work and cleanup remain live until both settle',async()=>{
   const result=await run(`try {await new Promise(r=>setTimeout(r,100).unref());console.log('tested');}finally{await new Promise(r=>setTimeout(r,100).unref());console.log('cleaned');}`);
   assert.equal(result.code,0);assert.equal(result.stdout,'tested\ncleaned\n');assert.equal(result.stderr,'');assert.ok(result.ms>=200);
+});
+
+test('failed suites retain native multiline rendering and explicit status',async()=>{
+  const result=await run(`process.exitCode=7;throw Error('E_MULTILINE: first\\nsecond');`);
+  assert.equal(result.code,7);assert.match(result.stderr,/node:internal\/modules\/run_main/);
+  assert.match(result.stderr,/Error: E_MULTILINE: first\nsecond/);
+  assert.equal((result.stderr.match(/Error: E_MULTILINE: first/g)??[]).length,1);
+});
+
+test('intercepting a completed failure cannot leave timers pinning the process',async()=>{
+  const result=await run(`setTimeout(()=>{},12000);throw Error('E_CAUGHT: still failed');`,true);
+  assert.equal(result.code,1);assert.match(result.stderr,/Error: E_CAUGHT: still failed/);
+  assert.match(result.stderr,/lingering handles after suite: Timeout\(1\)/);
 });
