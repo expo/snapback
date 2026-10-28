@@ -30,8 +30,8 @@ for line in (root/'results.jsonl').read_text().splitlines():
   direct=pathlib.Path(e['command']).name=='snapback4' and args[:1]==['deploy']
   shim=len(args)>1 and pathlib.Path(args[0]).name=='snapback4.js' and args[1]=='deploy'
   if not(direct or shim) or e.get('child')not in closes:continue
-  # The baseline shim uses spawnSync internally. Its enclosing child lifetime
-  # is observed; sequential native deploy phase PIDs identify the same calls.
+  # The baseline shim exits on native exit before the native close trace. Its
+  # enclosing child lifetime is observed; sequential phase PIDs identify calls.
   pid=e['child'] if direct else next(native_deploy_pids)
   p=by_pid[pid];total=closes[e['child']]['ms']/1000;bind=p.get('deploy.bind',0);security=p.get('deploy.security',0)
   deploys.append({'boundary':'native child' if direct else 'JS shim plus native child','seconds':total,'bindSeconds':bind,'securitySeconds':security,'unattributedSeconds':total-bind-security})
@@ -60,7 +60,7 @@ a.out.write_text(json.dumps({'qualification':False,'notes':[
  'Node preload occurs before application imports but after early Node loader work.',
  'HTTP request sums may overlap; browser context intervals include setup and assertions.',
  'Store open/create, native bootstrap, deployment materialization and output are not separately timed; they remain in nativeDeploys.unattributedSeconds.',
- 'Baseline deploy child lifetimes include its synchronous JS shim; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.',
+ 'Baseline deploy child lifetimes include its JS shim, which exits on native exit before the native close trace; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.',
  'Unobserved Node tail is measured after the last traced app event; attribution to uncleared timers also requires inspecting app source.',
  ],'results':results},indent=2)+'\n')
 print(f'Wrote {len(results)} phase profiles')

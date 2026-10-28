@@ -5,7 +5,7 @@
     "Node preload occurs before application imports but after early Node loader work.",
     "HTTP request sums may overlap; browser context intervals include setup and assertions.",
     "Store open/create, native bootstrap, deployment materialization and output are not separately timed; they remain in nativeDeploys.unattributedSeconds.",
-    "Baseline deploy child lifetimes include its synchronous JS shim; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.",
+    "Baseline deploy child lifetimes include its JS shim, which exits on native exit before the native close trace; candidate lifetimes directly enclose native. Baseline native phase PIDs are associated with sequential deploy calls in order.",
     "Unobserved Node tail is measured after the last traced app event; attribution to uncleared timers also requires inspecting app source."
   ],
   "results": [
