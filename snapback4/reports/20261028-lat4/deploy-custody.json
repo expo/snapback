@@ -1,0 +1,66 @@
+{
+  "qualification": false,
+  "rows": 120,
+  "setupErrors": [],
+  "explicitlySupersededAttempts": [],
+  "literalOutputEqual": 47,
+  "allStoreDumpsEqual": true,
+  "allReleaseFilesEqual": true,
+  "outputDifferencesBeyondDeclaredElapsedFields": [],
+  "nonSecuritySeconds": {
+    "new-release": {
+      "before": {
+        "n": 40,
+        "median": 1.2479934669769905,
+        "p90": 2.973453421961029,
+        "max": 8.2926614781999
+      },
+      "after": {
+        "n": 40,
+        "median": 0.4373309419226348,
+        "p90": 0.7806764071073413,
+        "max": 1.4261975811252388
+      }
+    },
+    "reactivate": {
+      "before": {
+        "n": 39,
+        "median": 1.9064156808771466,
+        "p90": 4.083896587990782,
+        "max": 9.832007895041786
+      },
+      "after": {
+        "n": 39,
+        "median": 0.5391447701139693,
+        "p90": 0.9581168481177329,
+        "max": 1.0369772419753789
+      }
+    },
+    "unchanged": {
+      "before": {
+        "n": 40,
+        "median": 1.1195944769974144,
+        "p90": 2.78235820680117,
+        "max": 7.4881233230412185
+      },
+      "after": {
+        "n": 40,
+        "median": 0.24218648613286953,
+        "p90": 0.5500007160676983,
+        "max": 0.8738392411374877
+      }
+    }
+  },
+  "notes": [
+    "Full canonical store dumps include every table, column, row and metadata field; no normalization.",
+    "Only successful JSON strings at adoption, details and preview.phases project numeric ms durations. Literal hashes remain. No error, assertion, id, rule, count, timestamp or refusal is normalized.",
+    "Clock-controlled identity is distinct from unmodified-realtime wall-time qualification."
+  ],
+  "custodyCoverage": [
+    "all retained regular release files",
+    "all retained store-link targets",
+    "legacy current pointer",
+    "legacy releases.jsonl journal",
+    "optional .deployed-schema file"
+  ]
+}
