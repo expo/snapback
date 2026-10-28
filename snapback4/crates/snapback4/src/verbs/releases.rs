@@ -633,7 +633,7 @@ pub fn deploy(options: &Options) -> i32 {
     }
     if options.json {if let Err(error)=&result {println!("{}",serde_json::json!({"ok":false,"message":error,"dormant":failure_inventory,"compilation":failure_problems,"security":security_summary.as_ref().and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}}
     timing.step("deploy.output");
-    report("deploy",result)
+    phase::measure("deploy.report_output", || report("deploy",result))
 }
 
 fn already_live(dir:&Path,active:u64,options:&Options)->Result<(),String>{
