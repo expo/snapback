@@ -112,31 +112,20 @@ def messages(path):
  return lines
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');ap.add_argument('--slot',type=int);ap.add_argument('--revision',type=int,default=1);ap.add_argument('--port-lo',type=int);ap.add_argument('--port-hi',type=int);a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');ap.add_argument('--slot',type=int);ap.add_argument('--revision',type=int,default=1);ap.add_argument('--port-lo',type=int);ap.add_argument('--port-hi',type=int);ap.add_argument('--cases-file',type=pathlib.Path);a=ap.parse_args()
  if (a.port_lo is None)!=(a.port_hi is None):ap.error('supply both port bounds')
+ if a.resume:ap.error('Outcome reuse is disabled: execute a fresh explicit revision with --cases-file instead')
  cases=[(w,p.parent) for w in map(int,a.waves.split(',')) for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{w}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p) for w,p in cases if p.name[:3] in a.lanes.split(',')]
+ if a.cases_file:
+  requested={tuple(x) for x in json.loads(a.cases_file.read_text())};cases=[(w,p) for w,p in cases if (w,p.name)in requested]
  slot=a.worker if a.slot is None else a.slot
  directory=SCRATCH/f'corpus-{slot}';directory.mkdir(exist_ok=True)
  results=SCRATCH/f'corpus-{slot}.jsonl'
- previous=[json.loads(line) for line in results.read_text().splitlines()] if a.resume and results.exists() else []
  for index,(wave,src) in enumerate(cases):
   if index%a.workers!=a.worker:continue
   authored=json.loads((src/'package.json').read_text()).get('scripts',{})
   expected=[s for s in a.scripts.split(',') if (s in authored or s=='probe:serve/client:calls' and 'probe:serve'in authored and 'client:calls'in authored)]
-  old=[x for x in previous if x.get('wave')==wave and x.get('lane')==src.name]
-  copy_failure=any(not x.get('artifactDirectoriesPreserved') and 'ENOENT:' in m and ("'.scratch/" in m or "'logs/" in m) for x in old for v in ['before','after'] for m in x.get(v,{}).get('messages',[]))
-  if old and expected and all(any(x.get('script')==s for x in old) for s in expected) and not copy_failure:
-   print(f'w{wave}-{src.name}','resume complete',flush=True);continue
-  if old:
-   # Retain partial/invalid copy attempts; rerun the whole lane from identical
-   # fresh sources so earlier command side effects remain paired and ordered.
-   with (SCRATCH/f'corpus-{slot}.superseded.jsonl').open('a') as f:
-    for x in old:f.write(json.dumps(x)+'\n')
-   previous=[x for x in previous if x not in old]
-   current=[json.loads(line) for line in results.read_text().splitlines()]
-   current=[x for x in current if not(x.get('wave')==wave and x.get('lane')==src.name)]
-   temporary=results.with_suffix('.resume.tmp');temporary.write_text(''.join(json.dumps(x)+'\n' for x in current));temporary.replace(results)
   key=f'w{wave}-{src.name}';out=directory/key;logdir=SCRATCH/'corpus-logs'/key;logdir.mkdir(parents=True,exist_ok=True)
   if out.exists():shutil.rmtree(out)
   before=out/'before';after=out/'after'

@@ -37,8 +37,10 @@ for wave in range(30, 35):
 if set(expected) != set(rows):
     raise SystemExit(f'Incomplete census: missing={len(set(expected)-set(rows))}, extra={len(set(rows)-set(expected))}')
 corrected_cases={(32,'012'):2,(33,'009'):2,(33,'012'):2,(33,'033'):2,(33,'035'):2,(34,'028'):2,(34,'021'):3,(34,'038'):3}
+final_input_cases={tuple(x) for x in json.loads((HERE/'final-input-replay-cases.json').read_text())}
 for (wave,lane,script),r in rows.items():
     required=2 if wave==31 and lane.startswith('025-') and script=='day2:proof' else corrected_cases.get((wave,lane[:3]),1)
+    if (wave,lane)in final_input_cases:required=4
     if r.get('measurementRevision',1)<required:
         raise SystemExit(f'Corrected paired revision still pending: {wave}/{lane}/{script}')
 keys = ['code', 'seconds', 'load', 'readySeconds', 'callsSeconds', 'callsCode',
