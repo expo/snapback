@@ -162,3 +162,7 @@ coverage refusal remains unchanged. Missing/empty business assertions still
 refuse. Coverage is explicitly application-owned, not a global matrix claim.
 Run six new candidate sessions on the same fixed draws, retaining the twelve
 completed before controls and all six rejected candidate sessions.
+
+Compact source checks: scaf1 Rust integration 14/14 passed. Fresh Muse round 2
+and Codex round 4 returned READY from the same restricted snapshot; verbatim
+artifacts and provenance are under llp/reviews/. Neither is performance evidence.
