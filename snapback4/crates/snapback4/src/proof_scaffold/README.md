@@ -14,7 +14,7 @@ refuse explicitly. Save and delete schema.json, then check to refresh them.
 
 Fill each null args/expected/assert. Success cases require a business assertion;
 refusal cases already assert exact codes. Set query expectations to
-{complete:true}, durable writes to {state:'sent'}, signals to {ok:true}, actions
+{complete:true}, writes/signals to {state:'sent'}, actions
 to {state:'done'}, or refusals to {code:'…'}.
 Never copy an observed refusal into the expectation just to turn a test green.
 Create the ordinary success path first, then each excluded role and each guard

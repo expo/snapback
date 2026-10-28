@@ -329,5 +329,5 @@ fn ephemeral_mutations_have_signal_expectations() {
         .split("  { op:")
         .next()
         .unwrap();
-    assert!(case.contains("ok: true"), "{case}");
+    assert!(case.contains("state: 'sent'"), "{case}");
 }

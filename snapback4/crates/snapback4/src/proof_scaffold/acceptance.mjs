@@ -12,7 +12,7 @@ export function validate() {
   for (const c of cases) {
     const op = schema.operations.find(p => p.name === c.op);
     if (!op || !schema.roles.includes(c.role) || typeof c.args !== 'function' || !c.expected ||
-      !(typeof c.expected.code === 'string' || (op.signal ? c.expected.ok === true : op.kind === 'query' ? c.expected.complete === true : c.expected.state === (op.kind === 'action' ? 'done' : 'sent'))) ||
+      !(typeof c.expected.code === 'string' || (op.kind === 'query' ? c.expected.complete === true : c.expected.state === (op.kind === 'action' ? 'done' : 'sent'))) ||
       (!c.expected.code && typeof c.assert !== 'function') || (c.guard && op.guards.find(g => g.id === c.guard)?.clock && typeof c.advance !== 'string')) missing.push(`${c.op}/${c.guard ?? c.role}: args/expected/assert/clock`);
   }
   for (const t of schema.lifetimes) for (const field of [t.expire,t.notBefore].filter(Boolean)) {
