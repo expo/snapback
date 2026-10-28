@@ -110227,3 +110227,8 @@ setup. Per-file content hashes preserve edits; no npm script is changed. The
 proof-kit amendment is LLP 3000.011.003.000.000 §20. Before/after whole-session
 measurements and packed controls are recorded in the workstream report; targets
 remain measurements rather than guarantees of generated security coverage.
+
+
+### 2026-10-28 — Integration 31 / 0.4.47
+
+Merge LAT4, VER1 and SCAF1, excluding TOK4. The bounded start/workflow names the generated cases and npm run verify; application-owned npm scripts opt into the packet. Preserve REL4 refusal order, TOK2 output and CALLS1 refusal lines. Conflict-only Muse and fresh Codex reviews both returned NOT READY with three concrete guidance/reference findings, corrected and retained verbatim with dispositions. Build caught an obsolete duplicate reclaim call; main already emits it during acquisition. Locked device measures 2,416,601 raw / 738,640 gzip / 556,421 Brotli bytes; budget739,140 = measurement+500. Whole-artifact version/layout cost is +8 raw/+133 gzip versus0.4.46, with unchanged runtime ceilings. The integration report retains affected, root, packed-consumer, source-copy survey, whole-session replay and latency evidence; publication owns the complete platform battery.
