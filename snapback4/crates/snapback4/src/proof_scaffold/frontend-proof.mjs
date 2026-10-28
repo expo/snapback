@@ -10,7 +10,8 @@ const buildScript=frontend.build ?? (scripts.build ? 'build' : scripts['build:we
 assert.ok(buildScript,'E_FRONTEND_SCENARIO: choose frontend.build in cases.mjs');
 const build = await command('npm',['run',buildScript],{timeoutMs:300000});
 assert.equal(build.code,0,`frontend build failed; ${build.logs.stderr}`);
-const ctx=await startProof({signIn:false}); // Each browser signs in through the screen. let web;
+const ctx=await startProof({signIn:false}); // Each browser signs in through the screen.
+let web;
 try {
   web=await startStatic(frontend.directory);
   // Separate browser context per account prevents one role's login leaking into another.
