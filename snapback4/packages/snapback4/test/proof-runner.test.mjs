@@ -32,3 +32,8 @@ test('large reports drain before process exit and ordinary completed suites are 
   const result=await run(`console.log('x'.repeat(1024*1024));`);
   assert.equal(result.code,0);assert.equal(result.stdout,'x'.repeat(1024*1024)+'\n');assert.equal(result.stderr,'');
 });
+
+test('awaited unref work and cleanup remain live until both settle',async()=>{
+  const result=await run(`try {await new Promise(r=>setTimeout(r,100).unref());console.log('tested');}finally{await new Promise(r=>setTimeout(r,100).unref());console.log('cleaned');}`);
+  assert.equal(result.code,0);assert.equal(result.stdout,'tested\ncleaned\n');assert.equal(result.stderr,'');assert.ok(result.ms>=200);
+});

@@ -17,8 +17,12 @@ export async function runProofSuite(suite) {
   const streams = [process.stdout, process.stderr];
   const initial = counts();
   const baseline = new Map(['PipeWrap', 'TTYWrap'].map(name => [name, Math.min(3, initial.get(name) ?? 0)]));
+  // A pending promise alone does not keep Node alive (for example an awaited
+  // unref timer). Keep the finite suite alive without imposing a new deadline.
+  const running = setInterval(() => {}, 0x7fff_ffff);
   try { await suite(); }
   catch (error) { console.error(error); if (!process.exitCode) process.exitCode = 1; }
+  finally { clearInterval(running); }
   await Promise.all(streams.map(stream => new Promise(resolve => stream.write('', resolve))));
   // Let completed I/O callbacks close their handles before diagnosing residue.
   await turn();
