@@ -9,7 +9,7 @@ a = ap.parse_args()
 a.out.mkdir(parents=True, exist_ok=True)
 subprocess.run([sys.executable, str(HERE/'summarize.py'), '--out', str(SCRATCH/'final-summary.json')], check=True)
 summary = json.loads((SCRATCH/'final-summary.json').read_text())
-if summary['setupErrors'] or summary['exitDifferences'] or summary['clientCallDifferences'] or summary['messageDifferenceCount']:
+if summary['setupErrors'] or summary['exitDifferences'] or summary['clientCallDifferences'] or summary['missingClientCallVectors'] or summary['messageDifferenceCount']:
     raise SystemExit('Resolve/classify identity differences before exporting a green receipt')
 rows = {}
 for p in sorted(SCRATCH.glob('corpus-[0-9].jsonl')):
