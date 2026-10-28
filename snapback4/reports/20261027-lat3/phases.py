@@ -46,6 +46,9 @@ for line in (root/'results.jsonl').read_text().splitlines():
  for k in ['readySeconds','callsSeconds','readyPreflightSeconds']:
   if k in r:result[k]=r[k]
  results.append(result)
+if len(results)!=14 or len({(r['wave'],r['lane'],r['script'],r['variant']) for r in results})!=14:
+ raise SystemExit('Expected all seven selected before/after phase pairs')
+if any(r['code']!=0 for r in results):raise SystemExit('Selected phase proof failed; classify before exporting normal-flow phases')
 a.out.write_text(json.dumps({'qualification':False,'notes':[
  'Selected diagnostic traces are separate from uninstrumented paired corpus timings.',
  'Node preload occurs before application imports but after early Node loader work.',
