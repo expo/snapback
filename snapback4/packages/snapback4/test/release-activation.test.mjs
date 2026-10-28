@@ -1143,7 +1143,7 @@ test('REL2 stale lock is reclaimed and live conflict identifies PID URL and dire
   const dead=spawn(process.execPath,['-e','process.exit(0)']);await once(dead,'exit');
   writeFileSync(join(deployment,'serve.lock'),`4400\nhttp://127.0.0.1:4400\npid ${dead.pid}\n`);
   chmodSync(join(deployment,'serve.lock'),0o600);
-  const silent=invoke('rollback',deployment,'--to','1');assert.equal(silent.status,0,silent.stderr);assert.doesNotMatch(silent.stderr,/stale serve.lock|reclaimed/);
+  const recovered=invoke('rollback',deployment,'--to','1');assert.equal(recovered.status,0,recovered.stderr);assert.match(recovered.stderr,new RegExp(`reclaimed stale serve.lock: dead PID ${dead.pid}`));
   writeFileSync(join(deployment,'serve.lock'),`4400\nhttp://127.0.0.1:4400\npid ${dead.pid}\n`);chmodSync(join(deployment,'serve.lock'),0o600);
   const reclaimed=invoke('rollback',deployment,'--to','1','--verbose');assert.equal(reclaimed.status,0,reclaimed.stderr);
   assert.match(reclaimed.stderr,new RegExp(`reclaimed stale serve.lock: dead PID ${dead.pid}`));

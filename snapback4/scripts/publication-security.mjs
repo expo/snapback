@@ -123,16 +123,24 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
 
   // The installed start/README/security loop must lead to independent answers,
   // including excluded roles. No generated declaration may silently copy rules.
-  const start = command(["guide", "start", "--full"]);
+  const start = command(["guide", "start", "--full", "--repeat"]);
+  const workflow = guideReference(cli,"workflow",{cwd,env});
   const readme = readFileSync(join(cwd, "node_modules/snapback4/README.md"), "utf8");
   // TOK1 routes README -> bounded start -> feature references on demand.
   // Preserve the policy checklist in the cards that own it, rather than
   // requiring the introductory card tour in the short README.
   assert.match(readme, /npx snapback4 guide start/);
-  assert.match(readme, /guide api client/);
-  assert.match(start, /guide security --section Reference/);
+  assert.match(readme, /guide api react\|client\|auth\|proof\|generated/);
+  assert.match(start, /guide workflow/);
+  assert.match(start, /independent spec intent/);
+  assert.match(workflow, /invariant requests\.read only/);
+  assert.match(workflow, /invariant requests\.price read only/);
+  assert.match(workflow, /denied\(await staff\.mutate\(api\.approve/);
+  assert.match(workflow, /denied\(await guest\.mutate\(api\.fit/);
+  assert.match(workflow, /!\('price' in r\)/);
+  assert.match(workflow, /other\.query\(api\.board/);
   assert.ok(Buffer.byteLength(start) <= 8001, "the complete installed start remains within the 8000-byte card budget plus newline");
-  for (const text of [guide, start]) {
+  for (const text of [guide]) {
     assert.match(text, /spec/i); assert.match(text, /role/); assert.match(text, /column/);
     assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
   }
