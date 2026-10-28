@@ -54,4 +54,6 @@ The frontend runner signs in each real account in a fresh browser context.
 frontend.assert must drive a visible write, arm beginForm, assert formResult's
 SDK receipt, then fresh rendered data; refusal roles assert the code and no edit.
 Probe readiness writes a mode-0600 private roster and prints its path and host URL.
-Use --hold only for deliberate long-lived previews per the installed probe kit.
+An unheld probe exits after 10 seconds ready without application requests; another
+empty idle attempt refuses before deployment. Use --hold or SNAPBACK4_PROBE_HOLD=1
+for deliberate long-lived previews.
