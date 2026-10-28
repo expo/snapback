@@ -1,5 +1,5 @@
 //! Phase telemetry is buffered; sink I/O happens after command completion.
-pub(super) fn measure<T>(phase:&str,run:impl FnOnce()->T)->T {
+pub(crate) fn measure<T>(phase:&str,run:impl FnOnce()->T)->T {
     let started=snapback4_core::replay_profile::start();
     let result=run();
     if let Some(started)=started{snapback4_core::replay_profile::record(serde_json::json!({"phase":phase,"seconds":started.elapsed().as_secs_f64()}));}
@@ -25,10 +25,10 @@ impl Drop for Trace {
 }
 
 /// Sequential wall-clock checkpoints; disabled unless the existing trace is enabled.
-pub(super) struct Sequence(Option<std::time::Instant>);
+pub(crate) struct Sequence(Option<std::time::Instant>);
 impl Sequence {
-    pub(super) fn new() -> Self { Self(snapback4_core::replay_profile::start()) }
-    pub(super) fn step(&mut self, phase: &str) {
+    pub(crate) fn new() -> Self { Self(snapback4_core::replay_profile::start()) }
+    pub(crate) fn step(&mut self, phase: &str) {
         if let Some(started) = &mut self.0 {
             snapback4_core::replay_profile::record(serde_json::json!({"phase":phase,"seconds":started.elapsed().as_secs_f64()}));
             *started = std::time::Instant::now();
