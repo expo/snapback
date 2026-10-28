@@ -1,0 +1,99 @@
+{
+  "time": 1793175290.057975,
+  "all_owned_runtime_pids_stopped": true,
+  "ledgers": [
+    {
+      "ledger": "/tmp/sb4-g5r2-campaign/all-pids.jsonl",
+      "records": 22497,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-clocks/all-pids.jsonl",
+      "records": 2,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-clocks2/all-pids.jsonl",
+      "records": 679,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-pilot/all-pids.jsonl",
+      "records": 2,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-pilot2/all-pids.jsonl",
+      "records": 96,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-pilot3/all-pids.jsonl",
+      "records": 117,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-pilot4/all-pids.jsonl",
+      "records": 712,
+      "still_running": []
+    },
+    {
+      "ledger": "/tmp/sb4-g5r2-work/pids.jsonl",
+      "records": 39,
+      "still_running": []
+    }
+  ],
+  "campaigns": [
+    {
+      "raw_out": "/tmp/sb4-g5r2-campaign",
+      "private_root": "/tmp/s1c-n_78brx0",
+      "pidfile_absent": true,
+      "data_retained": true,
+      "minimum_continuous_free_bytes": 27485921280,
+      "measure_boundaries": 204,
+      "ready_quiet_passes": 204
+    },
+    {
+      "raw_out": "/tmp/sb4-g5r2-clocks2",
+      "private_root": "/tmp/s1c-n_78brx0",
+      "pidfile_absent": true,
+      "data_retained": true,
+      "minimum_continuous_free_bytes": 27394813952,
+      "measure_boundaries": 6,
+      "ready_quiet_passes": 6
+    }
+  ],
+  "restored_report_artifacts": {
+    "restored_files": 908,
+    "restored_bytes": 2188431479,
+    "source_commit": "a93cd8e434e7166a9b30fdfe63b91c4a5678339c",
+    "home_free_bytes": 25975214080
+  },
+  "home_free_bytes": 25972613120,
+  "load_cpu_siblings": "5,11",
+  "sha256": {
+    "round2.py": "2ebfbdc530fc15b25061b24e71c62b16023a06d473c65130c237b86c286ccb23",
+    "round2_reuse.py": "e1218bc931a447c59b3dad3041be3b4135a3d6503d1f87f031e2ae87fa202e56",
+    "summarize-round2.py": "cc807e3fe56618357acabec77a2795671e54896f659f3b3fb4f928691a907cc1",
+    "round2-measurements.json": "76c2a9556d0965acd18f8b7d0e2e200bf5d847828a6311baa9cfb24bb146fdea",
+    "round2-lowrate-clocks.json": "2f2ec2cdf4a560ba0259a5ea5ae8891dc2863c58026b1b4b64072a96c1b8556e",
+    "round2-aggregate.json": "b5b4111d849d8919d8e7582204f30cd13ec10aee790fe6a968bcfbc14eb6f146",
+    "round2-attribution.json": "fa6d1e1e297f9ff22b2659c3a39bcb06bc7e313eb65b9bd94d3e760d26ccb200",
+    "round2-lowrate-attribution.json": "1f148bc7048091903486da617889e4dd7d8ce4b5ceeedda067fbe29c0a3940c5",
+    "round2-table.csv": "93efe9e0edf9a84831a5910647772f50bd8947771a93fb08022b00a1e199c090"
+  },
+  "final_checks": {
+    "ref_check": {
+      "llps": 575,
+      "refs": 12176,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "whitespace": true,
+    "python_syntax": true,
+    "artifact_hashes": true,
+    "exact_w4_counter_audits": 18,
+    "application_connection_cap": 32,
+    "inventory": "unchanged Snapback 1 generated-input failures; no registered Rust diagnostic site moved"
+  }
+}

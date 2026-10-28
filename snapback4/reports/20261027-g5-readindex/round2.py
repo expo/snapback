@@ -45,6 +45,7 @@ def main():
     ap.add_argument('--pilot',action='store_true')
     ap.add_argument('--fixture-rows',type=int,default=1000000)
     ap.add_argument('--trace',action='store_true')
+    ap.add_argument('--clock-diagnostics-from',type=Path,help='reuse only a stopped, custody-checked private campaign fixture for six 1000/s trace-only windows')
     args=ap.parse_args();os.umask(0o077)
     target=ROOT/'target/release'
     a=SimpleNamespace(system='snapback',store='postgres',out=str(args.out),pg_bin='/home/ccheever/tools/pg16/usr/lib/postgresql/16/bin',pg_port=55743,
@@ -54,6 +55,14 @@ def main():
     s1.disk=lambda out:free(out,'S1-boundary')
     base=s1.configure(a);one=s1.make_runner(base)
     class Campaign(one):
+        def start(self):
+            if not args.clock_diagnostics_from:return super().start()
+            import round2_reuse
+            return round2_reuse.start(self,args.clock_diagnostics_from,s1)
+        def fixture(self,rows):
+            if not args.clock_diagnostics_from:return super().fixture(rows)
+            import round2_reuse
+            return round2_reuse.fixture(self,rows,s1)
         def spawn(self,command,directory,kind,cwd=None):
             command=list(map(str,command))
             if 'load' in command:
@@ -90,6 +99,10 @@ def main():
             sp.Popen=self.original_popen
             assert not alive and absent,'owned cleanup incomplete; retain state'
     r=Campaign(a)
+    if args.clock_diagnostics_from:
+        assert not args.pilot and args.fixture_rows==1000000
+        import round2_reuse
+        round2_reuse.adopt(r,args.clock_diagnostics_from,s1)
     for k in list(r.env):
         if k.startswith('SNAPBACK4_'):r.env.pop(k)
     r.env['LD_LIBRARY_PATH']='/home/ccheever/tools/pg16/usr/lib/x86_64-linux-gnu'
@@ -118,11 +131,12 @@ def main():
         cohorts += [('W4','A',rate,rep) for rep in range(3) for rate in [800,2262]]
         cohorts += [('W2','B',11313,-1),('W3','B',16000,-1)]
         if args.pilot:cohorts=[('W3','B',100,0),('W4','A',100,0)]
+        if args.clock_diagnostics_from:cohorts=[('W2','B',1000,-2),('W3','B',1000,-2)]
         for index,(w,link,rate,rep) in enumerate(cohorts):
             order=['g5','ri','g6'];order=order[index%3:]+order[:index%3]
             for arm in order:
-                a.warmup_ms=2000 if rep<0 else args.warmup_ms
-                a.duration_ms=4000 if rep<0 else args.duration_ms
+                a.warmup_ms=2000 if rep==-1 else args.warmup_ms
+                a.duration_ms=4000 if rep==-1 else args.duration_ms
                 label=f'{w}-{link}-{rate}-r{rep}-{arm}'
                 r.host_check(label);free(r.out,'cohort-'+label)
                 d=r.out/label;d.mkdir()

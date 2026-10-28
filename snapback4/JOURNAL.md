@@ -109922,3 +109922,33 @@ core and compatible dependency pins. Public index metadata is refreshed in a
 lane-owned Cargo home because the shared sparse index is stale/read-only;
 no Cargo configuration or credentials are copied. Only owned stopped test
 PG data and debug artifacts are pruned before release measurement.
+
+
+## 2026-10-28 — G5R2: 450a read-index qualification and remaining generator tail
+
+The clock-free parked continuation completes 198 native S1 one-host primary
+windows on 450a, million-message fixture, cap 32, 128 readers, A/B directional
+delays 250/500 µs, rotating arms and three repetitions. RI passes every
+W2/W3 A/B window through 11,313/s: the highest rung is 3/3 in all four cells,
+with worst p99 29.360/38.666/25.706/45.941 ms. That clears the supplied Convex
+pins by 41.4% for W2/A, W2/B and W3/A and 100.0% for W3/B. Both W3 16,000/s
+cells fail for all arms. W1 remains cold and its higher-rung RI tails do not
+improve; all its 8,000/s windows pass. Read pass counts: G5 9/60, RI 44/60,
+G6 43/60. Every failed repetition remains in the report.
+
+All 18 W4/A 800/2,262/s windows pass with 826,733 exactly reconciled cohort
+ACKs. RI's 2,262/s median PG CPU is 244.2 versus G5's 244.6 µs/ACK; no write
+SLO regression is observed. Native untraced clocks put W3 16,000/s generator
+CPU near its two logical-CPU cap, with dispatch p99 dominating the observed
+tail. Six high-rate all-request traces overload their synchronous JSON log
+writer and remain diagnostic only. Six additional 1,000/s diagnostic windows
+pass; conditional parked sample p99 is 2.038/2.093 ms for W2/B and W3/B, with
+separate parser, lookup, query and encode CPU clocks.
+
+The report includes full p50/p99, PG CPU and SQL tables, all windows, clock
+limits, reproduction and digest/custody receipts. All owned runtime PIDs are
+stopped; the private million-message fixture is retained without a postmaster
+PID file. Temporarily evicted historical artifacts in this lane are restored;
+old SPR releases/fixtures and 450b are untouched. The flag stays default off
+and the LLP subsection stays Review. See
+[Round 2](./reports/20261027-g5-readindex/REPORT.md#round-2-primary-result--450a-2026-10-28).

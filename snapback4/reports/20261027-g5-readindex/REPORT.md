@@ -372,7 +372,7 @@ supply no passing witness counts.
 
 | Check | Result |
 | --- | --- |
-| Core unit suite, default posture | 881 passed, 0 failed |
+| Core unit suite, default posture | 881 passed, 0 failed, 504 ignored |
 | CLI unit suite, serial | 674 passed, 0 failed, 78 ignored |
 | Private-PG cache/G6/D + coordinator suite | 42 passed, 0 failed |
 | Final core receipt/probation/RYW/uncertainty witnesses | 3 passed, 0 failed |
@@ -447,3 +447,185 @@ to expire before starting another arm, outside timing and without changing
 private catalog state. All owned pilot processes are stopped; the postmaster
 PID file is absent before deleting its scratch PG data. Only owned release
 intermediates are pruned, retaining the three hashed tools for the full run.
+
+### Round 2 primary result — 450a, 2026-10-28
+
+**The clock-free RI arm passes 11,313/s in all three repetitions on
+W2/A, W2/B, W3/A and W3/B.** Worst repetition p99 is respectively
+29.360, 38.666, 25.706 and 45.941 ms. This is 41.4125% above the pinned
+8,000/s Convex advocate rungs for the first three cells and 100.0177%
+above W3/B's 5,656/s rung. These are comparisons with the supplied pinned
+rungs, not a new simultaneous Convex campaign or a portable hardware claim.
+The flag remains **default off** and the design remains Review; the ordinary
+G5 default still fails those 8,000/s cells here.
+
+There are **198 primary windows**: 180 reads and 18 writes, retaining every
+repetition. Read pass counts are G5 **9/60**, RI **44/60**, G6 **43/60**;
+including W4, they are **15/66**, **50/66**, **49/66**. RI's 36 W2/W3
+windows through 11,313/s all pass; they have four measured errors total,
+with the worst window at 0.0025% errors. Both W3 16,000/s cells fail for
+all three arms in every repetition. W1 remains cold and gives no reuse
+benefit: all arms pass 8,000/s on both links, while at W1/A 9,514/s G5
+passes 3/3, RI 2/3 and G6 1/3; W1/B 9,514/s fails throughout. No failing
+window is replaced, and 11,313/s is the highest passing requested RI rung,
+not an inferred exact capacity ceiling.
+
+The native seed takes 1,816.6 seconds and verifies 1,000,000 messages,
+1,025 rooms, 256 users, 8,448 memberships and 257 counters. Initial and
+final message images and maintained room/sender totals have zero mismatches.
+The primary source is `a93cd8e434e7166a9b30fdfe63b91c4a5678339c`, including
+product changes `b37dadc513` and `a9758c07f1`. Server SHA-256 is
+`6e5570687b07321d289bb6b0271b1fdd0b70e0f038421a02a55d341d04c819fd`;
+the generator/seed hashes and CPU affinities are in the structured receipt.
+
+[Every window](./round2-measurements.json), [66-row p50/p99/CPU/SQL table](./ROUND2-FULL.md),
+[aggregate CSV](./round2-table.csv), [aggregate JSON](./round2-aggregate.json).
+The compact table below gives **passes/3; worst repetition p99 in ms**.
+Read SLO is p99 ≤50 ms and errors ≤0.1%; W4 uses p99 ≤100 ms with the
+same error bound and exact native counter reconciliation.
+
+| Cell | Offered/s | G5 | G5-RI | G6 |
+| --- | ---: | ---: | ---: | ---: |
+| W1/A | 8,000 | 3/3; 11.633 | 3/3; 13.582 | 3/3; 17.842 |
+| W1/A | 9,514 | 3/3; 47.186 | 2/3; 62.030 | 1/3; 61.047 |
+| W1/A | 11,313 | 0/3; 1016.070 | 0/3; 1016.070 | 0/3; 1016.594 |
+| W1/B | 8,000 | 3/3; 27.132 | 3/3; 42.992 | 3/3; 25.084 |
+| W1/B | 9,514 | 0/3; 314.311 | 0/3; 708.837 | 0/3; 90.440 |
+| W1/B | 11,313 | 0/3; 1016.070 | 0/3; 1016.070 | 0/3; 1016.070 |
+| W2/A | 8,000 | 0/3; 1021.837 | 3/3; 4.858 | 3/3; 12.591 |
+| W2/A | 9,514 | 0/3; 1023.934 | 3/3; 10.715 | 3/3; 15.139 |
+| W2/A | 11,313 | 0/3; 1026.032 | 3/3; 29.360 | 3/3; 26.673 |
+| W2/B | 8,000 | 0/3; 1022.886 | 3/3; 11.551 | 3/3; 6.148 |
+| W2/B | 9,514 | 0/3; 1023.410 | 3/3; 12.796 | 3/3; 15.466 |
+| W2/B | 11,313 | 0/3; 1025.507 | 3/3; 38.666 | 3/3; 29.065 |
+| W3/A | 8,000 | 0/3; 1021.313 | 3/3; 4.168 | 3/3; 1.775 |
+| W3/A | 9,514 | 0/3; 1024.459 | 3/3; 8.245 | 3/3; 4.239 |
+| W3/A | 11,313 | 0/3; 1025.507 | 3/3; 25.706 | 3/3; 15.073 |
+| W3/A | 16,000 | 0/3; 1024.459 | 0/3; 89.326 | 0/3; 60.490 |
+| W3/B | 8,000 | 0/3; 1021.837 | 3/3; 5.915 | 3/3; 2.679 |
+| W3/B | 9,514 | 0/3; 1023.410 | 3/3; 12.206 | 3/3; 8.094 |
+| W3/B | 11,313 | 0/3; 1023.934 | 3/3; 45.941 | 3/3; 9.937 |
+| W3/B | 16,000 | 0/3; 1024.459 | 0/3; 121.111 | 0/3; 58.819 |
+| W4/A | 800 | 3/3; 17.940 | 3/3; 14.787 | 3/3; 15.909 |
+| W4/A | 2,262 | 3/3; 87.032 | 3/3; 22.544 | 3/3; 44.007 |
+
+### Round 2 costs and remaining limit
+
+CPU and SQL below are medians across the three **whole-cohort** samples:
+warm-up, measurement, drain and native observer/barrier framing, divided by
+ACKs in that same interval. All 204 samples have the private-family PG CPU
+census; the native measured-window PG census has ten nulls, retained as nulls.
+The failed G5 windows are descriptive overloaded costs, not steady-state
+throughput estimates. Every sampled application connection count is ≤32.
+
+| 8,000/s cell | G5 PG µs/ACK; SQL/ACK | RI PG µs/ACK; SQL/ACK | G6 PG µs/ACK; SQL/ACK |
+| --- | ---: | ---: | ---: |
+| W2/A | 740.1; 1.00360 | 161.8; 0.34862 | 84.1; 0.15793 |
+| W2/B | 741.9; 1.00364 | 137.5; 0.28512 | 88.5; 0.16163 |
+| W3/A | 782.7; 1.00366 | 98.3; 0.23334 | 6.9; 0.00834 |
+| W3/B | 782.3; 1.00371 | 70.0; 0.15591 | 7.1; 0.00834 |
+
+Round 2 does not reproduce Round 1's W2/A 0.169 SQL/ACK: its bounded
+200 µs collection/two-flight design measures 0.349 here. Its improved tails
+and strict-above-pin pass counts are the useful result; host/window/design
+differences prevent assigning the SQL difference to a single cause.
+G6's W2 costs also include ordinary misses; this workload is not a zero-SQL
+G6 path throughout the window.
+
+The primary native generator records process CPU and separate intended-arrival
+dispatch/HTTP-service clocks with tracing disabled. CPU process order is
+checked against the recorded PIDs: server, proxy, then the generator's own PID.
+The pinned load CPUs `5,11` are siblings on one physical core. At W3 16,000/s:
+
+| Primary cell/arm | Generator logical CPU-seconds/s | Server CPU-seconds/s | Dispatch p99 ms | HTTP service p99 ms |
+| --- | ---: | ---: | ---: | ---: |
+| W3/A RI | 1.976 | 2.884 | 67.830 | 15.188 |
+| W3/A G6 | 1.957 | 1.892 | 46.432 | 11.330 |
+| W3/B RI | 1.955 | 2.940 | 94.437 | 17.662 |
+| W3/B G6 | 1.965 | 1.868 | 49.840 | 11.256 |
+
+These are medians of window values, not additive stage quantiles. The dominant
+observed excess is in generator dispatch, with its two logical CPUs nearly
+full. RI also consumes more application CPU than G6; the server/proxy share
+two physical/four logical CPUs, so logical idle time alone is not a physical
+headroom proof. The clocks identify generator scheduling as a remaining
+one-host tail limit; they do not establish a sole intrinsic engine ceiling.
+At W2/B 11,313/s RI's dispatch/service p99 medians are 18.596/11.559 ms,
+with generator/server CPU 1.818/2.140 logical CPU-seconds/s.
+
+[High-rate clock diagnostics](./round2-attribution.json) contain six separate
+2 s warm-up/4 s traced windows at W2/B 11,313 and W3/B 16,000. All fail:
+the opt-in synchronous trace writer serializes JSON directly to a File under
+a mutex after the response, producing many small writes while the request
+worker finishes. Those runs show a logging-induced worker queue and cannot
+explain the primary p99 numerically. This qualification instrumentation is
+not enabled in the primary matrix. No instrumentation rebuild changes the
+primary product bytes.
+
+Six additional **1,000/s diagnostic-only** windows reuse the stopped private
+million-message fixture after custody/PID-file/process-birth/binary-hash checks,
+with the same native S1 affinity, cap, 128 readers and quiet gate. They use
+10 s warm-up/4 s measurement; all pass without errors. The first reuse setup
+refuses an already-created custody metadata file before any PG startup or
+timed traffic; the corrected attempt updates only its own metadata. These
+windows do not enter the capacity table. W2 has only 916 parked samples in
+this shorter arrival history, so the cache CPU numbers explicitly condition
+on parked reads; W3 has 13,551. No whole-window warm-cache claim follows.
+
+| Low-rate RI parked samples | n | Parser CPU mean µs | Candidate lookup CPU mean µs | Resume query CPU mean µs | Encode CPU mean µs | Park + resume-queue p99 ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| W2/B | 916 | 25.96 | 13.82 | 26.25 | 6.97 | 2.038 |
+| W3/B | 13,551 | 22.24 | 11.91 | 22.46 | 5.27 | 2.093 |
+
+The resumed query includes ordinary authority/stamp work. Mean active-worker
+CPU for these parked samples is 149.10/129.89 µs; parser CPU is measured on
+its intake thread separately. The request's accepted timestamp starts after
+headers, so its post-header intake span is not a kernel socket-accept clock.
+Whole-server clocks retain the additional HTTP/socket/admission/scheduling
+cost; these probes do not isolate accept CPU or assign the residual to it.
+Lookup and encoding are measured small components, while the primary native
+clocks expose the dispatch tail. The 2.0–2.1 ms parked p99 is about two B RTTs
+in this unsaturated diagnostic; at saturation the recorded parked span also
+includes resumption queueing. The independent 8 ms timer bounds proof waiting,
+not scheduler delay or total HTTP p99. Stage quantiles are neither additive
+nor paired decompositions of a primary-window request.
+
+[Low-rate windows](./round2-lowrate-clocks.json),
+[conditional stage clocks](./round2-lowrate-attribution.json).
+Reproduce the additional clocks using `round2.py --clock-diagnostics-from
+/tmp/sb4-g5r2-campaign --warmup-ms 10000 --duration-ms 4000` with new `--out`
+and `--result` paths. The helper uses the existing private fixture token files
+in place; it never copies credentials or changes the stored PG settings.
+
+### Round 2 writes, custody and disposition
+
+All **18 W4/A** windows at 800 and 2,262/s pass the write SLO and native
+counter check: **826,733 cohort ACKs exactly reconcile**, with five measured
+errors across the windows. At 2,262/s the median p50/p99 is G5
+9.994/20.595 ms, RI 9.929/18.383 ms and G6 10.093/20.972 ms. Median PG
+CPU is 244.6/244.2/244.5 µs/ACK respectively. At 800/s G5/RI PG CPU is
+660.0/656.7 µs/ACK. No write SLO or PG CPU regression is observed. The
+read-index proof is not added to a write's protocol.
+
+The private-family process audit covers pilot, witness, main and diagnostic
+ledgers. **Owned PIDs left: none.** The private campaign PG at
+`/tmp/s1c-n_78brx0/pg` is retained, stopped, with no postmaster PID file.
+Port 55743 is no longer served. All 204 main and six low-rate measurement
+starts have passing ready quiet gates; continuous free space stays above
+25.5 GiB. To reserve headroom, 908 unchanged tracked historical report
+artifacts (2,188,431,479 bytes) are temporarily evicted from this new worktree
+and restored from exact local Git blobs before final checks. No report
+artifact deletion remains in the diff. No old SPR release/fixture or other
+worktree's artifact is removed. `/home` free after restoration: about
+**24.2 GiB**. No push, origin fetch, stash, Git configuration mutation,
+credential copy or 450b access occurs.
+
+[Custody, disk, process and digest receipt](./round2-evidence.json).
+The implementation removes the scarce-worker wait and qualifies strict
+above-pin local rungs without a freshness clock premise. Default-on promotion,
+Stage R/E integration and packed publication remain outside this result.
+
+Final post-document checks pass: `./ref-check` (575 LLPs, 12,176 refs,
+zero errors/unchecked), whitespace, Python syntax, artifact digests, all 18
+exact counter audits and the 32-application-connection cap. The previously
+recorded unchanged Snapback 1 inventory failures remain outside this lane.
