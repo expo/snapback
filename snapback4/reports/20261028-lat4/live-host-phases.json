@@ -1,0 +1,50 @@
+{
+  "qualification": false,
+  "candidate": "3fdd8109f2a76eb9f4d1f39d1418786091f29d9b3fd9854b959e17c3ca746a12",
+  "sample": "final ordered negative-path replays and same-version controls, after variant only",
+  "hostPhases": {
+    "release.host.custody": {
+      "n": 9,
+      "median": 0.000264687,
+      "p90": 0.103953326,
+      "max": 0.103953326
+    },
+    "release.host.schema_materialization": {
+      "n": 9,
+      "median": 0.081740621,
+      "p90": 0.125546862,
+      "max": 0.125546862
+    },
+    "release.host.materialize_fsync": {
+      "n": 9,
+      "median": 0.001112488,
+      "p90": 0.003010312,
+      "max": 0.003010312
+    },
+    "release.host.await_writer": {
+      "n": 9,
+      "median": 3.7757e-05,
+      "p90": 5.7476e-05,
+      "max": 5.7476e-05
+    },
+    "release.host.adoption_backfills": {
+      "n": 9,
+      "median": 0.12208234,
+      "p90": 0.26407859,
+      "max": 0.26407859
+    },
+    "release.host.publish_readers": {
+      "n": 9,
+      "median": 0.004124843,
+      "p90": 0.006560634,
+      "max": 0.006560634
+    },
+    "release.host.pointer_fsync": {
+      "n": 9,
+      "median": 0.000535382,
+      "p90": 0.001008732,
+      "max": 0.001008732
+    }
+  },
+  "note": "Each interval nests in the host activation; do not add phase medians. Full suite failures and refusal text remain in companion summaries."
+}
