@@ -3,7 +3,8 @@
 Scope: `snapback4/proof` imports, native proof command dispatch, and execution
 measurements of copied app-farm scripts. Product changes start at `0f8f0a206f`
 and include the reviewed error/deadline fixes through `eb80c8c7b3`.
-Package versions remain 0.4.44.
+The experiment is pinned to 0.4.44. Late integration inherits main's 0.4.45
+without a LAT3 version bump; its composed checks are recorded separately.
 
 The orientation context is LLP 3000.011.003.000.000 §§1, 4, 5, 8, 16–18
 (proof identity, keeper custody, browser assertions, native dispatch),

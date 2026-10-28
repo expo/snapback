@@ -31,7 +31,8 @@ plan.steps=plan.steps.filter(step=>allowed.has(step.id)).map(step=>{
  return {...step,id:'rust:snapback4-lang:guide',argv:['cargo','test','--no-fail-fast','-p','snapback4-lang','--test','guide','--','--test-threads=4']};
 });
 const step=plan.steps.find(step=>step.id==='client-tests');
-step.argv=['node','scripts/run-client-tests.mjs','4','files',...files];
+// One simultaneous packed-consumer worker leaves three independent file slots.
+step.argv=['node','scripts/run-client-tests.mjs','3','files',...files];
 step.fileRequires=Object.fromEntries(files.map(path=>[path,step.fileRequires[path]??[]]));
 plan.clientFiles=plan.clientFiles.filter(path=>names.some(name=>path.endsWith(`/${name}.test.mjs`)));
 plan.rustPackages=['snapback4-lang'];
