@@ -48,7 +48,9 @@ def run(dst,script,log,timeout=360,port_range=None):
  if port_range:env.update(PORT_LO=str(port_range[0]),PORT_HI=str(port_range[1]))
  # Some historical scripts read TMPDIR directly; others default to a removed
  # bakeoff scratch root. Keep every new run's temporary worlds task-local.
- runtime=SCRATCH/'runtime'/dst.parent.name/dst.name
+ # Chromium also puts Unix sockets beneath TMPDIR; keep the private prefix
+ # short instead of embedding the full authored lane name twice.
+ runtime=SCRATCH/'t'/hashlib.sha256(str(dst.parent).encode()).hexdigest()[:16]/dst.name[:1]
  runtime.mkdir(parents=True,exist_ok=True,mode=0o700);env['TMPDIR']=str(runtime)
  trace=log.with_suffix('.native.jsonl') if int(dst.parent.name.split('-')[0][1:])>=32 else None
  if trace:
@@ -169,5 +171,7 @@ def main():
   finally:
    if out.exists():shutil.rmtree(out)
    runtime=SCRATCH/'runtime'/key
+   if runtime.exists():shutil.rmtree(runtime)
+   runtime=SCRATCH/'t'/hashlib.sha256(str(out).encode()).hexdigest()[:16]
    if runtime.exists():shutil.rmtree(runtime)
 if __name__=='__main__':main()
