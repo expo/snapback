@@ -122,3 +122,29 @@ test('wide literal domains use complete generated type references within each op
   assert.match(api,/variant_149_x149/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+// Runtime ownership check for the literal setup: browser writers must keep the
+// existing app client, not reconstruct a bare transport with a borrowed bearer.
+test('generated browser setup retains app admission ownership and app.auth login',async()=>{
+ const dir=mkdtempSync(join(root,'target/gen1-'));
+ try {
+  mkdirSync(join(dir,'snapback'));
+  writeFileSync(join(dir,'snapback/schema.q'),'use identity password\nmutation add(body: text <=100):\n  return body\n');
+  run(dir,['types']);const api=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8');
+  const text=packet(api),setup=[...text.matchAll(/```ts\n([\s\S]*?)\n```/g)][0][1];
+  assert.match(text,/bare createClient in a browser refuses durable writes with E_ADMISSION/);
+  assert.doesNotMatch(text,/SnapbackProvider/);
+  // Execute the emitted shared fence after stripping imports only. TS removes
+  // its declare, not runtime construction; any accidental bare-client setup
+  // therefore trips this real construction boundary instead of a regex alone.
+  const ast=ts.createSourceFile('setup.ts',setup,ts.ScriptTarget.ES2022,true);
+  const source=ast.statements.filter(n=>!ts.isImportDeclaration(n)).map(n=>n.getText(ast)).join('\n');
+  const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+  const calls=[],owned={mutate:()=>({state:'sent',id:'owned'})};
+  const app={ready:Promise.resolve(),client:owned,auth:{login:async(...args)=>{calls.push(args);return{ok:true,session:{token:'private'}};}}};
+  const shared=new Function('app','createClient',js+'\nreturn {client,signIn};')(app,()=>{throw Error('E_ADMISSION: bare browser client');});
+  assert.equal(shared.client,owned);assert.equal(await shared.signIn('a@example.test','password'),owned);
+  assert.deepEqual(calls,[['a@example.test','password']]);
+  assert.throws(()=>new Function('app','createClient',js.replace('const client = app.client;','const client = createClient({});'))(app,()=>{throw Error('E_ADMISSION: bare browser client');}),/E_ADMISSION/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
