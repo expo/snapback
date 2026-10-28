@@ -615,6 +615,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         let texts = starter_texts(&dir.0);
         // Kit scripts replace builder-owned process orchestration; DX14 adds one
         // shared TypeScript helper and its ESM scope for Node proof imports.
+        // Saved proof packets moved from v1/ to versions/; neither is application source.
         // @ref LLP 3000.011.003.000#10 — an exact licensed build dependency has its own inventory; application source keeps its ceiling.
         let dependency_files = ["toolchain/deepmerge/package.json", "toolchain/deepmerge/index.cjs", "toolchain/deepmerge/index.d.ts", "toolchain/deepmerge/LICENSE", "toolchain/deepmerge/README.md"];
         let dependency_paths = texts.iter().map(|(path, _)| path.strip_prefix(&dir.0).unwrap()).filter(|path| path.starts_with("toolchain/deepmerge")).collect::<std::collections::BTreeSet<_>>();
@@ -622,7 +623,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         assert_eq!(dependency_paths, expected, "only the five declared dependency leaves may be outside the application-source count");
         let app_files = texts.iter().filter(|(path, _)| {
             let relative = path.strip_prefix(&dir.0).unwrap();
-            !relative.starts_with(".snapback4") && !relative.starts_with("v1") && !expected.contains(relative)
+            !relative.starts_with(".snapback4") && !relative.starts_with("v1") && !relative.starts_with("versions") && !expected.contains(relative)
 
         }).count();
         assert!(app_files <= 30, "{flag}: {app_files} application files");
@@ -763,8 +764,11 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
         // With `use identity` the guest screen stays.
         let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
         assert!(app.contains("auth.guest()"), "{flag}");
-        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
-        assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{flag}: {tested:?}");
+        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--json", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        assert!(tested.status.success(), "{flag}: {tested:?}");
+        let report: serde_json::Value = serde_json::from_slice(&tested.stdout).unwrap();
+        assert_eq!(report["cases"]["passed"], 1, "{flag}: {report}");
+        assert_eq!(report["cases"]["failed"], 0, "{flag}: {report}");
     }
     // Wave 4 (1d): the starter's unmodified todos.jsonl beside a schema without
     // `todos` is skipped with a warning naming `init --adapt`; the project's

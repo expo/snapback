@@ -10,7 +10,7 @@ async function run(cwd,cmd,args){const start=performance.now();let stdout='',std
 const results=[];
 for(const [name,flags] of [['web',['--web']],['password',['--web','--online','--password']],['expo',['--expo']]]){
  const cwd=join(out,name);mkdirSync(cwd);writeFileSync(join(cwd,'package.json'),'{"private":true,"type":"module"}');
- let r=await run(cwd,'npm',['install','--ignore-scripts','--no-audit','--no-fund',join(packs,'snapback4-0.4.46.tgz'),join(packs,'snapback4-linux-x64-0.4.46.tgz')]);assert.equal(r.code,0,r.stderr);
+ let r=await run(cwd,'npm',['install','--no-save','--ignore-scripts','--no-audit','--no-fund',join(packs,'snapback4-0.4.46.tgz'),join(packs,'snapback4-linux-x64-0.4.46.tgz')]);assert.equal(r.code,0,r.stderr);
  const cli=join(cwd,'node_modules/.bin/snapback4');r=await run(cwd,cli,['init',...flags,'--no-install']);assert.equal(r.code,0,r.stdout+r.stderr);
  // npm resolves every dependency against the same read-only overlay/mirror.
  r=await run(cwd,process.execPath,['scripts/install.mjs']);assert.equal(r.code,0,r.stdout+r.stderr);const installMs=r.ms;

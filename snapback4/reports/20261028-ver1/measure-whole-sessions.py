@@ -51,7 +51,7 @@ for launch in sorted(Path('/tmp/ver1-evidence').glob('*-launch.json')):
   if tool['cat'].startswith('poll:'):
    origin=tools[tool['origin']] if tool.get('origin') is not None else tool
    if origin['cat'] in ('npm-install','sb:init') or 'scripts/install.mjs' in origin.get('cmd',''):installPolls.append({'call':tool['k'],'category':origin['cat']})
-  if tool['cat']=='proofs:probe-serve' and not re.search(r'(?<!&)&(?!&)',cmd):
+  if tool['cat']=='proofs:probe-serve' and not re.search(r'(?<![&<>])&(?![&>])',cmd):
    end=tool.get('bg_end') or tool.get('t1');start=tool.get('bg_start') or tool.get('t0')
    serveWaits.append({'call':tool['k'],'ms':round(end-start) if start and end else None,'exit':tool.get('final_exit',tool.get('exit'))})
  calls=session['calls'];cached=sum(c.get('cached')or 0 for c in calls)
