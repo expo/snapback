@@ -1,0 +1,42 @@
+{
+  "head": "23272b660cc8b47b03348b0496207db10f2059b3",
+  "treesAndBlobs": {
+    "snapback4/crates": "080dc80abbd00fafa07f83168eb42ba39bb5a5d7",
+    "snapback4/packages": "39939617911a3af27bfe6413d13dc39dcb2c0554",
+    "snapback4/apps": "ca738eedf3e8d02edc68b424fd2235109ccc5e21",
+    "snapback4/scripts": "e4aca1ed128f3a1b633a2965fcc2caba72b7991d",
+    "snapback4/Cargo.toml": "ac601c567cf9d5924c2cfff678ec3c40c8816b9b",
+    "snapback4/Cargo.lock": "64a0f060ed3fc72ea8c0c0bc852f258bf89f0d8e",
+    "snapback4/bun.lock": "326a1c7a0af376779ee585f78f308fab0e8f2776",
+    "snapback4/rust-toolchain.toml": "44a9e3b922d525c1c0d9bb35aa79aaf69d9ce388",
+    "snapback4/.cargo": "0b953f54b7b6605b2ea0323c9c4cbb1c4552dca3",
+    "snapback4/vendor": "79a986605d4044936075b06673ba6bec9349da7e",
+    "guide": "42291093a37bb846b029f5113863d85b94c5eeab",
+    "scripts": "e7a434f77de330bb290c039e051278df04a5f983",
+    "ref-check": "c697b4950fa4474239ed113ebecb661e0fec2984",
+    "package.json": "b126f24a6f7ca6c5adc339515168718fd0c76192",
+    "bun.lock": "5c7f33937247d1a69aff3e821f914051709532e2"
+  },
+  "native": {
+    "sha256": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62",
+    "source": "c3c56b5057 plus independently approved intent-repair-r3.diff and regenerated artifacts",
+    "reviewDiffSha256": "93c1d090bfbc1bf98d9284c0dea17830c7d7b8a7677293087e1bcf986a2c7d59"
+  },
+  "packs": [
+    {
+      "name": "snapback4",
+      "version": "0.4.45",
+      "integrity": "sha512-fXL6Khc2SKk6f56j+T2L02xW9wQkwaKxb3vekTXiMKbQpX+iT1vOBnNrCzZk9+pm3YPFjgiYLSPbf9sp2CVxIA==",
+      "path": "/home/ccheever/sb4-loop/reports/integration29/packs-final/snapback4-0.4.45.tgz",
+      "sha256": "2d7d0fdb4321b7b1d24235d06a7f6f7c5f7f714fa0b93f58bc4612ac6859ce43"
+    },
+    {
+      "name": "snapback4-expo",
+      "version": "0.4.45",
+      "integrity": "sha512-knWo0cznex6oUyzuSdakDeMqlAfJMdt3vE57DJW7QqBRQvHrgqI4+xpO97LYVrIBEbQs2C+e6nbefWOk+n4NGA==",
+      "path": "/home/ccheever/sb4-loop/reports/integration29/packs-final/snapback4-expo-0.4.45.tgz",
+      "sha256": "ea8f448ee8e2984f05fca3cba9735cc8165e7e7b63b24b8e0c8eb4d5af9386fb"
+    }
+  ],
+  "method": "Product/source and verifier input object identities at whole CLI and full packed consumer runs. Final metadata-only integration report and retained evidence can advance HEAD with these exact trees/blobs unchanged. Native/packs additionally carry byte digests; no claim that every earlier measured executable equals this final one."
+}

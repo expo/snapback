@@ -9,6 +9,8 @@
 - `alias result list.oldName = currentName` preserves old result property names. Receipt-owned rollback views retain extracted asset fields through their original child identities and current authorization. Rename plus safe domain widening can activate together; scalar-only extraction explicitly refuses with a backfill/down repair. Preview output names changed properties and retained preimages.
 - Existing app rows, accounts and users remain. Restart serving hosts and use this CLI for cold release commands: successful release moves upgrade the internal server-store fence to 11 and require activation protocol 11. Older executors refuse unsupported receipt-owned result views. Rebuild clients for generated result aliases; no source rewrite is required unless choosing them.
 
+- New Expo starters include a local patched configuration merger for the unpatched deepmerge advisory. Existing projects keep their toolchain files; `init --expo --skip-existing` adds the patch only when its files and dependency override do not conflict.
+
 ## 0.4.44
 
 ### Guide changes

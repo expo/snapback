@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "completeConsumerChain": false,
+  "accepted": false,
+  "reason": "Fresh npm advisory for deepmerge under Expo toolchain; strict audit correctly refused fixAvailable metadata. No consumer.json or publication receipt. Actual dependency is patched; full chain will restart as consumer-r5."
+}

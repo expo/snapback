@@ -109831,3 +109831,10 @@ schemas among 980; the final product replay targets those inputs, preserving
 source and binary provenance instead of relabeling the original false-refusal
 survey as green. The complete paired latency profile and remaining qualification
 are recorded in the Integration 29 report; no latency work limit was increased.
+
+
+2026-10-28 — Integration 29 packed consumer qualification exposed the newly
+reviewed deepmerge prototype-poisoning advisory in Expo configuration. A local
+MIT fork patches the actual dependency in generated Expo starters, with unchanged
+audit assertions/allowlist and refusal on conflicting patch custody. Fresh audit
+and actual Expo config resolution pass; full consumer qualification is repeated.
