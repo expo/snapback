@@ -110306,3 +110306,9 @@ Merge TOK5 and GEN1. Preserve the complete release history and both lane records
 GEN1 is section 16 alongside TOK5 section 15. Generated usage demonstrates
 refusalOf against the merged Write types. API-index resolves the script-valued
 proof-runner export and lists the previously omitted proof helpers.
+
+Integration 32 locked web device: 2,416,601 raw / 738,518 gzip / 555,443 Brotli
+bytes. Budget739,018 = measurement+500; unchanged raw length and -122 gzip from
+0.4.47 include the version/layout effect, without a runtime ceiling change.
+Strict family/server-only absence audits pass. Both conflict-repair reviews are
+READY; original NOT READY records remain under llp/reviews/.
