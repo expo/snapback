@@ -1,6 +1,7 @@
 """Numerical export only. Full stores, credentials and raw app logs remain private."""
 import argparse,collections,hashlib,json,math,pathlib,re,statistics
 HERE=pathlib.Path(__file__).resolve().parent
+DIAGNOSTIC=re.compile(r'snapback4 proof: lingering handles after suite: [A-Za-z]+\(\d+\)(?:, [A-Za-z]+\(\d+\))*; exiting with status \d+')
 
 def stats(values):
  values=sorted(values)
@@ -9,6 +10,11 @@ def stats(values):
 def messages(lines):
  result=[]
  for line in lines:
+  # This one builder-visible addition is the intended LAT4 behavior. It can be
+  # embedded in a parent's multiline assertion; retain raw hashes and count it
+  # separately rather than treating its text as a changed underlying failure.
+  line=DIAGNOSTIC.sub('',line).rstrip()
+  if not line:continue
   line=re.sub(r'/tmp/lat4(?:/[^/]+)?/worker-\d/[^/]+/(?:before|after)','<COPY>',line)
   line=re.sub(r'(<COPY>/logs/)[0-9a-f-]{36}(\.(?:stderr|stdout)\.log)',r'\1<command-id>\2',line)
   line=re.sub(r'Browser Wurlitzer [0-9a-f-]{36}','Browser Wurlitzer <fixture-uuid>',line)
@@ -100,7 +106,7 @@ def main():
    call_pairs+=1;call_records+=len(vectors['before'])
    if vectors['before']!=vectors['after']:call_differences.append({'wave':r['wave'],'lane':r['lane'],'beforeRecords':len(vectors['before']),'afterRecords':len(vectors['after'])})
   if r['before']['code']==r['after']['code']==0 and (len(vectors)!=2 or any(not x for x in vectors.values())):missing_vectors.append({'wave':r['wave'],'lane':r['lane']})
- summary={'qualification':False,'completedPairs':len(rows),'setupErrors':[r for r in raw if 'setupError'in r],'verdictOrMessageDifferences':deltas,'LAT3TargetLanes':sorted(target_lanes),'tables':tables,'clientCallPairs':call_pairs,'clientCallRecords':call_records,'clientCallDifferences':call_differences,'missingClientCallVectors':missing_vectors,
+ summary={'qualification':False,'completedPairs':len(rows),'setupErrors':[r for r in raw if 'setupError'in r],'verdictOrMessageDifferences':deltas,'declaredLingeringDiagnosticOccurrences':{v:sum(len(DIAGNOSTIC.findall(line))for r in rows for line in r[v].get('messages',[]))for v in ['before','after']},'LAT3TargetLanes':sorted(target_lanes),'tables':tables,'clientCallPairs':call_pairs,'clientCallRecords':call_records,'clientCallDifferences':call_differences,'missingClientCallVectors':missing_vectors,
  'tails':{'completedSuites':len(tails),'overOneSecond':{v:sum(t['variant']==v and t['postCompletionSeconds']>1 for t in tails)for v in ['before','after']},'postCompletionSeconds':{v:stats([t['postCompletionSeconds']for t in tails if t['variant']==v])for v in ['before','after']}},
  'commands':{v:{verb:{'wallSeconds':stats([c['seconds']for c in values]),'outsideSecuritySeconds':stats([c['outsideSecuritySeconds']for c in values]),'count':len(values)}for verb,values in groups.items()}for v,groups in commands.items()}}
  a.out.mkdir(parents=True,exist_ok=True)
