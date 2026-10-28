@@ -38,6 +38,7 @@ fn wave33_001_022_011_021_full_lists_sections_and_repeats_delta() {
     let dir=std::env::temp_dir().join(format!("dx16-guide-{}",std::process::id()));fs::create_dir_all(dir.join("snapback")).unwrap();
     let run=|args:&[&str]|String::from_utf8(Command::new(BIN).current_dir(&dir).args(args).output().unwrap().stdout).unwrap();
     for name in ["deploy","production","evolution"] {let text=run(&["guide",name,"--full"]);assert!(text.len()<=8000);assert!(!text.contains("// day-two-production.mjs"));}
+    let day2=run(&["guide","day2","--repeat"]);assert!(day2.len()<=8000);assert!(day2.contains("Substitute the chosen pair in ALL examples below, including both proof runs"));
     let first=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(first.contains("alias greet"));let again=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(again.contains("new: 0 blocks"));assert!(again.len()<first.len());
     assert_eq!(first,run(&["guide","deploy","--section","Keep v1 clients working","--repeat"]));
     let api=run(&["guide","api","proof","--sections"]);assert!(api.len()<=8000);for name in ["startServe","provisionAccounts","freshUser","proof-accounts/default.json"] {assert!(api.contains(name),"{name}");}

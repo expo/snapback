@@ -31,3 +31,11 @@ Follow up with the publication/toolchain owner: verify current remediation and
 SDK compatibility, then rerun fresh clean userspaces. Keep the audit policy;
 DX16 does not add an advisory waiver or change its assertions. No publication
 qualification is claimed for the stopped run.
+
+The final implementation repetition at `882daf8917` passed all preceding
+functional host consumers and 12 generated frontend proof records, then hit the
+same advisory chain in the host Expo starter audit before clean userspaces.
+It did not emit starter-proofs.json or consumer.json. Public audit response:
+[host-starter-audit.json](../snapback4/reports/20261027-dx16/host-starter-audit.json).
+The earlier all-six-starter pass and later host failure are distinct evidence;
+registry/advisory timing is not a reason to waive this current refusal.

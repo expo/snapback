@@ -9,12 +9,12 @@ npx snapback4 deploy ./deploy --save-version versions/v1
 
 Adapt saves absent versions/v1 and versions/v2 source/fixture snapshots plus a frozen v1/ ESM client and generated API. Existing snapshots
 and authored proofs stay untouched. Capture BEFORE the edit. If v1 is already deployed/saved, inspect `releases ./deploy --json` and reuse
-its saved source; never recapture it from v2.
+its saved source; never recapture it from v2. If these are starter drafts, choose unused versions/vN and versions/vM: save vN, copy it to vM for edits, and run
+`npm run day2:proof -- versions/vN versions/vM`. Preserve snapshots. Substitute the chosen pair in ALL examples below, including both proof runs.
 
-Read only this card, ONE change route below, and `guide api proof` when writing proofs. Do not read deploy/production/evolution --full next:
+Read this card, ONE change route, and `guide api proof` for proofs. Do not read deploy/production/evolution --full next:
 those commands list reference sections. Do not read dist/proof.js or the full declarations. Use the signature digest and a specific section
-only when a refusal needs it. After the selected route, edit the schema (or write the discovery plan). Do not tour CLI help, guide --list,
-security, language or testing to pre-validate future steps. A concrete check/preview refusal is the reason for another lookup.
+only when a refusal needs it. After the selected route, edit the schema (or write the discovery plan). Lookup more only for a concrete refusal.
 
 ## Choose one change route
 
@@ -53,7 +53,7 @@ retain `charge: TYPE alias price` on the old create call. Preserve old result fi
 OWNER_POLICY` in `update (old, next) <- ...`. A column `write <- POLICY` also restricts non-default creation: use it only when that matches
 the requested creator too. A require never grants a denied write. Preserve existing guards. These forms are enough to plan the change; leave
 security/language/rule-recipes closed until check names a concrete refusal. Reuse the inherited client:calls as the frozen business probe;
-do not study the client implementation to rebuild it.
+keep its handles.
 
 ## Preview, deploy v2, rollback and forward
 
@@ -71,8 +71,7 @@ npx snapback4 rollback ./deploy --to latest --check
 npx snapback4 rollback ./deploy --to latest
 ```
 
-Replace 1 with the saved v1 release ID. Preview changes no live state and later writes can change its result. Await activation; no sleep is
-needed. Default rollback may use a registered compatible view retaining current guards. Inspect `releases ./deploy --json` for live
+Replace 1 with the saved v1 release ID. Preview writes nothing; later writes can change its result. Await activation; no sleep. Default rollback may use a registered compatible view retaining current guards. Inspect `releases ./deploy --json` for live
 source/view and row shape; a successful rollback alone does not establish frozen-v1 result compatibility. Use --exact only after
 deliberately reviewing the old source's broader policy. If preview requires a bridge or --restore-dormant, follow its concrete instruction
 and preview again. Never prune/reset/delete storage to make a proof pass.
@@ -104,7 +103,7 @@ needs a fresh owner/group or authorized cleanup. Never raise caps/reset shared p
 
 ## Production roster and complete inspection
 
-`guide api proof` includes startServe, provisionAccounts, account/roster shapes and exact options. For a persistent production driver use
+`guide api proof` includes startServe, provisionAccounts, account/roster shapes and exact options. For production use
 `guide production --section 'Serve script and reusable accounts'` only. Signup creates an account; an authorized provisioning mutation
 grants its role.
 
@@ -118,7 +117,7 @@ const users = host.sessions; // {member:[account,account], admin:[account,accoun
 // Stop host in finally, or use your existing serve-check bounded driver.
 ```
 
-Production provisioning logs in to its persistent roster on rerun. Keep production/proof-accounts/default.json (0600) with its store:
+Production provisioning reuses its roster. Keep production/proof-accounts/default.json (0600) with its store:
 credentials, provision IDs and partial completion. Use freshUser for isolated proof batches. Neither helper bypasses rules.
 
 `data TABLE --release ./deploy --all --json` and `snapshotAll("TABLE", {release:"./deploy"})` merge active and retained rows/cells once per

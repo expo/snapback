@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {runToolchainCommand} from './publication-starters.mjs';
 export const dx16Consumer=String.raw`
 import assert from 'node:assert/strict';
-import {mkdirSync,writeFileSync,readFileSync,existsSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync,existsSync,cpSync} from 'node:fs';
 import {join} from 'node:path';
 import {cli,command,startServe,deploy,rollback,snapshotAll,freshUser,uniqueName} from 'snapback4/proof';
 import {createClient} from 'snapback4/client';
@@ -20,6 +20,13 @@ writeFileSync(join(fresh,'calls.mjs'),"import {api} from './snapback/generated/a
 await freshCli(['types']);await freshCli(['init','--adapt','--day2','--apply']);
 assert.equal(readFileSync(join(fresh,freshPackage.type==='module'?'v1/snapback/schema.q':'v1/.source/snapback/schema.q'),'utf8'),business);
 const frozenBusiness=await command('npm',['--prefix','v1','run','--silent','client:calls'],{cwd:fresh});assert.equal(frozenBusiness.code,0,frozenBusiness.stderr);assert.match(frozenBusiness.stdout,/day-one business captured/);
+// Starter snapshots remain immutable; save customized day one under unused names.
+await freshCli(['deploy','./saved-proof','--save-version','versions/v3']);
+assert.equal(readFileSync(join(fresh,'versions/v3/schema.q'),'utf8'),business);
+assert.notEqual(readFileSync(join(fresh,'versions/v1/schema.q'),'utf8'),business);
+cpSync(join(fresh,'versions/v3'),join(fresh,'versions/v4'),{recursive:true});
+writeFileSync(join(fresh,'versions/v4/schema.q'),business.replace('  title: text <=80\n',"  title: text <=80\n  color: text <=20 default 'blue'\n"));
+const named=await command('npm',['run','--silent','day2:proof','--','versions/v3','versions/v4'],{cwd:fresh,timeoutMs:300_000});assert.equal(named.code,0,named.stdout+named.stderr);
 const cwd=join(process.cwd(),uniqueName('dx16-app'));mkdirSync(join(cwd,'snapback'),{recursive:true});mkdirSync(join(cwd,'tools'));mkdirSync(join(cwd,'helpers'));mkdirSync(join(cwd,'src'));
 const source="use identity password\ntable roles:\n  principal: principal\n  role: enum('member')\n  unique principal\n  read <- .principal = viewer or viewer = 'service:operator'\n  insert <- viewer = 'service:operator'\n  online only\nmutation provision(principal: principal, role: enum('member')):\n  return insert roles {principal,role}\ntable rows:\n  owner: principal\n  title: text <=80\n  cap 1 by owner\n  read <- .owner = viewer\n  insert <- .owner = viewer and exists roles[principal = viewer]\n  online only\nmutation add(title: text <=80):\n  return insert rows {owner:viewer,title}\nquery list():\n  return rows where .owner = viewer first 20 by .id\n";
 writeFileSync(join(cwd,'snapback/schema.q'),source);writeFileSync(join(cwd,'src/App.tsx'),'export default function App(){return null;}\n');
@@ -47,5 +54,5 @@ export async function proveDX16(cwd){
  writeFileSync(join(cwd,'dx16.mjs'),dx16Consumer);
  const env={...process.env};delete env.SNAPBACK4_BIN;
  await runToolchainCommand(process.execPath,['dx16.mjs'],{cwd,env,timeout:600_000});
- return {status:'passed',freshStarterCapture:true,runs:2,frozenApi:true,inlineUsers:true,freshUsers:true,retainedSnapshot:true};
+ return {status:'passed',freshStarterCapture:true,unusedSavedVersions:true,runs:2,frozenApi:true,inlineUsers:true,freshUsers:true,retainedSnapshot:true};
 }
