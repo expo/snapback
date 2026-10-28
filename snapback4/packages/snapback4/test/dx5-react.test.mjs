@@ -32,7 +32,7 @@ test("DX5 ReadState presents each list state without losing refusal or partial/s
 });
 
 test("DX5 exact published ListScreen snippet renders loading, denied, empty and partial data", async () => {
-  const guide=readFileSync(join(dist,"../CLIENT-AND-OPERATIONS.md"),"utf8");
+  const guide=readFileSync(join(dist,"../reference/CLIENT-AND-OPERATIONS.md"),"utf8");
   const snippet=[...guide.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes("function ListScreen"));
   assert.ok(snippet);
   // Transpile the snippet unchanged, then resolve its import to the candidate.

@@ -161,7 +161,7 @@ test('real bare workspace imports rebuild the client and docs select executable 
   const actual = loadModel();
   const bare = selectAffected(['snapback4/packages/snapback4/test/headless-registration.test.mjs'], actual);
   assert(ids(bare).includes('build-client'));
-  for (const path of ['snapback4/packages/snapback4/SERVER.md', 'snapback4/crates/snapback4-lang/src/guide/client.md']) {
+  for (const path of ['snapback4/packages/snapback4/reference/SERVER.md', 'snapback4/crates/snapback4-lang/src/guide/client.md']) {
     const plan = selectAffected([path], actual);
     assert(plan.rustTargets['snapback4-lang']?.includes('guide'));
     assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/readme-examples.test.mjs'));

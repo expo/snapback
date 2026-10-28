@@ -870,7 +870,7 @@ test(`${mode} ${entry} runs the published file-output recipe in the project data
   const guide = ({status:0,stderr:'',stdout:guideReference(binary,'effects')});
   assert.equal(guide.status, 0, guide.stderr);
   const recipe = guide.stdout.split('## Worker files and imports')[1].match(/```js\n([\s\S]*?)```/)[1];
-  const reference = readFileSync(fileURLToPath(new URL('../CLIENT-AND-OPERATIONS.md', import.meta.url)), 'utf8')
+  const reference = readFileSync(fileURLToPath(new URL('../reference/CLIENT-AND-OPERATIONS.md', import.meta.url)), 'utf8')
     .split('#### Worker files, modules and runtime paths')[1].match(/```js\n([\s\S]*?)```/)[1];
   assert.equal(recipe, reference, 'both published entry points teach the same runnable recipe');
   const f = fixture(t);

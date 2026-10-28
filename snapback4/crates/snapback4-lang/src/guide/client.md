@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQueryData`/`useQueryResult` ([short screens](CLIENT-AND-OPERATIONS.md#short-screens)); metadata: `useQuery`/`usePage`; `useFollowing` (`guide feeds`); lists: `ReadState`.
+**Start here:** `useQueryData`/`useQueryResult` ([short screens](reference/CLIENT-AND-OPERATIONS.md#short-screens)); metadata: `useQuery`/`usePage`; `useFollowing` (`guide feeds`); lists: `ReadState`.
 
 ```tsx
 import { matchRead, readPresentation, usePage } from "snapback4/react";
@@ -34,7 +34,7 @@ export function Composer({conversationId}:{conversationId:string}) {
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Membership has no horizon: the conversation's own group and messages' audience prove existence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Fresh, non-revalidating `existence(member) === "absent"` blocks; denied blocks. Never add `with own keys` to admin-written memberships. `waitSeconds:0` returns custody; retain its id, never auto-resend. Drafts/receipts: [reference](CLIENT-AND-OPERATIONS.md).
+Membership has no horizon: the conversation's own group and messages' audience prove existence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Fresh, non-revalidating `existence(member) === "absent"` blocks; denied blocks. Never add `with own keys` to admin-written memberships. `waitSeconds:0` returns custody; retain its id, never auto-resend. Drafts/receipts: [reference](reference/CLIENT-AND-OPERATIONS.md).
 
 ## An online role form across releases
 Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) outside render under AppProvider.
@@ -88,8 +88,8 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Never gate sign-in with useAppReady: it needs a signed-in client. Keep drafts above gates; readiness is not authority. Password/custody, auth methods and storage refusals: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
-`useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
+Never gate sign-in with useAppReady: it needs a signed-in client. Keep drafts above gates; readiness is not authority. Password/custody, auth methods and storage refusals: [reference](reference/CLIENT-AND-OPERATIONS.md#password-react-and-expo).
+`useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](reference/CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
 
 | Helper | Input/result | Handlers/arguments |
 | --- | --- | --- |
@@ -107,8 +107,8 @@ export async function uploadPdf(client: Client, picked: File) { return client.up
 ```
 `loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations. `predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
 `client.observe(op,args)` returns `{getSnapshot,subscribe,close}`; call subscribe(listener), not observe(op,args,callback) or watch. `client.asset(id)` returns `{url,type,bytes,revoke}` or `{denied}`; call revoke when done, while React uses useAsset. `sentResult` is exported by snapback4/contract and snapback4/react. Headless recovery: settleMutation from snapback4/client waits through reconnect for a pending write's same-id terminal receipt; waitSeconds:0 retains explicit custody.
-`query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
-Browser/native tiers and proofs: [reference](CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details). Starters select tiers.
+`query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](reference/CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
+Browser/native tiers and proofs: [reference](reference/CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details). Starters select tiers.
 Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0.
 
-Node 24 imports use .ts under src ESM. Expo configs stay CommonJS; [strictness patterns](CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details) cover optional properties/indices.
+Node 24 imports use .ts under src ESM. Expo configs stay CommonJS; [strictness patterns](reference/CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details) cover optional properties/indices.

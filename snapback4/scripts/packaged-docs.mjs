@@ -18,6 +18,7 @@ export function lintPackagedDocs(root) {
     }
   }
   walk(join(root, 'packages/snapback4'), false);
+  walk(join(root, 'packages/snapback4/reference'), true);
   walk(join(root, 'crates/snapback4-lang/src/guide'), true);
   files.push(join(root, 'crates/snapback4-lang/src/guide.rs'));
   const leaks = files.flatMap(path => docLeaks(readFileSync(path, 'utf8')).map(hit => `${path}:${hit.line}: ${hit.text}`));

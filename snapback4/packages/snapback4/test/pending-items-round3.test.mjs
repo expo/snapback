@@ -126,7 +126,7 @@ test('round3: raw Alice to Bob to Alice stays empty before and after the held re
 });
 
 test('round3: the client guide distinguishes prediction withdrawal from confirmed retirement', () => {
-  const guide = readFileSync(new URL('../CLIENT-AND-OPERATIONS.md', import.meta.url), 'utf8');
+  const guide = readFileSync(new URL('../reference/CLIENT-AND-OPERATIONS.md', import.meta.url), 'utf8');
   const paragraph = guide.slice(guide.indexOf('Items are `{ kind: "row"'), guide.indexOf('Phases: `saving`'));
   assert.match(paragraph, /Withdrawing a prediction reveals the intent again; a confirmed row retires it\./);
 });

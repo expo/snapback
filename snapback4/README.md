@@ -59,7 +59,7 @@ those long waits (1,184) and closes excess requests. A full long-wait bound
 answers retryable `E_STREAMS`. `dev` and `serve` take `--long-waits`,
 `--long-waits-per-principal` and `--claim-waits` (or `SNAPBACK4_LONG_WAITS`,
 `SNAPBACK4_LONG_WAITS_PER_PRINCIPAL`, `SNAPBACK4_CLAIM_WAITS`); see
-"Long-wait capacity" in `packages/snapback4/SERVER.md` for bounds and the
+"Long-wait capacity" in `packages/snapback4/reference/SERVER.md` for bounds and the
 measured cost. Headers have a 32 KiB / 5 second limit,
 bodies a 30 second deadline, idle reads a 5 second limit, and responses a
 5 second write deadline. These deadlines cover each complete phase, so

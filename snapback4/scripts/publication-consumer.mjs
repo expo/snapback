@@ -17,7 +17,7 @@ writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer",
 const env = { ...process.env }; delete env.SNAPBACK4_BIN;
 run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", platform.tarball, staged.client.tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer, env });
 const installedBinary = join(consumer, "node_modules/snapback4-darwin-arm64/snapback4");
-checkVerbHelp(installedBinary, readFileSync(join(consumer, "node_modules/snapback4/CHANGELOG.md"), "utf8"));
+checkVerbHelp(installedBinary, readFileSync(join(consumer, "node_modules/snapback4/reference/CHANGELOG.md"), "utf8"));
 if (digest(installedBinary) !== platform.binarySha256) throw new Error("packed/installed platform binary differs from the production artifact");
 const signature = verifyDeveloperId(installedBinary);
 if (signature.signingAuthority !== platform.signing.signingAuthority || signature.signingTeamId !== platform.signing.signingTeamId) throw new Error("installed binary signature differs from the staged signature");
@@ -26,12 +26,14 @@ if (installedVersion !== `snapback4 ${staged.version}`) throw new Error(`install
 if (statSync(installedBinary).size !== platform.binaryBytes) throw new Error("installed binary size differs from qualified size");
 writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, jsx: "react-jsx", noEmit: true, skipLibCheck: true, types: ["react"] }, include: ["check.tsx"] }));
 writeFileSync(join(consumer, "check.tsx"), `
-import { isReady, type Read, type Write, type Query } from "snapback4/contract";
+import { isReady, type Read, type Write, type Refusal, refusalOf, type Query } from "snapback4/contract";
 import { createMockClient, page } from "snapback4/mock";
 import { SnapbackProvider, useQuery, useMutation, useLink } from "snapback4/react";
 const q: Query<{ c?: null }, string[]> = { kind: "query", name: "t.list" };
 const client = createMockClient({ viewer: null, tables: {}, ops: { queries: { "t.list": () => page(["a"], null) }, mutations: {} } });
 export function Screen() { const r = useQuery(q, {}); const link = useLink(); const m = useMutation({ kind: "mutation", name: "t.add" }); return <SnapbackProvider client={client}>{isReady(r) ? r.data.join() : link}{String(m.inFlight)}</SnapbackProvider>; }
+function refusal(write: Write) { if(write.state !== "sent") { const why: Refusal | undefined = write.why; return why?.message; } }
+refusalOf(undefined);
 const w: Write = { state: "pending", id: "x" }; const rd: Read<number> = { loading: true }; void w; void rd;
 `);
 run(join(consumer, "node_modules/.bin/tsc"), ["-p", "tsconfig.json"], { cwd: consumer });

@@ -370,7 +370,7 @@ fn cards_readmes_and_templates_do_not_teach_the_retired_recipe() {
     readmes(&root.join("packages"));
     readmes(&root.join("apps"));
     readmes(&root.join("crates"));
-    for path in ["README.md", "packages/snapback4/CLIENT-AND-OPERATIONS.md", "packages/snapback4/SERVER.md", "crates/snapback4-lang/src/guide/templates.rs", "crates/snapback4/src/verbs/init.rs", "crates/snapback4/src/verbs/init/web.rs"] {
+    for path in ["README.md", "packages/snapback4/reference/CLIENT-AND-OPERATIONS.md", "packages/snapback4/reference/SERVER.md", "crates/snapback4-lang/src/guide/templates.rs", "crates/snapback4/src/verbs/init.rs", "crates/snapback4/src/verbs/init/web.rs"] {
         census(path, &std::fs::read_to_string(root.join(path)).unwrap());
     }
     // Follow the CLI's actual embedded templates, including their Quarry/TS source.

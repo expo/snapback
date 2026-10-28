@@ -1,6 +1,6 @@
 //! One release history for the packaged card and upgrade/check interval.
 // @ref LLP 3000.011.003.000#11-wave-11-runtime-upgrade-history — no compiler snapshot is required for runtime history.
-pub const CHANGELOG: &str = include_str!("../../../packages/snapback4/CHANGELOG.md");
+pub const CHANGELOG: &str = include_str!("../../../packages/snapback4/reference/CHANGELOG.md");
 
 pub fn version(text: &str) -> Option<(u32, u32, u32)> {
     let (core, prerelease) = text.split_once('-').map_or((text, None), |(core, pre)| (core, Some(pre)));

@@ -38,7 +38,7 @@ fn client_aliases_keep_typing_on_ephemeral() {
 fn published_text_needs_no_checkout_or_lane_reports() {
     let docs = snapback4_lang::guide::KEYWORDS.iter().map(|name| (*name, card(name).unwrap()))
         .chain([("README", include_str!("../../../../packages/snapback4/README.md")),
-                ("client reference", include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"))]);
+                ("client reference", include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md"))]);
     for (name, doc) in docs {
         // Source annotations explain the code; published prose must explain itself.
         let text = doc.lines().filter(|line| !line.contains(concat!("@", "ref "))).collect::<Vec<_>>().join(" ");
@@ -152,7 +152,7 @@ fn native_smoke_is_the_milestone_path_with_honest_limits() {
     for name in ["client", "witness"] {
         let text = card(name).unwrap();
         for term in ["every milestone", "npm run export:ios", "npm run native:smoke", "in the background", "witness status --wait", "write replay"] {
-            let found = text.to_lowercase().contains(term) || (name == "client" && text.contains("CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details") && include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1.to_lowercase().contains(term));
+            let found = text.to_lowercase().contains(term) || (name == "client" && text.contains("reference/CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details") && include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1.to_lowercase().contains(term));
             assert!(found, "{name}: missing {term}");
         }
         assert!(text.lines().count() <= if name == "client" { 114 } else { 399 });

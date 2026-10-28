@@ -1,8 +1,7 @@
 # Snapback 4
 
-Run `npm i snapback4`, then run `npx snapback4 guide start` and `guide workflow`.
-They cover the day-one app through acceptance; Node 24.x is required.
-Do not tour declaration files, SERVER.md or CLIENT-AND-OPERATIONS.md to build.
-Exact signatures when needed: `guide api react|client|auth|proof|generated`.
-Operator/reference questions: `guide package-reference`; version notes: `guide changes`.
-
+Run `npx snapback4 guide start`, then `npx snapback4 guide workflow`.
+Install with `npm i snapback4`; Node 24.x is required.
+Build from those guides; leave declaration files and reference/ closed.
+Open reference/SERVER.md or reference/CLIENT-AND-OPERATIONS.md only for a specific question via `guide package-reference`.
+Exact signatures: `guide api react|client|auth|proof|generated`; version notes: `guide changes`.

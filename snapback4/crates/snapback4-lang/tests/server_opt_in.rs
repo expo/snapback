@@ -170,8 +170,8 @@ fn why_and_discovery_keep_the_opt_in_one_step_away() {
     assert!(!services.contains("x-snapback-action-lease") && !services.contains("replaceLostDelivery"));
     for (code, blurb) in guide::CODES.iter().filter(|(code, _)| code.starts_with("E_OIDC_")) {
         assert_eq!(snapback4_lang::diag::guide_for(code), "services");
-        assert!(blurb.contains("SERVER.md") && blurb.ends_with(". guide services."), "{blurb}");
-        assert!(services.contains(code) && services.contains("SERVER.md"));
+        assert!(blurb.contains("reference/SERVER.md") && blurb.ends_with(". guide services."), "{blurb}");
+        assert!(services.contains(code) && services.contains("reference/SERVER.md"));
     }
     for template in [guide::TEMPLATE, guide::TEMPLATE_ONLINE] {
         let (document, diagnostics) = snapback4_lang::parse_document("schema.q", template);

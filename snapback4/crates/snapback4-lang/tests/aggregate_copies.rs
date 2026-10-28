@@ -167,8 +167,8 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     // TOK3 routes optional reference questions through a guide pointer. The
     // complete path must still reach feeds and its pinned aggregate-copy claim.
     assert!(README.contains("guide package-reference"));
-    assert!(guide::card("package-reference").unwrap().contains("CLIENT-AND-OPERATIONS.md"));
-    assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("guide feeds"), "the linked reference reaches the aggregate card");
+    assert!(guide::card("package-reference").unwrap().contains("reference/CLIENT-AND-OPERATIONS.md"));
+    assert!(include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").contains("guide feeds"), "the linked reference reaches the aggregate card");
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
     let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
     assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes"));
@@ -231,8 +231,8 @@ fn no_published_indexed_int_table_has_unrestricted_writes() {
 }
 
 fn published_blocks() -> Vec<(String, String)> {
-    let client = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
-    let server = include_str!("../../../packages/snapback4/SERVER.md");
+    let client = include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md");
+    let server = include_str!("../../../packages/snapback4/reference/SERVER.md");
     guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
         .chain([("README", README), ("CLIENT-AND-OPERATIONS", client), ("SERVER", server)])
         .flat_map(|(name, doc)| guide::quarry(doc).into_iter().enumerate().map(move |(index, block)| {

@@ -110265,3 +110265,13 @@ pair adopts verify and scaffold acceptance but regresses input tokens
 whole-session performance win; the 40-lane rerun measures the landed release.
 Durable evidence is reports/integration31/REPORT.md. Publication owns the full
 platform/client battery and npm release.
+
+
+### 2026-10-28 — TOK5 package entry and write refusal ergonomics
+
+Move the five detailed package-root Markdown references under reference/, leaving
+README as the sole root document. Guide pointers, upgrade history and executable
+packed consumers follow the new paths. Add optional undefined why to nonfailed
+Write arms and refusalOf without changing pending reason or runtime outcomes.
+The client API digest includes both. LLP 3000.037.000 §15 records the rerun
+mechanisms and compatibility; WORKSTREAM-REPORT.md owns validation evidence.
