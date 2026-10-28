@@ -1,0 +1,111 @@
+{
+  "baselineSource": "9d3a0229a8",
+  "finalSource": "4a228b0c041a454400a9a132d6593f9537c10c81",
+  "binarySha": [
+    "3add26aad81c50935ec568ad8d3e81b78ab212239a5426025dba1b820a1d7229",
+    "7da66d7756e081d308b9fcfb1bb542f6c151aa624e27c7c214b970fc9bc78c74"
+  ],
+  "records": [
+    {
+      "source": "proof-kit/snapback",
+      "sourceSha": "e8fa4dd44e6bb5f3a7f5befa915941024af48fa01920ea35dc61310dbcb47f18",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "760ff7e43ac287d758f6fbfe5db6e555d2a996f599d6e7c629b58c0281241abe",
+        "28d2b8ea588394c1f2d4866cc5011b216d3ba36fa44dc3ff0045cd7ac27bebe3"
+      ]
+    },
+    {
+      "source": "scaf1/custom/snapback",
+      "sourceSha": "cab9cac57cf49bbc337c5cb3a4a0b1fe931c96f2eb87b9a2d9a67b919ad8846a",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "b1657754f96114d169e4dbd1b20edf62658de9fb3a8c2fd5a0d166a0df91144b",
+        "80f8ddcffcf09bd4e2be614de32351051d5c2033e8bccc00d06c13892bea406b"
+      ]
+    },
+    {
+      "source": "scaf1/empty/snapback",
+      "sourceSha": "1f5f64c4777fca412070bdf0d0c983f1a910ee800be94d0f495d7176a4c91693",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "5cdcddbf097208b040b9d3dfa8e0de16bf38f61937f2f6968af5681f48beeb3f",
+        "38f883a0977bd524a2dc71beb69b8a3d95baa6d6540a4dd5dbc4bad22c15a614"
+      ]
+    },
+    {
+      "source": "scaf1/snapback",
+      "sourceSha": "8215b05e893cb5482de16794664e6380852eda31ddee87a5e0c0954d30d4e317",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "978ba7fd60b5a8cb8c6e3d85509eda470f8479f42f1786381ffb71ebed3107af",
+        "34d7c5b5917f6147396a844e8b327001a5f5a7bd34aaeb7e17b45997bcd65f85"
+      ]
+    },
+    {
+      "source": "starter-expo/deployment/releases/1/snapback",
+      "sourceSha": "64ecdb98e9ff73760d320cd33265b000bf22abd6bf05c4ced23d8e33d161a893",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "e097949d1c5978e2bb9edb86b543b70b39aa2d5303bc651ab0ef3be87817926e",
+        "ca82abbde73f40216ee6beba64a0cbc732c5c88b9904569c53aab11372138d17"
+      ]
+    },
+    {
+      "source": "starter-expo/snapback",
+      "sourceSha": "a386a7bd41c288874bd24a475e783cc7b4e03c1716e944a77a63b9ed66b34216",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "011f46013aaab7516f856915ca83913f189d7c03ecd9b61a12a752a7f5da7bf8",
+        "dd1458659a54bd1886b041a7cd9439b7903399543f57e051138c15c6a28a9062"
+      ]
+    },
+    {
+      "source": "starter-expo-chat/deployment/releases/1/snapback",
+      "sourceSha": "62abfa9c4bb256f453f8394942ceede1973ed1a29d9e74a25b78e928db601a2b",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "8ab810dca62b9cb3e2e43a1be315ad680412553f6d63aa25f079fd1c1a656a50",
+        "f8fea03b8ed5757edad17f587447bb5a003667d410dcc1512b677b91ce02ba2d"
+      ]
+    },
+    {
+      "source": "starter-expo-social/deployment/releases/1/snapback",
+      "sourceSha": "b29cb5a02d837e8700f58c8fdb5cf7dbd52706574d0ede8d5a8828b5228bbc03",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "70ce6e337c16e73ed9094eeca8c1b4a2b32991ac4a9cc5f21dee60a7c60b3c7d",
+        "c2ebbfea93b1ce22f8b6a6c01449c738d65abb871c48a8335b9cb62c99b825af"
+      ]
+    },
+    {
+      "source": "starter-web-chat/deployment/releases/1/snapback",
+      "sourceSha": "01b4832b88c73e014cc5733d48880e4850ce5f62f9a7bcb77a3cea8242de56d8",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "f6e2925cea51244439d70aa5e1f439345bc670a745b6dcbe286c3f9c3eea96fa",
+        "7ed81345e3946c031d231c8626f4c2c5dca7f1b13045d1cce3cec88b56526e77"
+      ]
+    },
+    {
+      "source": "starter-web-online/deployment/releases/1/snapback",
+      "sourceSha": "0c58356094ef8123b1f48d1647c6f3117b552d549e0499ce6525b38ea3b8c4a5",
+      "fullApiIdentical": false,
+      "typeAndRuntimeBodyIdentical": true,
+      "apiSha": [
+        "5187249f35b9cb4719c2640e34ebf56b595b716828ba5b4bb05d5a6247fc6501",
+        "5ff859070d0aab05847baeccab289829c7c1cd39e4ef9e95965bb98ad89833ce"
+      ]
+    }
+  ],
+  "scope": "Ten distinct retained schema source sets from packed consumers; usage comments intentionally differ after browser ownership fix. Actual generated type/runtime body bytes match exactly."
+}

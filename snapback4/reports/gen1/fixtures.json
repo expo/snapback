@@ -1,0 +1,31 @@
+{
+  "sourceCommit": "6fa122d7d9628162f5e98bd2bf53f6e4efaf7922",
+  "packetBudget": 4000,
+  "operationBudget": 480,
+  "fixtures": [
+    {
+      "fixture": "snapback4/packages/snapback4/test/fixtures/gen1/cpap.q",
+      "source": "/home/ccheever/sb4-loop/wave34/apps/001-snapback-cpap-equipment-setups/snapback/schema.q",
+      "sha256": "e669fe54d79ee4c6c452f99e95c86b0ef8a0ef689b54797a23b2f2f47ba0940b",
+      "operations": 11,
+      "o200kTokens": 2312,
+      "maxOperationTokens": 223
+    },
+    {
+      "fixture": "snapback4/packages/snapback4/test/fixtures/gen1/trailer.q",
+      "source": "/home/ccheever/sb4-loop/wave34/apps/018-snapback-horse-trailer-rentals/snapback/schema.q",
+      "sha256": "54d2ac21d2a7cfe5538aa2bd83b8aac195e33ad9a657d5fafcbabfe5f6ee3358",
+      "operations": 12,
+      "o200kTokens": 2353,
+      "maxOperationTokens": 163
+    },
+    {
+      "fixture": "snapback4/packages/snapback4/test/fixtures/gen1/talent.q",
+      "source": "/home/ccheever/sb4-loop/wave34/apps/019-snapback-child-talent-bookings/snapback/schema.q",
+      "sha256": "8940726440b46e5155e92db35ed860e776351e33efe6c522f7d503fbd065e538",
+      "operations": 12,
+      "o200kTokens": 2334,
+      "maxOperationTokens": 208
+    }
+  ]
+}

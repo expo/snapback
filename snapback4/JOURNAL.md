@@ -110266,25 +110266,13 @@ whole-session performance win; the 40-lane rerun measures the landed release.
 Durable evidence is reports/integration31/REPORT.md. Publication owns the full
 platform/client battery and npm release.
 
+### 2026-10-28 — GEN1: this app's generated client usage
 
-### 2026-10-28 — TOK5 package entry and write refusal ergonomics
-
-Move the five detailed package-root Markdown references under reference/, leaving
-README as the sole root document. Guide pointers, upgrade history and executable
-packed consumers follow the new paths. Add optional undefined why to nonfailed
-Write arms and refusalOf without changing pending reason or runtime outcomes.
-The client API digest includes both. LLP 3000.037.000 §15 records the rerun
-mechanisms and compatibility; WORKSTREAM-REPORT.md owns validation evidence.
-
-
-### 2026-10-28 — TOK5 qualification and affected repair closure
-
-Packed consumer-only qualification passed at 7055fc7a7b, including the installed
-root Markdown census, Write.why/refusalOf compile case, all host starters and
-clean Ubuntu/Alpine builds. Both source reviews are READY. The affected run
-exposed the selector's root-only Markdown pattern plus inherited frozen census
-and stale periphery fixtures. Recognize reference/ docs, refresh census membership
-after proving Quarry fences unchanged and no normalized private/read-rule loss,
-and retain complete JSON/readiness/dependency assertions in the fixture repairs.
-The report retains original failures and final rerun evidence; no full battery,
-publication, push, version bump or whole-session performance claim is made.
+The generated API now carries one compact usage block per client operation,
+including the correct React/plain call, argument/result shapes, declared guards
+and session guidance. Shared row shapes preserve hidden-field optionality and
+nullability. Green check and client/react/generated API digests point to that
+packet; generic card budgets and structure stay intact. Three verbatim wave-34
+fixtures regenerate exactly, compile their literal snippets, and enforce both
+per-operation and complete-packet token budgets. Review, packed consumers and
+measured limits are recorded in the GEN1 workstream report.
