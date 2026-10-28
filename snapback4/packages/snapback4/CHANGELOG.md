@@ -4,12 +4,9 @@
 
 ### Guide changes
 
-- Finite proof suites explicitly await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`, drain reports and exit with the suite status; remaining resource types appear on one line. Custom suites opt in; service scripts retain their lifetime. Release commands reuse pure compilation within one invocation while repeating source reads, security and live admission.
-
-- New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
-- An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle attempt refuses early. `SNAPBACK4_PROBE_HOLD=1` retains deliberate harness service. Foreground installs stay the default. The app-local dependency installer also offers explicit background admission, a private install log, request-bound status and one blocking join; its script owns those options.
-
-- A green `check` writes a schema proof packet under `scripts/proof-scaffold/`: acceptance, frontend and probe recipes with real role accounts, upload options and staging clocks. Edit the generated cases; missing business assertions refuse. Content hashes preserve edited files across checks. Run the acceptance command printed by check; existing npm scripts remain application-owned.
+- Start app proofs from the schema-generated `scripts/proof-scaffold/cases.mjs`, fill business assertions and route acceptance, frontend and probe scripts to its runners. `npm run verify` checks Quarry and TypeScript, then runs acceptance, frontend proof and probe shutdown, stopping at the first failure. Check preserves edited scaffold files; existing app scripts remain application-owned.
+- Finite suites can await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`; reports drain before exit with the suite status and one line names residual resource types. New frontend/day-two recipes use it. Release commands reuse pure compilation within one invocation; source reads, security, admission and durable activation still run.
+- An empty unheld `probe:serve` exits after 10 seconds ready; another empty idle attempt refuses early. Harness `--hold` is preserved. Foreground installation remains default; the app installer supports explicit detached background admission, request-bound status and one blocking join.
 
 ## 0.4.46
 

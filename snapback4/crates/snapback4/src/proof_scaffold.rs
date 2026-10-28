@@ -1,5 +1,5 @@
 //! Schema-bound, editable proof recipes. No new runtime or authorization analysis.
-// @ref LLP 3000.011.003.000.000#19-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
+// @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
 mod infer;
 use crate::project::Project;
 use serde_json::{Value, json};

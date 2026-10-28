@@ -110224,6 +110224,6 @@ scripts/proof-scaffold with real password signups/sign-ins, ordinary role grants
 operation/role/guard cases, uploads, clock steps, approval attribution helpers,
 and separate frontend/probe runners. Null business assertions refuse before
 setup. Per-file content hashes preserve edits; no npm script is changed. The
-proof-kit amendment is LLP 3000.011.003.000.000 §19. Before/after whole-session
+proof-kit amendment is LLP 3000.011.003.000.000 §20. Before/after whole-session
 measurements and packed controls are recorded in the workstream report; targets
 remain measurements rather than guarantees of generated security coverage.

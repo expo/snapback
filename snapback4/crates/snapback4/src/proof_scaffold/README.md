@@ -3,7 +3,15 @@
 Edit cases.mjs. Run `node scripts/proof-scaffold/acceptance.mjs` or
 `node scripts/proof-scaffold/frontend-proof.mjs`; the standalone preview is
 `node scripts/proof-scaffold/probe-serve.mjs`. Run from the app root with the
-installed snapback4 package. These files do not change npm scripts.
+installed snapback4 package. To run these proofs in the starter's single loop:
+
+```sh
+npm pkg set 'scripts.acceptance=node scripts/proof-scaffold/acceptance.mjs' 'scripts.frontend:proof=node scripts/proof-scaffold/frontend-proof.mjs' 'scripts.probe:serve=exec node scripts/proof-scaffold/probe-serve.mjs'
+npm run verify
+```
+
+Fill the business assertions first; verify stops at the first red. These files
+do not change npm scripts automatically; existing app scripts stay yours.
 
 check writes this packet only after success and updates only untouched files
 by SHA-256. Edited files and existing collisions stay yours. To regenerate one

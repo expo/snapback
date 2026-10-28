@@ -414,7 +414,6 @@ pub fn deploy(options: &Options) -> i32 {
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
             let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             timing.step("deploy.owner_store_status");
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;

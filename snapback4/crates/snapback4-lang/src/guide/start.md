@@ -52,7 +52,7 @@ local calls, rather than assuming advance() freezes the server clock.
 - package.json: EDIT business script commands; keep pinned toolchain/config.
 - versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
 
-Run npm run check, acceptance and frontend:proof; verify with `npm run probe:check`.
+Start proofs from scripts/proof-scaffold/cases.mjs; run `npm run verify`.
 probe:serve stays up until SIGTERM. An intentional harness lifetime uses --hold.
 
 ## Signatures only when needed
