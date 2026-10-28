@@ -136,7 +136,10 @@ test('check keeps invariant details opt-in and preserves complete JSON', {timeou
  const binary=process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4');
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
  const compact=invoke('check'),compactText=compact.stdout+compact.stderr;
- assert.equal(compactText.trim().split('\n').length,2);
+ // 0.4.47+ check can add one "proof scaffold:" line; the verdict and enforcement summary stay two lines.
+ const compactLines=compactText.trim().split('\n');
+ assert.equal(compactLines.filter(line=>!line.startsWith('proof scaffold: ')).length,2,compactText);
+ assert.ok(compactLines.filter(line=>line.startsWith('proof scaffold: ')).length<=1,compactText);
  assert.match(compactText,/check --review/);
  assert.match(compactText,/enforced by the language/);
  assert.doesNotMatch(compactText,/security:|decision audience/);
