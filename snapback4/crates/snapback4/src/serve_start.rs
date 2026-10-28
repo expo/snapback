@@ -8,9 +8,12 @@ pub fn serve(
     inherited: Option<std::net::TcpListener>,
     capacity: crate::host_limits::Capacity,
 ) -> Result<(), String> {
-    crate::host_limits::initialize();
+    let dev = matches!(mode, Mode::Dev { .. });
+    let mut startup = crate::serve_output::Startup::new(!dev);
+    macro_rules! startup_note { ($($arg:tt)*) => { startup.line(format!($($arg)*)) }; }
+    crate::host_limits::initialize_with(|text|startup.line(text));
     let capacity = capacity.fit()?;
-    crate::host_limits::install(capacity);
+    crate::host_limits::install_with(capacity, |text|startup.line(text));
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -18,10 +21,10 @@ pub fn serve(
         let (reports, hidden) = crate::verbs::problem_reports(&bound, true, verbose);
         let shown = reports.len();
         for report in reports {
-            snapback4_core::diagnostic!("{report}");
+            startup_note!("{report}");
         }
         if hidden > 0 {
-            snapback4_core::diagnostic!(
+            startup_note!(
                 "snapback4 dev: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"
             );
         }
@@ -31,9 +34,9 @@ pub fn serve(
         ));
     }
     if let Mode::ConfiguredRelease {owner,..}=&mode {
-        snapback4_core::diagnostic!("Postgres commit mode: {}",if owner.config.early_lock_release {"E (early lock release, synchronous marker; S1 qualification pending)"} else {"S (synchronous)"});
+        startup_note!("snapback4: {}",owner.read_cache_tier);
+        startup_note!("Postgres commit mode: {}",if owner.config.early_lock_release {"E (early lock release, synchronous marker; S1 qualification pending)"} else {"S (synchronous)"});
     }
-    let dev = matches!(mode, Mode::Dev { .. });
     let full_runners = !matches!(mode, Mode::ConfiguredRelease { .. });
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
     let replay = matches!(mode, Mode::Dev { replay: true, .. });
@@ -140,19 +143,19 @@ pub fn serve(
     if let Some(saved) = &staging_clock {
         let saved = snapback4_core::metadata::StagingClock { now: clock.now(), offset: clock.offset(), paused: saved.paused };
         engine.checkpoint_staging_clock_at(0, saved.now, false, &saved).map_err(|e|e.to_string())?;
-        snapback4_core::diagnostic!("clock     staging store offset {:+}ms; resumed business time {}; maintenance {}", saved.offset, saved.now, if saved.paused { "paused until clock drain" } else { "running" });
+        startup_note!("clock     staging store offset {:+}ms; resumed business time {}; maintenance {}", saved.offset, saved.now, if saved.paused { "paused until clock drain" } else { "running" });
     }
-    adoption::report(&engine);
+    if dev { adoption::report(&engine); } else { startup.line(format!("startup generation {}{}",engine.generation(),adoption::summary(&engine))); }
     if dev {
         match crate::dev_clock_store::ahead(&engine, clock.now()) {
-            Ok(Some(note)) => snapback4_core::diagnostic!("{note}"),
+            Ok(Some(note)) => startup_note!("{note}"),
             Ok(None) => {}
             Err(error) => {
-                snapback4_core::diagnostic!("clock     store-ahead inspection unavailable: {error}")
+                startup_note!("clock     store-ahead inspection unavailable: {error}")
             }
         }
         for line in crate::dev_clock_store::held_schedules(&engine, clock.now()) {
-            snapback4_core::diagnostic!("{line}");
+            startup_note!("{line}");
         }
     }
     if full_runners { crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?; }
@@ -335,7 +338,7 @@ pub fn serve(
     if worker.is_none() && crate::dev_worker::declared(&project)?.is_empty() {
         let bound = lock(&shared.bound);
         if !bound.schema.action_specs.is_empty() || !bound.schema.routes.is_empty() {
-            snapback4_core::diagnostic!("WARNING: declared actions/routes have no supervised handler entry; requests remain queued without an external handler. Add snapback/server.ts and deploy, or pass serve --worker <path>; doctor reports handler status.");
+            startup_note!("WARNING: declared actions/routes have no supervised handler entry; requests remain queued without an external handler. Add snapback/server.ts and deploy, or pass serve --worker <path>; doctor reports handler status.");
         }
     }
     let active_hash = lock(&shared.bound).schema.hash();
@@ -362,11 +365,8 @@ pub fn serve(
     let wrapper = crate::supervisor::pid()
         .map(|pid| format!(" wrapperPid={pid}"))
         .unwrap_or_default();
-    snapback4_core::diagnostic!(
-        "SNAPBACK4_READY verb={} generation={generation} url=http://{address} pid={}{wrapper}",
-        if dev { "dev" } else { "serve" },
-        std::process::id()
-    );
+    let ready = format!("SNAPBACK4_READY verb={} generation={generation} url=http://{address} pid={}{wrapper}", if dev { "dev" } else { "serve" }, std::process::id());
+    if dev { startup.ready(&ready); }
     let wrapper = crate::supervisor::pid()
         .map(|pid| format!(", wrapper pid {pid}"))
         .unwrap_or_default();
@@ -377,11 +377,15 @@ pub fn serve(
             std::process::id(),
             generated.display()
         ),
-        None => snapback4_core::diagnostic!(
+        None => startup.line(format!(
             "snapback4 serve: http://{address}  pid {}{wrapper}  (release {}, generation {generation}, active schema {active_hash}, working schema {working_hash}, tokens only)",
             std::process::id(),
             project.root.display()
-        ),
+        )),
+    }
+    if !dev {
+        if working_hash != "unavailable" && active_hash != working_hash {startup.line(format!("WARNING: active schema {active_hash} differs from working schema {working_hash}; deploy edits to serve them"));}
+        startup.ready(&ready);
     }
     if dev {
         match mode {

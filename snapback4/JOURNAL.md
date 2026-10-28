@@ -109928,3 +109928,23 @@ fallback. The marker design combines an exact backend format with an extra
 owner column, so old public owners refuse before claiming. Clock samples
 can trip on observed skew/suspend but cannot prove future behavior; automatic
 G6 still requires an enforced deployment clock contract. Defaults are unchanged.
+
+## 2026-10-28 — TOK2: bounded release and proof output
+
+Release/data/test commands now leave private full evidence while defaulting to
+three-line success and nine-line gate/refusal budgets. Repeated deploy previews,
+release lists and data inspections print changes; JSON remains complete. Serve
+startup preserves URL/readiness and descriptor/clock constraints in three lines;
+proof runners retain full private receipts. DX11 check output is unchanged.
+Changed result fields and grouped campaign coverage reasons preserve the decision
+facts without repeating whole graphs. No release semantics, lifetime, campaign
+search or authority rules changed.
+
+The representative 40-command wave-33 replay measured 20,072 → 5,435 emitted
+o200k_base tokens (72.92%), same arguments and exits. Six data reads dominate;
+release-only savings are 47.46%, and no whole-model input/latency claim follows.
+Separate serve startup is 282 → 88 tokens. Full session extraction and the
+per-command decision-fact ledger are in `reports/20261027-tok2/`. Both fresh
+model families reviewed the compact facts as READY; final affected and packed
+Linux consumer receipts are recorded in the workstream report. Version stays
+0.4.44, with the output changes listed in the next 0.4.46 guide changes entry.

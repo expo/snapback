@@ -9,7 +9,7 @@ impl App {
         let path = std::env::temp_dir().join(format!("sb4-day3-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(&path).unwrap(); Self(path)
     }
-    fn run(&self, args: &[&str]) -> Output { self.command(args).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output { { let mut command=self.command(args);if args.first()==Some(&"test"){command.arg("--explain");} command.output().unwrap() } }
     fn command(&self, args: &[&str]) -> Command {
         let mut command = Command::new(BIN); command.args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI"); command
     }

@@ -22,6 +22,7 @@ pub(super) fn plan(
         let mut store=snapback4_core::store_port::AnyStore::open_read_only(store_path).map_err(|e|e.to_string())?;
         let current=store.release_status(0,None,None).map_err(|e|e.to_string())?["release"].as_u64().ok_or("a bridge needs a current release")?;
         super::release_bridge::write(Path::new(path),dir,current,release,&[])?;
+        crate::command_output::fact("bridge",format!("bridge starter written to {path}; follow ROLLBACK-CHECKLIST.md before selecting exact source"));
         eprintln!("bridge starter written to {path}; follow ROLLBACK-CHECKLIST.md before selecting exact source");
     }
     let bound = super::releases::bound_at(root.clone())?;
@@ -254,6 +255,30 @@ pub(super) fn plan(
     if options.flags.contains_key("enforce-security-after-adoption") {
         super::security::enforce_release(options.flags.get("security-summary"),options)
             .map_err(|e|format!("{e}; adoption preflight: READY (first); first failure: security gate (second)"))?;
+    }
+    if !options.flags.contains_key("validation-only") {
+        let verb = if options.flags.contains_key("deploy-direction") { "deploy" } else { "rollback" };
+        crate::command_output::summary(format!("{verb}: READY preview; release {release}, generation {}; live release unchanged",engine.generation()));
+        crate::command_output::evidence(&payload);
+        crate::command_output::preview_decisions(&payload);
+        let mut state = payload.clone();
+        // Phase timings and wall-clock estimates are observations, never a
+        // changed release decision. All source/store/visibility facts remain.
+        if let Some(object) = state.as_object_mut() { object.remove("phases"); object.remove("estimate"); }
+        if let Some(events) = state["plan"]["events"].as_array_mut() {
+            for event in events.iter_mut().filter(|e|e["operation"]=="preview") {
+                if let Some(event)=event.as_object_mut() {event.remove("at");}
+            }
+        }
+        if let Some(security)=state["security"].as_object_mut() {security.remove("notice");}
+        crate::command_output::state(state);
+        if visibility.hidden_rows + visibility.empty_cells + visibility.newer_only_rows > 0 {
+            crate::command_output::fact("visibility",visibility.lines(held["release"].as_u64().unwrap_or(0),release).join("; "));
+        }
+        if !options.flags.contains_key("deploy-direction") {
+            crate::command_output::fact("next",format!("next: prove named refusals and affected lists/counts as real accounts before release {release}; --bridge <new-dir> saves the rollback checklist"));
+        }
+
     }
     if !options.json&&options.flags.contains_key("deploy-direction") && !options.flags.contains_key("validation-only") {
         let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();

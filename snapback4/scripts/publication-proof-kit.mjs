@@ -55,7 +55,7 @@ try {
     {as:'alice',op:'counts',args:{},save:'rows',count:1},
     {as:'alice',op:'bump',args:{counterId:'$rows.0.id'}},
     {as:'alice',op:'counts',args:{},match:[{n:1}]}].map(JSON.stringify).join('\n'));
-  const tested=await cli(['test'],{cwd});assert.equal(tested.code,0,tested.stdout+tested.stderr);assert.match(tested.stdout,/legend: examined=rows visited/);assert.match(tested.stdout,/denied=unexpected refusal/);
+  const tested=await cli(['test','--explain'],{cwd});assert.equal(tested.code,0,tested.stdout+tested.stderr);assert.match(tested.stdout,/legend: examined=rows visited/);assert.match(tested.stdout,/denied=unexpected refusal/);
   dev=await startDev({cwd,args:['--memory','--no-watch']});
   const post=async(path,body)=>(await fetch(dev.url+path,{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify(body)})).json();
   await post('/seed',[{table:'counters',row:{id:'counter',n:0}}]);

@@ -15,6 +15,8 @@
 - `init --adapt --day2 --apply` freezes `v1/` with its own ESM package and checked API. Its runner accepts inline `CALLS_USERS` or a file path. `uniqueName` and `freshUser` isolate repeat proofs; capacity refusals give setup advice without retrying writes. The proof digest includes production helpers and roster/account shapes.
 - Administrative `data --all` and `snapshotAll` include active and retained rows/cells, merged once per ID. Ephemeral tables still require a serving-memory read.
 
+- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores full output and `--json` keeps complete evidence. Serve startup retains URL/readiness identity. Proof checks report readiness, uptime, lock release and failures compactly, with complete JSON receipts on request. Check output budgets are unchanged.
+
 ## 0.4.45
 
 ### Guide changes
@@ -25,6 +27,7 @@
 - Existing app rows, accounts and users remain. Restart serving hosts and use this CLI for cold release commands: successful release moves upgrade the internal server-store fence to 11 and require activation protocol 11. Older executors refuse unsupported receipt-owned result views. Rebuild clients for generated result aliases; no source rewrite is required unless choosing them.
 
 - New Expo starters include a local patched configuration merger for the unpatched deepmerge advisory. Existing projects keep their toolchain files; `init --expo --skip-existing` adds the patch only when its files and dependency override do not conflict.
+
 
 
 

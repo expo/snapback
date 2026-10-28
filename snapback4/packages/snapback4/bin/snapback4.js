@@ -28,7 +28,8 @@ if (process.argv[2] === "web-shell") {
 
 if (process.argv[2] === "serve-check") {
   try {
-    const args = process.argv.slice(3), options = {};
+    const presentation = process.argv.slice(3).filter(arg => ["--json", "--verbose", "--explain"].includes(arg));
+    const args = process.argv.slice(3).filter(arg => !presentation.includes(arg)), options = {};
     if (args.includes("--help")) {
       console.log(`usage: ${synopsis("serve-check")}`);
       process.exit(0);
@@ -41,8 +42,9 @@ if (process.argv[2] === "serve-check") {
     }
     const {serveCheck} = await import("../dist/proof-serve-check.js");
     const report = await serveCheck(options);
-    console.log(JSON.stringify(report)); process.exitCode = report.commandCode !== undefined && report.commandCode !== 0 ? report.commandCode : report.ok ? 0 : 1;
-  } catch (error) { console.error(`E_SERVE_CHECK: ${error.message}`); process.exitCode = 2; }
+    const {printProofReport} = await import("../dist/proof-report.js");
+    printProofReport("serve-check", report, presentation); process.exitCode = report.commandCode !== undefined && report.commandCode !== 0 ? report.commandCode : report.ok ? 0 : 1;
+  } catch (error) { if (process.argv.includes("--json")) console.log(JSON.stringify({ok:false,denied:{code:"E_SERVE_CHECK",message:error.message}})); else console.error(`E_SERVE_CHECK: ${error.message}`); process.exitCode = 2; }
 } else {
 let binary;
 try { binary = resolveBinary(); }

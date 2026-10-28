@@ -73,7 +73,6 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     }
     if verb == "rollback" && has("bridge") && !has("check") { return Err("E_INPUT: rollback --bridge requires --check; it writes a bridge starter without activating it".into()); }
     if verb == "check" && has("audit") && ["cost","residency","fix","store","fixture","as","release","emit-lean","ack-notes"].iter().any(|f|has(f)) { return Err("E_INPUT: check --audit takes only --json or --verbose".into()); }
-    if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
     if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }
     if verb == "token" && has("port") && has("release") { return Err("E_INPUT: token --port selects dev and cannot combine with --release".into()); }
@@ -135,6 +134,7 @@ pub(crate) fn help(verb: &str) -> String {
             ("witness", "environment-skip") => " — report an unavailable native environment as skipped",
             ("witness", "initialize") => " — initialize the witness installation",
             ("witness", "wait") => " — wait for the background witness to finish",
+            (_, "explain" | "verbose") if matches!(verb,"deploy"|"rollback"|"releases"|"data"|"test"|"serve") => " — show the complete output; default verdict names the private detail file",
             (_, "json") => " — print machine-readable JSON on stdout",
             ("upgrade", "quiet") => " — print only per-project actions; suppress successful install/check/history output",
             (_, "fixture-only") => " — allow zero business cases for fixture loading and query probes",
@@ -328,10 +328,11 @@ mod surface_tests {
     }
     #[test]
     fn ignored_flags_refuse_before_any_work() {
-        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["test","--json"],vec!["test","--verbose"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--replay"]] {
+        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--replay"]] {
             assert!(validate(&args.iter().map(|s|s.to_string()).collect::<Vec<_>>()).unwrap_err().starts_with("E_INPUT:"), "{args:?}");
         }
         assert!(validate(&["why","--instance","x","recent"].map(String::from)).is_ok());
+        for mode in ["--json","--verbose","--explain"] {assert!(validate(&["test",mode].map(String::from)).is_ok());}
         for suffix in [vec!["--as","alice"], vec!["--emit-lean","source.q","--cost"],vec!["--emit-lean","source.q","--store","db"],vec!["--store","db","--release","1","--fix"],vec!["--store","db","--release","1","--fixture","fixtures"]] {
             let args=std::iter::once("check").chain(suffix).map(String::from).collect::<Vec<_>>();
             assert!(validate(&args).unwrap_err().starts_with("E_INPUT:"),"{args:?}");

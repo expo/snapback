@@ -11,8 +11,11 @@ static CAPACITY: OnceLock<Capacity> = OnceLock::new();
 
 /// Once per serving process, after `initialize` and `Capacity::fit`.
 pub(crate) fn install(capacity: Capacity) {
+    install_with(capacity, |text|snapback4_core::diagnostic!("{text}"));
+}
+pub(crate) fn install_with(capacity: Capacity, report: impl FnOnce(String)) {
     if CAPACITY.set(capacity).is_ok() {
-        snapback4_core::diagnostic!("snapback4 host: {}", capacity.describe());
+        report(format!("snapback4 host: {}", capacity.describe()));
     }
 }
 
@@ -27,10 +30,13 @@ struct Adjustment {
 }
 
 pub(crate) fn initialize() {
+    initialize_with(|text|snapback4_core::diagnostic!("{text}"));
+}
+pub(crate) fn initialize_with(report: impl FnOnce(String)) {
     STARTUP.get_or_init(|| {
         let result = raise();
         // Once per process, including a failed attempt. Startup always proceeds.
-        snapback4_core::diagnostic!("snapback4 host: {}", describe_adjustment(&result, platform_ceiling()));
+        report(format!("snapback4 host: {}", describe_adjustment(&result, platform_ceiling())));
         result
     });
 }

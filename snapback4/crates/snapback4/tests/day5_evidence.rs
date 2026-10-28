@@ -8,7 +8,7 @@ impl App {
         let root=std::env::temp_dir().join(format!("sb4-day5-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
         fs::create_dir(&root).unwrap(); Self(root)
     }
-    fn run(&self,args:&[&str])->Output {Command::new(BIN).args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
+    fn run(&self,args:&[&str])->Output {Command::new(BIN).args(args).args(if args.first()==Some(&"test"){vec!["--explain"]}else{vec![]}).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
     fn ok(&self,args:&[&str])->String {let out=self.run(args);assert!(out.status.success(),"{args:?}: {out:?}");String::from_utf8(out.stdout).unwrap()}
     fn write(&self,name:&str,text:&str){let path=self.0.join(name);fs::create_dir_all(path.parent().unwrap()).unwrap();fs::write(path,text).unwrap();}
     fn read(&self,name:&str)->String {fs::read_to_string(self.0.join(name)).unwrap()}
@@ -45,7 +45,7 @@ fn save_version_captures_selected_modules_fixtures_and_the_actual_release_label(
     assert_eq!(serde_json::from_str::<serde_json::Value>(&app.read("versions/v1/generated/package.json")).unwrap()["type"],"module");
     app.ok(&["test","--source","versions/v1"]);
     fs::remove_file(app.0.join("versions/v1/release.json")).unwrap();fs::remove_dir_all(app.0.join("versions/v1/generated")).unwrap();
-    let refreshed=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(refreshed.status.success(),"{refreshed:?}");assert!(String::from_utf8_lossy(&refreshed.stderr).contains("refreshed release 1"));
+    let refreshed=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(refreshed.status.success(),"{refreshed:?}");assert!(format!("{}{}",String::from_utf8_lossy(&refreshed.stdout),String::from_utf8_lossy(&refreshed.stderr)).contains("refreshed release 1"));
     assert!(app.read("versions/v1/generated/api.ts").contains("alive"));assert_eq!(serde_json::from_str::<serde_json::Value>(&app.read("versions/v1/release.json")).unwrap()["release"],1);
     app.write("snapback/schema.q","use personas alice\nquery alive():\n  return false\n");
     let mismatch=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(!mismatch.status.success());assert!(String::from_utf8_lossy(&mismatch.stderr).contains("selected source differs"));

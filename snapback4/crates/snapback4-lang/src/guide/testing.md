@@ -9,6 +9,8 @@ const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
+Default `test` output reports finite campaign status, authored cases and query coverage in at most three lines, with actionable coverage gaps and a private `.snapback4/last/test.txt` report. `test --explain` shows meters, observations and all recorded evidence; `test --json` returns the complete report and structured campaign/case/query counts. Proof checks print readiness, uptime, lock release and every failure; pass `--json` for the complete receipt or `--explain` for readable details. `data` prints row counts, truncation/dormant notices and a detail path; use `data --json` for rows or `--explain` to display them. Repeated data reads print changes only.
+
 To verify a brief's `probe:serve` process, use `snapback4 serve-check
 --deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. With or without --then it checks one JSON readiness line,
 at least 30 seconds alive (including business work), group SIGTERM cleanup and store release.
@@ -133,7 +135,7 @@ For different authorization lanes, add `fixtures/test.sweep.json`:
 `{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
 its listed personas; other queries use the whole cast. `--as` explicitly overrides
 that matrix because it requests one deliberate global probe, and names the queries whose sweep personas it overrides. Empty/unknown entries and undeclared personas fail before cases run.
-It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
+`test --explain` prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 The output legend: examined = rows visited; entries = index entries visited;
 probes = rule lookups; steps = interpreter work; heap B = charged heap bytes;
 output B = encoded answer bytes. The ceilings row gives the corresponding limits.

@@ -24,6 +24,9 @@ fn shipped_files() -> BTreeSet<String> {
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
     "../snapback/generated/api.ts",
+    // Private CLI outputs, covered by the end-to-end output-custody tests.
+    ".snapback4/last/<command>.txt", ".snapback4/last/test.txt",
+
     // The executable auth-card example and the installed social starter seed.
     "seed.mjs", "scripts/seed.mjs", "placements.mjs",
     "src/App.tsx", "scripts/staging.mjs", "scripts/probe-serve.mjs", "scripts/probe-check.mjs",

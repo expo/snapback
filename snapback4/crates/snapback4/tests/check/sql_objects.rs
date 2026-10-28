@@ -11,19 +11,19 @@ fn inspection_materializes_required_literals_but_not_optional_defaults() {
     // The working source remains old: inspection must use the stored generation.
     let sql = p.run(&["sql", "SELECT tombstone, score, label, role, amount, room, optional FROM messages", "--json"]);
     assert!(sql.status.success(), "{sql:?}");
-    let data = p.run(&["data", "messages"]);
+    let data = p.run(&["data", "messages", "--json"]);
     println!("inspection SQL={} data={}", String::from_utf8_lossy(&sql.stdout), String::from_utf8_lossy(&data.stdout));
     assert_eq!(parsed(&sql)["rows"], json!([[0, -7, "O'Reilly", "member", 125, "r", null]]));
     assert!(data.status.success(), "{data:?}");
-    assert_eq!(parsed(&data), json!({"id":"m0", "body":"old", "tombstone":false,"score":-7,"label":"O'Reilly","role":"member","amount":125,"room":"r","optional":null}));
+    assert_eq!(parsed(&data)["rows"][0], json!({"id":"m0", "body":"old", "tombstone":false,"score":-7,"label":"O'Reilly","role":"member","amount":125,"room":"r","optional":null}));
     assert!(e.store().rows("messages").unwrap()[0].field("tombstone").is_err());
     let explicit = json!({"id":"explicit", "body":"new", "tombstone":true,"score":0,"label":"","role":"admin","amount":0,"room":"other","optional":false});
     let row = wire::row_from_json(&e.schema().tables["messages"], &explicit).unwrap();
     e.seed([("messages".into(), row)]).unwrap();
     let sql = p.run(&["sql", "SELECT tombstone, score, label, role, amount, room, optional FROM messages WHERE id = 'explicit'", "--json"]);
     assert_eq!(parsed(&sql)["rows"], json!([[1, 0, "", "admin", 0, "other", 0]]));
-    let data = p.run(&["data", "messages"]);
-    let lines: Vec<Value> = String::from_utf8(data.stdout).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+    let data = p.run(&["data", "messages", "--json"]);
+    let lines=parsed(&data)["rows"].as_array().unwrap().clone();
     assert!(lines.contains(&explicit), "explicit values win over defaults");
 
     for select in [

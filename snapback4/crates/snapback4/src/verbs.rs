@@ -13,6 +13,12 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
 
+// These macros preserve ordinary streams outside command_output::run. Inside
+// that presentation boundary they retain complete verb/helper output privately.
+macro_rules! println { () => { crate::command_output::write(format_args!(""), false, true) }; ($($arg:tt)*) => { crate::command_output::write(format_args!($($arg)*), false, true) }; }
+macro_rules! eprintln { () => { crate::command_output::write(format_args!(""), true, true) }; ($($arg:tt)*) => { crate::command_output::write(format_args!($($arg)*), true, true) }; }
+macro_rules! eprint { ($($arg:tt)*) => { crate::command_output::write(format_args!($($arg)*), true, false) }; }
+
 mod fix;
 mod fix_fixtures;
 mod init;
@@ -113,6 +119,7 @@ fn project_or_exit() -> Project {
         Some(project) => project,
         None => {
             eprintln!("no snapback/schema.q here or above; run `snapback4 init` to start one");
+            crate::command_output::flush_exit(2);
             std::process::exit(2);
         }
     }
@@ -123,6 +130,7 @@ fn compile_or_exit(project: &Project, json: bool) -> Bound {
         Ok(bound) => bound,
         Err(error) => {
             eprintln!("cannot read snapback/: {error}");
+            crate::command_output::flush_exit(2);
             std::process::exit(2);
         }
     };
@@ -133,6 +141,7 @@ fn compiled_or_exit(bound: Bound, json: bool) -> Bound {
     if !bound.diagnostics.is_empty() {
         // These one-shot verbs retain their complete diagnostic output.
         report_diagnostics(&bound, json, false, true);
+        crate::command_output::flush_exit(1);
         std::process::exit(1);
     }
     bound
@@ -900,7 +909,7 @@ pub fn data(options: &Options) -> i32 {
         if definition.ephemeral.is_some() {
             eprintln!("data: skipping {table}: ephemeral rows live only in the serving process's memory");
             tx.rollback()?;
-            return Ok((Vec::new(), false));
+            return Ok((Vec::new(), false, true));
         }
         let mut rows: Vec<_> = tx.scan(table, "byId", &[], &Default::default(), snapback4_core::rows::Dir::Asc, limit.saturating_add(1))?.into_iter().map(|(row, _)| row).collect();
         let more = rows.len() > limit;
@@ -908,13 +917,18 @@ pub fn data(options: &Options) -> i32 {
         // @ref LLP 3000.007#18.3 — data prints the interpreted row of the stored generation.
         for row in &mut rows { snapback4_core::schema::materialize_optional_fields(row, definition); }
         tx.rollback()?;
-        Ok((rows, more))
+        Ok((rows, more, false))
     })();
     match inspected {
-        Ok((rows, more)) => {
+        Ok((rows, more, ephemeral)) => {
+            let payload = serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":if options.flags.contains_key("all") { serde_json::Value::Null } else { serde_json::json!(limit) }});
+            crate::command_output::summary(format!("data {table}: {} rows{}; {} dormant rows retained", rows.len(), if ephemeral { "; skipped: live serving memory only" } else if more { "; more available: use --all" } else { "; complete" }, sql::dormant_rows(&retained)));
             if options.json {
-                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":limit}));
+                println!("{payload}");
+
             } else {
+                crate::command_output::evidence(&payload);
+                crate::command_output::state(payload);
                 for row in &rows { println!("{}", wire::to_json(row)); }
             }
             if more {

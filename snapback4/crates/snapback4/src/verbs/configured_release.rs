@@ -49,7 +49,8 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         .map(|n| super::releases::bound_at(dir.join("releases").join(n.to_string())))
         .transpose()?;
     let security_summary=super::security::release_loop(&project, &bound, &sources, prior.as_ref(), state.as_ref().and_then(|s|s.release).map(|n|Project{root:dir.join("releases").join(n.to_string())}.sources()).transpose().map_err(|e|e.to_string())?.as_deref(), options)?;
-    super::security::enforce_release(security_summary.as_ref(),options).map_err(|why|{super::security::print_release(security_summary.as_ref());why})?;
+    super::security::print_release(security_summary.as_ref());
+    super::security::enforce_release(security_summary.as_ref(),options)?;
     let programs = bound
         .programs
         .iter()
@@ -110,6 +111,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
                     serde_json::json!({"unchanged":true,"release":n,"generation":state.generation,"store_id":state.store_id})
                 );
             } else {
+                crate::command_output::summary(format!("deploy: unchanged; release {n}, generation {}",state.generation));
                 println!(
                     "unchanged; release {n} stays current as generation {}",
                     state.generation
@@ -173,6 +175,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
                         // @ref LLP 3000.009.001.000#5.1 — reconcile from the persisted selection snapshot without reopening the sticky G6 writer epoch.
                         let generation = observed.generation;
                         pointer.finish(generation)?;
+                        crate::command_output::summary(format!("deploy: release {n} current, generation {generation}; uncertain commit reconciled from persisted selection"));
                         if options.json {
                             println!(
                                 "{}",
@@ -205,6 +208,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
     config.record(&dir, &store_id)?;
     pointer.finish(engine.generation())?;
     super::security::remember_write_release(&project,&sources);
+    crate::command_output::summary(format!("deploy: release {n} current, generation {}",engine.generation()));
     if options.json {
         println!(
             "{}",
@@ -263,7 +267,6 @@ pub(super) fn serve(options: &Options, config: StoreConfig) -> Result<(), String
         .map_err(crate::store_config::redact)?;
     owner.worker_state(_engine.store())?;
     drop(_engine);
-    eprintln!("snapback4: {}", owner.read_cache_tier);
     let bind = super::releases::release_bind(options)?;
     let requested_port =
         crate::port_flag::parse("serve", options.flags.get("port").map(String::as_str))?;

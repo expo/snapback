@@ -23,6 +23,7 @@ impl Project {
     }
     fn run(&self, args: &[&str]) -> Output {
         let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
+        if args.first()==Some(&"test") {command.arg("--explain");}
         // This file probes query/refusal diagnostics; DAY5 checks the default
         // zero-case refusal independently.
         if args.first()==Some(&"test") {command.arg("--fixture-only");}
@@ -1057,7 +1058,7 @@ fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
 
     let output = project.run(&["data", "notes", "--release", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
-    assert_eq!(output.stdout, b"");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("data notes: 0 rows; complete"));
     // Explicit release inspection also works outside an application's source tree.
     let output = Command::new(BIN).current_dir(std::env::temp_dir()).args(["data", "notes", "--release"])
         .arg(project.0.join("deployment")).output().unwrap();

@@ -358,6 +358,8 @@ fn activate(
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
         if let Some(origin)=options.flags.get("source-release").and_then(|v|v.parse::<u64>().ok()){result["sourceRelease"]=origin.into();}
         result["live"]=live_identity(dir,release)?;
+        crate::command_output::released(options.flags.get("output-verb").map(String::as_str).unwrap_or("deploy"),release,&result["generation"],&result["live"],result["adoption"].as_str().unwrap_or("adopted by running serve"));
+        crate::command_output::evidence(&result);
         if options.json {println!("{}",result);} else {
             completed_verdict(options);
             print_live(&result["live"]);
@@ -366,6 +368,7 @@ fn activate(
             for fill in result["backfills"].as_array().into_iter().flatten().filter_map(|f|f.as_str()) {println!("  backfill: {fill}");}
             if options.flags.contains_key("verbose") {println!("{}",result["details"].as_str().unwrap_or(""));}
         }
+        crate::command_output::backfills(&result["backfills"]);
     }
     Ok(())
 }
@@ -511,7 +514,7 @@ pub fn deploy(options: &Options) -> i32 {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
                     if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
                     if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"],"live":live_identity(&dir,previous)?}));}
-                    else {println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));print_live(&live_identity(&dir,previous)?);println!("unchanged; release {previous} stays current as generation {}",held["generation"]);if let Some(notice)=&clock_notice {eprintln!("{notice}");}}
+                    else {crate::command_output::released("deploy",previous,&held["generation"],&live_identity(&dir,previous)?,"unchanged; no adoption");println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));print_live(&live_identity(&dir,previous)?);println!("unchanged; release {previous} stays current as generation {}",held["generation"]);if let Some(notice)=&clock_notice {crate::command_output::fact("clock",notice);eprintln!("{notice}");}}
                     return Ok(());
                 }
             }
@@ -603,7 +606,7 @@ pub fn deploy(options: &Options) -> i32 {
                     return Err(error);
                 }
             }
-            if let Some(notice)=clock_notice {eprintln!("{notice}");}
+            if let Some(notice)=clock_notice {crate::command_output::fact("clock",&notice);eprintln!("{notice}");}
             Ok(())
         })();
     let result=result.map_err(|error:String|if error.contains("E_SECURITY_"){error}
@@ -760,6 +763,12 @@ pub fn releases(options: &Options) -> i32 {
                 selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
+            crate::command_output::summary(format!("releases: current {}; latest {}; generation {}; {} events on page; {} dormant rows retained",result["current"],result["latest"],result["generation"],result["events"].as_array().map_or(0,Vec::len),super::sql::dormant_rows(&retained)));
+            crate::command_output::evidence(&result);
+            crate::command_output::state(result.clone());
+            if result["live"]["exact"] == false {crate::command_output::fact("source",format!("live: rollback view of release {}, registered by {}",result["live"]["target"],result["live"]["parent"]));}
+            if result["rowShape"]["matchesTarget"]==false {crate::command_output::fact("row shape",crate::output_facts::row_shape(&result["rowShape"]));}
+            if let Some(selected) = result.get("selected") {crate::command_output::fact("selection",format!("selected: {selected}"));}
             if options.json {println!("{}", serde_json::to_string_pretty(&result).unwrap());}
             else {
                 println!("releases verdict: READY; current {}; latest {}; generation {}",result["current"],result["latest"],result["generation"]);
@@ -839,7 +848,8 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         std::env::var(name).ok()
     })?;
     let dir = existing_deployment(&directory(options)?)?;
-    crate::host_limits::initialize();
+    let _early_output=crate::serve_output::Early;
+    crate::host_limits::initialize_with(crate::serve_output::early);
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
     if options.flags.contains_key("clock-offset") {
@@ -1025,11 +1035,15 @@ mod tests {
 }
 
 fn completed_verdict(options:&Options) {
+    if let Some(preview)=options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()) {crate::command_output::preview_decisions(&preview);}
     println!("{} verdict: READY / completed; {}",options.flags.get("output-verb").map(String::as_str).unwrap_or("deploy"),super::security::release_verdict(options.flags.get("security-summary")));
 }
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store_port::report::AdoptionReport,options:&Options,live:&serde_json::Value){
+    crate::command_output::released(options.flags.get("output-verb").map(String::as_str).unwrap_or("deploy"),release,&generation,live,&report.compact());
+    crate::command_output::evidence(&serde_json::json!({"release":release,"generation":generation,"live":live,"adoption":report.summary(),"backfills":report.backfills,"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));
     if options.json {println!("{}",serde_json::json!({"live":live,"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}
     else {completed_verdict(options);print_live(live);println!("release {release} is current as generation {generation}; {}",report.compact());if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    crate::command_output::backfills(&serde_json::json!(report.backfills));
 }
 pub(super) fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)
