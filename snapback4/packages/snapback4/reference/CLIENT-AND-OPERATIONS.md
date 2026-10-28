@@ -1639,7 +1639,19 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise`; `read` may be a `usePage` result |
 | `otherwiseAll(fallback, overrides?)` | spread anywhere into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included; named handlers win in any order |
 | `isReady`, `isPresent`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
+| `refusalOf(write)` | the failed write's refusal, or `undefined` while pending, sent, or before the first run |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
+
+Every `Write<R>` permits reading `.why`, including after excluding `sent`;
+it is undefined unless the write failed. Pending `.reason` remains a status
+string, not a terminal refusal. The helper also accepts an unset hook result:
+
+```ts
+import { refusalOf, type Write } from "snapback4/client";
+export function writeNotice(write: Write | undefined): string {
+  return refusalOf(write)?.message ?? (write?.state === "pending" ? write.reason ?? "Waiting to send" : "");
+}
+```
 
 #### Narrowing reads and writes in TypeScript
 
