@@ -7,7 +7,7 @@ import {resolve,join} from 'node:path';
 const root=resolve(import.meta.dirname,'../../..');
 process.env.CARGO_BUILD_JOBS='4';
 const plan=planAffected({root,base:'origin/main',worktree:process.argv.includes('--worktree')});
-const evidence=join(root,'snapback4/reports/gen1');mkdirSync(evidence,{recursive:true});
+const evidence=join(root,'target/affected/gen1');mkdirSync(evidence,{recursive:true});
 writeFileSync(join(evidence,'affected-complete-plan.json.gz'),gzipSync(JSON.stringify(plan)));
 const step=(id,argv,cwd='snapback4',timeoutSeconds=1800)=>({id,argv,cwd,timeoutSeconds,requires:[]});
 // Dependencies and wasm were prepared once, with byte-identical unchanged wasm.
