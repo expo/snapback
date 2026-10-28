@@ -61,7 +61,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SERVE_CHECK_PLATFORM", "serve-check requires Unix process groups and refuses Windows. Run on Linux or Darwin; Mac qualification is separate. guide testing."),
     ("E_SERVE_NO_JSON", "The npm serve script supplied no complete JSON object line before exit or startup deadline. Keep diagnostics on stderr and emit one readiness line. guide testing."),
     ("E_SERVE_EXTRA_OUTPUT", "The serve script emitted extra, invalid or unterminated stdout. Use npm run --silent and exactly one JSON object line; keep credentials out of diagnostics. guide testing."),
-    ("E_PROBE_IDLE", "A probe held over 60 seconds without requests. Verify with npm run probe:check; use npm run probe:serve -- --hold for deliberate long-lived service. guide production."),
+    ("E_PROBE_IDLE", "A ready probe held 10 seconds without requests. Verify with npm run probe:check; use npm run probe:serve -- --hold for deliberate long-lived service. guide production."),
     ("E_SERVE_EARLY_EXIT", "The npm serve script exited before the requested up interval completed. Hold an owned referenced lifetime until SIGTERM, then await cleanup. guide testing."),
     ("E_SERVE_CHILD_RUNNING", "An owned child remained alive after group SIGTERM and the stop grace. Ensure every owned host is stopped; forced cleanup does not make the check pass. guide testing."),
     ("E_SERVE_DRIVER_EXIT", "The checker driver or keeper exited or lost IPC before inspection completed. The result cannot qualify the script; investigate the driver failure and rerun. guide testing."),

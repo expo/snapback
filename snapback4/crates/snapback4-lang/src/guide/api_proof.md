@@ -44,4 +44,4 @@ export function freshUser(host: Pick<ServeHost, "url" | "operatorToken">, option
 export interface FreshUserOptions { role?: string; provision?: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 ```
 
-Declaration fingerprint: 10ada95ccb24d1b7644a1e7620b6e46ef642a74e20e8f9d676c8bf3ede96e5df
+Declaration fingerprint: 08e7a5e6802133ca49414b24c648a05caf4e364729ab1db34b0ee941e9af85eb

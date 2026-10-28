@@ -109989,3 +109989,14 @@ Foreground init exposed publication fixtures that scaffolded before pinning unpu
 ## 2026-10-28 — Integration 30: 0.4.46
 
 Merge LAT1, REL4, SRV1, DX16, TOK3, TOK2, CALLS1 and LAT3 in order, keeping SEC14 paused. Consolidate guide changes and preserve 0.4.45 security tiers/current campaigns. Conflict-resolution-only Muse and fresh Codex reviews both return READY; provenance is under llp/reviews/3000.037.000-integration30-*. Linux web device measures 2,416,593 B raw / 738,507 B gzip / 555,739 B Brotli; set 739,007 B = measurement + 500 B, tightening by 258 B. This is whole-artifact attribution, with no runtime ceiling increase. Root generated/inventory/guide/ref/docs and strict wasm measurements pass; reading replays remain under 10k day-one and 12k day-two. Affected, packed consumer, full survey, release replay and paired production latency evidence is recorded under reports/integration30; publication owns the complete platform battery.
+
+## 2026-10-28 — VER1: one verification loop and tool-safe install ownership
+
+New UI starters use npm run verify for ordered check/typecheck, acceptance,
+frontend and probe shutdown; npm run check itself generates the checked API.
+The first red stops the loop, retaining private details and refusal-first lines.
+An empty unheld probe expires after 10 seconds ready; harness hold is unchanged.
+Explicit background installation detaches the owner with file-backed admission,
+status and logs, retaining the worker's existing IPC custody inside that session.
+Foreground installation remains default. Process-group teardown passes 10/10;
+packed qualification and whole-session measurements are recorded in VER1's report.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.47
+
+### Guide changes
+
+- New UI starters use `npm run verify` for Quarry plus TypeScript checking, acceptance, frontend proof and probe shutdown, stopping at the first failure with private full output. `npm run check` generates the API before typechecking; replace the starter fixture acceptance with your app assertions. Existing app scripts remain yours.
+- An empty `probe:serve` exits after 10 seconds ready without requests; another empty idle run refuses early. Harness `--hold` and `SNAPBACK4_PROBE_HOLD=1` retain deliberate service. Foreground installs stay the default; explicit `node scripts/install.mjs --background` detaches its owner and logs to `.snapback4/install.log`, with `--status` or one `--wait` join.
+
 ## 0.4.46
 
 ### Guide changes

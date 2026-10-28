@@ -1,7 +1,7 @@
 //! Detailed explanations moved out of the first-read cards.
 pub(super) fn detail(code: &str) -> Option<&'static str> {
     Some(match code {
-        "E_PROBE_IDLE" => "# E_PROBE_IDLE\n\nE_PROBE_IDLE means a probe held over 60 seconds without requests. Verify with npm run probe:check; use npm run probe:serve -- --hold for deliberate long-lived service. This guard does not establish authorization or deployment readiness. See snapback4 guide production.",
+        "E_PROBE_IDLE" => "# E_PROBE_IDLE\n\nE_PROBE_IDLE means a ready probe held 10 seconds without requests. Verify with npm run probe:check; use npm run probe:serve -- --hold for deliberate long-lived service. This guard does not establish authorization or deployment readiness. See snapback4 guide production.",
         "E_SERVE_DEPLOYMENT_MISMATCH" => "# E_SERVE_DEPLOYMENT_MISMATCH\n\nE_SERVE_DEPLOYMENT_MISMATCH means the requested deployment store differs from the store started by the script. Align --deployment with the script’s --dir; the diagnostic names both resolved paths. guide staging.",
         "E_SERVE_STORE_MISSING" => "# E_SERVE_STORE_MISSING\n\nE_SERVE_STORE_MISSING means the requested deployment store does not exist. Deploy it first or correct --deployment and the script’s --dir. A missing store is a path error, not a held lock. guide staging.",
         "E_SERVE_LOCK_BARRIER" => "# E_SERVE_LOCK_BARRIER\n\nE_SERVE_LOCK_BARRIER means the store lock barrier failed without a classified held-lock report. Inspect the named store and rerun; neither held nor released is established, and no lock is deleted. guide staging.",

@@ -430,7 +430,7 @@ export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]
   let finish!: () => void;
   const signalled = new Promise<void>(resolve => { finish = resolve; });
   const hold = setInterval(() => {
-    if (guard?.idle()) { console.error(`E_PROBE_IDLE: no requests in 60 seconds; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold (or SNAPBACK4_PROBE_HOLD=1)`); process.exitCode = 1; finish(); }
+    if (guard?.idle()) { console.error(`E_PROBE_IDLE: no requests in 10 seconds; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold (or SNAPBACK4_PROBE_HOLD=1)`); process.exitCode = 1; finish(); }
   }, 1000);
   const signals = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
   for (const signal of signals) process.on(signal, finish);

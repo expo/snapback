@@ -155,7 +155,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SERVE_CHECK_PLATFORM", "E_SERVE_CHECK_PLATFORM means serve-check cannot provide Unix process-group custody on this platform."),
     ("E_SERVE_NO_JSON", "E_SERVE_NO_JSON means the npm serve script supplied no complete JSON object line before exit or startup deadline."),
     ("E_SERVE_EXTRA_OUTPUT", "E_SERVE_EXTRA_OUTPUT means the serve script emitted extra, invalid, oversized or unterminated stdout."),
-    ("E_PROBE_IDLE", "E_PROBE_IDLE means a probe held over 60 seconds without requests."),
+    ("E_PROBE_IDLE", "E_PROBE_IDLE means a ready probe held 10 seconds without requests."),
     ("E_SERVE_EARLY_EXIT", "E_SERVE_EARLY_EXIT means the npm serve script exited before the requested up interval completed."),
     ("E_SERVE_CHILD_RUNNING", "E_SERVE_CHILD_RUNNING means an owned child remained alive after group SIGTERM and the stop grace."),
     ("E_SERVE_DRIVER_EXIT", "E_SERVE_DRIVER_EXIT means the checker driver or keeper exited or lost IPC before inspection completed."),
