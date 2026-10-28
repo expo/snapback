@@ -21,15 +21,4 @@ Evidence: `snapback4/reports/20261027-rel3/baseline-facts.json` and
 `baseline-ratchet.log.gz`. The older closed ticket records the earlier recurrence;
 this ticket tracks the current two-site signature.
 
-## Resolution — 2026-10-28
-
-Imported main fix `9b0d37eda2` renames the two neutral-helper arguments without
-adding a store-port allowance. The later scanner termination repair
-`87fb2ecef4` is imported too. On merged REL4 commit `f6fb895af2`, the complete
-CLI crate passes: all seven store-handle census tests, the zero-production-access
-ratchet and its rejection controls. The original two-site signature no longer
-reproduces. No REL4 source allowance was added.
-
-Evidence: `target/affected/f6fb895af228-1793139949730.json` and the
-`store_handle_census` / `store_port_ratchet` sections of the retained REL4
-qualification output.
+Resolution (Integration 29, 2026-10-27): main already reconciled these sites in `08632e34c7`. The scanner and its allowance remain unchanged in this integration. An independent rustc-compiled scan of the merged 0.4.45 sources passes all 9 tests with production access zero; retained raw log: `snapback4/reports/integration29/store-port-ratchet.log`. No allowance was raised.

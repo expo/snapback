@@ -1,0 +1,170 @@
+{
+  "method": "SEC11L 50 wave30 schemas; one worker; paired adjacent before/after commands with alternating first binary, identical fresh source/JSONL fixture copies per mode, then warm repeat on the same copy. Shared-host matched window; load and CPU timing retained. No original stores or cached evidence copied. Production static musl builds.",
+  "binaries": {
+    "0.4.44": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf",
+    "0.4.45": "de5781296ff65db2ad32345a88d06c5d4d9a87bd041ce94ed95932c13ac637c8"
+  },
+  "rows": [
+    {
+      "label": "0.4.44",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 50,
+      "median": 6.3839968900429085,
+      "p90": 15.525423387996852,
+      "max": 24.8968934409786,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "review",
+      "temperature": "warm",
+      "count": 50,
+      "median": 5.5556458364007995,
+      "p90": 14.794535844121128,
+      "max": 44.805325740017,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 50,
+      "median": 10.468009118922055,
+      "p90": 19.208608628017828,
+      "max": 26.94098037108779,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "production",
+      "temperature": "warm",
+      "count": 50,
+      "median": 1.2228628314333037,
+      "p90": 2.560248302994296,
+      "max": 17.89669505110942,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "check",
+      "temperature": "cold",
+      "count": 50,
+      "median": 6.40661290998105,
+      "p90": 16.453551433980465,
+      "max": 26.09844988794066,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "check",
+      "temperature": "warm",
+      "count": 50,
+      "median": 5.57318416191265,
+      "p90": 14.841351323993877,
+      "max": 25.20217367890291,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 50,
+      "median": 7.460528257652186,
+      "p90": 18.156043891096488,
+      "max": 29.12962164916098,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.44",
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 50,
+      "median": 1.2760466649197042,
+      "p90": 2.3258439479395747,
+      "max": 4.814720227848738,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 50,
+      "median": 10.326181253534742,
+      "p90": 22.994568448048085,
+      "max": 28.80925947893411,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "review",
+      "temperature": "warm",
+      "count": 50,
+      "median": 5.991926218033768,
+      "p90": 15.453850459074602,
+      "max": 23.432549878954887,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 50,
+      "median": 13.602526579401456,
+      "p90": 27.75302916811779,
+      "max": 89.12300360295922,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "production",
+      "temperature": "warm",
+      "count": 50,
+      "median": 1.2371622185455635,
+      "p90": 2.680215190863237,
+      "max": 26.34904966200702,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "check",
+      "temperature": "cold",
+      "count": 50,
+      "median": 10.226371322060004,
+      "p90": 21.675711097195745,
+      "max": 31.84573165187612,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "check",
+      "temperature": "warm",
+      "count": 50,
+      "median": 5.893191235372797,
+      "p90": 15.868828610982746,
+      "max": 27.247782859951258,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 50,
+      "median": 10.832298838999122,
+      "p90": 21.183493807911873,
+      "max": 34.19012630893849,
+      "toolFailures": []
+    },
+    {
+      "label": "0.4.45",
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 50,
+      "median": 1.2454872445669025,
+      "p90": 2.543368784012273,
+      "max": 4.877185415942222,
+      "toolFailures": []
+    }
+  ],
+  "peakLoadPerCpu": 1.1103871663411458
+}

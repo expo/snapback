@@ -1,0 +1,51 @@
+{
+  "head": "aeb6fd4c19d88d6c9d0028149764598d99365037",
+  "treesAndBlobs": {
+    "snapback4/crates": "a6cd9d70b3f20095201bba2d8a0fa540fe7bc49f",
+    "snapback4/packages": "3048dc4cc6e6f7fae3ead1a38a71cb70ed7473f9",
+    "snapback4/apps": "ca738eedf3e8d02edc68b424fd2235109ccc5e21",
+    "snapback4/scripts": "e4aca1ed128f3a1b633a2965fcc2caba72b7991d",
+    "snapback4/Cargo.toml": "ac601c567cf9d5924c2cfff678ec3c40c8816b9b",
+    "snapback4/Cargo.lock": "64a0f060ed3fc72ea8c0c0bc852f258bf89f0d8e",
+    "snapback4/bun.lock": "326a1c7a0af376779ee585f78f308fab0e8f2776",
+    "snapback4/rust-toolchain.toml": "44a9e3b922d525c1c0d9bb35aa79aaf69d9ce388",
+    "snapback4/.cargo": "0b953f54b7b6605b2ea0323c9c4cbb1c4552dca3",
+    "snapback4/vendor": "79a986605d4044936075b06673ba6bec9349da7e",
+    "guide": "42291093a37bb846b029f5113863d85b94c5eeab",
+    "scripts": "e7a434f77de330bb290c039e051278df04a5f983",
+    "ref-check": "c697b4950fa4474239ed113ebecb661e0fec2984",
+    "package.json": "b126f24a6f7ca6c5adc339515168718fd0c76192",
+    "bun.lock": "5c7f33937247d1a69aff3e821f914051709532e2"
+  },
+  "native": {
+    "binarySha256": "e5488d6298ab87783662a776eb2781a8d506ff0e1ee6b36e996a04332b61c43a",
+    "source": "Reviewed local Expo configuration dependency repair on otherwise unchanged23272b660c product snapshot",
+    "review": {
+      "runtimeReview": "round3 both READY",
+      "fixtureReview": "round4 both READY",
+      "runtimeDiffSha256": "c71074cc49de01f024dda23ec9d6184ee3f389f2e2236dd81e43bac2f0c8abdb",
+      "fixtureDiffSha256": "cd693c0885e8db4a4e71086973be7cbfc651182327029b19526bcb248c2dc92c",
+      "runtimeSourceUnchanged": true,
+      "focusedChecks": "10 client cases + 11 initializer unit cases + both repaired Rust targets passed; original54passes retained",
+      "auditAssertionUnchanged": true,
+      "allowlistUnchanged": true
+    }
+  },
+  "packs": [
+    {
+      "name": "snapback4",
+      "version": "0.4.45",
+      "integrity": "sha512-16dTUxMThm/EHDa2aeB7CKTGpdeqm8EjwEDkpBbcrakd7t7xZouXPCABlXrmg0cqzO7H5Paldk1UPIedb2BxyA==",
+      "path": "/home/ccheever/sb4-loop/reports/integration29/packs-release/snapback4-0.4.45.tgz",
+      "sha256": "3f369d294f01c1a520718911cbe4b6d8a670e72e39bbdc58a44b6a8f14ca241c"
+    },
+    {
+      "name": "snapback4-expo",
+      "version": "0.4.45",
+      "integrity": "sha512-knWo0cznex6oUyzuSdakDeMqlAfJMdt3vE57DJW7QqBRQvHrgqI4+xpO97LYVrIBEbQs2C+e6nbefWOk+n4NGA==",
+      "path": "/home/ccheever/sb4-loop/reports/integration29/packs-release/snapback4-expo-0.4.45.tgz",
+      "sha256": "ea8f448ee8e2984f05fca3cba9735cc8165e7e7b63b24b8e0c8eb4d5af9386fb"
+    }
+  ],
+  "method": "Complete consumer R5 and focused toolchain checks bind this clean release snapshot. Prior whole CLI232 and Lang/core/client/product replay evidence is reused only outside the separately tested starter-only delta."
+}

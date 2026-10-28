@@ -109421,6 +109421,22 @@ stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
 
+### 2026-10-27 — SEC11b assignment questions measured
+
+LLP3000.036.004.003 implements exact assigned-or-any typed payload questions
+without inventing assignees for missing models.004/014 copied repairs clear;
+014 unchanged acceptance and004's182 properly scoped assertions pass. Both
+mechanism reviewers and both final presentation reviewers are READY. Coverage
+is8/15,6/12,9/14,8/16 across waves26/28/30/31. Native800 precision has zero
+assessed false gates/refusals,19/26 carried refusals and26 retained HTTP
+preparation qualification gaps. The current production formatter replay has
+3/5 median lines, all800 displays uncensored, with three native identity
+preflights. Policy and presentation snapshots remain separately bound. See
+reports/sec11b/item3/ and root WORKSTREAM-REPORT.md for exact tests, inherited
+clock/executable-rebuild retries, corrected004 acceptance and incomplete HTTP
+qualification. No deploy pipeline/scheduling change and no push.
+
+
 ### 2026-10-27 — DX15 production proofs and inspection
 
 Wave-31 lanes 007/014/021/030/042 had to assemble a production proof recipe
@@ -109450,6 +109466,7 @@ unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundar
 checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
 is bounded before the new observer section, and its redaction mock now echoes
 the actual generated credential rather than an unrelated password literal.
+
 ## 2026-10-27 — SEC11 item 1 measured boundary
 
 LLP 3000.036.004.001 records current-witness decision refusals and bounded
@@ -109550,6 +109567,66 @@ setup/refinement attempts, per-lever limits and the scoped ownership proof.
 Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
 scans pass, and the owned process audit finds no remaining helper or zombie.
 No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+
+## 2026-10-27 — SEC11b item4: actual transition edges and complete qualification accounting
+
+Completed the three requested SEC11b mechanisms in order, each measured before
+the next. Item 4 derives advisory `publishReport` measured→reported and
+`advanceStage` inspection→finished questions from typed sibling prerequisites,
+without treating enum order or operation names as authority. Full applicability
+and written/guard/argument types bind identity. Original authored targets and
+fields are checked before helper reduction; unreduced spreads stay uncovered.
+Actual edges must survive commit. Legacy terminal-workflow inference also stays
+unresolved when a parent spread or unmapped/source-unrestricted state writer
+can reopen the destination. Ordinary inference and all six guarded/unguarded
+reopening regressions pass.
+
+Both final independent source reviews are READY on `883aeea5d0`. Native
+qualification uses immutable executable SHA-256
+`3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7`:
+zero assessed false gates/refusals and no unclassified verdicts on 800 schemas,
+with 19 carried fresh and 26 post-test refusals. All 800 default outputs complete:
+check median/p90 3/7 lines, deploy 5/9. Calibrated visibility is 8/15 (wave 26),
+6/12 (wave 28), 11/14 (wave 30) and 10/16 (wave 31). The 030/035 transitions
+are the two additions after item 3, with 018 retained. The sole wave-30 gate
+remains the actual 033 `advanceJob` approval bypass.
+
+All three copied item-4 repairs clear their target witnesses. The unchanged 035
+acceptance passes 133 checks and 018's passes unchanged. The 030 script needs
+its original bypass expectation corrected while retaining late-report checks;
+both its original failure and adjusted passing acceptance are retained.
+Seventeen native test attempts have incomplete private HTTP preparation, never
+PASS. Two diagnostic replays confirm private deployment blocked by existing
+pending security findings; non-timeout exits are not presumed latency faults.
+Retrospective accounting corrects earlier gap totals to 24 (item 2) and 40
+(item 3); original receipts remain unchanged. Security verdicts and output
+counts are unchanged. All owned fleet attempts are archived, with zero recorded
+owned processes remaining; unused partial attempts are never PASS.
+
+LLP 3000.036.004.004 and `reports/sec11b/item4/` retain source hashes, reviews,
+coverage, precision, repaired-app evidence and fixed-part survey composition.
+The final affected receipt and exclusions are recorded in WORKSTREAM-REPORT.md.
+No deploy files or pipeline scheduling edits, version bump, push or publication.
+Items 5–8 remain later work; latency remains the separate SEC11L lane.
+
+
+### 2026-10-27 — SEC11b parent-window correction
+
+The final affected unit run caught a real regression: completion terminality
+uncertainty erased independent parent-window coupling. Keep the existing test
+unchanged; distinguish unmapped targets from known-target source-unrestricted
+writers, preserving the latter's window before abandoning terminal completion.
+The ten-case coupling and six-case reopening regressions pass. Fresh Muse and
+Codex round-9 reviews are READY on b25313ff7d.
+
+All 857 frozen inputs retain ordered obligations and diagnostics. Because that
+serializer omits executable syntax, the qualification also binds unchanged
+constructors/normalizers and all other production inputs. Fresh native checks
+reproduce all eight target effects and byte-identical decision/witness identities;
+all three repaired app acceptances pass with the recorded 030 adjustment. The
+original native800 execution remains immutable, carried by this narrow reviewed
+equivalence bridge; no new-binary800 claim. See item4/window-correction evidence
+and WORKSTREAM-REPORT.md for the failed partial attempt and final verification.
 
 
 ## 2026-10-27 — TOK1: one first schema and bounded builder waiting
@@ -109712,3 +109789,66 @@ Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
 pointer/log completion and lease release. The report's new regressions fill a
 real stderr pipe and delay an unknown-but-durable activation's reconciliation
 probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
+### 2026-10-27 — SEC11b Integration-28 merge and final LLP identity
+
+Pin main2921a639cc after the pre-merge complete scoped PASS on8e06b286ce.
+Resolve conflicts by adding bound SEC11b questions to the landed batched
+resolver, retaining SEC12 release gates and SEC11L current-report joining.
+Preserve factual assignment/transition cards, main compact generic cards and
+meaningful test status. No new scheduling/deploy optimization is introduced.
+The provisional approval amendment .002 collides with landed SEC12; its final
+fresh sibling identity is .006. Live refs follow it; received reviews and
+immutable measurements retain their original identities and provenance.
+Post-merge evidence is distinct from the original per-item native800 snapshots.
+
+## 2026-10-27 — Integration 29: 0.4.45
+
+Merge REL3, SEC11b and SEC13 in that order. Current evaluated gates, independent witnessed questions and SECP-only advice remain separate tiers; batched time candidates retain their family observers, unchanged campaign work and final-store checks. Default cards retain evidence/time hypotheses, actual witness and individual answer command in one line. Frozen result views and release idempotence/recovery use activation/store fence 11. Linux device build: 2,416,590 B raw / 738,765 B gzip; budget 739,265 B = measurement + 500 B. Version/layout effect, no independent attribution or runtime ceiling change. Affected/consumer/survey/paired-latency evidence and remaining qualifications are recorded under reports/integration29; publication owns the complete platform battery.
+
+### 2026-10-27 — Integration 29: bounded neutral-handle census parsing
+
+The complete CLI census hung on the ownership watcher's Rust precise capture `impl Fn() + use<>`: its lexical import parser consumed the function body as a use tree, then repeatedly appended paths at an unconsumed semicolon. Ignore the exact capture-clause spelling and fail closed if a use-tree recursion makes no progress. A capture-plus-real-concrete-import regression preserves rejection; malformed groups refuse. The full eight-test census completes in 3.13 s with both concrete handles and owning dereference bridges still zero. The18:56Z session OOM interrupted unfinished verification; no incomplete receipt is qualified. Recovery uses40 GiB systemd scopes, at most two heavy jobs, four survey workers and cargo-j16.
+
+
+### 2026-10-27 — Integration 29: independent column edit intent
+
+The merged survey found two false inferred approval-input freezes: wave 31's
+mascot commission quote editor (also inherited from main) and wave 33's approved
+design scan attachment editor. Both sources already declare independent column
+update-only intent; immutable recorded approval/deadline values made the inferred
+freeze reject the requested edit. Supported authored global column update intent
+now disposes only of that inferred freeze proposal. It does not dispose of an
+observed edit guard, another column's proposal, authored assertions, runtime
+write/freeze rules or independent sibling/transition contracts. Generated
+`$enforced/` contracts and expressions without authored syntax cannot stand in
+for independent intent.
+
+Fresh Muse and Codex reviews reached READY on the same final repair (round 3).
+Their earlier findings drove runtime/production negative controls, supported and
+scope exclusions, and a real already-augmented enforcement-contract regression.
+The compiler-derived contract/note comparison identifies exactly two changed
+schemas among 980; the final product replay targets those inputs, preserving
+source and binary provenance instead of relabeling the original false-refusal
+survey as green. The complete paired latency profile and remaining qualification
+are recorded in the Integration 29 report; no latency work limit was increased.
+
+
+2026-10-28 — Integration 29 packed consumer qualification exposed the newly
+reviewed deepmerge prototype-poisoning advisory in Expo configuration. A local
+MIT fork patches the actual dependency in generated Expo starters, with unchanged
+audit assertions/allowlist and refusal on conflicting patch custody. Fresh audit
+and actual Expo config resolution pass; full consumer qualification is repeated.
+
+
+## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
+
+LLP 3000.009.001.000.002 §4.2 gains a dated Review proposal, with local
+paired write aggregates and marker/clock-witness prototypes in
+`reports/20261027-g6-default/`. The retained one-second evidence separates
+cold-reader convoys, generator overload and the original gate wait budget;
+the historical smoke's initiating instruction remains untraced. A real-PG
+regression now holds COMMIT beyond one second while requiring prompt G5
+fallback. The marker design combines an exact backend format with an extra
+owner column, so old public owners refuse before claiming. Clock samples
+can trip on observed skew/suspend but cannot prove future behavior; automatic
+G6 still requires an enforced deployment clock contract. Defaults are unchanged.

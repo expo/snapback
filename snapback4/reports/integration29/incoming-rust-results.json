@@ -1,0 +1,22 @@
+[
+  {
+    "name": "census",
+    "exit": 0
+  },
+  {
+    "name": "pg-init",
+    "exit": 0
+  },
+  {
+    "name": "pg-start",
+    "exit": 0
+  },
+  {
+    "name": "g6",
+    "exit": 0
+  },
+  {
+    "name": "pg-stop",
+    "exit": 0
+  }
+]

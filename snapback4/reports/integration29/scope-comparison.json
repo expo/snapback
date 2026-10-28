@@ -1,0 +1,17 @@
+{
+  "schemas": 980,
+  "unchanged": 978,
+  "changed": [
+    [
+      31,
+      "036-snapback-mascot-costume-commissions"
+    ],
+    [
+      33,
+      "036-snapback-championship-ring-orders"
+    ]
+  ],
+  "beforeBinarySha256": "55aedcb5a0bbdd40208e07e26ba0d3e5955c23ab69e49444eec0c89866773ca2",
+  "afterBinarySha256": "8893b0f32a611227c3b12df8a34af539d1ccc8ee2cb79d972c05479d71fae39a",
+  "method": "Literal compiler-derived invariant/notes plus authored invariant/diagnostic payload digests on identical schema sources. Code change is restricted to approval-input freeze emission; input/reissue metadata and schema/program compilation are unchanged. Later generated-enforcement/syntax exclusions do not alter these base-compiled inputs and have separate augmented-bound controls."
+}

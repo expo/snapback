@@ -1,0 +1,10 @@
+{
+  "inputs": 1961,
+  "changed": {
+    "snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs": {
+      "before": "2980b522efc58e0400de5898faa94c51c0d867297376ea5e3b9c89ae3010bcd3",
+      "after": "8a9a7cc9bb97c09796813d33fcdeb6ff35d25ca68b235731f87480340accf52e"
+    }
+  },
+  "scope": "Only production uncertainty-guard scope and ignored test-only metrology utility changed; constructor and normalizer block byte equality is separately bound."
+}

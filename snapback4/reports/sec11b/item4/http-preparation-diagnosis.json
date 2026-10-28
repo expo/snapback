@@ -1,0 +1,23 @@
+{
+  "cases": [
+    {
+      "wave": 30,
+      "lane": "033",
+      "rawLogSha256": "4a04ac1a6b0d8eba2b4062bc68843f7f26e64afd722358064a37488af77e6136",
+      "privateProductionDeployRefused": true,
+      "qualification": "Private HTTP admission was not reached: existing pending production security/FIX blocks private deployment. Not an HTTP pass and not diagnosed as a latency failure.",
+      "originalSurveyFailureRetained": true,
+      "retryFailureRetained": true
+    },
+    {
+      "wave": 26,
+      "lane": "008",
+      "rawLogSha256": "5e7a390c914fda56d4dcb3b2dc1507f8aa722580eaafa0c89cc747e5c8eb3209",
+      "privateProductionDeployRefused": true,
+      "qualification": "Private HTTP admission was not reached: existing pending production security/FIX blocks private deployment. Not an HTTP pass and not diagnosed as a latency failure.",
+      "originalSurveyFailureRetained": true,
+      "retryFailureRetained": true
+    }
+  ],
+  "scope": "Diagnostic replays only; no original survey test attempt is replaced or relabeled PASS."
+}

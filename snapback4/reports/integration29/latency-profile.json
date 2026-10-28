@@ -1,0 +1,6415 @@
+{
+  "complete": true,
+  "commands": 800,
+  "sourceMatchedPairs": 400,
+  "rawSha256": "d9d6e59b44457dbdad9bfda2b2880a33f3d25366e09dac38537c0d68f591d5c5",
+  "note": "Trace spans nest and independent campaigns can overlap. Phase totals are profiles, not additive wall-time accounting.",
+  "paired": [
+    {
+      "mode": "review",
+      "temperature": "cold",
+      "count": 50,
+      "medianPairedRatio": 1.3206224152045152,
+      "p90PairedRatio": 2.5025926671055005,
+      "medianPairedDelta": 2.9194311695173383,
+      "pairedMedianDeltaBootstrap95": [
+        1.227468438562937,
+        3.9465903560630977
+      ],
+      "positiveDeltaPairs": 48,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 6.431752023985609,
+          "after": 7.403697811067104,
+          "delta": 0.9719457870814949,
+          "ratio": 1.1511168004389576,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 2.919582133879885,
+          "after": 4.07950791483745,
+          "delta": 1.1599257809575647,
+          "ratio": 1.3972917108573064,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 2.2987121450714767,
+          "after": 2.4418088698294014,
+          "delta": 0.14309672475792468,
+          "ratio": 1.062250823820951,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 3.809029496042058,
+          "after": 8.260973671916872,
+          "delta": 4.451944175874814,
+          "ratio": 2.168787004800253,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 5.104877806967124,
+          "after": 8.350810808129609,
+          "delta": 3.2459330011624843,
+          "ratio": 1.6358493041170237,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 5.337179497117177,
+          "after": 11.562513613840565,
+          "delta": 6.225334116723388,
+          "ratio": 2.1664089843869667,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 7.8123427929822356,
+          "after": 8.687396000837907,
+          "delta": 0.8750532078556716,
+          "ratio": 1.1120090645077332,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 6.939648284111172,
+          "after": 12.488868115004152,
+          "delta": 5.54921983089298,
+          "ratio": 1.7996399246339791,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 7.539710431126878,
+          "after": 5.101327095879242,
+          "delta": -2.438383335247636,
+          "ratio": 0.676594564536453,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 12.79324886878021,
+          "after": 16.358194383094087,
+          "delta": 3.5649455143138766,
+          "ratio": 1.278658341667497,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 4.97447044798173,
+          "after": 5.249116851948202,
+          "delta": 0.27464640396647155,
+          "ratio": 1.0552111841528584,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 10.372890728991479,
+          "after": 11.91286566387862,
+          "delta": 1.539974934887141,
+          "ratio": 1.1484615017280595,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 17.899044891120866,
+          "after": 26.356936163967475,
+          "delta": 8.45789127284661,
+          "ratio": 1.4725331057771855,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 3.7183331300038844,
+          "after": 4.51751446002163,
+          "delta": 0.7991813300177455,
+          "ratio": 1.2149299974144356,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 1.9086956889368594,
+          "after": 2.0440828730352223,
+          "delta": 0.13538718409836292,
+          "ratio": 1.0709317807354473,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 6.336241756100208,
+          "after": 13.254380133002996,
+          "delta": 6.918138376902789,
+          "ratio": 2.0918362403458426,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 9.149307046085596,
+          "after": 9.993615790037438,
+          "delta": 0.8443087439518422,
+          "ratio": 1.0922811683659768,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 16.356733452994376,
+          "after": 26.75691287498921,
+          "delta": 10.400179421994835,
+          "ratio": 1.6358347436474798,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 9.966202687006444,
+          "after": 7.56914983689785,
+          "delta": -2.3970528501085937,
+          "ratio": 0.7594818281958303,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 12.373166118981317,
+          "after": 13.210285246139392,
+          "delta": 0.8371191271580756,
+          "ratio": 1.0676560161811677,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 4.225738456007093,
+          "after": 4.287374522071332,
+          "delta": 0.06163606606423855,
+          "ratio": 1.0145858686489742,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 10.674096178030595,
+          "after": 13.26202027592808,
+          "delta": 2.587924097897485,
+          "ratio": 1.2424490143928013,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 4.875424881931394,
+          "after": 5.699195532128215,
+          "delta": 0.8237706501968205,
+          "ratio": 1.1689638688209025,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 5.381231722887605,
+          "after": 10.658746717032045,
+          "delta": 5.27751499414444,
+          "ratio": 1.9807262102648293,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 5.4102543499320745,
+          "after": 13.071493449853733,
+          "delta": 7.661239099921659,
+          "ratio": 2.4160589510949415,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 19.530044754967093,
+          "after": 28.80925947893411,
+          "delta": 9.279214723967016,
+          "ratio": 1.475125113146862,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 7.3461564218159765,
+          "after": 8.641167517984286,
+          "delta": 1.2950110961683095,
+          "ratio": 1.1762841711786176,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 10.96468927594833,
+          "after": 11.98086913395673,
+          "delta": 1.0161798580083996,
+          "ratio": 1.0926774879282213,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 9.95142062404193,
+          "after": 24.90435228100978,
+          "delta": 14.952931656967849,
+          "ratio": 2.5025926671055005,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 4.52886181906797,
+          "after": 4.863290643785149,
+          "delta": 0.33442882471717894,
+          "ratio": 1.073843901200325,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 8.585033806040883,
+          "after": 22.434217615053058,
+          "delta": 13.849183809012175,
+          "ratio": 2.6131775508288806,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 1.1454247611109167,
+          "after": 1.3139058428350836,
+          "delta": 0.16848108172416687,
+          "ratio": 1.1470904833249471,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 24.8968934409786,
+          "after": 27.130837925011292,
+          "delta": 2.2339444840326905,
+          "ratio": 1.0897278405166715,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 2.11946724797599,
+          "after": 6.0783589070197195,
+          "delta": 3.9588916590437293,
+          "ratio": 2.867871118472965,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 3.6852916011121124,
+          "after": 6.524045155150816,
+          "delta": 2.8387535540387034,
+          "ratio": 1.7702927912629902,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 8.034832934150472,
+          "after": 13.339423089986667,
+          "delta": 5.304590155836195,
+          "ratio": 1.6601991851367663,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 1.6416695551015437,
+          "after": 5.923197207972407,
+          "delta": 4.281527652870864,
+          "ratio": 3.6080325602468974,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 19.994459663052112,
+          "after": 22.994568448048085,
+          "delta": 3.000108784995973,
+          "ratio": 1.1500470047980287,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 6.287022141041234,
+          "after": 12.046739879064262,
+          "delta": 5.759717738023028,
+          "ratio": 1.9161281142027478,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 1.9762070020660758,
+          "after": 10.840504026971757,
+          "delta": 8.864297024905682,
+          "ratio": 5.485510382079548,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 15.525423387996852,
+          "after": 16.103108474053442,
+          "delta": 0.5776850860565901,
+          "ratio": 1.0372089747003752,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 6.0990136989858,
+          "after": 12.96548638609238,
+          "delta": 6.8664726871065795,
+          "ratio": 2.1258332946929435,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 7.395059410016984,
+          "after": 8.074011225020513,
+          "delta": 0.6789518150035292,
+          "ratio": 1.0918115429990805,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 9.25286407279782,
+          "after": 16.915714384056628,
+          "delta": 7.662850311258808,
+          "ratio": 1.8281598271595236,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 13.727287781890482,
+          "after": 15.887854042928666,
+          "delta": 2.160566261038184,
+          "ratio": 1.1573920715706476,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 5.59886700194329,
+          "after": 9.058826714986935,
+          "delta": 3.459959713043645,
+          "ratio": 1.6179749781237418,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 1.291083199903369,
+          "after": 4.380472061922774,
+          "delta": 3.0893888620194048,
+          "ratio": 3.3928658216996626,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 5.740669179940596,
+          "after": 9.224073441931978,
+          "delta": 3.4834042619913816,
+          "ratio": 1.6067941128123722,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.430980585049838,
+          "after": 7.141739625949413,
+          "delta": 1.7107590408995748,
+          "ratio": 1.3150000288362063,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 12.097021430032328,
+          "after": 16.043611786095425,
+          "delta": 3.9465903560630977,
+          "ratio": 1.326244801572824,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "review",
+      "temperature": "warm",
+      "count": 50,
+      "medianPairedRatio": 1.0891300514247837,
+      "p90PairedRatio": 1.1554925912815859,
+      "medianPairedDelta": 0.2815568404039368,
+      "pairedMedianDeltaBootstrap95": [
+        0.2119735220912844,
+        0.4532122078817338
+      ],
+      "positiveDeltaPairs": 43,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 6.568210990866646,
+          "after": 7.147441427921876,
+          "delta": 0.5792304370552301,
+          "ratio": 1.0881869412935536,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 0.922653348185122,
+          "after": 1.1931013909634203,
+          "delta": 0.27044804277829826,
+          "ratio": 1.2931198844184277,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 2.121905985986814,
+          "after": 2.4252090589143336,
+          "delta": 0.3033030729275197,
+          "ratio": 1.1429389779427317,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 3.822666277177632,
+          "after": 4.455457943025976,
+          "delta": 0.6327916658483446,
+          "ratio": 1.165536727499935,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 5.186777897877619,
+          "after": 5.260851703118533,
+          "delta": 0.07407380524091423,
+          "ratio": 1.0142812757167075,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 5.477129291044548,
+          "after": 5.679240251192823,
+          "delta": 0.2021109601482749,
+          "ratio": 1.0369008926772532,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 5.574666895903647,
+          "after": 5.597445220919326,
+          "delta": 0.022778325015679002,
+          "ratio": 1.0040860423485423,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 7.059914621990174,
+          "after": 7.371687142876908,
+          "delta": 0.31177252088673413,
+          "ratio": 1.0441609477706186,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 1.8301745688077062,
+          "after": 2.0279496270231903,
+          "delta": 0.19777505821548402,
+          "ratio": 1.1080634938252516,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 10.465400476939976,
+          "after": 10.716014726087451,
+          "delta": 0.25061424914747477,
+          "ratio": 1.0239469334880869,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 5.019316958962008,
+          "after": 5.241546164965257,
+          "delta": 0.2222292060032487,
+          "ratio": 1.0442747903390435,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 6.657444214913994,
+          "after": 6.694051125086844,
+          "delta": 0.036606910172849894,
+          "ratio": 1.0054986431716308,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 18.620446997927502,
+          "after": 21.088907960802317,
+          "delta": 2.468460962874815,
+          "ratio": 1.132567223716464,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 1.2133143220562488,
+          "after": 1.3738190850708634,
+          "delta": 0.16050476301461458,
+          "ratio": 1.1322862180861768,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 1.8699720348231494,
+          "after": 2.1030114558525383,
+          "delta": 0.2330394210293889,
+          "ratio": 1.1246218749209413,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 6.134633818874136,
+          "after": 7.079039138974622,
+          "delta": 0.9444053201004863,
+          "ratio": 1.1539464861284596,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 3.9230185048654675,
+          "after": 4.3035370509605855,
+          "delta": 0.3805185460951179,
+          "ratio": 1.096996367879271,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 44.805325740017,
+          "after": 17.328452918911353,
+          "delta": -27.476872821105644,
+          "ratio": 0.3867498479859234,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 3.273555101128295,
+          "after": 2.982247714884579,
+          "delta": -0.2913073862437159,
+          "ratio": 0.9110119190774241,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 12.021462560864165,
+          "after": 13.21213485696353,
+          "delta": 1.1906722960993648,
+          "ratio": 1.0990455437573456,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 4.019334516953677,
+          "after": 4.0905083660036325,
+          "delta": 0.0711738490499556,
+          "ratio": 1.0177078689891927,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 8.128654151922092,
+          "after": 8.474884330993518,
+          "delta": 0.3462301790714264,
+          "ratio": 1.0425937889102537,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 1.8044633599929512,
+          "after": 2.0451484150253236,
+          "delta": 0.24068505503237247,
+          "ratio": 1.133383176610088,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 5.332875221036375,
+          "after": 5.935075690969825,
+          "delta": 0.6022004699334502,
+          "ratio": 1.112922287691633,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 5.140671764034778,
+          "after": 6.661783528048545,
+          "delta": 1.5211117640137672,
+          "ratio": 1.2958974690148057,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 22.866128709167242,
+          "after": 23.432549878954887,
+          "delta": 0.5664211697876453,
+          "ratio": 1.0247711878557109,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 4.570059729041532,
+          "after": 5.03848860389553,
+          "delta": 0.4684288748539984,
+          "ratio": 1.1024995082399593,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 11.18278465885669,
+          "after": 11.972229697043076,
+          "delta": 0.7894450381863862,
+          "ratio": 1.0705946740699466,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 10.300556598929688,
+          "after": 11.16088090185076,
+          "delta": 0.8603243029210716,
+          "ratio": 1.0835221179222942,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 1.0463965870440006,
+          "after": 1.1827679930720478,
+          "delta": 0.1363714060280472,
+          "ratio": 1.1303247809831711,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 7.018652090104297,
+          "after": 6.90333316498436,
+          "delta": -0.11531892511993647,
+          "ratio": 0.983569647898273,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 1.157280882121995,
+          "after": 1.2615208299830556,
+          "delta": 0.1042399478610605,
+          "ratio": 1.0900731615560137,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 14.794535844121128,
+          "after": 16.150979191996157,
+          "delta": 1.3564433478750288,
+          "ratio": 1.0916854277935346,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 2.1814965629018843,
+          "after": 2.1312483958899975,
+          "delta": -0.050248167011886835,
+          "ratio": 0.9769661947369537,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 3.5768259761389345,
+          "after": 4.030038184020668,
+          "delta": 0.4532122078817338,
+          "ratio": 1.1267079278961627,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 7.485143199097365,
+          "after": 8.622769315959886,
+          "delta": 1.1376261168625206,
+          "ratio": 1.1519845494739107,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 1.8821838109288365,
+          "after": 2.174849448958412,
+          "delta": 0.29266563802957535,
+          "ratio": 1.1554925912815859,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 15.830690940842032,
+          "after": 15.453850459074602,
+          "delta": -0.3768404817674309,
+          "ratio": 0.9761955758484798,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 6.818154072156176,
+          "after": 6.568415150977671,
+          "delta": -0.24973892117850482,
+          "ratio": 0.9633714758370769,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 1.9713576801586896,
+          "after": 2.168297488009557,
+          "delta": 0.1969398078508675,
+          "ratio": 1.0999005963418136,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 15.794353176141158,
+          "after": 16.40889559709467,
+          "delta": 0.6145424209535122,
+          "ratio": 1.038908995772099,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 6.015979663003236,
+          "after": 6.720553753897548,
+          "delta": 0.7045740908943117,
+          "ratio": 1.117117099851129,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 7.3659359738230705,
+          "after": 7.762862778967246,
+          "delta": 0.3969268051441759,
+          "ratio": 1.0538868117445994,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 8.908822797937319,
+          "after": 9.610528687015176,
+          "delta": 0.7017058890778571,
+          "ratio": 1.0787652762877185,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 10.91666646185331,
+          "after": 12.413984287995845,
+          "delta": 1.4973178261425346,
+          "ratio": 1.1371588874107945,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 5.607447900809348,
+          "after": 5.8292839848436415,
+          "delta": 0.2218360840342939,
+          "ratio": 1.0395609710439353,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 1.281990212853998,
+          "after": 1.544767176033929,
+          "delta": 0.26277696317993104,
+          "ratio": 1.204975795092016,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 4.843810292892158,
+          "after": 6.048776745097712,
+          "delta": 1.2049664522055537,
+          "ratio": 1.2487641710439672,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.536624776897952,
+          "after": 5.543856912991032,
+          "delta": 0.007232136093080044,
+          "ratio": 1.0013062355468365,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 9.71723958500661,
+          "after": 9.567419631872326,
+          "delta": -0.14981995313428342,
+          "ratio": 0.9845820459788343,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "production",
+      "temperature": "cold",
+      "count": 50,
+      "medianPairedRatio": 1.4180510211056285,
+      "p90PairedRatio": 2.2105277138185775,
+      "medianPairedDelta": 3.4342581901000813,
+      "pairedMedianDeltaBootstrap95": [
+        1.5802271749125794,
+        4.611843402963132
+      ],
+      "positiveDeltaPairs": 43,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 9.500923349056393,
+          "after": 10.367689448175952,
+          "delta": 0.8667660991195589,
+          "ratio": 1.0912296697147488,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 4.709692960139364,
+          "after": 4.834785856073722,
+          "delta": 0.12509289593435824,
+          "ratio": 1.026560732725697,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 5.357581363990903,
+          "after": 6.811967005953193,
+          "delta": 1.4543856419622898,
+          "ratio": 1.271463099326392,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 13.045920179923996,
+          "after": 14.076412746915594,
+          "delta": 1.0304925669915974,
+          "ratio": 1.0789896421854086,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 7.571423730114475,
+          "after": 11.702000482007861,
+          "delta": 4.130576751893386,
+          "ratio": 1.545548221725392,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 7.954253952018917,
+          "after": 12.566097354982048,
+          "delta": 4.611843402963132,
+          "ratio": 1.5797958464467396,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 10.910874112974852,
+          "after": 12.448749457020313,
+          "delta": 1.5378753440454602,
+          "ratio": 1.1409488669855212,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 10.955047584837303,
+          "after": 16.837815286125988,
+          "delta": 5.882767701288685,
+          "ratio": 1.5369915242934158,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 13.007502713007852,
+          "after": 7.42742504295893,
+          "delta": -5.580077670048922,
+          "ratio": 0.5710108394235663,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 15.419621739070863,
+          "after": 17.224926340859383,
+          "delta": 1.8053046017885208,
+          "ratio": 1.1170783974041443,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 11.108105978928506,
+          "after": 11.25858217291534,
+          "delta": 0.1504761939868331,
+          "ratio": 1.0135465212766495,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 12.858238358050585,
+          "after": 16.101562979863957,
+          "delta": 3.2433246218133718,
+          "ratio": 1.2522370896774297,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 19.208608628017828,
+          "after": 32.23987186397426,
+          "delta": 13.03126323595643,
+          "ratio": 1.6784074520082068,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 4.755847444059327,
+          "after": 9.569185169180855,
+          "delta": 4.813337725121528,
+          "ratio": 2.012088335830455,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 4.718206594930962,
+          "after": 4.253523585153744,
+          "delta": -0.4646830097772181,
+          "ratio": 0.9015127887200926,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 13.073354897787794,
+          "after": 16.53077553701587,
+          "delta": 3.4574206392280757,
+          "ratio": 1.2644631516744889,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 10.31043548998423,
+          "after": 9.264315656153485,
+          "delta": -1.046119833830744,
+          "ratio": 0.898537764496275,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 24.485741802025586,
+          "after": 89.12300360295922,
+          "delta": 64.63726180093363,
+          "ratio": 3.6397918561563247,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 14.104932264890522,
+          "after": 11.305630146991462,
+          "delta": -2.7993021178990602,
+          "ratio": 0.8015373583276979,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 12.860889690928161,
+          "after": 14.203904587076977,
+          "delta": 1.3430148961488158,
+          "ratio": 1.1044262821954032,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 5.62309078196995,
+          "after": 6.0609542690217495,
+          "delta": 0.4378634870517999,
+          "ratio": 1.0778688276660549,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 14.643863423960283,
+          "after": 24.49930089712143,
+          "delta": 9.855437473161146,
+          "ratio": 1.673008016247658,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 10.609011644031852,
+          "after": 12.189458858920261,
+          "delta": 1.5804472148884088,
+          "ratio": 1.148972144429448,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 8.614869348937646,
+          "after": 14.787650797050446,
+          "delta": 6.172781448112801,
+          "ratio": 1.716526414747544,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 8.351233386900276,
+          "after": 15.486456613056362,
+          "delta": 7.135223226156086,
+          "ratio": 1.8543915486002798,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 20.83461292902939,
+          "after": 29.880636765854433,
+          "delta": 9.046023836825043,
+          "ratio": 1.4341824764222517,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 13.52840848104097,
+          "after": 24.581494359998032,
+          "delta": 11.053085878957063,
+          "ratio": 1.8170278044492165,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 11.953222850104794,
+          "after": 15.36431859107688,
+          "delta": 3.411095740972087,
+          "ratio": 1.2853703794991307,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 10.172057526186109,
+          "after": 27.75302916811779,
+          "delta": 17.580971641931683,
+          "ratio": 2.7283594392454695,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 7.129487496102229,
+          "after": 5.95731329312548,
+          "delta": -1.1721742029767483,
+          "ratio": 0.835587873095003,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 12.40037192311138,
+          "after": 31.412571585038677,
+          "delta": 19.012199661927298,
+          "ratio": 2.5331959218491686,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 2.3632581839337945,
+          "after": 2.853519137017429,
+          "delta": 0.4902609530836344,
+          "ratio": 1.20745128755571,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 26.306464934023097,
+          "after": 27.886472068959847,
+          "delta": 1.58000713493675,
+          "ratio": 1.0600615528882131,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 1.9413316890131682,
+          "after": 5.8270400650799274,
+          "delta": 3.8857083760667592,
+          "ratio": 3.0015685099345237,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 5.23947584698908,
+          "after": 7.611162384040654,
+          "delta": 2.3716865370515734,
+          "ratio": 1.452657213491019,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 9.957662579836324,
+          "after": 17.43266720394604,
+          "delta": 7.475004624109715,
+          "ratio": 1.7506786421189,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 3.4830424229148775,
+          "after": 7.817998840939254,
+          "delta": 4.334956418024376,
+          "ratio": 2.244589037878141,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 22.487964163068682,
+          "after": 26.187073969980702,
+          "delta": 3.69910980691202,
+          "ratio": 1.1644928718352796,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 10.327006593812257,
+          "after": 19.135982426814735,
+          "delta": 8.808975833002478,
+          "ratio": 1.8530037966936757,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 6.24244715902023,
+          "after": 11.83731951797381,
+          "delta": 5.59487235895358,
+          "ratio": 1.8962626701403607,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 18.965570708969608,
+          "after": 19.337951593101025,
+          "delta": 0.3723808841314167,
+          "ratio": 1.0196345730822274,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 8.937479526968673,
+          "after": 19.7565461860504,
+          "delta": 10.819066659081727,
+          "ratio": 2.2105277138185775,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 13.624013306805864,
+          "after": 13.128640411887318,
+          "delta": -0.4953728949185461,
+          "ratio": 0.9636397232032148,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 12.467579545918852,
+          "after": 23.55855432804674,
+          "delta": 11.090974782127887,
+          "ratio": 1.889585243172434,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 26.94098037108779,
+          "after": 24.601033734856173,
+          "delta": -2.339946636231616,
+          "ratio": 0.9131454533576375,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 8.201999383047223,
+          "after": 12.313842315925285,
+          "delta": 4.111842932878062,
+          "ratio": 1.5013220241611895,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 2.415962274186313,
+          "after": 5.171186894876882,
+          "delta": 2.7552246206905693,
+          "ratio": 2.1404253494059704,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 7.315072099911049,
+          "after": 10.255142702022567,
+          "delta": 2.9400706021115184,
+          "ratio": 1.4019195657890056,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.506779117975384,
+          "after": 10.501669213175774,
+          "delta": 4.99489009520039,
+          "ratio": 1.9070438432687318,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 12.360531541984528,
+          "after": 17.767377772834152,
+          "delta": 5.406846230849624,
+          "ratio": 1.4374282944454615,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "production",
+      "temperature": "warm",
+      "count": 50,
+      "medianPairedRatio": 1.0108168554658352,
+      "p90PairedRatio": 1.0506274451599975,
+      "medianPairedDelta": 0.012762466445565224,
+      "pairedMedianDeltaBootstrap95": [
+        0.0037022269098088145,
+        0.019016790902242064
+      ],
+      "positiveDeltaPairs": 35,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 1.5260517899878323,
+          "after": 1.4737492429558188,
+          "delta": -0.052302547032013535,
+          "ratio": 0.9657268859581557,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 0.4607928120531142,
+          "after": 0.4328023218549788,
+          "delta": -0.027990490198135376,
+          "ratio": 0.9392558011627382,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 1.1897484089713544,
+          "after": 1.1650422750972211,
+          "delta": -0.02470613387413323,
+          "ratio": 0.9792341526260212,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 2.2069960220251232,
+          "after": 2.139261096017435,
+          "delta": -0.06773492600768805,
+          "ratio": 0.9693089949724808,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 1.5681733340024948,
+          "after": 1.4581040279008448,
+          "delta": -0.11006930610165,
+          "ratio": 0.929810497529175,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 1.255977253895253,
+          "after": 1.2785746441222727,
+          "delta": 0.022597390227019787,
+          "ratio": 1.017991878560648,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 1.021076497156173,
+          "after": 1.037356902146712,
+          "delta": 0.016280404990538955,
+          "ratio": 1.0159443538617154,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 1.8191976340021938,
+          "after": 1.7800317769870162,
+          "delta": -0.03916585701517761,
+          "ratio": 0.978470806973834,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 1.106342356884852,
+          "after": 1.1233819720800966,
+          "delta": 0.01703961519524455,
+          "ratio": 1.0154017561464639,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 1.1505095202010125,
+          "after": 1.1685357328969985,
+          "delta": 0.018026212695986032,
+          "ratio": 1.0156680256699107,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 1.1848208440933377,
+          "after": 1.1957497929688543,
+          "delta": 0.010928948875516653,
+          "ratio": 1.009224136231229,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 1.3931232448667288,
+          "after": 1.4498701638076454,
+          "delta": 0.05674691894091666,
+          "ratio": 1.040733595645621,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 3.0247643978800625,
+          "after": 3.0352416390087456,
+          "delta": 0.01047724112868309,
+          "ratio": 1.0034638205660005,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 0.47774542099796236,
+          "after": 0.49226982588879764,
+          "delta": 0.014524404890835285,
+          "ratio": 1.0304019761413836,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 0.8671388500370085,
+          "after": 0.8857354619540274,
+          "delta": 0.01859661191701889,
+          "ratio": 1.021445944805985,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 1.7256203410215676,
+          "after": 1.7615159989800304,
+          "delta": 0.035895657958462834,
+          "ratio": 1.0208015964492008,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 0.7390810188371688,
+          "after": 0.7415934868622571,
+          "delta": 0.0025124680250883102,
+          "ratio": 1.0033994487222,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 2.1433925710152835,
+          "after": 2.050023740157485,
+          "delta": -0.09336883085779846,
+          "ratio": 0.9564387634256045,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 1.0446623652242124,
+          "after": 1.0862463701050729,
+          "delta": 0.04158400488086045,
+          "ratio": 1.039806167298786,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 1.4108734980691224,
+          "after": 1.4342625848948956,
+          "delta": 0.02338908682577312,
+          "ratio": 1.01657773489812,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 0.8599399640224874,
+          "after": 0.7834647030103952,
+          "delta": -0.07647526101209223,
+          "ratio": 0.9110690696890412,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 0.8471026960760355,
+          "after": 0.8648421699181199,
+          "delta": 0.017739473842084408,
+          "ratio": 1.0209413497610826,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 0.8884331041481346,
+          "after": 0.8790823521558195,
+          "delta": -0.009350751992315054,
+          "ratio": 0.98947500723616,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 1.0805526829790324,
+          "after": 1.085291689960286,
+          "delta": 0.004739006981253624,
+          "ratio": 1.004385725060798,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 1.7704867599532008,
+          "after": 1.8646129800472409,
+          "delta": 0.09412622009404004,
+          "ratio": 1.0531640350117772,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 2.1911535100080073,
+          "after": 2.119751418940723,
+          "delta": -0.07140209106728435,
+          "ratio": 0.967413469325103,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 3.274964558891952,
+          "after": 3.3878344520926476,
+          "delta": 0.11286989320069551,
+          "ratio": 1.0344644624914303,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 1.693758541950956,
+          "after": 1.7260741759091616,
+          "delta": 0.03231563395820558,
+          "ratio": 1.0190792448615391,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 1.1080377749167383,
+          "after": 1.1045865279156715,
+          "delta": -0.003451247001066804,
+          "ratio": 0.996885262326615,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 0.6985513011459261,
+          "after": 0.7179882710333914,
+          "delta": 0.01943696988746524,
+          "ratio": 1.027824684966702,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 2.6692146628629416,
+          "after": 2.680215190863237,
+          "delta": 0.011000528000295162,
+          "ratio": 1.0041212601419236,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 0.6879158059600741,
+          "after": 0.69885766482912,
+          "delta": 0.010941858869045973,
+          "ratio": 1.015905811109799,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 17.89669505110942,
+          "after": 26.34904966200702,
+          "delta": 8.4523546108976,
+          "ratio": 1.4722857816350645,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 0.3749996230471879,
+          "after": 0.3939848958980292,
+          "delta": 0.018985272850841284,
+          "ratio": 1.0506274451599975,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 0.8216145380865782,
+          "after": 0.8481781859882176,
+          "delta": 0.026563647901639342,
+          "ratio": 1.0323310344087901,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 1.9163540969602764,
+          "after": 1.889912303071469,
+          "delta": -0.026441793888807297,
+          "ratio": 0.9862020312786925,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 0.7615064030978829,
+          "after": 0.7279191929847002,
+          "delta": -0.033587210113182664,
+          "ratio": 0.9558937259403906,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 1.6494562709704041,
+          "after": 1.7782639819197357,
+          "delta": 0.12880771094933152,
+          "ratio": 1.0780910129090913,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 2.560248302994296,
+          "after": 2.7082658431027085,
+          "delta": 0.1480175401084125,
+          "ratio": 1.0578137440557234,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 0.8577804830856621,
+          "after": 0.8606736010406166,
+          "delta": 0.002893117954954505,
+          "ratio": 1.0033727952687232,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 2.2000543628819287,
+          "after": 2.223193353973329,
+          "delta": 0.023138991091400385,
+          "ratio": 1.0105174633326286,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 2.1299325909931213,
+          "after": 2.15360944904387,
+          "delta": 0.023676858050748706,
+          "ratio": 1.011116247599042,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 1.6743465450126678,
+          "after": 1.7145127409603447,
+          "delta": 0.0401661959476769,
+          "ratio": 1.023989177191137,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 2.168626899830997,
+          "after": 2.1372685017995536,
+          "delta": -0.03135839803144336,
+          "ratio": 0.9855399755329572,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 4.91748229903169,
+          "after": 4.973306267987937,
+          "delta": 0.05582396895624697,
+          "ratio": 1.0113521443620122,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 1.0483259300235659,
+          "after": 1.05858722794801,
+          "delta": 0.01026129792444408,
+          "ratio": 1.0097882706423311,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 0.8010223018936813,
+          "after": 0.8636281311046332,
+          "delta": 0.06260582921095192,
+          "ratio": 1.0781574109271947,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 1.0504538910463452,
+          "after": 1.0549652269110084,
+          "delta": 0.004511335864663124,
+          "ratio": 1.0042946538664057,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 0.7460591339040548,
+          "after": 0.6491897709202021,
+          "delta": -0.09686936298385262,
+          "ratio": 0.8701585992561411,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 1.6191611029207706,
+          "after": 1.6194973869714886,
+          "delta": 0.00033628405071794987,
+          "ratio": 1.0002076902972232,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "check",
+      "temperature": "cold",
+      "count": 50,
+      "medianPairedRatio": 1.2441366437321468,
+      "p90PairedRatio": 2.195458934416026,
+      "medianPairedDelta": 2.2416930369799957,
+      "pairedMedianDeltaBootstrap95": [
+        0.8160860540810972,
+        3.680867420975119
+      ],
+      "positiveDeltaPairs": 45,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 6.860940909944475,
+          "after": 7.115082069998607,
+          "delta": 0.25414116005413234,
+          "ratio": 1.037041735731286,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 2.5308939651586115,
+          "after": 4.191336394986138,
+          "delta": 1.6604424298275262,
+          "ratio": 1.6560695361741344,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 2.03899979009293,
+          "after": 2.4529554760083556,
+          "delta": 0.4139556859154254,
+          "ratio": 1.2030189938845255,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 4.172347407788038,
+          "after": 7.673575804801658,
+          "delta": 3.5012283970136195,
+          "ratio": 1.8391507357412955,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 4.306020820979029,
+          "after": 6.77960323006846,
+          "delta": 2.473582409089431,
+          "ratio": 1.5744473870256461,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 5.462220253888518,
+          "after": 11.416248715948313,
+          "delta": 5.954028462059796,
+          "ratio": 2.090038150296331,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 7.618321822956204,
+          "after": 8.521234845975414,
+          "delta": 0.9029130230192095,
+          "ratio": 1.1185186244427836,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 6.798409275012091,
+          "after": 12.111121002817526,
+          "delta": 5.312711727805436,
+          "ratio": 1.7814639444160247,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 7.797245925059542,
+          "after": 5.2413560908753425,
+          "delta": -2.5558898341841996,
+          "ratio": 0.6722060765109596,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 13.93455230188556,
+          "after": 12.672578239114955,
+          "delta": -1.261974062770605,
+          "ratio": 0.9094356219395839,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 5.137493580812588,
+          "after": 5.476819040020928,
+          "delta": 0.33932545920833945,
+          "ratio": 1.066048833710595,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 10.087150546023622,
+          "after": 12.096954210894182,
+          "delta": 2.00980366487056,
+          "ratio": 1.199243944630412,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 17.975092574954033,
+          "after": 26.521387429907918,
+          "delta": 8.546294854953885,
+          "ratio": 1.4754520634214725,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 3.733218793058768,
+          "after": 4.4024383830837905,
+          "delta": 0.6692195900250226,
+          "ratio": 1.1792607471250582,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 1.8440882798749954,
+          "after": 2.087921750964597,
+          "delta": 0.24383347108960152,
+          "ratio": 1.13222440256826,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 6.3070104429498315,
+          "after": 13.333527771988884,
+          "delta": 7.026517329039052,
+          "ratio": 2.1140804970274796,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 8.238421372836456,
+          "after": 7.9242099351249635,
+          "delta": -0.3142114377114922,
+          "ratio": 0.9618602371144181,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 23.9266411610879,
+          "after": 28.992155726999044,
+          "delta": 5.065514565911144,
+          "ratio": 1.2117102242561832,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 7.307777883019298,
+          "after": 6.013217444997281,
+          "delta": -1.2945604380220175,
+          "ratio": 0.8228516987318238,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 11.664558627875522,
+          "after": 12.10331172705628,
+          "delta": 0.438753099180758,
+          "ratio": 1.0376142049757666,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 3.8501414391212165,
+          "after": 4.118280089925975,
+          "delta": 0.26813865080475807,
+          "ratio": 1.0696438442702925,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 10.245232759043574,
+          "after": 13.078685714164749,
+          "delta": 2.8334529551211745,
+          "ratio": 1.2765630632081106,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 5.060207701986656,
+          "after": 5.521462886128575,
+          "delta": 0.461255184141919,
+          "ratio": 1.091153409367135,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 6.014327394077554,
+          "after": 11.111112857004628,
+          "delta": 5.096785462927073,
+          "ratio": 1.847440641150662,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 5.177503645187244,
+          "after": 12.531214881921187,
+          "delta": 7.353711236733943,
+          "ratio": 2.4203198569584004,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 19.475130895152688,
+          "after": 31.84573165187612,
+          "delta": 12.370600756723434,
+          "ratio": 1.6351998773883696,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 6.936428193934262,
+          "after": 8.096016156021506,
+          "delta": 1.1595879620872438,
+          "ratio": 1.1671736417744907,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 10.955720988102257,
+          "after": 11.995829917024821,
+          "delta": 1.0401089289225638,
+          "ratio": 1.0949375152992766,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 10.214018665952608,
+          "after": 18.206183416070417,
+          "delta": 7.992164750117809,
+          "ratio": 1.7824701531786775,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 4.611257483018562,
+          "after": 4.8906072760000825,
+          "delta": 0.2793497929815203,
+          "ratio": 1.0605799598071144,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 8.615361703094095,
+          "after": 21.675711097195745,
+          "delta": 13.06034939410165,
+          "ratio": 2.5159374433938386,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 1.1274590878747404,
+          "after": 1.1827605029102415,
+          "delta": 0.05530141503550112,
+          "ratio": 1.0490495980122385,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 26.09844988794066,
+          "after": 26.273593727033585,
+          "delta": 0.1751438390929252,
+          "ratio": 1.0067108904875555,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 2.0936304710339755,
+          "after": 4.596479722997174,
+          "delta": 2.502849251963198,
+          "ratio": 2.195458934416026,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 3.7822593508753926,
+          "after": 7.382337796967477,
+          "delta": 3.600078446092084,
+          "ratio": 1.9518327835606664,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 6.506215377012268,
+          "after": 12.228688955074176,
+          "delta": 5.7224735780619085,
+          "ratio": 1.879539524357052,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 1.6640215148217976,
+          "after": 6.00983674894087,
+          "delta": 4.345815234119073,
+          "ratio": 3.611634041633453,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 21.266565328929573,
+          "after": 21.99582441407256,
+          "delta": 0.729259085142985,
+          "ratio": 1.0342913429537657,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 6.1823997378814965,
+          "after": 11.923630989855155,
+          "delta": 5.741231251973659,
+          "ratio": 1.9286412227270489,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 1.9987341060768813,
+          "after": 10.623233838006854,
+          "delta": 8.624499731929973,
+          "ratio": 5.314981020090839,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 16.453551433980465,
+          "after": 17.408062290865928,
+          "delta": 0.954510856885463,
+          "ratio": 1.058012451640937,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 6.084044449031353,
+          "after": 12.42332898802124,
+          "delta": 6.339284538989887,
+          "ratio": 2.041952371008593,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 7.1727048070169985,
+          "after": 7.430904934881255,
+          "delta": 0.2582001278642565,
+          "ratio": 1.0359975957203287,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 8.620924810878932,
+          "after": 15.093977919081226,
+          "delta": 6.4730531082022935,
+          "ratio": 1.750853678718298,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 13.622806160943583,
+          "after": 15.46442070393823,
+          "delta": 1.8416145429946482,
+          "ratio": 1.1351861372199903,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 5.587751822778955,
+          "after": 9.829508806113154,
+          "delta": 4.241756983334199,
+          "ratio": 1.7591169253513208,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 1.2728792990092188,
+          "after": 4.486148233059794,
+          "delta": 3.213268934050575,
+          "ratio": 3.5244097665440175,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 5.015345653053373,
+          "after": 7.930710213957354,
+          "delta": 2.9153645609039813,
+          "ratio": 1.5812888607446407,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.477368602063507,
+          "after": 9.337875047000125,
+          "delta": 3.860506444936618,
+          "ratio": 1.7048104163525233,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 14.011873516021296,
+          "after": 13.85033836401999,
+          "delta": -0.16153515200130641,
+          "ratio": 0.988471552229143,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "check",
+      "temperature": "warm",
+      "count": 50,
+      "medianPairedRatio": 1.0793485191614551,
+      "p90PairedRatio": 1.1608535453078443,
+      "medianPairedDelta": 0.37179599318187684,
+      "pairedMedianDeltaBootstrap95": [
+        0.22220809536520392,
+        0.49702292145229876
+      ],
+      "positiveDeltaPairs": 45,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 6.8179806971456856,
+          "after": 7.239970179041848,
+          "delta": 0.42198948189616203,
+          "ratio": 1.0618936164006487,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 0.9213277238886803,
+          "after": 1.046701039886102,
+          "delta": 0.12537331599742174,
+          "ratio": 1.1360789572989882,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 1.984950914978981,
+          "after": 2.4295390530023724,
+          "delta": 0.44458813802339137,
+          "ratio": 1.2239794116158782,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 4.404466791078448,
+          "after": 5.145309449872002,
+          "delta": 0.7408426587935537,
+          "ratio": 1.168202575688431,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 4.192704935092479,
+          "after": 4.752062743064016,
+          "delta": 0.5593578079715371,
+          "ratio": 1.1334121567415283,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 5.069043816998601,
+          "after": 5.61806600401178,
+          "delta": 0.5490221870131791,
+          "ratio": 1.108308826444167,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 5.274089507991448,
+          "after": 5.648820758098736,
+          "delta": 0.37473125010728836,
+          "ratio": 1.0710513633755143,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 6.837714266963303,
+          "after": 7.106342671904713,
+          "delta": 0.2686284049414098,
+          "ratio": 1.039286286974479,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 1.753708265023306,
+          "after": 1.9657878750003874,
+          "delta": 0.21207960997708142,
+          "ratio": 1.1209320924163306,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 10.777207304025069,
+          "after": 10.356148336082697,
+          "delta": -0.42105896794237196,
+          "ratio": 0.9609306051127814,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 5.034787783166394,
+          "after": 5.161904524080455,
+          "delta": 0.12711674091406167,
+          "ratio": 1.0252476859777628,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 6.4344292629975826,
+          "after": 6.62048460287042,
+          "delta": 0.18605533987283707,
+          "ratio": 1.028915593328966,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 17.64200310711749,
+          "after": 18.710175775922835,
+          "delta": 1.068172668805346,
+          "ratio": 1.0605471307492516,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 1.1842542700469494,
+          "after": 1.2960095128510147,
+          "delta": 0.11175524280406535,
+          "ratio": 1.094367608064132,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 1.9656711369752884,
+          "after": 2.0378202409483492,
+          "delta": 0.07214910397306085,
+          "ratio": 1.036704564978291,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 6.798905570060015,
+          "after": 7.031204518862069,
+          "delta": 0.23229894880205393,
+          "ratio": 1.0341671091631301,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 3.8707627998664975,
+          "after": 4.158216482959688,
+          "delta": 0.2874536830931902,
+          "ratio": 1.0742627998551357,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 25.20217367890291,
+          "after": 27.247782859951258,
+          "delta": 2.0456091810483485,
+          "ratio": 1.0811679661885973,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 2.242468390148133,
+          "after": 2.322925344109535,
+          "delta": 0.08045695396140218,
+          "ratio": 1.0358787460794876,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 11.909045447129756,
+          "after": 12.347261951072142,
+          "delta": 0.4382165039423853,
+          "ratio": 1.036796946143824,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 3.9513320848345757,
+          "after": 3.9489674977958202,
+          "delta": -0.002364587038755417,
+          "ratio": 0.9994015721817382,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 8.009684475837275,
+          "after": 8.37854521209374,
+          "delta": 0.3688607362564653,
+          "ratio": 1.0460518435363095,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 1.7503743791021407,
+          "after": 1.9624916210304946,
+          "delta": 0.2121172419283539,
+          "ratio": 1.121183927541924,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 5.415756295900792,
+          "after": 5.93805358489044,
+          "delta": 0.5222972889896482,
+          "ratio": 1.0964403234659907,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 4.8327887549530715,
+          "after": 6.254338063066825,
+          "delta": 1.4215493081137538,
+          "ratio": 1.2941467918821867,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 17.74688856699504,
+          "after": 19.1428440308664,
+          "delta": 1.3959554638713598,
+          "ratio": 1.078659166568922,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 4.265424101147801,
+          "after": 4.889783506980166,
+          "delta": 0.6243594058323652,
+          "ratio": 1.1463768645336705,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 10.96981868497096,
+          "after": 11.52810641610995,
+          "delta": 0.5582877311389893,
+          "ratio": 1.0508930682604503,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 10.10821762192063,
+          "after": 11.043730483856052,
+          "delta": 0.9355128619354218,
+          "ratio": 1.0925497349707503,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 0.9867836839985102,
+          "after": 1.1455113380216062,
+          "delta": 0.15872765402309597,
+          "ratio": 1.1608535453078443,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 6.383100854000077,
+          "after": 6.644854245008901,
+          "delta": 0.2617533910088241,
+          "ratio": 1.0410072466338665,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 1.0999172539450228,
+          "after": 1.1879522900562733,
+          "delta": 0.08803503611125052,
+          "ratio": 1.080037871753988,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 14.841351323993877,
+          "after": 15.868828610982746,
+          "delta": 1.0274772869888693,
+          "ratio": 1.0692307098294853,
+          "beforeExit": 1,
+          "afterExit": 1
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 2.063918892061338,
+          "after": 2.1224964710418135,
+          "delta": 0.058577578980475664,
+          "ratio": 1.0283817252731144,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 5.730612027924508,
+          "after": 3.8741746051236987,
+          "delta": -1.8564374228008091,
+          "ratio": 0.6760490129580161,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 6.8180754291825,
+          "after": 7.3089066438842565,
+          "delta": 0.49083121470175683,
+          "ratio": 1.071989701463395,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 1.5900900708511472,
+          "after": 2.004170823842287,
+          "delta": 0.4140807529911399,
+          "ratio": 1.2604133945503413,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 15.537381255999207,
+          "after": 17.37080764491111,
+          "delta": 1.833426388911903,
+          "ratio": 1.118000991203327,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 6.115475572878495,
+          "after": 7.040983164915815,
+          "delta": 0.9255075920373201,
+          "ratio": 1.1513386131639298,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 1.8436675339471549,
+          "after": 2.1152973850257695,
+          "delta": 0.2716298510786146,
+          "ratio": 1.1473312547284897,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 18.286989666055888,
+          "after": 16.561151158995926,
+          "delta": -1.7258385070599616,
+          "ratio": 0.9056247890671998,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 6.216279139975086,
+          "after": 6.411509272875264,
+          "delta": 0.19523013290017843,
+          "ratio": 1.0314062686864736,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 6.914009595056996,
+          "after": 7.507264761952683,
+          "delta": 0.5932551668956876,
+          "ratio": 1.0858047936930577,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 8.3135135602206,
+          "after": 9.009543447056785,
+          "delta": 0.696029886836186,
+          "ratio": 1.083722710234891,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 10.890174080850556,
+          "after": 12.091335735982284,
+          "delta": 1.2011616551317275,
+          "ratio": 1.1102977460428174,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 5.976995004108176,
+          "after": 5.848328885855153,
+          "delta": -0.12866611825302243,
+          "ratio": 0.9784731092857555,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 1.2935057019349188,
+          "after": 1.471143381902948,
+          "delta": 0.17763767996802926,
+          "ratio": 1.1373304189554836,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 4.201531577156857,
+          "after": 4.8876217170618474,
+          "delta": 0.6860901399049908,
+          "ratio": 1.1632952477699245,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.315700460923836,
+          "after": 5.787449014838785,
+          "delta": 0.4717485539149493,
+          "ratio": 1.0887462635230885,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 9.701371608069167,
+          "after": 10.04424988804385,
+          "delta": 0.3428782799746841,
+          "ratio": 1.0353432786441759,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 50,
+      "medianPairedRatio": 1.255336508453081,
+      "p90PairedRatio": 2.3209338205228054,
+      "medianPairedDelta": 2.3768217591568828,
+      "pairedMedianDeltaBootstrap95": [
+        0.8956229445757344,
+        3.93226350157056
+      ],
+      "positiveDeltaPairs": 44,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 7.144514812156558,
+          "after": 7.874930282123387,
+          "delta": 0.7304154699668288,
+          "ratio": 1.1022344398704318,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 3.269963816041127,
+          "after": 4.596520618069917,
+          "delta": 1.3265568020287901,
+          "ratio": 1.4056793520225626,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 2.7141942440066487,
+          "after": 3.2651417970191687,
+          "delta": 0.5509475530125201,
+          "ratio": 1.2029875180190568,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 5.271208507940173,
+          "after": 10.827744632959366,
+          "delta": 5.556536125019193,
+          "ratio": 2.054129449944775,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 5.235839096829295,
+          "after": 7.423764839069918,
+          "delta": 2.1879257422406226,
+          "ratio": 1.4178749006182372,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 5.666706745978445,
+          "after": 11.562008159933612,
+          "delta": 5.895301413955167,
+          "ratio": 2.0403399502081085,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 8.434591069119051,
+          "after": 9.592051621992141,
+          "delta": 1.15746055287309,
+          "ratio": 1.1372278209326372,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 7.776541703147814,
+          "after": 13.359751400072128,
+          "delta": 5.583209696924314,
+          "ratio": 1.717955346997538,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 7.841481930110604,
+          "after": 5.617058131843805,
+          "delta": -2.2244237982667983,
+          "ratio": 0.7163260952339626,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 18.156043891096488,
+          "after": 17.397666656877846,
+          "delta": -0.7583772342186421,
+          "ratio": 0.958230039607332,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 5.560238854959607,
+          "after": 5.7353709898889065,
+          "delta": 0.17513213492929935,
+          "ratio": 1.0314972323127962,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 11.083053384209052,
+          "after": 12.406326721888036,
+          "delta": 1.3232733376789838,
+          "ratio": 1.1193960988732907,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 19.21277866489254,
+          "after": 26.442385567119345,
+          "delta": 7.229606902226806,
+          "ratio": 1.376291583238683,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 3.9607634879648685,
+          "after": 4.731358708115295,
+          "delta": 0.770595220150426,
+          "ratio": 1.1945572419287211,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 2.340982807101682,
+          "after": 2.5475824289023876,
+          "delta": 0.2065996218007058,
+          "ratio": 1.0882533699837345,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 7.001276924973354,
+          "after": 16.249500402016565,
+          "delta": 9.248223477043211,
+          "ratio": 2.3209338205228054,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 9.268693353049457,
+          "after": 7.960561451967806,
+          "delta": -1.3081319010816514,
+          "ratio": 0.8588655540479966,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 29.12962164916098,
+          "after": 29.71665510791354,
+          "delta": 0.5870334587525576,
+          "ratio": 1.0201524573790497,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 8.373888267902657,
+          "after": 5.978994777891785,
+          "delta": -2.3948934900108725,
+          "ratio": 0.7140046041466107,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 12.446902887895703,
+          "after": 12.629328676965088,
+          "delta": 0.18242578906938434,
+          "ratio": 1.0146563197859275,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 4.207118469057605,
+          "after": 4.437118201050907,
+          "delta": 0.2299997319933027,
+          "ratio": 1.0546691835955888,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 10.888254879973829,
+          "after": 13.453972656046972,
+          "delta": 2.565717776073143,
+          "ratio": 1.2356408629625422,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 5.282297046855092,
+          "after": 6.0276577938348055,
+          "delta": 0.7453607469797134,
+          "ratio": 1.1411054206850175,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 6.845723130041733,
+          "after": 10.709534308174625,
+          "delta": 3.8638111781328917,
+          "ratio": 1.5644124228712908,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 5.806520282989368,
+          "after": 13.062668028054759,
+          "delta": 7.256147745065391,
+          "ratio": 2.2496551103632263,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 17.99800065602176,
+          "after": 34.19012630893849,
+          "delta": 16.19212565291673,
+          "ratio": 1.8996624659805854,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 8.558434185106307,
+          "after": 9.57908485410735,
+          "delta": 1.0206506690010428,
+          "ratio": 1.1192567059494616,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 11.975328637985513,
+          "after": 12.593399397097528,
+          "delta": 0.6180707591120154,
+          "ratio": 1.0516120081374223,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 10.54409937793389,
+          "after": 21.183493807911873,
+          "delta": 10.639394429977983,
+          "ratio": 2.009037761180772,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 4.859345698961988,
+          "after": 5.185894708149135,
+          "delta": 0.326549009187147,
+          "ratio": 1.0672002013062996,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 9.653062210883945,
+          "after": 23.263184600975364,
+          "delta": 13.61012239009142,
+          "ratio": 2.4099279682198507,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 1.4149572278838605,
+          "after": 1.5340622200164944,
+          "delta": 0.11910499213263392,
+          "ratio": 1.0841756837489438,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 22.091853972058743,
+          "after": 26.95925124385394,
+          "delta": 4.867397271795198,
+          "ratio": 1.2203254320778767,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 2.4184124728199095,
+          "after": 6.608968165004626,
+          "delta": 4.1905556921847165,
+          "ratio": 2.7327712866525444,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 4.029374236008152,
+          "after": 6.899890833999962,
+          "delta": 2.8705165979918092,
+          "ratio": 1.7123976155750655,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 8.363766634836793,
+          "after": 13.196547999046743,
+          "delta": 4.83278136420995,
+          "ratio": 1.5778235542919659,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 2.0305186479818076,
+          "after": 6.057278146035969,
+          "delta": 4.026759498054162,
+          "ratio": 2.9831186982973423,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 20.38353477115743,
+          "after": 20.02103463606909,
+          "delta": -0.36250013508833945,
+          "ratio": 0.9822160317551363,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 7.9211380609776825,
+          "after": 13.044764530146495,
+          "delta": 5.123626469168812,
+          "ratio": 1.646829588087803,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 2.377542410045862,
+          "after": 10.929044188000262,
+          "delta": 8.5515017779544,
+          "ratio": 4.596782013991264,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 19.925630541983992,
+          "after": 19.867219043895602,
+          "delta": -0.058411498088389635,
+          "ratio": 0.9970685244833124,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 6.613401778042316,
+          "after": 15.067751843016595,
+          "delta": 8.454350064974278,
+          "ratio": 2.278366315659853,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 8.052995706908405,
+          "after": 9.561583935981616,
+          "delta": 1.5085882290732116,
+          "ratio": 1.1873325510131643,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 9.61618055216968,
+          "after": 15.115411522099748,
+          "delta": 5.499230969930068,
+          "ratio": 1.5718726827242535,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 16.061013615923002,
+          "after": 18.181761001003906,
+          "delta": 2.1207473850809038,
+          "ratio": 1.1320431845583132,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 6.1961826181504875,
+          "after": 10.836853045038879,
+          "delta": 4.640670426888391,
+          "ratio": 1.748956367634238,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 1.7590940590016544,
+          "after": 5.166778513928875,
+          "delta": 3.407684454927221,
+          "ratio": 2.937181492649232,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 5.173815997783095,
+          "after": 8.254086676985025,
+          "delta": 3.0802706792019308,
+          "ratio": 1.5953576007576964,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 5.823841752950102,
+          "after": 9.11608619382605,
+          "delta": 3.2922444408759475,
+          "ratio": 1.565304584247716,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 13.953886664006859,
+          "after": 17.791654169093817,
+          "delta": 3.8377675050869584,
+          "ratio": 1.2750321539436198,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    },
+    {
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 50,
+      "medianPairedRatio": 1.0165726536599498,
+      "p90PairedRatio": 1.0597100273760247,
+      "medianPairedDelta": 0.01958984334487468,
+      "pairedMedianDeltaBootstrap95": [
+        0.006526391953229904,
+        0.030020212405361235
+      ],
+      "positiveDeltaPairs": 37,
+      "pairs": [
+        {
+          "lane": "001-snapback-weathervane-restorations",
+          "before": 1.4944164941553026,
+          "after": 1.4697839291766286,
+          "delta": -0.024632564978674054,
+          "ratio": 0.9835169344857926,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "002-snapback-infant-helmet-fittings",
+          "before": 0.4525303060654551,
+          "after": 0.4945214150939137,
+          "delta": 0.041991109028458595,
+          "ratio": 1.0927918162952492,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "003-snapback-music-box-restorations",
+          "before": 1.2968602371402085,
+          "after": 1.2627157571259886,
+          "delta": -0.03414448001421988,
+          "ratio": 0.9736714265451503,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "004-snapback-accessible-home-remodels",
+          "before": 2.3258439479395747,
+          "after": 2.543368784012273,
+          "delta": 0.21752483607269824,
+          "ratio": 1.093525120748277,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "005-snapback-spiral-staircase-commissions",
+          "before": 1.3962293199729174,
+          "after": 1.4795982108917087,
+          "delta": 0.0833688909187913,
+          "ratio": 1.0597100273760247,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "006-snapback-fishing-reel-servicing",
+          "before": 1.1742716170847416,
+          "after": 1.194027884863317,
+          "delta": 0.01975626777857542,
+          "ratio": 1.0168242742915157,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "007-snapback-tile-mosaic-commissions",
+          "before": 1.0590528619941324,
+          "after": 1.0772614090237767,
+          "delta": 0.01820854702964425,
+          "ratio": 1.017193237167934,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "008-snapback-brick-repointing-jobs",
+          "before": 1.8121014470234513,
+          "after": 1.8069348998833448,
+          "delta": -0.005166547140106559,
+          "ratio": 0.997148864293115,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "009-snapback-antique-globe-restorations",
+          "before": 1.1307849299628288,
+          "after": 1.1590762678533792,
+          "delta": 0.028291337890550494,
+          "ratio": 1.0250192031578282,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "010-snapback-whitewater-rafting-trips",
+          "before": 1.120301420101896,
+          "after": 1.146569883916527,
+          "delta": 0.026268463814631104,
+          "ratio": 1.0234476751910588,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "011-snapback-wood-stove-installs",
+          "before": 1.1897592160385102,
+          "after": 1.2282587320078164,
+          "delta": 0.03849951596930623,
+          "ratio": 1.032359081947267,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "012-snapback-animated-explainer-videos",
+          "before": 1.3976009169127792,
+          "after": 1.4120650060940534,
+          "delta": 0.014464089181274176,
+          "ratio": 1.0103492270262848,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "013-snapback-ladder-safety-inspections",
+          "before": 3.0271404278464615,
+          "after": 3.030550278024748,
+          "delta": 0.0034098501782864332,
+          "ratio": 1.0011264261634245,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "014-snapback-balloon-decor-installs",
+          "before": 0.4587877120357007,
+          "after": 0.4613093640655279,
+          "delta": 0.002521652029827237,
+          "ratio": 1.0054963373335313,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "015-snapback-baby-gear-rentals",
+          "before": 0.8560480088926852,
+          "after": 0.8613332258537412,
+          "delta": 0.005285216961055994,
+          "ratio": 1.0061739726115273,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "016-snapback-fire-engine-restorations",
+          "before": 1.7236008271574974,
+          "after": 1.8013040299993008,
+          "delta": 0.07770320284180343,
+          "ratio": 1.0450819015734338,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "017-snapback-petting-zoo-parties",
+          "before": 0.7415103551466018,
+          "after": 0.7423170739784837,
+          "delta": 0.0008067188318818808,
+          "ratio": 1.0010879400756614,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "018-snapback-orchard-pruning-visits",
+          "before": 2.8310074128676206,
+          "after": 2.5780773640144616,
+          "delta": -0.25293004885315895,
+          "ratio": 0.9106572283408619,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "019-snapback-pet-relocation-flights",
+          "before": 1.0263999218586832,
+          "after": 1.0679648388177156,
+          "delta": 0.041564916959032416,
+          "ratio": 1.0404958302059917,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "020-snapback-fat-bike-tours",
+          "before": 1.461581686977297,
+          "after": 1.3972263829782605,
+          "delta": -0.06435530399903655,
+          "ratio": 0.9559687258177612,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "021-snapback-rice-mill-lots",
+          "before": 0.7939715790562332,
+          "after": 0.8745393969584256,
+          "delta": 0.08056781790219247,
+          "ratio": 1.101474435644108,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "022-snapback-motorcycle-leathers-fittings",
+          "before": 0.8564240429550409,
+          "after": 0.8770604599267244,
+          "delta": 0.020636416971683502,
+          "ratio": 1.0240960271274948,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "023-snapback-gutter-repair-calls",
+          "before": 0.8860596551094204,
+          "after": 0.9054830740205944,
+          "delta": 0.01942341891117394,
+          "ratio": 1.0219211187408994,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "024-snapback-home-gym-installs",
+          "before": 1.2622414189390838,
+          "after": 1.2115791919641197,
+          "delta": -0.05066222697496414,
+          "ratio": 0.9598632827169101,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "025-snapback-chainsaw-safety-certifications",
+          "before": 1.860551567049697,
+          "after": 1.9403455529827625,
+          "delta": 0.07979398593306541,
+          "ratio": 1.042887274583631,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "026-snapback-film-camera-repairs",
+          "before": 1.7900224279146641,
+          "after": 1.8217715148348361,
+          "delta": 0.031749086920171976,
+          "ratio": 1.017736697834093,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "027-snapback-museum-diorama-builds",
+          "before": 3.2852363591082394,
+          "after": 3.4215496010147035,
+          "delta": 0.1363132419064641,
+          "ratio": 1.0414926741963448,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "028-snapback-lamp-post-restorations",
+          "before": 1.682026268914342,
+          "after": 1.6988039009738714,
+          "delta": 0.016777632059529424,
+          "ratio": 1.009974655193916,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "029-snapback-enclosed-car-shipping",
+          "before": 1.115445510018617,
+          "after": 1.1445940439589322,
+          "delta": 0.029148533940315247,
+          "ratio": 1.0261317416929032,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "030-snapback-acoustic-noise-studies",
+          "before": 0.6878190049901605,
+          "after": 0.6935951670166105,
+          "delta": 0.005776162026450038,
+          "ratio": 1.0083977935831137,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "031-snapback-cooling-tower-cleanings",
+          "before": 2.5831807719077915,
+          "after": 2.9009943560231477,
+          "delta": 0.3178135841153562,
+          "ratio": 1.123031878980981,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "032-snapback-private-school-placements",
+          "before": 0.6675885510630906,
+          "after": 0.666668662102893,
+          "delta": -0.0009198889601975679,
+          "ratio": 0.9986220719951941,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "033-snapback-garage-floor-coatings",
+          "before": 1.2898519109003246,
+          "after": 1.3044003988616168,
+          "delta": 0.014548487961292267,
+          "ratio": 1.011279192470349,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "034-snapback-vintage-handbag-restorations",
+          "before": 0.36832367186434567,
+          "after": 0.36785561009310186,
+          "delta": -0.00046806177124381065,
+          "ratio": 0.9987292107268734,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "035-snapback-drapery-cleaning-batches",
+          "before": 0.8113367650657892,
+          "after": 0.8109943510498852,
+          "delta": -0.00034241401590406895,
+          "ratio": 0.9995779631459493,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "036-snapback-mascot-costume-commissions",
+          "before": 1.8605325310491025,
+          "after": 1.8846047420520335,
+          "delta": 0.024072211002931,
+          "ratio": 1.0129383445874807,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "037-snapback-bespoke-glove-commissions",
+          "before": 0.7368811729829758,
+          "after": 0.7546398050617427,
+          "delta": 0.017758632078766823,
+          "ratio": 1.0240997228995252,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "038-snapback-welding-gas-deliveries",
+          "before": 1.5477494611404836,
+          "after": 1.5264851411338896,
+          "delta": -0.021264320006594062,
+          "ratio": 0.986261135577508,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "039-snapback-parrot-chick-reservations",
+          "before": 2.2892555079888552,
+          "after": 2.3279306578915566,
+          "delta": 0.03867514990270138,
+          "ratio": 1.0168942041496618,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "040-snapback-snowmobile-repairs",
+          "before": 0.837663944112137,
+          "after": 0.8334530990105122,
+          "delta": -0.004210845101624727,
+          "ratio": 0.9949731092865792,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "041-snapback-steamer-trunk-restorations",
+          "before": 2.197331839008257,
+          "after": 2.2447566508781165,
+          "delta": 0.047424811869859695,
+          "ratio": 1.0215829084291903,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "042-snapback-sports-memorabilia-consignments",
+          "before": 2.116966306231916,
+          "after": 2.1995131499134004,
+          "delta": 0.08254684368148446,
+          "ratio": 1.0389929889004295,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "043-snapback-pool-fence-inspections",
+          "before": 1.7839156240224838,
+          "after": 1.6653207989875227,
+          "delta": -0.1185948250349611,
+          "ratio": 0.9335199358994647,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "044-snapback-sash-window-restorations",
+          "before": 2.0890383010264486,
+          "after": 2.1231335641350597,
+          "delta": 0.03409526310861111,
+          "ratio": 1.0163210330283836,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "045-snapback-rainwater-cistern-installs",
+          "before": 4.814720227848738,
+          "after": 4.877185415942222,
+          "delta": 0.06246518809348345,
+          "ratio": 1.0129737939355603,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "046-snapback-walk-in-cooler-repairs",
+          "before": 1.0317076169885695,
+          "after": 1.0146680339239538,
+          "delta": -0.017039583064615726,
+          "ratio": 0.983484096866172,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "047-snapback-live-wedding-painters",
+          "before": 0.8030466379132122,
+          "after": 0.8614885320421308,
+          "delta": 0.05844189412891865,
+          "ratio": 1.0727752179883165,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "048-snapback-treehouse-builds",
+          "before": 1.000610311049968,
+          "after": 1.0078869329299778,
+          "delta": 0.00727662188000977,
+          "ratio": 1.00727218358601,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "049-snapback-wedding-officiant-bookings",
+          "before": 0.6247832679655403,
+          "after": 0.6467231311835349,
+          "delta": 0.02193986321799457,
+          "ratio": 1.035115958353745,
+          "beforeExit": 0,
+          "afterExit": 0
+        },
+        {
+          "lane": "050-snapback-grain-dryer-servicing",
+          "before": 1.6306386350188404,
+          "after": 1.668646726058796,
+          "delta": 0.038008091039955616,
+          "ratio": 1.0233087148947115,
+          "beforeExit": 0,
+          "afterExit": 0
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "mode": "review",
+      "temperature": "cold",
+      "lane": "026-snapback-film-camera-repairs",
+      "beforeSeconds": 19.530044754967093,
+      "afterSeconds": 28.80925947893411,
+      "beforeCpu": 18.170083000000204,
+      "afterCpu": 44.05743100000029,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.160172229
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.6036304620000001
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 2.096225473
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.350194308
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.931926152
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.11042958
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.6514491330000001
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00018787000000000003
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.79830633
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.7863186589999998
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 11.837449361000001
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 12.340330137
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 3.467897829
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.20181612
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.150140044
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 2.466935247
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 6.344606931
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.505814994
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.25008904
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.109781979
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 0.571783389
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000376022
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 10.612571099
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 5.925275763999999
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 19.406875111
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 24.031559366
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 20.929851769
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.714082484
+        }
+      }
+    },
+    {
+      "mode": "review",
+      "temperature": "cold",
+      "lane": "033-snapback-garage-floor-coatings",
+      "beforeSeconds": 24.8968934409786,
+      "afterSeconds": 27.130837925011292,
+      "beforeCpu": 55.508468999999195,
+      "afterCpu": 60.72307899999987,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.100019039
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.724141053
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.461857336
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.044143492
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 1.9408039200000002
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.00152729
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 6.118065719
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 5.7600999779999995
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 9.889366309
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 8.493e-06
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 17.685697168
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 17.2276259
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 20.763624929
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 20.487626395
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 20.801188522
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.035473011
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.099765107
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.733865406
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.563384946
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.041380338
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 1.411230717
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.0014014510000000002
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 3.693199851
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 5.9354466729999995
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 12.457036311
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 1.2219e-05
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 20.609303353
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 18.361074509
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 22.728066182000003
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 22.635900122
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 23.015718154
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.048546705
+        }
+      }
+    },
+    {
+      "mode": "review",
+      "temperature": "cold",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 16.356733452994376,
+      "afterSeconds": 26.75691287498921,
+      "beforeCpu": 15.84639100000004,
+      "afterCpu": 39.41842699999984,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.152316716
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.983667076
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.539954724
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.07144232
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.414022341
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00019092700000000002
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.6762011169999997
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 0.74223192
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 2.468348389
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 3.328625153
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 6.753066877
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 7.036188833
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 7.224404146
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 7.720074312
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.150919231
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.1234189940000001
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.844903992
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.07267525799999999
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 1.2227767290000002
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000522954
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 11.897590905999998
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 3.0017852700000005
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 3.7535001119999998
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 0.27754885
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 7.270555245
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 21.946970186
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 16.451531681
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 16.984836055
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 7.996601299
+        }
+      }
+    },
+    {
+      "mode": "review",
+      "temperature": "warm",
+      "lane": "026-snapback-film-camera-repairs",
+      "beforeSeconds": 22.866128709167242,
+      "afterSeconds": 23.432549878954887,
+      "beforeCpu": 20.94367000000011,
+      "afterCpu": 21.266217000000097,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.162794972
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.859908539
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 2.3008981360000003
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.649196808
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.9812758899999999
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.115976679
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.824718273
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000196675
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 5.368049457
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.999155836
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 14.517702008
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 15.042009218
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 3.710942376
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.506006968
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.157295465
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 2.043691497
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 2.3202575309999998
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.112821322
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.369172817
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.115734616
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.500693286
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000202334
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.17867992
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.9718047200000002
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 13.707901545
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 14.53722138
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 4.14056534
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 5.095372987
+        }
+      }
+    },
+    {
+      "mode": "review",
+      "temperature": "warm",
+      "lane": "013-snapback-ladder-safety-inspections",
+      "beforeSeconds": 18.620446997927502,
+      "afterSeconds": 21.088907960802317,
+      "beforeCpu": 17.535397000000103,
+      "afterCpu": 19.99021499999992,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.231511339
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.185116273
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.247393625
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 1.124593424
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.172089526
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.664041573
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.18528451499999998
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.15829332699999998
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00017070600000000002
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.519942693000001
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.8246919189999999
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 9.430275685
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 10.226352768
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.933469523
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.258546089
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.247805387
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.183265986
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.214684962
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 0.971833284
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.917146143
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.283309558
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.21215628
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.15813874300000003
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000239981
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.902915296000001
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.717073247
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 10.606419318
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 12.008517801
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.713133211
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.193825725
+        }
+      }
+    },
+    {
+      "mode": "review",
+      "temperature": "warm",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 44.805325740017,
+      "afterSeconds": 17.328452918911353,
+      "beforeCpu": 22.42388000000028,
+      "afterCpu": 16.717497999999864,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.148484797
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.973356585
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.540819417
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.072454006
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.434765909
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00018146200000000002
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 9.724898320000001
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 0.754793304
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 2.445332951
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 3.293647689
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 6.7381701320000005
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 7.021660729
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 35.26952633
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 35.780772173
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.150502073
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.138370226
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.850900459
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.07299679
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.346819878
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000198137
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.69960314
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 0.63655967
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 2.586189177
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 3.5196024870000002
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 6.972885403
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 7.508844904
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 7.424646649
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 8.050393642
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "cold",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 24.485741802025586,
+      "afterSeconds": 89.12300360295922,
+      "beforeCpu": 25.02218900000014,
+      "afterCpu": 45.66327899999999,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.148993866
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 0.715148035
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.463697012
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.086736203
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 2.220396999
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.597591977
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000305015
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 5.398471682
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.049624031
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 3.3893000769999997
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 4.7861467189999995
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 11.410985193
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 10.339376981000001
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 10.913198399
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 23.603859966999998
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.262967054
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 1.366112124
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.557494402
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.179923005
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 3.8296574030000006
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.0007357429999999999
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 43.551685206
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 5.064218432
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 20.130013619
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 0.500359491
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 33.91536111400001
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 76.10866930200001
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 43.583781374
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 50.403110452
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 35.697948242
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 88.120984621
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "cold",
+      "lane": "013-snapback-ladder-safety-inspections",
+      "beforeSeconds": 19.208608628017828,
+      "afterSeconds": 32.23987186397426,
+      "beforeCpu": 20.20484099999993,
+      "afterCpu": 48.99325799999991,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.232303149
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 2.193523869
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.786507657
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.278925903
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 2.169996555
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.170167985
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00017108799999999999
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.518208137999999
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.036126065
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.6889119149999999
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 0.8452534190000001
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 10.869472559
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.654390603
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.814655545
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 17.991503566
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.22367894
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 2.29502296
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 8.596739982
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 1.050553761
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 1.1497659169999999
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000416155
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 6.406365505
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 4.33339885
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 1.510807485
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 1.0085e-05
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 2.0644658209999998
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 12.803455181999999
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 19.273416623
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 23.632962492
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.9529017250000003
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 31.016969179
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "cold",
+      "lane": "031-snapback-cooling-tower-cleanings",
+      "beforeSeconds": 12.40037192311138,
+      "afterSeconds": 31.412571585038677,
+      "beforeCpu": 17.80477500000029,
+      "afterCpu": 39.59694999999965,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.196663186
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 1.195680324
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.63130898
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.219676109
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.30072754199999996
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00028771
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 0.31454489199999996
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.120064463
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 0.35756639300000004
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 0.7636577280000001
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.207095472
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 6.142357115
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 6.272575844
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 6.228810991
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.085683926
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 11.314361692
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.20342077
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 1.2643735729999999
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 5.546195207
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.722279975
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.246712674
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00023838899999999998
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.529601528000001
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.384197522
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.22429025900000002
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 4.874440556
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 7.389797079
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 10.963941491
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 2.164446934
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 21.300071685
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 24.666512393
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.50819229
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 30.282891673
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "warm",
+      "lane": "033-snapback-garage-floor-coatings",
+      "beforeSeconds": 17.89669505110942,
+      "afterSeconds": 26.34904966200702,
+      "beforeCpu": 35.673747000000276,
+      "afterCpu": 59.123281000000134,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.103855461
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 0.46904915
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.446692973
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.261184427
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 0.97353031
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.0009060189999999999
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 4.122788024
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 3.931881102
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 5.035372622000001
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 7.832e-06
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 8.573065251
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 8.774956907
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 11.526239530999998
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 11.530538489
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 14.013550709
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 2.914232129
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 17.772480066
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.102566388
+        },
+        "deploy.note_prediction": {
+          "calls": 1,
+          "seconds": 0.503779595
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.152234299
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.090744569
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 1.694786802
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.0017644940000000001
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 8.067079052999999
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 6.058113841
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 11.970048114
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 7.251e-06
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 20.031068364
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 17.267907766
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 21.548432394
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 20.039052916
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 22.323522733
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.014729533
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 26.224338424
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "warm",
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "beforeSeconds": 4.91748229903169,
+      "afterSeconds": 4.973306267987937,
+      "beforeCpu": 4.756638999999723,
+      "afterCpu": 4.822551000000203,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.385609342
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001114842
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.372860985
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001050876
+        }
+      }
+    },
+    {
+      "mode": "production",
+      "temperature": "warm",
+      "lane": "027-snapback-museum-diorama-builds",
+      "beforeSeconds": 3.274964558891952,
+      "afterSeconds": 3.3878344520926476,
+      "beforeCpu": 3.218808000000081,
+      "afterCpu": 3.3191729999998643,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.270427007
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001528282
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.277614196
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001865047
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "cold",
+      "lane": "026-snapback-film-camera-repairs",
+      "beforeSeconds": 19.475130895152688,
+      "afterSeconds": 31.84573165187612,
+      "beforeCpu": 17.68433899999991,
+      "afterCpu": 49.61500899999987,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.156203276
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.557193445
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 1.9577680229999999
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.316704436
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.9321490530000001
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.1102034
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.595959413
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000195095
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.7168260330000003
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.701404357
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 11.753234284
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 12.226648117
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 3.668744564
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.449051863
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.158944678
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 2.978844963
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 7.6621601
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.707870686
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.351233991
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.114646524
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 0.8232779120000001
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000420101
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 14.032347401
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 7.0954888700000005
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 22.974987983
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 26.879597943
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 24.110935622
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.506891696
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "cold",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 23.9266411610879,
+      "afterSeconds": 28.992155726999044,
+      "beforeCpu": 22.39488600000027,
+      "afterCpu": 36.97003700000005,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.18498983
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.203081892
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.679537972
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.08912556699999999
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.65922684
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000284647
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 5.6088766880000005
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.0184422359999998
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 3.903345708
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 5.301562153
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 9.569630852
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 9.965368453
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 11.53812166
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 12.117337774
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.193302458
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.344044228
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.139492707
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.085565118
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 0.960856245
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.00047115699999999993
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 10.444297677
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 2.086020334
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 5.426913352
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 0.164414443
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 9.627937846
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 23.395300132000003
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 13.861366851
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 14.557332524
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 12.514758955
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "cold",
+      "lane": "013-snapback-ladder-safety-inspections",
+      "beforeSeconds": 17.975092574954033,
+      "afterSeconds": 26.521387429907918,
+      "beforeCpu": 17.080862999999965,
+      "afterCpu": 35.797065999999916,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.247089491
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.19820221
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.256650372
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 0.935124675
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.272790011
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.518407848
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.17533971599999998
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.167276821
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000205839
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.287902052
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.694025902
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 9.206350164
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 9.973591884
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.797422203
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.989163558
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.237074195
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.17112981100000002
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 3.524518053
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 1.816779848
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.632260482
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.100199268
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.182594476
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 0.848449348
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000483426
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 4.635758956
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 1.300796149
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 1.6885e-05
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 14.118133434
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 16.886901692
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 18.120825142
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.046638327
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "warm",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 25.20217367890291,
+      "afterSeconds": 27.247782859951258,
+      "beforeCpu": 23.48660300000006,
+      "afterCpu": 25.384916000000203,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.193411068
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.096672835
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.815615979
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.101665011
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.71019951
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000309424
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 5.984079545
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.07519909
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 4.0958707489999995
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 5.5632926529999995
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 10.186412357
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 10.499833982
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 12.195894398
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 13.034402279
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.237059461
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 1.4838481479999999
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.3223078149999998
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.099810902
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.649794811
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000337027
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 5.845409567
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.008929305
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 4.125687241
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 5.743723245
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 10.677445775
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 11.462395727
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 12.580627035
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 13.525463145
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "warm",
+      "lane": "026-snapback-film-camera-repairs",
+      "beforeSeconds": 17.74688856699504,
+      "afterSeconds": 19.1428440308664,
+      "beforeCpu": 16.772061999999778,
+      "afterCpu": 17.787432999999965,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.179474216
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.388447569
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 1.9054790650000002
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.197739254
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.825931699
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.106126827
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.567826792
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000182573
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.4270025750000004
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.67608219
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 11.000812317
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 11.447076905
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.926865375
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.615890207
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.15595879
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.865042973
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 1.923735124
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 2.497803427
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.2054819669999999
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.10596734799999999
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.469913925
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00017955
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.327919803
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.64318077
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 11.581671108
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 12.317553642
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 3.028230833
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.850516785
+        }
+      }
+    },
+    {
+      "mode": "check",
+      "temperature": "warm",
+      "lane": "013-snapback-ladder-safety-inspections",
+      "beforeSeconds": 17.64200310711749,
+      "afterSeconds": 18.710175775922835,
+      "beforeCpu": 16.885084000000177,
+      "afterCpu": 17.953113000000087,
+      "before": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.227996145
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.19705903
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.219211853
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 0.9348441409999999
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.265915767
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.529818766
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.174290788
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.15516725199999998
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.00015275
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.1564522870000005
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.689661219
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 9.046277311
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 9.812561164
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.646812517
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.845385359
+        }
+      },
+      "after": {
+        "check.bind": {
+          "calls": 1,
+          "seconds": 0.230888851
+        },
+        "campaign.authored creator input probes": {
+          "calls": 2,
+          "seconds": 0.14649952100000002
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.109734129
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 0.929222581
+        },
+        "check.report": {
+          "calls": 1,
+          "seconds": 3.519177124
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 2.0755412570000003
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.179751538
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.15395150800000001
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000222752
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 4.132807119000001
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 0.690102273
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 9.26783735
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 10.500242002
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.6051845719999998
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 3.977935739
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "cold",
+      "lane": "026-snapback-film-camera-repairs",
+      "beforeSeconds": 17.99800065602176,
+      "afterSeconds": 34.19012630893849,
+      "beforeCpu": 17.07889900000032,
+      "afterCpu": 56.16345100000035,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.144254464
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 1.297765436
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 1.7759097169999998
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 2.120699551
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.834610445
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.10534157499999999
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.5876108409999998
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000182322
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 3.466447815
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 1.5516788579999998
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 10.631021434
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 11.078211763
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 2.706225642
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.402261792
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 17.238870362
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.168191004
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 2.469116996
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 7.127378309999999
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 2.357322738
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.200692803
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.109006398
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 1.075278865
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.00042219299999999996
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 13.87612618
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 6.740617165
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 25.511539898
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 28.766209066000002
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 26.456825862
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.866162046
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 33.356168701
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "cold",
+      "lane": "018-snapback-orchard-pruning-visits",
+      "beforeSeconds": 29.12962164916098,
+      "afterSeconds": 29.71665510791354,
+      "beforeCpu": 26.068542999999977,
+      "afterCpu": 39.29027800000006,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.178565463
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 1.2636644719999999
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.8433877639999999
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.09761035000000001
+        },
+        "campaign.derived direct probes": {
+          "calls": 4,
+          "seconds": 0.73249947
+        },
+        "campaign.derived creator continuations": {
+          "calls": 4,
+          "seconds": 0.000295004
+        },
+        "campaign.derived replay": {
+          "calls": 4,
+          "seconds": 7.0100712739999995
+        },
+        "campaign.empty-start phase": {
+          "calls": 2,
+          "seconds": 1.089777705
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 2,
+          "seconds": 4.249330679
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 5.787734769
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 10.570385684
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 10.915046327
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 14.342277507
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 15.17999082
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 27.976565585
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.241861671
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 1.264401653
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 1.287835745
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.098846886
+        },
+        "campaign.derived direct probes": {
+          "calls": 6,
+          "seconds": 1.044170079
+        },
+        "campaign.derived creator continuations": {
+          "calls": 6,
+          "seconds": 0.000498959
+        },
+        "campaign.derived replay": {
+          "calls": 6,
+          "seconds": 11.265066794
+        },
+        "campaign.empty-start phase": {
+          "calls": 3,
+          "seconds": 2.570025155
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 3,
+          "seconds": 4.971825633
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 0.173998464
+        },
+        "campaign.generated initialization": {
+          "calls": 3,
+          "seconds": 8.653163754
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 22.556782513
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 14.2201301
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 14.9087124
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 11.540742791
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 28.447864638
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "cold",
+      "lane": "033-snapback-garage-floor-coatings",
+      "beforeSeconds": 22.091853972058743,
+      "afterSeconds": 26.95925124385394,
+      "beforeCpu": 46.75688900000068,
+      "afterCpu": 59.28029000000015,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.103500189
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 0.657603974
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.45885179600000003
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.043577202999999995
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 1.3045698059999997
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.001194351
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 5.551205951999999
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 5.921459169999999
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 7.515850265
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 4.126e-06
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 14.301764962
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 16.955005218
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 14.315210558
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 17.072448146
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 17.38543457
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.061855852
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 21.488308601
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.104620218
+        },
+        "deploy.report": {
+          "calls": 1,
+          "seconds": 0.752902452
+        },
+        "witness.candidates": {
+          "calls": 2,
+          "seconds": 0.549809175
+        },
+        "witness.stages": {
+          "calls": 2,
+          "seconds": 0.045190812
+        },
+        "campaign.derived direct probes": {
+          "calls": 8,
+          "seconds": 2.1642663019999997
+        },
+        "campaign.derived creator continuations": {
+          "calls": 8,
+          "seconds": 0.0018266700000000003
+        },
+        "campaign.derived replay": {
+          "calls": 8,
+          "seconds": 6.632238738
+        },
+        "campaign.empty-start phase": {
+          "calls": 4,
+          "seconds": 5.951145239
+        },
+        "campaign.pre-transition checkpoint": {
+          "calls": 4,
+          "seconds": 10.713954785999999
+        },
+        "campaign.pre-loosening checkpoint": {
+          "calls": 1,
+          "seconds": 2.7171e-05
+        },
+        "campaign.generated initialization": {
+          "calls": 4,
+          "seconds": 18.012577937000003
+        },
+        "witness.gate_campaign": {
+          "calls": 1,
+          "seconds": 17.547507004
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 22.097627523999996
+        },
+        "witness.derived_report": {
+          "calls": 1,
+          "seconds": 21.848421412
+        },
+        "deploy.witnesses": {
+          "calls": 1,
+          "seconds": 22.219681748
+        },
+        "deploy.restored_questions": {
+          "calls": 1,
+          "seconds": 3.030250914
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 26.373172075
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "warm",
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "beforeSeconds": 4.814720227848738,
+      "afterSeconds": 4.877185415942222,
+      "beforeCpu": 4.695166000000427,
+      "afterCpu": 4.738514999999552,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.368430139
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001026098
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.399403139
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001233039
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "warm",
+      "lane": "027-snapback-museum-diorama-builds",
+      "beforeSeconds": 3.2852363591082394,
+      "afterSeconds": 3.4215496010147035,
+      "beforeCpu": 3.2267160000003514,
+      "afterCpu": 3.3308360000003177,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.263686057
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001360771
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.265536311
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001364787
+        }
+      }
+    },
+    {
+      "mode": "staging",
+      "temperature": "warm",
+      "lane": "013-snapback-ladder-safety-inspections",
+      "beforeSeconds": 3.0271404278464615,
+      "afterSeconds": 3.030550278024748,
+      "beforeCpu": 2.9427689999998847,
+      "afterCpu": 2.9635489999999436,
+      "before": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.224340302
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001072458
+        }
+      },
+      "after": {
+        "deploy.bind": {
+          "calls": 1,
+          "seconds": 0.233477316
+        },
+        "deploy.security": {
+          "calls": 1,
+          "seconds": 0.001543675
+        }
+      }
+    }
+  ]
+}

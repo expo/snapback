@@ -1,0 +1,411 @@
+{
+  "schemas": 800,
+  "originallyEnumerated": 26,
+  "allTestQualificationGaps": [
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 18,
+      "lane": "030-snapback-cat-show-ring-judging",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 18,
+      "lane": "043-snapback-safe-deposit-access",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 19,
+      "lane": "030-snapback-cat-show-ring-judging",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 21,
+      "lane": "049-snapback-sign-shop-installs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 22,
+      "lane": "025-snapback-backflow-test-filings",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 25,
+      "lane": "020-snapback-fly-fishing-guide-trips",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "003-snapback-vintage-amplifier-repairs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "016-snapback-vintage-motorcycle-restorations",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "028-snapback-chandelier-restorations",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "029-snapback-boat-delivery-voyages",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "035-snapback-sheepskin-tannery-orders",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "038-snapback-water-cooler-deliveries",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 26,
+      "lane": "041-snapback-espresso-machine-repairs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "016-snapback-vintage-motorcycle-restorations",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "038-snapback-water-cooler-deliveries",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 27,
+      "lane": "048-snapback-shade-sail-installs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 28,
+      "lane": "005-snapback-wrought-iron-gate-commissions",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 28,
+      "lane": "006-snapback-binocular-overhaul-jobs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 28,
+      "lane": "016-snapback-vintage-tractor-restorations",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 30,
+      "lane": "026-snapback-film-camera-repairs",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    },
+    {
+      "wave": 30,
+      "lane": "050-snapback-grain-dryer-servicing",
+      "kind": "private HTTP preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
+      },
+      "cause": "Root cause not assigned from retained summary; pending production security findings can block private deploy, while timeouts are separate gaps."
+    }
+  ],
+  "counts": {
+    "preparation-exit": 14,
+    "timeout": 26
+  },
+  "assessment": "Retrospective accounting from immutable original records, not new executions or changed verdicts. Original precision receipts remain unchanged. No incomplete test campaign is PASS."
+}

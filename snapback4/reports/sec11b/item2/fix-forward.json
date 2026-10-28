@@ -1,0 +1,71 @@
+{
+  "replays": [
+    {
+      "lane": "018",
+      "binarySha256": "c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73",
+      "sourceHashes": {
+        "originalSchema": "5227a0fe8239f3b39617bb9dd57bb3f7cdc863baa82b17a34596688c57a7c30f",
+        "fixedSchema": "8ad72ddff420ccd1b07070df55c4ace87cc32dd218cb1a85d361dee4490e4aee",
+        "originalAcceptance": "f7819fa98ce2328157ec71f682cd6665c441dd8cde164a5aa4ab0ee54d87562a",
+        "replayedAcceptance": "f7819fa98ce2328157ec71f682cd6665c441dd8cde164a5aa4ab0ee54d87562a"
+      },
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "originalScriptUnchanged": true,
+        "allOriginalAssertionsRetained": true,
+        "passedChecks": null,
+        "completion": "acceptance: all checks passed",
+        "privateLogRetained": true
+      }
+    },
+    {
+      "lane": "025",
+      "binarySha256": "c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73",
+      "sourceHashes": {
+        "originalSchema": "3d0aa3a00136e31027bd2b59ce44e4ec26c424be80638ed83b297d4cbdcbebe6",
+        "fixedSchema": "e6af8b01c8ee7e9b13b2b8de30bb52cf5b2582286c2c5758a030deba555fcecf",
+        "originalAcceptance": "d9bcf5db313d6b7e859acb2a96452be4c0d98f80b5d3306fa92239a45942852a",
+        "replayedAcceptance": "67d82ad11d8b3c2611e852bf33bc6d11ae9b9239762b8db393adb298d1acabd1"
+      },
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "originalScriptUnchanged": false,
+        "allOriginalAssertionsRetained": true,
+        "passedChecks": 16,
+        "completion": "acceptance: all checks passed",
+        "privateLogRetained": true
+      },
+      "unchangedAcceptanceBeforeFixtureIsolation": {
+        "passedChecks": 14,
+        "failures": [
+          "FAIL - pass needs 70+ on every stage: log strict: expected sent, got failed {\"code\":\"BAD_ATTEMPT\",\"family\":\"rule\",\"guide\":\"programs\",\"message\":\"the program refused with BAD_ATTEMPT\",\"rule\":\"BAD_ATTEMPT\",\"site\":\"schema.q:111:3\"}",
+          "FAIL - retest after 30 days costs the full fee: log E5: expected sent, got failed {\"code\":\"BAD_ATTEMPT\",\"family\":\"rule\",\"guide\":\"programs\",\"message\":\"the program refused with BAD_ATTEMPT\",\"rule\":\"BAD_ATTEMPT\",\"site\":\"schema.q:111:3\"}"
+        ],
+        "originalScriptUnchanged": true,
+        "repair": "count-derived ordinal and latest prior subject; original refusals retain precedence"
+      }
+    },
+    {
+      "lane": "033",
+      "binarySha256": "c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73",
+      "sourceHashes": {
+        "originalSchema": "3cefc074528db8e63dd1d1a2b2e84b1c7f3f873b18e8fc656564e28e57283825",
+        "fixedSchema": "2d6f7f644113d72456e0483c14b3326231821d31422112d6a8a2dcc6d18d6a52",
+        "originalAcceptance": "380abe584b1cfadbdcc720340ca47f899297649f98e0cb359944b6a34049f554",
+        "replayedAcceptance": "380abe584b1cfadbdcc720340ca47f899297649f98e0cb359944b6a34049f554"
+      },
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "originalScriptUnchanged": true,
+        "allOriginalAssertionsRetained": true,
+        "passedChecks": 66,
+        "completion": "acceptance: all 66 checks passed",
+        "privateLogRetained": true
+      }
+    }
+  ],
+  "scope": "Targeted approval witnesses only. This is not a full schema-security or publication claim. The untouched 025 script resets one candidate to attempt 1 in independent scenarios; the isolated copy retains every original assertion."
+}

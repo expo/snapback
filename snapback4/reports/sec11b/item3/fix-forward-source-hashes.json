@@ -1,0 +1,16 @@
+[
+  {
+    "lane": "004",
+    "root": "/home/ccheever/sb4-loop/reports/sec11b/fix-forward-004",
+    "originalSchema": "9b9794afc2d8ee22f89bca08d6fef0f0efc5386120fb1da31f451b94681f4778",
+    "fixedSchema": "cab349273a503cb80559103e56dbe8643b254c4c8da54d43e95c9f3fe8baaa7a",
+    "acceptanceChanged": true
+  },
+  {
+    "lane": "014",
+    "root": "/home/ccheever/sb4-loop/reports/sec11b/fix-forward-014",
+    "originalSchema": "99c9823228cc50930a3229f0eecb2e4e6628c82d5d0d9f1cf403c2121981a4ab",
+    "fixedSchema": "f447e54190fce385266d38a8996d0f45ed8dc50aa65bde35a44c64b7351c95b9",
+    "acceptanceChanged": false
+  }
+]

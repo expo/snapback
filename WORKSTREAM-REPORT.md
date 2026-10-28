@@ -1,96 +1,275 @@
-# Integration 28 — TOK1/DX15/DX14, SEC11/SEC11L, SEC12, SECP / 0.4.44
+# Integration 29 — REL3, SEC11b, SEC13; Snapback 4 0.4.45
 
-Source integration and local 0.4.44 pack. npm publication and full platform qualification remain separate. No publication directory/worktree was accessed; original wave stores were never opened.
+Status: 0.4.45 integrated and verified in the commissioned scope. Delivery target is origin/main by non-force push. Negative metrology results remain explicit below.
 
-## Commits and scope
+## Changes and commits
 
-Started clean at `f032742ac8`, branch `sb4-loop`. Pre-merge fetched main is `98177aa48b35b99779a95b4db3e26710ac76bf0c`.
+Pre-merge main: `982e77a600987686239e8f8eb0157df2edb90457`.
+Initial requested origin/main merge: `96b15e86ac`.
+Ordered no-fast-forward lane merges: REL3 `510d3daf29` (e856f64ff2),
+SEC11b `3c9717b91b` (75a492a14e), SEC13 `441efa2760` (ae9468c1fc).
+Early version commit: `f8df5d7b8e`, `snapback4 0.4.45: recoverable releases and witnessed evidence and approval questions`.
 
-- Initial main merge `ba7284e84d`.
-- TOK1 `e84bd1f2eb`, including DX15 `10c6fc88de` and DX14 `c0fbcaf442`: merge `cc8381322b`.
-- SEC11L `c7330da165`, including only commissioned SEC11 item 1 `1f9b2610d3`: merge `24d4c46c92`.
-- SEC12 `e5467713f9`: merge `309caff0a8`.
-- SECP `40514dac32`: merge `97d4fededf`.
-- Early bump `7fa538ca0d`: **snapback4 0.4.44: bounded builder reading and faster witnessed security review**. Updates manifests, locks and LLP 3000.037 before extended verification.
-- `1dbc510de1` repairs the fixture/cache seam and patched starter tooling; `ebe7eaa12f` records requested conflict reviews and fixes pending-evidence test callers.
-- `898495c0de` preserves concrete witnessed questions across SECP advisory omissions; `9b9f1a74af` refreshes the authoring census and records default latency profiling.
-- `93cee47c6e` completes merged fixture/reference routing repairs and test-output isolation.
-- `c9fda9432a` makes the isolated social optional-upload fixture use its existing owned toolchain deadline instead of a nested 30-second fuse; all product/JSON/no-decision assertions and outer five-/twenty-minute guards remain. All 63 qualifier/custody tests, including fail-closed timeout cleanup, pass. All intermediate commits and their failed/superseded evidence remain in history.
+REL3 makes redundant rollback idempotent and preserves subsequent forward
+selection, repairs release/rollback result views and compatibility, and gives
+specific refusal/repair advice. SEC11b adds approval-act/history, assignment
+scope and transition questions. SEC13 adds current replay of missing evidence,
+movable stored anchors and wrong event-time windows. One 0.4.45 guide changes
+entry explains the new default nonblocking witnessed questions, release and
+rollback behavior, retained rows/accounts, server-store fence/protocol 11,
+restart requirements and generated alias client rebuilds. The 0.4.44 entry was
+restored byte-for-byte. LLP 3000.037 records this integration.
 
-SEC11b beyond `1f9b2610d3`, REL3 and SEC13 were not merged. SECP's duplicate LLP identity is finally `3000.036.004.005`; .003/.004 are reserved on excluded SEC11b. SEC12's existing .002 collides with another excluded SEC11b document: `issues/20261027-snapback4-sec11b-llp-number-collision.md` records the required reassignment before that lane lands. No excluded branch was edited.
+## Integration seams
 
-## Seams and requested reviews
+Authored security resolutions combine the lane candidate/observer families while
+retaining SEC11L fixed search budgets, independent concurrent campaigns and
+current gate evaluations. Time candidates join the existing batched compiler;
+family sites and columns remain distinct. SECP omissions apply to advice only;
+current executable questions are independently restored. Each decision has one
+disposition. Unsupported SEC13 evidence cannot acquire a prose acknowledgment,
+and a refused batch writes no partial decisions.
 
-1. Gates, witnessed questions and advisory precision retain separate dispositions. SEC12's pending evidence snapshot carries SEC11L's cached report and exact predicted/actual predecessor-note vectors; vector mismatch falls back rather than reusing stale evidence. SQLite retains main's cache revision/ownership and SEC11L's immutable campaign asset cache, with independent revision state for forks.
+The first Codex review found that compact SEC13 cards lost their hypothesis
+context. `dd68d838e8` repairs it without extra lines and adds focused formatter
+and batched-time equivalence assertions. One Muse review and one fresh Codex
+review independently approved the resulting resolution-only diff (both READY,
+round 2). Actual verbatim reviews, provenance and original round-1 finding are
+under `llp/reviews/3000.036.004.001-integration29-security-merge-*`.
+Generated censuses, diagnostic registry, guide manifest, declaration digests
+and inventories were regenerated, never hand-merged.
 
-   The full source-bound survey exposed 48 previously witnessed findings that SECP would otherwise omit (40 argument-grant, eight guard-not-consumed). The integration retains a pre-omission candidate basis for those families and independently replays omitted candidates under the unchanged 8,192-work budget. Only a concrete current witness restores a question. It never promotes advice to a gate or accepts cached stale evidence. Guarded/unique-parent opposing controls keep unnecessary advice omitted. All 521 prior check findings (including seven gates) and 518 production findings (including 20 gates) remain on the 850 exact-source baseline; zero lost findings.
+TOK1's four recorded pre-schema reading paths were replayed against the actual
+new native binary. All output and README bytes match the original recorded
+paths; measured token counts are 2315, 2315, 3014 and 3008, all below 10000.
+This is deterministic reading replay, not a new agent bakeoff. No guide budget
+was increased. The final native replays the same 7970-byte guide start card (explicit --repeat
+for the existing reading cache) and unchanged README bytes. The 78-schema external sequential/unoptimized comparison has zero literal
+decision-ID, witness-ID, tier and verdict mismatches. It disables batching,
+concurrency, report/advice reuse and asset-byte caching while preserving merged
+rules, fixed budgets and fixture constructors. Its strict raw comparator remains
+exit 1 for the known wave23-008 arborist upload-ID presentation issue: 29 expanded
+payload fields/summary scalars differ. Two cold runs of the identical final
+executable reproduce that same raw mismatch with identical IDs and verdicts.
+The existing ticket was updated; no scalar was normalized and no assertion was
+weakened. Literal full-payload qualification is not established. Final cold/warm replay on 50 wave30 schemas has zero ID, witness, tier,
+verdict or raw full-payload mismatches. Final exact compiler capture covers all
+980 source snapshots and confirms exactly two changed models, 978 unchanged.
 
-   SEC11L identity comparison on the merged rules: 61 schemas, zero identity/raw-payload/verdict mismatches against an external sequential control disabling batching, concurrency and report/advice/asset-byte caching. Fifty cold/warm comparisons also match exactly. Twenty-two calibrated fresh production deployments on the freshly rebuilt consumer-chain executable also match the sequential control's entire security envelope, including IDs, obligations and verdicts. Fixture-constructor isolation/page-size/captured-authority controls and the exact derived-report reuse unit pass.
+## Deterministic reds and FIX43
 
-2. TOK1's bounded start card remains byte-identical to the lane, as does the short README. Security reference facts stay behind feature pointers. The rules card is at its original 374-line cap; default byte budgets remain unchanged. API index additions route `snapshotAll` and `probeServeGuard` into the existing client reference, with checked TypeScript examples. No per-card allowance was raised.
+REL3's reported two-site store-port failure was already repaired on main in
+`08632e34c7`. The unchanged ratchet passes 9/9 with zero production matches;
+its ticket is closed. No allowance was relaxed.
 
-3. All 940 schemas meet the aggregate output budgets: default check median/p90 **3/5 lines**, fresh production deploy **4/6**, versus limits 3/6 and 5/9. Maxima are 14/16; individual witnessed questions are retained.
+Integration additionally repaired:
 
-Exactly one Muse (`muse-spark-1.3-contributor`, high) and one fresh Codex (`gpt-6.1-sol`, high) reviewed only the authored conflict-resolution patch for seams 1/2. Verbatim outputs, brief, patch and SHA provenance are in `llp/reviews/3000.037-integration28-seams-*`. Both requested changes: Muse found two old finish-call test signatures; Codex found the over-budget rules card. Both were corrected and tested. No subsequent independent READY verdict or extra review round is claimed.
+- `f5ef171038`: packed DX7 expected prose acknowledgment of an unwitnessed
+  N_OPTIONAL_EVIDENCE question. It now requires E_SECURITY_NOTES/exit 2 and no
+  decision file, then uses the existing N_BROAD_READ advisory control to test
+  persisted decisions/refutation. The SEC13 guide/LLP and focused product test
+  `missing_replay_cannot_close_an_evidence_question_or_publish_a_partial_batch`
+  govern this expectation. Actual native controls and the complete consumer
+  chain validate it; no assertion was weakened.
+- `c3c56b5057`: the concrete-store census mistook Rust precise capture `use<>`
+  for an import, consumed a function body, and failed to advance at a semicolon,
+  appending paths until OOM. Exact capture syntax is excluded; a no-progress
+  assertion fails closed. Regression controls include a real concrete import
+  following a capture clause and a malformed group. All 8 tests pass; both
+  concrete production handles and owning dereference bridges remain zero.
 
-One coherent 0.4.44 guide-changes entry folds all lanes together, including existing-app/store effects: rows/store format unchanged; rebuild/restart for diagnostics; changed evidence digests can renew pending decisions; new concrete default questions; evaluated gate answers; idle-kill probe refusal before the next deploy with npm `--hold` / `SNAPBACK4_PROBE_HOLD=1` opt-out; separate uploads of the same bytes for several image columns.
+- `90769931be`: the complete survey exposed false production refusals in
+  wave31-036 Mascot quote edits and wave33-036 Ring design-scan edits. A supported,
+  authored, global, column-specific update policy now disposes only the inferred
+  approval-input freeze on that column. Runtime authority, authored predicates,
+  actual source old/next edit guards, sibling freezes and other derived families
+  remain enforced. Generated `$enforced/` metadata cannot masquerade as intent.
+  The final native deploys both applications successfully on fresh copies.
+  Muse and fresh Codex approved the exact runtime patch in round 3; all six
+  verbatim reviews and the earlier findings are retained under
+  `llp/reviews/3000.036.004.000-integration29-column-intent-*`.
+- `0cee533c0c`: an existing authored-history test assumed a same-column inferred
+  freeze existed despite explicit authored edit intent. Its original authored
+  predicate/site/operation/reachable assertion remains; a separate guestName
+  approval input now provides a stronger, independent derived-freeze prerequisite.
+  The focused target passes. No product assertion or allowance was weakened.
 
-## Starter audit and other deterministic reds
+- `aeb6fd4c19`: the full packed consumer chain exposed newly reviewed
+  GHSA-gcqx-w48m-w2h4 in Expo's deepmerge dependency. No patched upstream release
+  exists. Generated Expo starters now include a local MIT fork fixing the actual
+  prototype-poisoning paths, selected by an npm file override. The strict audit
+  evaluator and empty allowlist are unchanged. A fresh real Expo install has zero
+  audit findings and @expo/config resolves the fixed module; the published module
+  reproduces the exploit, while the fork resists it. Direct/nested/scoped override
+  conflicts, all four direct-dependency spec conflicts, and modified/leaf/ancestor
+  symlink patch files refuse before any writes, including --skip-existing.
+  The existing 30-file application-source ceiling remains; five licensed dependency
+  leaves have an exact inventory. Native notices and generated license/provenance
+  are included. Existing authored files remain owned; no silent init --adapt repin.
+  Muse and fresh Codex approve runtime round3 and the two stale fixture expectation
+  repairs separately in round4. All eight verbatim reviews remain in LLP reviews.
+  Failed consumer-r4 retains exit1 and no complete receipt; consumer-r5 restarts
+  the complete chain on the committed repair and passes every stage, including Ubuntu and Alpine clean userspace proofs.
 
-Today's registry provides node-forge **1.4.1**; the Expo signing dependency accepts it. The generated Expo toolchain explicitly overrides to 1.4.1. The sole stale node-forge exception and its obsolete policy are removed: the allowlist is empty, with no other entries to review. Existing uuid/zod/decode overrides remain. Host and both Linux userspace starter chains audit/build/adapt/typecheck all six installed starters without exceptions. Historical changelog entries retain their historical version facts.
+## Verification scope and results
 
-Packed-consumer fixtures now encode deliberate current behavior without weakening their contracts:
+After the coordinator's 18:56Z session-wide OOM, incomplete aggregate outputs and
+receipts were discarded, and affected checks, survey, timing and consumer proof
+were restarted. Completed pre-OOM replay/identity/reading/shape evidence was
+retained with its executable hash. Jobs use systemd scopes (MemoryMax=40G,
+OOMPolicy=continue), cargo jobs=16, debug/incremental=0, at most two heavy jobs,
+and at most four survey/identity workers. Original wave stores were never
+opened; replays use copies without owner/token sidecars. Publication trees and
+other worktrees were not modified.
 
-- DX7 old-version upgrades require exact `E_SECURITY_NOTES`, exit 2 and no decision publication for an invalid gate acknowledgment; a schema intent fix clears the gate. A real nongated decision remains byte-identical after independent refutation. Both 0.4.35 and 0.4.37 controls pass.
-- Rollback/migration optional evidence fixtures explicitly declare their intended optionality; every existing migration/row assertion remains.
-- Packed security discovery follows the bounded start pointer to its actual security reference, retaining the start-card byte limit.
-- Changelog flag-owner checks recognize the actual npm-script hold option.
+The original affected plan against the pinned pre-merge main and the explicit
+lean scoped plan/omissions are retained. Conservative version/lock/core inputs
+expand the canonical plan into the expressly excluded full client and reverse
+Rust pool. The commissioned scope instead executes the complete CLI, core and
+language crate tests, changed/focused security, release, SDK and TOK1 client
+files, fixture tests, typechecks, release guard, selector tests, root checks,
+Wasm and differential checks. This is not a claim that the expanded canonical
+selector passed. The completed scoped receipt has all Rust/client/root/build
+commands green; its raw overall status remains red solely for the separately
+reported Lean open-contract campaign below. No failed receipt was relabeled.
 
-Other selected Rust/client fixture repairs follow current authoritative surfaces: explicit `--repeat` when a test needs full repeated card text; short README -> linked reference -> guide discovery; strict starter flags; explicit deferred-install fixture custody; exact new data `--all` hint and guard wording. Frozen generated durable schemas/types still compare exactly after separately validating/removing only the generated OperationIndex/pagination comment metadata. The list API golden and authoring/diagnostic/guide/declaration/delivery-await projections were regenerated, never hand merged. The digest example now correctly catches up older eligible rows before its exclusive period end (three rows, with all final state assertions retained).
+Final language coverage: library, all 199 integration targets and doctests pass,
+partitioned honestly across the original final run, strengthened history target,
+remaining 56 targets and docs. The original failed prerequisite attempt is
+retained, not relabeled. Final CLI security_reviews passes 7/7. The whole final CLI crate at `23272b660c` passes. The subsequent starter-only
+Expo repair has focused closure: ten new product/custody client cases, eleven
+initializer unit cases and both updated initializer targets pass. The original
+initializer target has 54 passed/2 stale-expectation failures; those two were
+rerun successfully, with the failed receipt retained. Exact dependency inventory
+and the 30-file application-source ceiling are preserved. All 21 selected client files pass on release source `aeb6fd4c19`
+(205 passed, 8 platform skips; no failures). Core and other unchanged semantic
+inputs retain the completed affected receipt. The retained-final-verification record verifies 15 source/verifier tree and blob
+identities, complete consumer artifacts and all retained product results. The last
+product delta is isolated to Expo initializer templates/guards, their tests,
+notices and docs; engine/language/SDK runtime inputs are unchanged. The final
+affected closure records metadata checks separately from the original raw
+affected receipt; no failed campaign is relabeled.
 
-The delivery fault injector follows the actual watch-guard return while preserving it. All **215 delivery-await identities** are unchanged; all **445 fault/recovery tests pass**, with zero skips. The runner defers installation only for source-test fixtures; the actual TOK1 background installer and all packed starter installations remain exercised. Known scratch prefixes are narrowly ignored to avoid source-cleanliness failures from independent tests; arbitrary untracked source still fails the consumer guard.
+Root generated-artifact, inventory, guide (22/22), ref-check (579 LLP docs,
+12816 refs; zero errors/unchecked), docs-budget, packaged docs and type checks
+pass. Fresh Wasm measurement is raw 2416590 B, named gzip
+738765 B, Brotli 556128 B; budget 739265 B = measurement + 500 B
+(`3254eaec36`). No guide budget increase.
 
-## Survey, calibration and reading
+Ordinary difftest run, seed 0, 2000 cases: 2000 compiled, 120026 executions,
+zero disagreements across nine oracles. Lean run-lean, seed 0, 2000 cases:
+1658 pass, 324 unsupported, 18 disagreements (5 continuation-next, 8 next,
+5 prelude E_RULE/NOT_FOUND). All 16 saved source/JSON reproducers and every
+oracle total match Integration 28 byte-for-byte. These are the documented
+Lean OPEN.md contract points and existing 20261008 tickets, outside the
+publication test.sh/consumer chain. The diagnostic run remains exit 1;
+no model, expected result or oracle assertion was relaxed.
 
-940 schema/fixture copies cover available waves 15–32, at most eight survey workers (four during paired timing). Odd day-two copies are skipped only on equality; all surveyed keys/source hashes are retained externally. No owner/token file or original live store is used. Of these, 850 hashes match the SEC11L/SEC12 source-qualified classification baseline. All seven gates and 21 fresh production refusals match applicable reviewed cases; the 90 additional sources introduce none. **False gates 0, false production refusals 0, unclassified 0.** The test-profile concurrent corpus timings are check median/p90 5.3475/11.854 s, fresh production deploy 5.1455/11.192 s; they are not production-build latency qualification.
+## Product evidence
 
-Exact calibrated M-hole default visibility (gate or concrete question for the actual calibrated field/operation): wave30 **4/14** (one gate, three questions), wave31 **3/5** new M holes (all gates), wave32 **1/8** (033/F1, actual job-photo presence question). Unrelated questions do not count. Unsupported calibration cases are explicitly retained as misses.
+Survey: 980 Snapback schemas across waves 15–33, with 940 exact source hashes
+matched to Integration 28. No available day-two schema was byte-equal to day one.
+Actual cold default check/JSON check/default deploy/JSON deploy on copies; four
+workers. Compiler-derived contract/note and authored-invariant payload digests
+identify exactly the two repaired schemas; their actual final-native replays
+replace those two failed rows, with explicit affected-scope reuse of the other
+978. Original failed survey and all source/hash/protocol manifests are retained.
+This is not a fresh 980-schema run on the final binary.
 
-Four actual TOK1 reading-phase model replays reach their first checked schema and SDK discovery: 001 Codex **2,315 tokens / 2.819 min**; 025 Codex **2,315 / 4.954**; 019 Muse **3,014 / 3.225**; 028 Muse **3,008 / 3.949**. All are below 10k docs-before-schema. Start output (default/full), README and pre-schema source surfaces remain byte-identical after the security merge. These are reading-phase runs, not a new full-app security/latency/input-token bakeoff.
+Default check median/p90: **3/6 lines**; deploy: **5/8 lines** (max 16 each).
+Seven gates and 1402 witnessed questions, with zero missing current IDs in
+default output and one exclusive disposition per ID. All 20 remaining production
+refusals and seven gates have carried source-supported predicates; zero false
+gates or production refusals remain. Six SEC13 finding shapes and SEC11b
+approval, assignment and transition shapes are visible in default output.
+Calibrated M coverage, with exact operation/material/role/old-new matching:
+wave30 11/14, wave31 12/16, wave32 6/8, wave33 6/15 (its calibration exists).
+Unrelated findings and unwitnessed advisories do not count.
 
-## Default latency builders encounter
+The cross-version exploratory audit does not claim all previous witness examples
+remain byte-identical: 71 old operation-specific examples differ; 52 have the
+same candidate with an alternate current witnessed operation, 13 have another
+current candidate at that code/site, five remain expanded-review advice without
+a current bounded witness, and one was the deliberately removed false Mascot
+freeze. No previous gate is absent. These semantic/generated-example changes
+are separate from the same-source sequential/cold-warm identity comparison.
+SECP does not omit a current gate or witnessed question.
 
-Production binaries, 54 deterministically stratified schemas (three per wave) drawn from the survey, independent cold copies and same-copy warm repeats, four timing workers plus four survey workers on the shared machine. This is a paired sample, not a 940-schema latency census. No tool failures occurred. Before is the actual packed 0.4.43 native used by wave32 (SHA `a8c85c5907b50bc62419313594f0563a9171a58795191bd13d21ff6fe2114b74`); after is static production 0.4.44 with the final security algorithms (`aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf`). Later reference/fixture-only edits do not change these algorithms.
+SEC13 actual native evidence: six finding shapes across five lanes, plus five
+safe controls pass. REL3 release replay: 150 private store copies, 728 successful
+moves, 22 expected refusals, 294 consistent rollback populations, zero hidden
+rows, zero timeouts, zero new refusals or changed codes compared with REL3 final.
+Native candidate SHA256:
+`de5781296ff65db2ad32345a88d06c5d4d9a87bd041ce94ed95932c13ac637c8`.
 
-| Command | 0.4.43 median / p90 s | 0.4.44 median / p90 s |
-|---|---:|---:|
-| default check, cold | 6.238 / 33.032 | 8.460 / 21.395 |
-| default check, warm | 2.303 / 15.140 | 6.069 / 16.317 |
-| deploy --staging, cold | 7.280 / 31.326 | 9.085 / 27.189 |
-| deploy --staging, warm | 0.554 / 1.094 | 1.490 / 2.706 |
+Complete `qualify-linux.mjs --consumer-only` R5: **PASS**, source `aeb6fd4c19`,
+production native SHA256
+`e5488d6298ab87783662a776eb2781a8d506ff0e1ee6b36e996a04332b61c43a`.
+The final client and Expo tarball SRI digests, native package digest, complete
+consumer JSON, individual stage proofs, all six clean starter audits and both
+Ubuntu/Alpine clean-userspace passes are retained under
+`snapback4/reports/integration29/consumer-only/` and `consumer-summary.json`.
+The full publication suite is explicitly not run, publicationQualified is false,
+and no publication receipt is produced. Failed R4 and killed partial attempts
+remain failed/discarded; none substitutes for this complete chain.
 
-The 10s/15s p90 targets are missed. Cold tails improve, medians and warm paths regress. `issues/20261027-snapback4-default-check-staging-witness-tail-latency.md` retains exact commands, 12 worst cases and campaign timings. Worst wave31/033 cold check 36.841 s spends 24.463 s in ordinary witness collection and 11.032 s restoring witnessed questions; staging 35.735 s spends 23.428/9.947 s. Fixture construction/initialization dominates. The initial non-strict report has a weaker work bound than the collector's augmented report, so blindly reusing it changes verdicts. No security/search budget or assertion was reduced. Follow-up is safe initialization reuse or bounded independently parallel campaigns with ordered reduction and exact identity controls.
+## Latency
 
-## Verification and custody
+All 800 paired commands completed without tool timeout. Latency does **not**
+qualify: the cold regression exceeds paired noise and default p90 targets fail.
+The existing SEC13 ticket remains Open, updated with exact profiles, baseline
+provenance, confidence intervals and a preservation-constrained follow-up.
 
-The mandated `timeout 10800s node snapback4/scripts/affected.mjs --base 98177aa48b35b99779a95b4db3e26710ac76bf0c --run` broadened on shared manifests. It selected seven whole Rust packages and 449 client files (447 ordinary/timer, two models). It completed all Rust and client/model runs, then timed out at three hours during final root checks. Its raw receipt is incomplete, contains initial fixture failures, and is **not** called green. Both full model files pass with their original 5,000/3,000 sequence defaults. Core, difftest, native and the unaffected targets pass; every deterministic failing product target was repaired and rerun.
+| Mode | 0.4.44 cold p50/p90 (s) | Merged cold p50/p90 (s) | Warm p90, .44 → merged (s) |
+| --- | ---: | ---: | ---: |
+| check --review | 6.384/15.525 | 10.326/22.995 | 14.795 → 15.454 |
+| production deploy | 10.468/19.209 | 13.603/27.753 | 2.560 → 2.680 |
+| default check | 6.407/16.454 | 10.226/21.676 | 14.841 → 15.869 |
+| deploy --staging | 7.461/18.156 | 10.832/21.183 | 2.326 → 2.543 |
 
-The final scoped rerun binds every observed base-to-final-product file, executes repaired targets and transitive API/TOK1/runner/delivery contracts, and reuses unchanged passing targets according to LLP 0189 D-2/user instruction to rerun only a fix's targets. It is explicitly separate from the initial broad receipt. No expensive unchanged full-suite rerun or invented green receipt substitutes for the original. Final product commit `93cee47c6e`: receipt `target/affected/93cee47c6eff-1793111433093.json` is complete, unchanged and PASS; 14 actual steps, seven repaired Rust integration targets plus the complete CLI unit target and 20 client files. -- client files: 20/20; failed 0; tests {"tests":758,"pass":758,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+Default check p90 exceeds 10 s; staging p90 exceeds 15 s. The cheap redundant
+time-candidate compile path was batched. Remaining cost is campaign/replay and
+fixture initialization: worst cold check wave30-026 wall 19.475→31.846 s and
+CPU 17.684→49.615 s. Reusing check's 512-work report for the 3072-work derived
+witness campaign would lose questions and was not done. No work budget or
+latency bar was weakened. All 50 timing fixtures have identical model payloads
+after the later intent fix, but these remain measurements of the named
+pre-repair native, not fresh measurements of final release native `e5488d62`.
+Protocol: 50 source-identical wave-30 apps, one worker, four modes, independent
+fresh source/fixture copies per binary/mode, then a warm repeat on the same copy.
+Adjacent before/after pairs alternate which binary runs first. Shared host,
+matched window; no unloaded-host claim. CPU, load and nested phase traces are
+retained. Baseline is Integration 28's recorded 0.4.44 production timing binary
+(source 9b9f1a74af4f, aa6a5388 SHA256), not its later d1bd consumer executable.
+Later native differences are Postgres ownership/recovery and comment-only LLP
+identifiers; this protocol uses SQLite copies. The exact baseline/main diff and
+provenance are retained. No performance budgets or witness work limits were
+raised, and no question/gate was omitted for timing.
 
-The complete CLI rerun had two red targets (unit resource/timing flakes and cli_friction); all other integrations pass in that invocation. Each unit flake passes alone, then the whole unit target passes **674 tests / 75 ignored** at eight threads. The late cli_friction repeat fixture passes the entire **40-test** target. The device authoring census target passes **88 tests**. Late language target reruns pass aggregate 64 (+4 ignored), ephemeral 1, guide 130, list lower bounds 14, maintains 15, residency 44. Simulator clique **254 pass / 1 ignored**. The two unchanged timer flakes pass individually, then both whole files pass: **92 pass / 34 skipped**. Original failure logs are retained, with no timeout/assertion relaxation.
+## Landing and publication deferrals
 
-Root generated artifacts pass, and root guide/inventories/ref-check/docs-budget/packaged-docs pass (all five final root contracts exit 0; the separate generated-artifact run, 88 selector fixtures and both release guards also pass). Censuses, diagnostics registry, guide manifest, declaration digests and inventories are regenerated; ref-check counts 575 documents and 12,778 references. Additional final artifacts/results are in `snapback4/reports/integration28/` and raw logs/receipts in `/home/ccheever/sb4-loop/reports/integration28`.
+Final metadata closure and late fetch/push outcome are recorded in the landing
+record below. Product evidence is bound to unchanged semantic inputs; later
+metadata commits do not claim a fresh whole-suite execution.
+Full client pool, 20k/device differential runs, full qualify-linux/test.sh,
+publication signing/publishing and Mac runs remain with publication, as requested.
 
-Full installed tarball consumer chain: **PASS**, actual complete `qualify-linux.mjs --consumer-only` attempt7 on `c9fda9432a`; exit 0, source/artifact guard passed, all host production/proof-kit/security/staging/migrations/rules/frontend/starter and Ubuntu 24.04/Alpine installed-consumer proofs passed. All six starters per environment audit without exceptions. Native SHA `d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c`; `consumer.json` explicitly records source suite not-run and publicationQualified=false. Local client, Expo and native tarballs plus SRI/SHA manifest: `/home/ccheever/sb4-loop/reports/integration28/ready-pack/`. Prior attempts exposed and corrected fixtures above. Attempt5 passed every host and Ubuntu/Alpine starter proof but failed its final clean-tree guard on parallel-test scratch directories, so it is not counted as a successful commissioned chain. Attempt6 passed all host proofs/starters, then its isolated social edited-source check hit the nested 30-second spawn fuse after emitting valid JSON (26,144 ms of check work); no successful chain was claimed. The fixture now relies on the existing canonical owned command deadline, with identical assertions and no changed latency/security work threshold. The complete chain was restarted at `c9fda9432a`. Successful consumer-only proof is not a publication receipt.
+### Final main integration and landing record
 
-Difftest `run` 2k: **2,000 generated/compiled, 120,026 executions, zero disagreements**. `run-lean` 2k: **1,658 pass, 324 unsupported, 18 known disagreements** (5 continuation-next, 8 next, 5 prelude E_RULE/NOT_FOUND). All 16 reproducer source/JSON files and entire oracle totals match Integration26 byte-for-byte. These remain the existing LLP 3000.035/lean OPEN.md language-oracle questions; no oracle/assertion was weakened and no green Lean result is claimed. They are outside the selected publication Rust/client consumer chain.
+Late fetch found five incoming commits through `6d658dbc40`. They alter reports,
+proposal/review material and three test files; production code and package inputs
+remain unchanged. No-fast-forward merge `f1a4576202` keeps both journal histories,
+the integration's fail-closed census parser, and both independent precise-capture
+regressions. Main's malformed-case test now asserts a terminating refusal rather
+than accepting incomplete bindings. This resolution does not touch the security
+seam and needs no additional security resolution review.
 
-Wasm: **2,416,590 B raw / 738,561 B gzip / 556,001 B Brotli**; glue 16,053 raw / 3,695 gzip. Budget **739,061 B = measured gzip + exactly 500 B**, reason recorded in metrics/wasm-budget.json. Gzip is 52 B smaller than 0.4.43 with unchanged raw length. Strict family/server-only absence audits pass; no runtime ceiling or independent feature-cost claim.
-
-## Delivery and deferrals
-
-Final fetched main `750a8c34fa` merged with `--no-ff` as `4083c2e866`: 0.4.43 publication evidence and S1 scale-control records/metrics only, no conflict. Crates/packages/scripts are byte-identical to qualified source `c9fda9432a`; no product rerun is warranted for these record-only inputs. Final reference/inventory checks cover the added records. Delivery is the authorized nonforce `sb4-loop:main` push of the commit carrying this report; exact remote confirmation is retained externally in `delivery.json`.
-
-The report/evidence commit contains no runtime changes after qualified source. Removed 11,927,232,690 bytes of completed failed-attempt outputs after retaining all top-level proof metadata and logs; active process checks excluded live outputs. Also removed 16631914504 bytes across 476 completed test executables enumerated in this worktree’s integration logs; all active executables, main binaries, wasm and build/library caches remain. After successful qualification, removed 5923030227 bytes from 31 completed private dependency trees; metadata, traces, source/fixtures, outputs and qualified tarballs remain. Final main advancement is checked, merged with --no-ff if needed, and only changed semantic inputs are rerun. Push is authorized nonforce `sb4-loop:main`; git status is clean at delivery. Lane-local WORKSTREAM-REPORT.md is overwritten with this integration report.
-
-No npm publication, full qualify-linux source suite, extra full client pool, 20k/device differential, Mac or Exact app build was commissioned here. Publication runs the complete qualification once on the pushed source; its separate 0.4.43 worktree remains untouched. Local 0.4.44 packs are retained outside publication directories for wave34. Latency target misses and the excluded-lane LLP collision are precise open tickets, not hidden pass claims.
+Incoming affected checks: store-handle census 9/9; retained-history client file
+78/78; strengthened real PostgreSQL 16 deferred-COMMIT regression 1/1 (held
+closure 1.107 s, maximum candidate fallback 1.056 ms); clock witness model 10/10.
+The separately owned private PG cluster stopped cleanly with no postmaster PID
+file. All production sources still match the complete consumer-only R5 inputs.
+The final affected closure binds the three exact test-only deltas and reruns
+inventory/reference/docs checks, retaining the original full conservative plan
+and original negative diagnostic receipts. Push uses `sb4-loop:main`, never force;
+external `landing.json` records the final remote and clean-worktree confirmation.

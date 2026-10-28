@@ -1,0 +1,10 @@
+{
+  "runtimeReview": "round3 both READY",
+  "fixtureReview": "round4 both READY",
+  "runtimeDiffSha256": "c71074cc49de01f024dda23ec9d6184ee3f389f2e2236dd81e43bac2f0c8abdb",
+  "fixtureDiffSha256": "cd693c0885e8db4a4e71086973be7cbfc651182327029b19526bcb248c2dc92c",
+  "runtimeSourceUnchanged": true,
+  "focusedChecks": "10 client cases + 11 initializer unit cases + both repaired Rust targets passed; original54passes retained",
+  "auditAssertionUnchanged": true,
+  "allowlistUnchanged": true
+}

@@ -84,6 +84,17 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
+                let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
+                // @ref LLP 3000.036.004.003#assignment-questions — the new tier keeps actual read facts in one default line; full evidence remains in review/JSON.
+                if d.code=="N_ASSIGNMENT_SCOPE" {
+                    let subject=n.message.split(" read:").next().unwrap_or("private payload");
+                    let assignment=w["assignment"]["principal"].as_str().map(|p|format!("; assigned to {p}")).unwrap_or_else(||"; assignment not modeled".into());
+                    output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review); repair or check --ack-security {} --reason '{}'\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller"),d.id,rationale));
+                    continue;
+                }
+                if d.code=="N_TRANSITION_BYPASS"&&w["questionKind"]=="declared-transition"{
+                    output.push_str(&format!("fix question {} at {}: {} (bounded replay; doesn't block; check --review); repair or check --ack-security {} --reason '{}'\n",d.code,d.site,w["compactSummary"].as_str().unwrap_or("see check --json for replay"),d.id,rationale));continue;
+                }
                 let question=match d.code.as_str(){
                     "N_INSERT_WRITE_INTENT" if w["effect"]=="update"=>"Is this edit audience intended?",
                     "N_INSERT_WRITE_INTENT"=>"Is this creation audience intended?",
@@ -93,8 +104,13 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
                     "N_GUARD_NOT_CONSUMED"=>"May this prerequisite be reused?",
                     _=>"Is this behavior intended?",
                 };
+                // The actual witness is not the whole hypothesis: retain the
+                // named child/reference and the measured time/guard context.
+                let question=if matches!(d.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR") {
+                    format!("{}; {question}",n.message.trim_end_matches(['.','?']).replace(['\n','\r']," "))
+                }else{question.to_owned()};
                 let summary=w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay").replace(['\n','\r']," ");
-                output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — replay/repair/decision: check --review (doesn't block)\n",d.code,d.site));
+                output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — repair or check --ack-security {} --reason '{}' (doesn't block; check --review)\n",d.code,d.site,d.id,rationale));
             }
         }
         return output;
@@ -165,5 +181,85 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
   assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
   d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());
   let output=render_mode(&[d],&[n],false);assert!(output.contains("no replay witness available")&&output.contains("specification rationale, not validation"),"{output}");
+ }
+}
+
+#[cfg(test)] mod assignment_format_replay {
+ use super::*;
+ fn disposition(d:&serde_json::Value)->Disposition {Disposition{family:d["family"].as_str().map(Into::into),id:d["id"].as_str().unwrap().into(),code:d["code"].as_str().unwrap().into(),site:d["site"].as_str().unwrap().into(),gated:d["gated"]==true,acknowledged:d["acknowledged"]==true,recorded:d["recorded"]==true,reason:d["reason"].as_str().map(Into::into),scope:"captured native survey".into(),witness:d.get("witness").filter(|w|w.is_object()).cloned()}}
+ /// Replace exact old native blocks with production-rendered cards; preserve
+ /// every other byte except the explicitly replaced positive feature summary.
+ #[test] fn captured_assignment_default_output() {
+  let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_REPORTS")else{return;};
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();let mut measured=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let ds=row["reviews"].as_array().unwrap().iter().map(disposition).collect::<Vec<_>>();
+   let mut phases=["defaultCheck","defaultDeploy"].map(|field|{let p=&row[field];assert!(p["exit"]==0||p["exit"]==1,"censored display must be retried");let text=format!("{}{}",p["stdout"].as_str().unwrap(),p["stderr"].as_str().unwrap());assert_eq!(text.lines().count(),p["lines"].as_u64().unwrap()as usize);text});let mut cards=0;
+   for d in ds.iter().filter(|d|d.code=="N_ASSIGNMENT_SCOPE"&&!d.acknowledged&&!d.recorded&&!d.gated&&d.witness.is_some()){
+    let n=row["notes"].as_array().unwrap().iter().find(|n|n["code"]==d.code&&format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])==d.site).unwrap();
+    let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE",n["message"].as_str().unwrap(),"scope assignment");let w=d.witness.as_ref().unwrap();let text=render_mode(&[d.clone()],&[n.clone()],false);
+    assert_eq!(text.lines().count(),1,"{text}");assert!(text.contains(w["operation"].as_str().unwrap())&&text.contains(w["viewer"].as_str().unwrap())&&text.contains("assigned or any?")&&text.contains("bounded replay")&&text.contains("check --review"),"{text}");
+    if let Some(p)=w["assignment"]["principal"].as_str(){assert!(text.contains(p),"{text}");}else{assert!(text.contains("assignment not modeled"));}
+    let review=render_mode(&[d.clone()],&[n.clone()],true);assert!(review.contains(&d.id)&&review.contains(w["summary"].as_str().unwrap()));
+    let rationale=if witness::concrete(w){witness::reason_template(w)}else{"<spec rationale>".into()};
+    let original=format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap(),d.id,rationale);
+    for phase in &mut phases {assert_eq!(phase.matches(&original).count(),1,"native card differs for {} {}",row["wave"],row["lane"]);*phase=phase.replace(&original,&text);}
+    cards+=1;
+   }
+   let original=phases[1].lines().find(|line|line.starts_with("security: enforced by the language —")).map(|line|format!("{line}\n"));
+   if let Some(original)=original{let mut replacement=String::new();crate::verbs::security::append_deploy_language_summary(&mut replacement,&original,&ds,false);phases[1]=phases[1].replace(&original,&replacement);}
+   measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":{"before":row["defaultCheck"]["lines"],"after":phases[0].lines().count()},"defaultDeploy":{"before":row["defaultDeploy"]["lines"],"after":phases[1].lines().count()},"cards":cards}));
+  }
+  if let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
+ }
+ #[test] fn assignment_budget_does_not_hide_gates_test_status_or_expanded_summary(){
+  let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE","docs.private read: assigned or any?","scope");let mut d=Disposition{family:None,id:"id".into(),code:n.code.clone(),site:"site".into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"test".into(),witness:Some(serde_json::json!({"operation":"read","viewer":"staff"}))};
+  let mut text=String::new();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],false);assert!(text.is_empty());
+  crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],true);assert!(text.contains("positive feature counts"));
+  d.gated=true;text.clear();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d],false);assert!(text.contains("positive feature counts"));
+ }
+}
+
+#[cfg(test)]mod sec13_corpus_format {
+ use super::*;
+ /// Re-render retained real dispositions without repeating an unchanged search.
+ #[test]#[ignore="requires SEC13_CORPUS_INPUT and SEC13_CORPUS_OUTPUT retained survey paths"]
+ fn all_captured_default_cards_keep_their_witnesses_in_one_line(){
+  let input=std::env::var("SEC13_CORPUS_INPUT").unwrap();let output=std::env::var("SEC13_CORPUS_OUTPUT").unwrap();
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();let mut results=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let mut ds=Vec::new();let mut ns=Vec::new();let notes=row["notes"].as_array().unwrap();let mut used=std::collections::BTreeSet::new();
+   for value in row["reviews"].as_array().unwrap(){
+    let code=value["code"].as_str().unwrap();let site=value["site"].as_str().unwrap();
+    let index=notes.iter().enumerate().find(|(i,n)|!used.contains(i)&&n["code"]==code&&serde_json::from_value::<snapback4_lang::Site>(n["site"].clone()).is_ok_and(|s|s.to_string()==site)).map(|(i,_)|i).unwrap();used.insert(index);
+    let text=|key:&str|value[key].as_str().map(str::to_owned);
+    ds.push(Disposition{family:text("family"),id:text("id").unwrap(),code:code.into(),site:site.into(),gated:value["gated"]==true,acknowledged:value["acknowledged"]==true,recorded:value["recorded"]==true,reason:text("reason"),scope:text("scope").unwrap_or_default(),witness:value.get("witness").filter(|v|!v.is_null()).cloned()});
+    ns.push(Diagnostic::new(&serde_json::from_value(notes[index]["site"].clone()).unwrap(),code,notes[index]["message"].as_str().unwrap(),"retained original repair; see raw transcript"));
+   }
+   for (d,n) in ds.iter().zip(&ns).filter(|(d,_)|!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some()){
+    let card=render_mode(&[d.clone()],&[n.clone()],false);assert_eq!(card.lines().count(),1,"{} {}",row["lane"],d.code);
+    assert!(card.contains(&d.id)&&card.contains(d.witness.as_ref().unwrap()["compactSummary"].as_str().or_else(||d.witness.as_ref().unwrap()["summary"].as_str()).unwrap()));
+   }
+   let old=row["defaultCheck"]["stdout"].as_str().unwrap().to_owned()+row["defaultCheck"]["stderr"].as_str().unwrap();
+   let lines=old.lines().collect::<Vec<_>>();let joins=lines.windows(2).filter(|pair|pair[0].starts_with("fix question ")&&pair[1].starts_with("  Witness:")).count();
+   results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"projectedLines":lines.len()-joins,"joinedWitnessLines":joins}));
+  }
+  assert_eq!(results.len(),800);std::fs::write(output,serde_json::to_vec_pretty(&results).unwrap()).unwrap();
+ }
+}
+
+#[cfg(test)]mod integration29_context {
+ use super::*;
+ #[test]fn evidence_and_time_cards_retain_the_hypothesis_witness_and_answer_in_one_line(){
+  for (code,message) in [
+   ("N_CHILD_EVIDENCE_PRESENCE","jobs: creations openJob do not require attached jobPhotos[job = parent].photo; must media exist?"),
+   ("N_MOVABLE_TIME_ANCHOR","reschedule: moves.scheduledAt measures a window guarded by book; should the original anchor be immutable?"),
+   ("N_EVENT_TIME_ANCHOR","book: now <= prior.completedAt + 30d while storing scheduledAt; should this constrain the event time?"),
+  ] {
+   let n=Diagnostic::new(&Default::default(),code,message,"repair source");
+   let d=Disposition{family:None,id:"current-id".into(),code:code.into(),site:"schema.q:1:1".into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"test".into(),witness:Some(serde_json::json!({"compactSummary":"actual replay","summary":"actual replay"}))};
+   let card=render_mode(&[d],&[n],false);
+   assert_eq!(card.lines().count(),1);assert!(card.contains(message.trim_end_matches('?'))&&card.contains("Witness: actual replay")&&card.contains("check --ack-security current-id --reason")&&card.contains("doesn't block"),"{card}");
+  }
  }
 }

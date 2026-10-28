@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/sb4-loop/reports/integration29/consumer-r5/rule-recipes.log",
+  "client": "/home/ccheever/sb4-loop/reports/integration29/packs-release/snapback4-0.4.45.tgz",
+  "platform": "/tmp/snapback4-linux-ED5f9Z/snapback4-linux-x64-0.4.45.tgz"
+}

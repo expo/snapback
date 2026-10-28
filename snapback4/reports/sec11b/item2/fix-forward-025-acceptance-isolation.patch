@@ -1,0 +1,65 @@
+--- original/acceptance.mjs
++++ isolated/acceptance.mjs
+@@ -4,7 +4,8 @@
+ // Fresh disposable staging store on every run, so it passes twice in a row.
+ import { startStaging } from "./staging.mjs";
+ import assert from "node:assert/strict";
+-import { login } from "snapback4/auth";
++import { randomUUID } from "node:crypto";
++import { login, signup } from "snapback4/auth";
+ import { createClient } from "snapback4/client";
+ import { sentResult } from "snapback4/contract";
+ import { api } from "../snapback/generated/api.ts";
+@@ -71,6 +72,19 @@
+     const R1 = () => pick("registrar", 0), R2 = () => pick("registrar", 1);
+     const M1 = () => pick("manager", 0), M2 = () => pick("manager", 1);
+ 
++    // SEC11b replay isolation: independent first-sitting scenarios use
++    // independent candidates, preserving every original assertion.
++    async function isolateCandidate() {
++      const email = `sec11b-${randomUUID()}@example.test`, password = `proof-${randomUUID()}`;
++      const signed = await signup(url, email, password);
++      assert.ok(signed.ok);
++      const operator = createClient({url, token: await host.operatorToken()});
++      await mutateOk(operator, api.provision, {principal:signed.session.principal, role:"candidate"}, "isolate candidate");
++      const previous = S.candidate[0];
++      S.candidate[0] = {email, password, session:signed.session};
++      await relogin();
++      return async () => { S.candidate[0] = previous; await relogin(); };
++    }
+     // ---- identity, roles, unauthenticated ----
+     await check("myRole reports each role", async () => {
+       for (const role of ["candidate", "instructor", "registrar", "manager"])
+@@ -158,12 +172,15 @@
+       assert.ok(all.some(c => c.id === CERT1.id));
+     });
+     await check("pass needs 70+ on every stage", async () => {
++      const restoreCandidate = await isolateCandidate();
++      try {
+       const E = await mutateOk(R1(), api.logExam, { candidate: principal("candidate", 0), fee: 20000, photoId: await photo(R1()), attempt: 1 }, "log strict");
+       await mutateOk(I1(), api.scoreWritten, { exam: E.id, score: 95 }, "w");
+       await mutateOk(I1(), api.scoreFelling, { exam: E.id, score: 60 }, "f");
+       await mutateOk(I1(), api.scoreMaintenance, { exam: E.id, score: 95 }, "m");
+       await mutateFail(I1(), api.recordResult, { exam: E.id, passed: true }, "SCORE_TOO_LOW", "low stage cannot pass");
+       await mutateOk(I1(), api.recordResult, { exam: E.id, passed: false }, "record fail");
++      } finally { await restoreCandidate(); }
+     });
+ 
+     // ---- fail + retest within 30 days at half price ----
+@@ -207,6 +224,8 @@
+ 
+     // ---- time: retest after 30 days costs full fee ----
+     await check("retest after 30 days costs the full fee", async () => {
++      const restoreCandidate = await isolateCandidate();
++      try {
+       const E5 = await mutateOk(R1(), api.logExam, { candidate: principal("candidate", 0), fee: 20000, photoId: await photo(R1()), attempt: 1 }, "log E5");
+       await mutateOk(I1(), api.scoreWritten, { exam: E5.id, score: 20 }, "w5");
+       await mutateOk(I1(), api.scoreFelling, { exam: E5.id, score: 20 }, "f5");
+@@ -217,6 +236,7 @@
+       await mutateFail(R1(), api.logExam, { candidate: principal("candidate", 0), fee: 10000, photoId: await photo(R1()), attempt: 2, priorExam: E5.id }, "BAD_FEE", "half fee outside window");
+       const E6 = await mutateOk(R1(), api.logExam, { candidate: principal("candidate", 0), fee: 20000, photoId: await photo(R1()), attempt: 2, priorExam: E5.id }, "full-fee retest");
+       assert.equal(E6.attempt, 2);
++      } finally { await restoreCandidate(); }
+     });
+ 
+     // ---- time: certificate expires after five years ----

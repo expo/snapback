@@ -1,0 +1,21 @@
+{
+  "complete": true,
+  "sequentialSchemas": 78,
+  "decisionWitnessTierVerdictMismatches": 0,
+  "strictRawFullPayloadQualified": false,
+  "rawPayloadMismatches": [
+    [
+      23,
+      "008-snapback-arborist-removal-quotes"
+    ]
+  ],
+  "sameExecutableRepeatRawMismatches": [
+    [
+      23,
+      "008-snapback-arborist-removal-quotes"
+    ]
+  ],
+  "repeatComparatorExit": 1,
+  "knownIssue": "issues/20261027-security-review-payload-upload-id-nondeterminism.md",
+  "method": "Strict original comparator and repeated-same-executable failure retained unchanged. Literal decision/witness IDs and verdict checks remain separate from full raw payload status. Final cold/warm comparison and exact 980-source compiler scope capture follow sequentially under one 40G scope."
+}

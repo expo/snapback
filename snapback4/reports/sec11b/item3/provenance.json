@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "9d36412758a4c6690a390d3ae24eb845d27ab787",
+  "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "profile": "production",
+  "flags": {
+    "CARGO_INCREMENTAL": 0,
+    "CARGO_PROFILE_DEV_DEBUG": 0,
+    "CARGO_PROFILE_TEST_DEBUG": 0,
+    "CARGO_BUILD_JOBS": 6,
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "sourceHashes": "item3-production-source-hashes.json"
+}

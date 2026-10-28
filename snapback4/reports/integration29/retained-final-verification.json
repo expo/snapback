@@ -1,0 +1,23 @@
+{
+  "verified": true,
+  "currentHead": "f1a4576202c4a32b8601aa9d698d0614749257da",
+  "testedReleaseHead": "aeb6fd4c19d88d6c9d0028149764598d99365037",
+  "unchangedTreesAndBlobs": 13,
+  "testOnlyChangedTrees": [
+    "snapback4/crates",
+    "snapback4/packages"
+  ],
+  "incomingFocusedChecks": "census9/9, exact real PG16 regression, retained-history client file; private cluster stopped",
+  "oldCoreLangSdkRuntimeUnchanged": true,
+  "cli": "whole232crate1718passed86declaredignored; only later initializer delta reviewed/tested separately",
+  "lang": "library/all199integrationtargets/docs passed via retained honest partition",
+  "initializer": "54unchanged prior passes + both repaired exact expectations +11currentunit +10currentproduct controls",
+  "clients": "21 files rerun on release source; native debug source current",
+  "consumer": "complete consumer-only R5 passed on production native and final packed bytes",
+  "root": "all7fresh root/census commands passed",
+  "notQualified": [
+    "Latency targets/regression remain Open in SEC13 ticket",
+    "Strict expanded upload-ID payload comparison retains raw failure in existing ticket",
+    "Lean run-lean retains18 known open-contract disagreements and original exit1 receipt"
+  ]
+}

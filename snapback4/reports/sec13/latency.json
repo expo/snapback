@@ -1,0 +1,41 @@
+{
+  "acceptance": "UNQUALIFIED: standalone branch lacks SEC11L optimizations; loaded shared-host runs cannot establish no regression",
+  "before": {
+    "binarySha256": "13085412f517a2d38dd59c8d9d3f34ee36937bf328a832ea2c82362e7ab3851d",
+    "method": "One worker, independent fresh source/fixture copies for each cold check --review and production deploy; no advisory cache, no prior test.",
+    "affinityCpus": 96,
+    "review": {
+      "median": 18.161860337946564,
+      "p90": 37.489067082991824,
+      "max": 77.48433541320264,
+      "count": 50
+    },
+    "deploy": {
+      "median": 23.778078388422728,
+      "p90": 61.6669208528474,
+      "max": 106.82865492394194,
+      "count": 50
+    },
+    "toolFailures": [],
+    "peakLoadPerCpu": 0.8691558837890625
+  },
+  "after": {
+    "binarySha256": "62a4e6a923cb7c754280567cf585686e658726a75c37788b5d168eac18415e87",
+    "method": "One worker, independent fresh source/fixture copies for each cold check --review and production deploy; no advisory cache, no prior test.",
+    "affinityCpus": 96,
+    "review": {
+      "median": 22.85715322161559,
+      "p90": 43.27714791893959,
+      "max": 108.87662816699594,
+      "count": 50
+    },
+    "deploy": {
+      "median": 28.17697546153795,
+      "p90": 55.841259508160874,
+      "max": 120.10440586088225,
+      "count": 50
+    },
+    "toolFailures": [],
+    "peakLoadPerCpu": 0.941162109375
+  }
+}

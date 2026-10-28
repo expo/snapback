@@ -615,7 +615,15 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         let texts = starter_texts(&dir.0);
         // Kit scripts replace builder-owned process orchestration; DX14 adds one
         // shared TypeScript helper and its ESM scope for Node proof imports.
-        let app_files = texts.iter().filter(|(path, _)| !path.strip_prefix(&dir.0).unwrap().starts_with(".snapback4")).count();
+        // @ref LLP 3000.011.003.000#10 — an exact licensed build dependency has its own inventory; application source keeps its ceiling.
+        let dependency_files = ["toolchain/deepmerge/package.json", "toolchain/deepmerge/index.cjs", "toolchain/deepmerge/index.d.ts", "toolchain/deepmerge/LICENSE", "toolchain/deepmerge/README.md"];
+        let dependency_paths = texts.iter().map(|(path, _)| path.strip_prefix(&dir.0).unwrap()).filter(|path| path.starts_with("toolchain/deepmerge")).collect::<std::collections::BTreeSet<_>>();
+        let expected = if flag == "--expo" { dependency_files.iter().map(std::path::Path::new).collect::<std::collections::BTreeSet<_>>() } else { Default::default() };
+        assert_eq!(dependency_paths, expected, "only the five declared dependency leaves may be outside the application-source count");
+        let app_files = texts.iter().filter(|(path, _)| {
+            let relative = path.strip_prefix(&dir.0).unwrap();
+            !relative.starts_with(".snapback4") && !expected.contains(relative)
+        }).count();
         assert!(app_files <= 30, "{flag}: {app_files} application files");
         assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
@@ -1031,7 +1039,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
         let dir = Dir::new();
         assert!(dir.init(flags).status.success(), "{flags:?}");
         let package: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1" }), "{flags:?}");
+        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1", "deepmerge": "file:./toolchain/deepmerge" }), "{flags:?}");
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("1.4.1"), "{flags:?}");
         assert!(!readme.contains("dated no-fix warning") && !readme.contains("failed audit") && !readme.contains("audit as failed"), "{flags:?}: {readme}");
@@ -1053,7 +1061,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
     fs::write(dir.0.join("package.json"), r#"{"overrides":{"left-pad":"1.3.0"}}"#).unwrap();
     assert!(dir.init(&["--expo"]).status.success());
     let package: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
-    assert_eq!(package["overrides"], json!({ "left-pad": "1.3.0" }));
+    assert_eq!(package["overrides"], json!({ "left-pad": "1.3.0", "deepmerge": "file:./toolchain/deepmerge" }));
 }
 
 // Wave 3 (LLP 3000.037): 36 lanes guessed `vite.config.ts` or `metro.config.cjs`.

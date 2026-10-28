@@ -1,0 +1,6 @@
+{
+  "resolvedBy": "@expo/config",
+  "path": "/home/ccheever/sb4-loop/reports/integration29/toolchain-candidate/app/toolchain/deepmerge/index.cjs",
+  "poisoningPrevented": true,
+  "auditVulnerabilities": 0
+}

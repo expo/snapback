@@ -1,0 +1,20 @@
+{
+  "docsBudget": {
+    "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-docs-budget.log",
+    "sha256": "50c0077846ce89df4920267bace001fcc31e30b18ee03350b0e61934d9eb1e8e",
+    "result": "PASS",
+    "flags": {
+      "CARGO_INCREMENTAL": 0,
+      "CARGO_PROFILE_DEV_DEBUG": 0,
+      "CARGO_PROFILE_TEST_DEBUG": 0,
+      "CARGO_BUILD_JOBS": 6,
+      "LIBSQLITE3_FLAGS": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+    }
+  },
+  "packagedDocs": {
+    "result": "PASS",
+    "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-packaged-docs.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "unprefixedAttempt": "Original docs wrapper omitted the Cargo environment prefix and completed before the stop inspection. Its output and ownership-inspection receipt remain outside git; it is not the qualifying run. Correctly prefixed rerun PASS, no source changes."
+}

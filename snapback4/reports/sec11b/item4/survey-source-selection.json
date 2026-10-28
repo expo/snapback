@@ -1,0 +1,51 @@
+{
+  "selectedBeforeMetricsUtc": "2026-10-27T11:11:18.630179+00:00",
+  "reason": "Shared-host partsA/B progress8/100 and5/100 after roughly8minutes, versus primary52/400. Primary96CPUs/234GiB available; assign each entire100-schema population to local16worker replicas, with fixed selection before replica verdicts. No product pipeline or latency claim changes.",
+  "selectedParts": {
+    "local400": {
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local400",
+      "waves": [
+        30,
+        26,
+        28,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "schemas": 400
+    },
+    "localA100": {
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local-a100",
+      "waves": [
+        24,
+        25
+      ],
+      "schemas": 100
+    },
+    "localB100": {
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local-b100",
+      "waves": [
+        27,
+        29
+      ],
+      "schemas": 100
+    },
+    "fleetC200": {
+      "host": "ccheever-GMKTec-M8",
+      "root": "/tmp/sec11b-item4-c.zo8tWfGt",
+      "waves": [
+        15,
+        16,
+        18
+      ],
+      "schemas": 200
+    }
+  },
+  "unusedAttempts": [
+    "fleetA100",
+    "fleetB100"
+  ],
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7"
+}

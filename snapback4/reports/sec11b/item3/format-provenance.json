@@ -1,0 +1,6 @@
+{
+  "sourceCommit": "d4d38b29cb7fa39d82289fdf63068d64744380a1",
+  "binarySha256": "852edc845bc7480b8e3508dfebcd1b5c5d32b92c07e216f3be9f152dadddca5e",
+  "policyQualificationBinary": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "delta": "Only new assignment default cards and positive deployment-feature-summary placement; policy, campaigns, witnesses and identities unchanged."
+}

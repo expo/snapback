@@ -1,0 +1,9 @@
+{
+  "upstreamPackage": "deepmerge@4.3.1",
+  "upstreamCjsSha256": "2e5160f84a1141bd927264afe4d15766f1e6cf07daef182b37ff53fea121de7d",
+  "patchedCjsSha256": "4bb437b3e6973433d5fc793c01fbc0a2a771050eea27f33450af1c1145d00dfd",
+  "advisory": "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+  "registryLatest": "4.3.1",
+  "patchedUpstreamRelease": null,
+  "allowlistChanged": false
+}

@@ -1,0 +1,153 @@
+{
+  "binary": {
+    "sourceCommit": "883aeea5d01bfc281205a1d0e2d018246a9883a8",
+    "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+    "profile": "production",
+    "flags": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_BUILD_JOBS": "6",
+      "LIBSQLITE3_FLAGS": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+    },
+    "sourceHashes": "item4-production-source-hashes.json",
+    "sourceInputs": 1961,
+    "mainMerge": "fe9476a5e1 / origin mainf4b05f89ea"
+  },
+  "schemas": 800,
+  "sourceHashesMatch": true,
+  "calibratedCoverage": {
+    "26": {
+      "before": {
+        "advisory only": 6,
+        "gated with witness": 6,
+        "witnessed question on default verdict": 2,
+        "nothing": 1
+      },
+      "after": {
+        "advisory only": 6,
+        "gated with witness": 6,
+        "witnessed question on default verdict": 2,
+        "nothing": 1
+      }
+    },
+    "28": {
+      "before": {
+        "gated with witness": 2,
+        "witnessed question on default verdict": 4,
+        "nothing": 6
+      },
+      "after": {
+        "gated with witness": 2,
+        "witnessed question on default verdict": 4,
+        "nothing": 6
+      }
+    },
+    "30": {
+      "before": {
+        "witnessed question on default verdict": 8,
+        "nothing": 4,
+        "advisory only": 1,
+        "gated with witness": 1
+      },
+      "after": {
+        "witnessed question on default verdict": 10,
+        "nothing": 2,
+        "advisory only": 1,
+        "gated with witness": 1
+      }
+    },
+    "31": {
+      "before": {
+        "advisory only": 4,
+        "witnessed question on default verdict": 7,
+        "nothing": 4,
+        "gated with witness": 1
+      },
+      "after": {
+        "advisory only": 4,
+        "witnessed question on default verdict": 9,
+        "nothing": 2,
+        "gated with witness": 1
+      }
+    }
+  },
+  "falseGates": 0,
+  "falseProductionRefusals": 0,
+  "unclassified": 0,
+  "freshRefused": 19,
+  "postTestRefused": 26,
+  "defaultCheckLines": {
+    "median": 3.0,
+    "p90": 7,
+    "max": 14,
+    "completed": 800,
+    "censored": 0,
+    "medianBounds": [
+      3.0,
+      3.0
+    ]
+  },
+  "defaultDeployLines": {
+    "median": 5.0,
+    "p90": 9,
+    "max": 20,
+    "completed": 800,
+    "censored": 0,
+    "medianBounds": [
+      5.0,
+      5.0
+    ]
+  },
+  "testQualificationComplete": false,
+  "testQualificationGaps": 17,
+  "testGapKinds": {
+    "preparation exit": 17
+  },
+  "wholeSurveyTestExits": {
+    "0": 769,
+    "1": 31
+  },
+  "outputScope": "All800 current native default outputs; no renderer-only replay or censored output.",
+  "testScope": "Deployment after each recorded test command; an incomplete private HTTP campaign is never PASS. Preparation exits may be blocked by existing pending production security findings; root causes are not inferred from summaries.",
+  "latencyScope": "Concurrent shared-host survey, not isolated latency qualification. SEC11L owns latency.",
+  "reviews": {
+    "sourceCommit": "883aeea5d0",
+    "reviews": [
+      {
+        "model": "muse-spark-1.3-contributor / high",
+        "verdict": "READY",
+        "review": "llp/reviews/3000.036.004.004-sec11b-muse-round8.md",
+        "responseSha256": "435aea24d174a966124dbfbf5ea52a77084e26b492b4520fefa45e25cfe4628e"
+      },
+      {
+        "model": "gpt-6.1-sol / high; fresh codex exec",
+        "verdict": "READY",
+        "review": "llp/reviews/3000.036.004.004-sec11b-codex-round8.md",
+        "responseSha256": "6a0eabd9f120ee2e1c9eddcdfe72d1a103eecae5f3de8b768d9eac21ca669f93"
+      }
+    ]
+  },
+  "remainingWave30": [
+    {
+      "lane": "006",
+      "finding": "F1",
+      "category": "nothing"
+    },
+    {
+      "lane": "010",
+      "finding": "F1",
+      "category": "advisory only"
+    },
+    {
+      "lane": "038",
+      "finding": "F1",
+      "category": "nothing"
+    }
+  ],
+  "sourceSelection": "survey-source-selection.json",
+  "fleet": "selected-fleet-receipt.json + unused-fleet-receipts.json",
+  "fixForward": "fix-forward.json",
+  "historicalHttpAccounting": "historical-http-gap-accounting.json (item2:24,item3:40; original receipts retained)",
+  "finalAffected": "Final committed-source affected receipt and explicit excluded scopes are recorded in root WORKSTREAM-REPORT.md; this packet records native measurement qualification."
+}

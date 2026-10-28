@@ -1,0 +1,90 @@
+{
+  "results": [
+    {
+      "id": "001",
+      "docsTokensBeforeSchema": 2315,
+      "method": "Actual deterministic replay of every recorded pre-schema guide read. Prior measured token count reused only with exact output and README source equality; no new agent/application-score claim.",
+      "reads": [
+        {
+          "args": [
+            "guide",
+            "start"
+          ],
+          "exit": 0,
+          "exactOutputEqual": true,
+          "currentSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "previousSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "bytes": 7970
+        }
+      ]
+    },
+    {
+      "id": "025",
+      "docsTokensBeforeSchema": 2315,
+      "method": "Actual deterministic replay of every recorded pre-schema guide read. Prior measured token count reused only with exact output and README source equality; no new agent/application-score claim.",
+      "reads": [
+        {
+          "args": [
+            "guide",
+            "start"
+          ],
+          "exit": 0,
+          "exactOutputEqual": true,
+          "currentSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "previousSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "bytes": 7970
+        }
+      ]
+    },
+    {
+      "id": "019",
+      "docsTokensBeforeSchema": 3014,
+      "method": "Actual deterministic replay of every recorded pre-schema guide read. Prior measured token count reused only with exact output and README source equality; no new agent/application-score claim.",
+      "reads": [
+        {
+          "args": [
+            "guide",
+            "start"
+          ],
+          "exit": 0,
+          "exactOutputEqual": true,
+          "currentSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "previousSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "bytes": 7970
+        }
+      ]
+    },
+    {
+      "id": "028",
+      "docsTokensBeforeSchema": 3008,
+      "method": "Actual deterministic replay of every recorded pre-schema guide read. Prior measured token count reused only with exact output and README source equality; no new agent/application-score claim.",
+      "reads": [
+        {
+          "args": [
+            "guide",
+            "start"
+          ],
+          "exit": 0,
+          "exactOutputEqual": true,
+          "currentSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "previousSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+          "bytes": 7970
+        }
+      ]
+    }
+  ],
+  "readmeEqualTo044": true,
+  "readmeSha256": "29edfbc7b306290e8783965c457ed1b494d929fa873f2a95ea08b77055b717b6",
+  "guideBudgetRaised": false,
+  "docsBeforeSchemaLimit": 10000,
+  "finalReplayBinarySha256": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62",
+  "finalReplayExactOutputEqual": true,
+  "finalReplayArgs": [
+    "guide",
+    "start",
+    "--repeat"
+  ],
+  "reason": "Existing routed-reading cache already holds start; --repeat explicitly emits the same recorded full first read. Exact bytes checked, no new token estimate.",
+  "releaseReplayBinarySha256": "e5488d6298ab87783662a776eb2781a8d506ff0e1ee6b36e996a04332b61c43a",
+  "releaseReplayExactOutputEqual": true
+}

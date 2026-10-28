@@ -1,6 +1,6 @@
 # Reconcile SEC11b's provisional LLP identity before Integration 29
 
-Status: Open
+Status: Resolved
 Date: 2026-10-27
 Scope: Snapback 4 / excluded sb4-b31-sec11 branch
 
@@ -15,3 +15,9 @@ SECP's original .001 collision was therefore corrected to final .005, after an
 unpublished intermediate .003 assignment. Fifteen security branches were checked
 for an existing .005 allocation; none was present. SEC11b, REL3 and SEC13 remain
 excluded from this landing.
+
+Resolution (SEC11b, 2026-10-27): assigned the unpublished approval amendment
+3000.036.004.006, retaining its same parent/scope. Live annotations and Related
+links use the final identity. Original review artifacts and immutable measurement
+packets preserve their provisional .002 filenames and provenance. The final
+amendment records the mapping. Assignment .003 and transitions .004 remain.

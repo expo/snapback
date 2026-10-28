@@ -1,0 +1,303 @@
+[
+  {
+    "label": "a",
+    "archiveSha256": "0d68602049e962c087ab5dbb67695617b2c086492e32fd955be7e050eec95de2",
+    "completedCases": 100,
+    "receipt": {
+      "host": "expose-builder-nothing",
+      "platform": "Linux-6.8.0-100-generic-x86_64-with-glibc2.39",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "inputManifestSha256": "354bb7e043339e5d20f16c9e65b4d12f2a3ad7e2c3730ecc85e69c62910bdd34",
+      "waves": "24,25",
+      "workers": 6,
+      "exit": 0,
+      "diskGuard": null,
+      "freeBytesBefore": 32661483520,
+      "freeBytesAfter": 31286091776,
+      "seconds": 5850.262114260346
+    },
+    "cleanup": {
+      "reason": "Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.",
+      "ownedIdentities": {},
+      "remainingLiveOwnedProcesses": {},
+      "removedOwnedTemporaryDirectories": [],
+      "completedParentReceipt": true,
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3"
+    },
+    "selectedQualification": "Only explicitly composed case records enter native800. Other complete/in-flight attempts are retained outside git; interrupted parent runs are not PASS."
+  },
+  {
+    "label": "b",
+    "archiveSha256": "946916bf72709f4f5e84d92c29b6e27fd92518b8037f8e884c8894b81870f919",
+    "completedCases": 72,
+    "receipt": {
+      "host": "expose-builder-pixel-a",
+      "platform": "Linux-6.8.0-100-generic-x86_64-with-glibc2.39",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "inputManifestSha256": "354bb7e043339e5d20f16c9e65b4d12f2a3ad7e2c3730ecc85e69c62910bdd34",
+      "waves": "27,29",
+      "workers": 6,
+      "exit": -15,
+      "diskGuard": null,
+      "freeBytesBefore": 35064688640,
+      "freeBytesAfter": 33602244608,
+      "seconds": 6200.159145515412
+    },
+    "cleanup": {
+      "reason": "Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.",
+      "ownedIdentities": {
+        "517121": {
+          "ppid": 438524,
+          "start": 1565070875,
+          "state": "T"
+        },
+        "517122": {
+          "ppid": 517121,
+          "start": 1565070875,
+          "state": "T"
+        },
+        "515597": {
+          "ppid": 438524,
+          "start": 1565062923,
+          "state": "T"
+        },
+        "515598": {
+          "ppid": 515597,
+          "start": 1565062923,
+          "state": "T"
+        },
+        "513948": {
+          "ppid": 438524,
+          "start": 1565050858,
+          "state": "T"
+        },
+        "513949": {
+          "ppid": 513948,
+          "start": 1565050858,
+          "state": "T"
+        },
+        "514465": {
+          "ppid": 438524,
+          "start": 1565055223,
+          "state": "T"
+        },
+        "516385": {
+          "ppid": 438524,
+          "start": 1565068064,
+          "state": "T"
+        },
+        "514466": {
+          "ppid": 514465,
+          "start": 1565055223,
+          "state": "T"
+        },
+        "516386": {
+          "ppid": 516385,
+          "start": 1565068064,
+          "state": "T"
+        },
+        "517164": {
+          "ppid": 438524,
+          "start": 1565071135,
+          "state": "T"
+        },
+        "517165": {
+          "ppid": 517164,
+          "start": 1565071135,
+          "state": "T"
+        },
+        "438524": {
+          "ppid": 438522,
+          "start": 1564452158,
+          "state": "T"
+        }
+      },
+      "remainingLiveOwnedProcesses": {},
+      "removedOwnedTemporaryDirectories": [
+        "/tmp/sb4-sec10-shipping-binary-1sq44zhf",
+        "/tmp/sb4-sec10-shipping-measure-yxugx7dq",
+        "/tmp/sb4-sec10-shipping-measure-_eehr9vw",
+        "/tmp/sb4-sec10-shipping-measure-mucsr2lp",
+        "/tmp/sb4-sec10-shipping-measure-zu94xwy7",
+        "/tmp/sb4-sec10-shipping-measure-83yu7awq",
+        "/tmp/sb4-sec10-shipping-measure-l7sx8653"
+      ],
+      "completedParentReceipt": false,
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3"
+    },
+    "selectedQualification": "Only explicitly composed case records enter native800. Other complete/in-flight attempts are retained outside git; interrupted parent runs are not PASS."
+  },
+  {
+    "label": "c",
+    "archiveSha256": "759f39353c05db2114dbedce1a67e541e6495c9cdc717e93a39040fff9e0dad5",
+    "completedCases": 42,
+    "receipt": {
+      "host": "ccheever-GMKTec-M8",
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "inputManifestSha256": "354bb7e043339e5d20f16c9e65b4d12f2a3ad7e2c3730ecc85e69c62910bdd34",
+      "waves": "27,29",
+      "workers": 6,
+      "exit": -15,
+      "diskGuard": null,
+      "freeBytesBefore": 433565847552,
+      "freeBytesAfter": 433782480896,
+      "seconds": 3010.2025205229875
+    },
+    "cleanup": {
+      "reason": "Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.",
+      "ownedIdentities": {
+        "1069252": {
+          "ppid": 1058278,
+          "start": 190584017,
+          "state": "T"
+        },
+        "1073348": {
+          "ppid": 1058278,
+          "start": 190660817,
+          "state": "T"
+        },
+        "1069253": {
+          "ppid": 1069252,
+          "start": 190584017,
+          "state": "T"
+        },
+        "1073349": {
+          "ppid": 1073348,
+          "start": 190660817,
+          "state": "T"
+        },
+        "1072848": {
+          "ppid": 1071517,
+          "start": 190655475,
+          "state": "T"
+        },
+        "1071516": {
+          "ppid": 1058278,
+          "start": 190628051,
+          "state": "T"
+        },
+        "1071517": {
+          "ppid": 1071516,
+          "start": 190628052,
+          "state": "T"
+        },
+        "1058278": {
+          "ppid": 1058276,
+          "start": 190360189,
+          "state": "T"
+        },
+        "1072880": {
+          "ppid": 1058278,
+          "start": 190656914,
+          "state": "T"
+        },
+        "1073329": {
+          "ppid": 1058278,
+          "start": 190660569,
+          "state": "T"
+        },
+        "1073008": {
+          "ppid": 1058278,
+          "start": 190657922,
+          "state": "T"
+        },
+        "1072881": {
+          "ppid": 1072880,
+          "start": 190656914,
+          "state": "T"
+        },
+        "1073009": {
+          "ppid": 1073008,
+          "start": 190657923,
+          "state": "T"
+        },
+        "1073330": {
+          "ppid": 1073329,
+          "start": 190660569,
+          "state": "T"
+        },
+        "1073211": {
+          "ppid": 1073009,
+          "start": 190660115,
+          "state": "T"
+        }
+      },
+      "remainingLiveOwnedProcesses": {},
+      "removedOwnedTemporaryDirectories": [
+        "/tmp/sb4-sec10-shipping-measure-b9b8z3dm",
+        "/tmp/sb4-sec10-shipping-measure-8yk3jod6",
+        "/tmp/sb4-sec10-shipping-measure-aoy08cg_",
+        "/tmp/sb4-sec10-shipping-binary-jcy65vx5",
+        "/tmp/sb4-sec10-shipping-measure-k7r95ybf",
+        "/tmp/sb4-sec10-shipping-measure-317wotzi",
+        "/tmp/sb4-sec10-shipping-measure-s5bzxh45"
+      ],
+      "completedParentReceipt": false,
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3"
+    },
+    "selectedQualification": "Only explicitly composed case records enter native800. Other complete/in-flight attempts are retained outside git; interrupted parent runs are not PASS."
+  },
+  {
+    "label": "d",
+    "archiveSha256": "5b2e769d4814e4e6eedf35ba4b40398f425ee67c7aade36d53a42106f30a7840",
+    "completedCases": 48,
+    "receipt": {
+      "host": "ccheever-GMKTec-M8",
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "inputManifestSha256": "354bb7e043339e5d20f16c9e65b4d12f2a3ad7e2c3730ecc85e69c62910bdd34",
+      "waves": "29",
+      "workers": 6,
+      "exit": -15,
+      "diskGuard": null,
+      "freeBytesBefore": 433420931072,
+      "freeBytesAfter": 433643872256,
+      "seconds": 2805.170027719112
+    },
+    "cleanup": {
+      "reason": "Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.",
+      "ownedIdentities": {
+        "1059421": {
+          "ppid": 1059418,
+          "start": 190380580,
+          "state": "T"
+        },
+        "1072026": {
+          "ppid": 1059421,
+          "start": 190639946,
+          "state": "T"
+        },
+        "1072027": {
+          "ppid": 1072026,
+          "start": 190639946,
+          "state": "T"
+        },
+        "1071292": {
+          "ppid": 1059421,
+          "start": 190621134,
+          "state": "T"
+        },
+        "1071293": {
+          "ppid": 1071292,
+          "start": 190621134,
+          "state": "T"
+        },
+        "1073086": {
+          "ppid": 1071293,
+          "start": 190658547,
+          "state": "T"
+        }
+      },
+      "remainingLiveOwnedProcesses": {},
+      "removedOwnedTemporaryDirectories": [
+        "/tmp/sb4-sec10-shipping-measure-gnky3so0",
+        "/tmp/sb4-sec10-shipping-measure-4xh6y91r",
+        "/tmp/sb4-sec10-shipping-binary-ablx3l_c"
+      ],
+      "completedParentReceipt": false,
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3"
+    },
+    "selectedQualification": "Only explicitly composed case records enter native800. Other complete/in-flight attempts are retained outside git; interrupted parent runs are not PASS."
+  }
+]

@@ -1,6 +1,7 @@
 //! Focused continuations: repeat a creator, or change an ancestor then create.
 // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — actual authored replay, never a synthetic reachability assumption.
 use super::*;
+fn reference(kind:&ir::ArgType)->Option<&String>{match kind{ir::ArgType::Ref{table}=>Some(table),ir::ArgType::Optional(inner)=>reference(inner),_=>None}}
 fn closure(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,table:&str,id:&Value,out:&mut BTreeMap<String,Vec<Value>>,depth:usize){
     if depth>4||out.get(table).is_some_and(|ids|ids.contains(id)){return;}
     out.entry(table.into()).or_default().push(id.clone());
@@ -63,15 +64,16 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
     'producers: for p in bound.programs.iter().map(|b|&b.program).filter(|p|p.kind==ProgramKind::Mutation&&!p.native&&ir::write_tables(p).iter().any(|(t,k)|goals.contains(t)&&matches!(*k,"insert"|"upsert"))){
         let reads_approval=ir::read_sites(p).iter().any(|read|["approv","authoriz"].iter().any(|part|read.table.to_lowercase().contains(part)));
         let retry=ir::write_tables(p).iter().any(|(table,_)|bound.invariants.iter().any(|i|i.table==*table&&i.site.file.contains("repeat-create")));
-        if reads_approval&&!retry{out.unsupported.insert(format!("{}: focused continuations defer approval-reading origins to the general campaign",p.name));continue;}
+        let approval_question=bound.invariants.iter().any(|i|i.site.file.contains("/sec11-approval-")&&i.operation.as_deref()==Some(p.name.as_str()));
+        if reads_approval&&!retry&&!approval_question{out.unsupported.insert(format!("{}: focused continuations defer approval-reading origins to the general campaign",p.name));continue;}
         let principal_history=bound.invariants.iter().any(|inv|inv.site.file.contains("approval-history")&&goals.contains(&inv.table)&&changed.contains(&inv.table)&&p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Principal)&&matches!(bound.schema.tables[&inv.table].columns.get(name).map(C::required),Some(C::Principal))));
-        if !principal_history&&!p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if changed.contains(table))){continue;}
+        if !principal_history&&!p.args.values().any(|k|reference(k).is_some_and(|table|changed.contains(table)))&&!approval_question{continue;}
         let actors=actors_for(bound,p,&rows,base,out);
         let mut cases=histories::fixture_cases(bound,p,&rows,&actors,out);
         if principal_history{let mut focused=Vec::new();for table in goals.iter().filter(|table|changed.contains(*table)){for row in rows.get(table).into_iter().flatten(){if let Some(base)=cases.first(){let mut args=base.clone();for (name,kind) in &p.args{if matches!(kind,ir::ArgType::Principal)&&matches!(bound.schema.tables[table].columns.get(name).map(C::required),Some(C::Principal))&&let Ok(value)=row.field(name){args.insert(name.clone(),value.clone());}}if !focused.contains(&args){focused.push(args);}}}}for args in cases{if !focused.contains(&args){focused.push(args);}}cases=focused;}
         if cases.len()>8{out.unsupported.insert(format!("{}: focused creator tuples capped at eight; remaining combinations uncovered",p.name));}
         for args in cases.into_iter().take(8){
-            let mut relatives=BTreeMap::new();for (name,k) in &p.args{if let ir::ArgType::Ref{table}=k&&let Some(id)=args.get(name){closure(bound,&rows,table,id,&mut relatives,0);}}
+            let mut relatives=BTreeMap::new();for (name,k) in &p.args{if let Some(table)=reference(k)&&let Some(id)=args.get(name)&&*id!=Value::Null{closure(bound,&rows,table,id,&mut relatives,0);}}
             if principal_history{for (name,kind) in &p.args{if !matches!(kind,ir::ArgType::Principal){continue;}for table in goals.iter().filter(|table|changed.contains(*table)){if !matches!(bound.schema.tables[table].columns.get(name).map(C::required),Some(C::Principal)){continue;}for row in rows.get(table).into_iter().flatten().filter(|row|row.field(name).ok()==args.get(name)){if let Ok(id)=row.field("id"){closure(bound,&rows,table,id,&mut relatives,0);}}}}}
             if relatives.is_empty(){continue;}
             let remaining=bound.invariants.iter().filter(|i|i.target=="insert"&&super::super::derived::is_derived(i)&&goals.contains(&i.table)&&(i.operation.as_ref().is_none_or(|op|op==&p.name))&&(!i.site.file.contains("repeat-create")||p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if table==&i.table))||ir::read_sites(p).iter().any(|read|read.table==i.table))&&!out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.operation==p.name&&v.reachability.is_reachable())).collect::<Vec<_>>();

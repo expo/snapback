@@ -1,0 +1,1320 @@
+{
+  "total": 71,
+  "categories": {
+    "same candidate, alternate current witnessed operation": 52,
+    "same code/site, different current witnessed candidate": 13,
+    "same code/site retained as advice, no current witness": 5,
+    "candidate absent": 1
+  },
+  "oldGates": 0,
+  "details": [
+    {
+      "wave": 16,
+      "lane": "030-snapback-harvest-bin-tickets",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:169:10",
+      "oldGate": false,
+      "priorOperation": "createBlock",
+      "priorCandidate": "invariant blocks.always only exists roles[principal = .grower, role = 'grower']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "setContract",
+          "candidate": "invariant blocks.always only exists roles[principal = .grower, role = 'grower']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 17,
+      "lane": "030-snapback-harvest-bin-tickets",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:187:10",
+      "oldGate": false,
+      "priorOperation": "createBlock",
+      "priorCandidate": "invariant blocks.always only exists roles[principal = .grower, role = 'grower']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "setContract",
+          "candidate": "invariant blocks.always only exists roles[principal = .grower, role = 'grower']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 18,
+      "lane": "032-snapback-squash-ladder-challenges",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:308:3",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant roles.role write only ((exists roles[viewer, role = 'captain']) and allow)",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "registerMember",
+          "candidate": "invariant roles.role write only ((exists roles[viewer, role = 'captain']) and allow)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 19,
+      "lane": "032-snapback-squash-ladder-challenges",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:333:3",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant roles.role write only ((exists roles[viewer, role = 'captain']) and allow)",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "registerMember",
+          "candidate": "invariant roles.role write only ((exists roles[viewer, role = 'captain']) and allow)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 20,
+      "lane": "021-snapback-oyster-harvest-tags",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:99:3",
+      "oldGate": false,
+      "priorOperation": "reopenLease",
+      "priorCandidate": "invariant leases.reopenLease only (count(bags[lease = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "closeLease",
+          "candidate": "invariant leases.closeLease only (count(bags[lease = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 20,
+      "lane": "026-snapback-bookbinding-restoration-jobs",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:82:10",
+      "oldGate": false,
+      "priorOperation": "consentPlan",
+      "priorCandidate": "invariant books.consentPlan only (count(photos[book = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "collectBook",
+          "candidate": "invariant books.collectBook only (count(photos[book = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 20,
+      "lane": "043-snapback-bounce-house-rentals",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:84:3",
+      "oldGate": false,
+      "priorOperation": "payDeposit",
+      "priorCandidate": "invariant bookings.payDeposit only (count(setups[booking = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelBooking",
+          "candidate": "invariant bookings.cancelBooking only (count(setups[booking = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 21,
+      "lane": "021-snapback-oyster-harvest-tags",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:100:3",
+      "oldGate": false,
+      "priorOperation": "reopenLease",
+      "priorCandidate": "invariant leases.reopenLease only (count(bags[lease = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "closeLease",
+          "candidate": "invariant leases.closeLease only (count(bags[lease = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 21,
+      "lane": "026-snapback-bookbinding-restoration-jobs",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:83:10",
+      "oldGate": false,
+      "priorOperation": "consentPlan",
+      "priorCandidate": "invariant books.consentPlan only (count(photos[book = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "collectBook",
+          "candidate": "invariant books.collectBook only (count(photos[book = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 21,
+      "lane": "036-snapback-knife-sharpening-drops",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:114:3",
+      "oldGate": false,
+      "priorOperation": "assignRoute",
+      "priorCandidate": "invariant sets.always only exists roles[principal = .courier, role = 'courier']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "correctReceivedCount",
+          "candidate": "invariant sets.always only exists roles[principal = .courier, role = 'courier']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 21,
+      "lane": "043-snapback-bounce-house-rentals",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:84:3",
+      "oldGate": false,
+      "priorOperation": "payDeposit",
+      "priorCandidate": "invariant bookings.payDeposit only (count(setups[booking = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelBooking",
+          "candidate": "invariant bookings.cancelBooking only (count(setups[booking = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 22,
+      "lane": "005-snapback-tool-library-loans",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:104:3",
+      "oldGate": false,
+      "priorOperation": "writeOffTool",
+      "priorCandidate": "invariant tools.writeOffTool only (count(loans[tool = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "markInRepair",
+          "candidate": "invariant tools.markInRepair only (count(loans[tool = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 22,
+      "lane": "014-snapback-aquarium-service-visits",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:129:10",
+      "oldGate": false,
+      "priorOperation": "updateTank",
+      "priorCandidate": "invariant tanks.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "addTank",
+          "candidate": "invariant tanks.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 22,
+      "lane": "030-snapback-food-truck-permits",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:260:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant approvals.always only exists roster[principal = .operator, role = 'operator']",
+      "category": "same code/site retained as advice, no current witness",
+      "current": [
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 22,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:146:7",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant rentals.always only exists roles[principal = .contractor, role = 'contractor']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "waiveInvoice",
+          "candidate": "invariant rentals.always only exists roles[principal = .contractor, role = 'contractor']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 22,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:147:3",
+      "oldGate": false,
+      "priorOperation": "payInvoice",
+      "priorCandidate": "invariant invoices.always only exists roles[principal = .contractor, role = 'contractor']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "waiveInvoice",
+          "candidate": "invariant invoices.always only exists roles[principal = .contractor, role = 'contractor']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "003-snapback-locksmith-rekey-jobs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:70:10",
+      "oldGate": false,
+      "priorOperation": "approveLockout",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "setJobStatus",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "005-snapback-tool-library-loans",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:110:3",
+      "oldGate": false,
+      "priorOperation": "writeOffTool",
+      "priorCandidate": "invariant tools.writeOffTool only (count(loans[tool = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "markInRepair",
+          "candidate": "invariant tools.markInRepair only (count(loans[tool = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:227:10",
+      "oldGate": false,
+      "priorOperation": "migrateSurvey",
+      "priorCandidate": "invariant siteSurveys.treePhoto write only ((exists roles[viewer, role = 'estimator']) and (exists roles[viewer, role = 'estimator']))",
+      "category": "same code/site retained as advice, no current witness",
+      "current": [
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:227:10",
+      "oldGate": false,
+      "priorOperation": "migrateSurvey",
+      "priorCandidate": "invariant siteSurveys.linesPhoto write only ((exists roles[viewer, role = 'estimator']) and (exists roles[viewer, role = 'estimator']))",
+      "category": "same code/site retained as advice, no current witness",
+      "current": [
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:227:10",
+      "oldGate": false,
+      "priorOperation": "migrateSurvey",
+      "priorCandidate": "invariant siteSurveys.buildingsPhoto write only ((exists roles[viewer, role = 'estimator']) and (exists roles[viewer, role = 'estimator']))",
+      "category": "same code/site retained as advice, no current witness",
+      "current": [
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        },
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "014-snapback-aquarium-service-visits",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:131:10",
+      "oldGate": false,
+      "priorOperation": "updateTank",
+      "priorCandidate": "invariant tanks.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "addTank",
+          "candidate": "invariant tanks.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "030-snapback-food-truck-permits",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:279:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant approvals.always only exists roster[principal = .operator, role = 'operator']",
+      "category": "same code/site retained as advice, no current witness",
+      "current": [
+        {
+          "gated": false,
+          "operation": null,
+          "candidate": null,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:172:7",
+      "oldGate": false,
+      "priorOperation": "rent",
+      "priorCandidate": "invariant rentals.always only exists roles[principal = .contractor, role = 'contractor']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "waiveInvoice",
+          "candidate": "invariant rentals.always only exists roles[principal = .contractor, role = 'contractor']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:174:3",
+      "oldGate": false,
+      "priorOperation": "rent",
+      "priorCandidate": "invariant invoices.always only exists roles[principal = .contractor, role = 'contractor']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "waiveInvoice",
+          "candidate": "invariant invoices.always only exists roles[principal = .contractor, role = 'contractor']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:175:3",
+      "oldGate": false,
+      "priorOperation": "rent",
+      "priorCandidate": "invariant rentalPhotos.photo write only ((exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'manager']))",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "returnMachine",
+          "candidate": "invariant rentalPhotos.photo write only ((exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'manager']))",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 23,
+      "lane": "040-snapback-excavator-rental-returns",
+      "code": "N_INSERT_WRITE_INTENT",
+      "site": "schema.q:216:5",
+      "oldGate": false,
+      "priorOperation": "rent",
+      "priorCandidate": "invariant rentalPhotos.photo write only ((exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'manager']))",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "returnMachine",
+          "candidate": "invariant rentalPhotos.photo write only ((exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'manager']))",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 24,
+      "lane": "008-snapback-terrazzo-floor-restorations",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:150:10",
+      "oldGate": false,
+      "priorOperation": "openJob",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStage",
+          "candidate": "invariant jobs.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 24,
+      "lane": "016-snapback-carousel-horse-restorations",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:134:3",
+      "oldGate": false,
+      "priorOperation": "approveQuote",
+      "priorCandidate": "invariant figures.approveQuote only (count(photos[figure = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStage",
+          "candidate": "invariant figures.advanceStage only (count(photos[figure = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 24,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:95:10",
+      "oldGate": false,
+      "priorOperation": "startWash",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "acceptQuote",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 25,
+      "lane": "008-snapback-terrazzo-floor-restorations",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:178:10",
+      "oldGate": false,
+      "priorOperation": "openJob",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStage",
+          "candidate": "invariant jobs.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 25,
+      "lane": "016-snapback-carousel-horse-restorations",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:214:3",
+      "oldGate": false,
+      "priorOperation": "approveQuote",
+      "priorCandidate": "invariant figures.approveQuote only (count(photos[figure = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStage",
+          "candidate": "invariant figures.advanceStage only (count(photos[figure = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 25,
+      "lane": "033-snapback-pressure-washing-jobs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:96:10",
+      "oldGate": false,
+      "priorOperation": "openJob",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "acceptQuote",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:126:3",
+      "oldGate": false,
+      "priorOperation": "refundTrip",
+      "priorCandidate": "invariant trips.refundTrip only (count(waivers[trip = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelTrip",
+          "candidate": "invariant trips.cancelTrip only (count(waivers[trip = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "020-snapback-llama-trekking-trips",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:101:3",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant trekHikers.always only exists roles[principal = .hiker, role = 'hiker']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "addHiker",
+          "candidate": "invariant trekHikers.always only exists roles[principal = .hiker, role = 'hiker']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:136:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "044-snapback-yacht-varnish-refinishing",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:104:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 26,
+      "lane": "046-snapback-sump-pump-repairs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:119:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "005-snapback-neon-sign-commissions",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:56:10",
+      "oldGate": false,
+      "priorOperation": "markInstalled",
+      "priorCandidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "approveWordingChange",
+          "candidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "010-snapback-canyoneering-guided-trips",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:132:3",
+      "oldGate": false,
+      "priorOperation": "refundTrip",
+      "priorCandidate": "invariant trips.refundTrip only (count(waivers[trip = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelTrip",
+          "candidate": "invariant trips.cancelTrip only (count(waivers[trip = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:112:3",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant outingHikers.always only exists roles[principal = .hiker, role = 'hiker']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "addHiker",
+          "candidate": "invariant outingHikers.always only exists roles[principal = .hiker, role = 'hiker']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:113:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant receipts.always only exists roles[principal = .hiker, role = 'hiker']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelTrek",
+          "candidate": "invariant receipts.always only exists roles[principal = .hiker, role = 'hiker']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "024-snapback-billiard-table-relocations",
+      "code": "N_TEXT_EVIDENCE",
+      "site": "schema.q:36:3",
+      "oldGate": false,
+      "priorOperation": "createMove",
+      "priorCandidate": "question: is relocationOrders.photoSlate deliberately text rather than a verified upload?",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openRelocationOrder",
+          "candidate": "question: is relocationOrders.photoSlate deliberately text rather than a verified upload?",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "024-snapback-billiard-table-relocations",
+      "code": "N_TEXT_EVIDENCE",
+      "site": "schema.q:37:3",
+      "oldGate": false,
+      "priorOperation": "createMove",
+      "priorCandidate": "question: is relocationOrders.photoStair deliberately text rather than a verified upload?",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openRelocationOrder",
+          "candidate": "question: is relocationOrders.photoStair deliberately text rather than a verified upload?",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "024-snapback-billiard-table-relocations",
+      "code": "N_TEXT_EVIDENCE",
+      "site": "schema.q:35:3",
+      "oldGate": false,
+      "priorOperation": "createMove",
+      "priorCandidate": "question: is relocationOrders.photoTable deliberately text rather than a verified upload?",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openRelocationOrder",
+          "candidate": "question: is relocationOrders.photoTable deliberately text rather than a verified upload?",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:143:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "040-snapback-lawn-mower-repairs",
+      "code": "N_CHILD_EVIDENCE_PRESENCE",
+      "site": "schema.q:81:3",
+      "oldGate": false,
+      "priorOperation": "approveQuote",
+      "priorCandidate": "invariant machines.approveQuote only (count(machinePhotoSets[machine = .id]) > 0)",
+      "category": "same code/site, different current witnessed candidate",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStage",
+          "candidate": "invariant machines.advanceStage only (count(machinePhotoSets[machine = .id]) > 0)",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "044-snapback-yacht-varnish-refinishing",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:133:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 27,
+      "lane": "046-snapback-sump-pump-repairs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:119:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 28,
+      "lane": "009-snapback-antique-doll-restorations",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:83:7",
+      "oldGate": false,
+      "priorOperation": "intake",
+      "priorCandidate": "invariant dolls.always only exists staff[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStatus",
+          "candidate": "invariant dolls.always only exists staff[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 28,
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:92:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant climbs.always only exists roles[principal = .guest, role = 'guest']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelForLightning",
+          "candidate": "invariant climbs.always only exists roles[principal = .guest, role = 'guest']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:79:7",
+      "oldGate": false,
+      "priorOperation": "approveLikenessChange",
+      "priorCandidate": "invariant figures.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelFigure",
+          "candidate": "invariant figures.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 28,
+      "lane": "046-snapback-furnace-repair-calls",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:57:10",
+      "oldGate": false,
+      "priorOperation": "recordReplaced",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "approveReplacement",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 28,
+      "lane": "047-snapback-henna-artist-bookings",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:85:10",
+      "oldGate": false,
+      "priorOperation": "cancelBooking",
+      "priorCandidate": "invariant bookings.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "moveStatus",
+          "candidate": "invariant bookings.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "009-snapback-antique-doll-restorations",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:89:7",
+      "oldGate": false,
+      "priorOperation": "intake",
+      "priorCandidate": "invariant dolls.always only exists staff[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceStatus",
+          "candidate": "invariant dolls.always only exists staff[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:93:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant climbs.always only exists roles[principal = .guest, role = 'guest']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "cancelForLightning",
+          "candidate": "invariant climbs.always only exists roles[principal = .guest, role = 'guest']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "021-snapback-cotton-gin-runs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:124:10",
+      "oldGate": false,
+      "priorOperation": "logRun",
+      "priorCandidate": "invariant runs.always only exists roles[principal = .grower, role = 'grower']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "ginRun",
+          "candidate": "invariant runs.always only exists roles[principal = .grower, role = 'grower']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "046-snapback-furnace-repair-calls",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:57:10",
+      "oldGate": false,
+      "priorOperation": "recordReplaced",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "approveReplacement",
+          "candidate": "invariant jobs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 29,
+      "lane": "047-snapback-henna-artist-bookings",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:89:10",
+      "oldGate": false,
+      "priorOperation": "cancelBooking",
+      "priorCandidate": "invariant bookings.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "moveStatus",
+          "candidate": "invariant bookings.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:60:10",
+      "oldGate": false,
+      "priorOperation": "orderHelmet",
+      "priorCandidate": "invariant fittings.always only exists roles[principal = .parent, role = 'parent']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "waiveFee",
+          "candidate": "invariant fittings.always only exists roles[principal = .parent, role = 'parent']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "007-snapback-tile-mosaic-commissions",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:75:10",
+      "oldGate": false,
+      "priorOperation": "advanceStatus",
+      "priorCandidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "approveRedesign",
+          "candidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "023-snapback-gutter-repair-calls",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:105:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openJob",
+          "candidate": "invariant jobs.always only exists roles[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:58:10",
+      "oldGate": false,
+      "priorOperation": "acceptQuote",
+      "priorCandidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceInstall",
+          "candidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "007-snapback-tile-mosaic-commissions",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:76:10",
+      "oldGate": false,
+      "priorOperation": "advanceStatus",
+      "priorCandidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openCommission",
+          "candidate": "invariant commissions.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 31,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "code": "N_DERIVED_WRITE_AUTHORITY",
+      "site": "$derived/schema.q/mascotCommissions/quoteCents/update/40a608b01b14e1c0d35aa83326121f9874bfb48f10770a3f5d86fbbab19d30ca:110:7",
+      "oldGate": false,
+      "priorOperation": "updateQuote",
+      "priorCandidate": "invariant mascotCommissions.quoteCents update only old.approvalDeadline = null or next.approvalDeadline = null",
+      "category": "candidate absent",
+      "current": []
+    },
+    {
+      "wave": 31,
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:58:10",
+      "oldGate": false,
+      "priorOperation": "acceptQuote",
+      "priorCandidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceInstall",
+          "candidate": "invariant installs.always only exists roles[principal = .homeowner, role = 'homeowner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "004-snapback-senior-downsizing-moves",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:147:7",
+      "oldGate": false,
+      "priorOperation": "openMove",
+      "priorCandidate": "invariant moves.always only exists roles[principal = .family, role = 'family']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "updateMove",
+          "candidate": "invariant moves.always only exists roles[principal = .family, role = 'family']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "018-snapback-ash-tree-injections",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:113:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant properties.always only exists roles[principal = .owner, role = 'owner']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "createProperty",
+          "candidate": "invariant properties.always only exists roles[principal = .owner, role = 'owner']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "024-snapback-home-sauna-installs",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:60:10",
+      "oldGate": false,
+      "priorOperation": "advanceStatus",
+      "priorCandidate": "invariant installs.always only exists roles[principal = .client, role = 'client']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openInstall",
+          "candidate": "invariant installs.always only exists roles[principal = .client, role = 'client']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "027-snapback-animatronic-figure-builds",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:98:10",
+      "oldGate": false,
+      "priorOperation": "updateFigure",
+      "priorCandidate": "invariant builds.always only exists roster[principal = .park, role = 'park']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "openBuild",
+          "candidate": "invariant builds.always only exists roster[principal = .park, role = 'park']",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "wave": 32,
+      "lane": "037-snapback-custom-cowboy-boots",
+      "code": "N_ARGUMENT_GRANT",
+      "site": "schema.q:58:10",
+      "oldGate": false,
+      "priorOperation": "provision",
+      "priorCandidate": "invariant pairs.always only exists roles[principal = .customer, role = 'customer']",
+      "category": "same candidate, alternate current witnessed operation",
+      "current": [
+        {
+          "gated": false,
+          "operation": "advanceToTrial",
+          "candidate": "invariant pairs.always only exists roles[principal = .customer, role = 'customer']",
+          "reason": null
+        }
+      ]
+    }
+  ],
+  "method": "Exploratory cross-version comparisons of operation-specific examples; separate from unchanged-current-tree optimization/cold-warm identity checks. No source editing or search-budget changes. Current observations remain visible, every advisory remains present in expanded review; prior generated examples do not claim application reachability."
+}

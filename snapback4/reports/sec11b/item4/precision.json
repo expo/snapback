@@ -1,0 +1,1105 @@
+{
+  "schemas": 800,
+  "sourceHashesMatch": true,
+  "gates": [
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:102:3",
+      "operation": "recordInstallation",
+      "classification": "carried current applicable approval bypass"
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:116:3",
+      "operation": "recordInstallation",
+      "classification": "carried current applicable approval bypass"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:84:3",
+      "operation": "advanceJob",
+      "classification": "carried current applicable approval bypass"
+    }
+  ],
+  "fixes": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 186
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 186
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "011-snapback-gem-lab-certificates",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 248
+      },
+      "predicate": "(.grader = viewer or (exists roles[viewer, role = 'director']))",
+      "operation": "gradingQueue",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 287
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 287
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/repairs/costCents/update/bd2ffb3ea18852b83711745b334791b92d5cdf827ccfa41160b50ed58a9ef250",
+        "line": 262
+      },
+      "predicate": "old.approved != true or next.approved != true",
+      "operation": "setEstimate",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 178
+      },
+      "predicate": "((exists routes[technician = viewer, building = .building]) or (exists roles[viewer, role = 'dispatcher']) or (exists roles[viewer, role = 'service_manager']))",
+      "operation": "unitsOf",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 215
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 215
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 201
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 201
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "011-snapback-gem-lab-certificates",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 268
+      },
+      "predicate": "(.grader = viewer or (exists roles[viewer, role = 'director']))",
+      "operation": "gradingQueue",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 312
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 312
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/repairs/costCents/update/bd2ffb3ea18852b83711745b334791b92d5cdf827ccfa41160b50ed58a9ef250",
+        "line": 263
+      },
+      "predicate": "old.approved != true or next.approved != true",
+      "operation": "setEstimate",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 211
+      },
+      "predicate": "((exists routes[technician = viewer, building = .building]) or (exists roles[viewer, role = 'dispatcher']) or (exists roles[viewer, role = 'service_manager']))",
+      "operation": "unitsOf",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "fresh",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 253
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 253
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 20,
+      "lane": "045-snapback-hop-kiln-lots",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 192
+      },
+      "predicate": "exists roles[viewer, role = 'manager']",
+      "operation": "createBale",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 21,
+      "lane": "045-snapback-hop-kiln-lots",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 206
+      },
+      "predicate": "exists roles[viewer, role = 'manager']",
+      "operation": "createBale",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 151
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+        "line": 157
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 151
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+        "line": 157
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 174
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 174
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 174
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 174
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 163
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 163
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 169
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/fcfe4d3ad4e863c722a4b3da1beb5a7936aa1f7eecfc567a0042ca8cf5a71dae/schema.q",
+        "line": 175
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 169
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/fcfe4d3ad4e863c722a4b3da1beb5a7936aa1f7eecfc567a0042ca8cf5a71dae/schema.q",
+        "line": 175
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/participant-conservation/de3c926e1c3d413be6acadd56ca47d2cf820d9416923d63e7ec8bc25cbdf3886/schema.q",
+        "line": 112
+      },
+      "predicate": "participant removal conserves receipts: refund covers charge for [(\"outing\", \"outing\"), (\"hiker\", \"hiker\")]",
+      "operation": "removeOutingHiker",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/participant-conservation/de3c926e1c3d413be6acadd56ca47d2cf820d9416923d63e7ec8bc25cbdf3886/schema.q",
+        "line": 112
+      },
+      "predicate": "participant removal conserves receipts: refund covers charge for [(\"outing\", \"outing\"), (\"hiker\", \"hiker\")]",
+      "operation": "removeOutingHiker",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 176
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "fresh",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 176
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 176
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "mode": "afterTest",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 176
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 180
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 180
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+        "line": 90
+      },
+      "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+      "operation": "changeLikeness",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "fresh",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+        "line": 90
+      },
+      "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+      "operation": "changeLikeness",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+        "line": 90
+      },
+      "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+      "operation": "changeLikeness",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "mode": "afterTest",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+        "line": 90
+      },
+      "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+      "operation": "changeLikeness",
+      "classification": "carried source-reviewed replay"
+    },
+    {
+      "wave": 30,
+      "lane": "046-snapback-walk-in-cooler-repairs",
+      "mode": "afterTest",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 137
+      },
+      "predicate": "(.restaurant = viewer or (exists roles[principal = viewer, role = 'dispatcher']) or (exists roles[principal = viewer, role = 'manager']))",
+      "operation": "finishTest",
+      "classification": "carried source-reviewed replay"
+    }
+  ],
+  "unclassified": [],
+  "displayInfrastructureFailures": [],
+  "testInfrastructureFailures": [
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    }
+  ],
+  "testQualificationGaps": [
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "kind": "private HTTP test preparation/admission incomplete",
+      "failure": {
+        "kind": "private HTTP preparation/admission",
+        "summary": "security HTTP failure: private serve preparation exited exit status: 1"
+      },
+      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
+    }
+  ],
+  "testQualificationComplete": false,
+  "falseGates": 0,
+  "falseProductionRefusals": 0,
+  "freshRefused": 19,
+  "postTestRefused": 26,
+  "defaultCheckLines": {
+    "median": 3.0,
+    "p90": 7,
+    "max": 14,
+    "completed": 800,
+    "censored": 0,
+    "medianBounds": [
+      3.0,
+      3.0
+    ]
+  },
+  "defaultDeployLines": {
+    "median": 5.0,
+    "p90": 9,
+    "max": 20,
+    "completed": 800,
+    "censored": 0,
+    "medianBounds": [
+      5.0,
+      5.0
+    ]
+  },
+  "wave30": {
+    "defaultCheckLines": {
+      "median": 3.0,
+      "p90": 6,
+      "max": 9,
+      "completed": 50,
+      "censored": 0,
+      "medianBounds": [
+        3.0,
+        3.0
+      ]
+    },
+    "defaultDeployLines": {
+      "median": 5.0,
+      "p90": 9,
+      "max": 11,
+      "completed": 50,
+      "censored": 0,
+      "medianBounds": [
+        5.0,
+        5.0
+      ]
+    }
+  },
+  "timingUnderConcurrentSurvey": {
+    "coldCheckSeconds": {
+      "median": 23.375,
+      "p90": 63.818,
+      "max": 246.904
+    },
+    "deploySeconds": {
+      "median": 8.164,
+      "p90": 43.936,
+      "max": 223.705
+    }
+  },
+  "method": "Current production-profile binary on source/fixture copies; the initial survey plus explicitly retained same-binary/source watchdog retries, with concurrent host work. Timing is not isolated latency qualification. Every extra gate/FIX/refusal remains unclassified until read. Known external display-attempt, private HTTP preparation and external test watchdogs are retained as incomplete test qualification, not relabeled PASS or counted as security refusals. The legacy testInfrastructureFailures field aliases all test qualification gaps; a private preparation exit is not assigned an infrastructure root cause without inspection. A post-test result means deployment after the recorded test command, which need not have completed its HTTP subcampaign."
+}

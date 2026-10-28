@@ -1,0 +1,16 @@
+
+running 9 tests
+test comments_literals_and_cfg_test_modules_do_not_leak ... ok
+test neutral_postgres_adapter_types_are_not_external_driver_access ... ok
+test matcher_counts_lines_and_exact_database_tokens ... ok
+test neutral_type_census_handles_only_exact_paths_and_simple_local_groups ... ok
+test paths_separate_tests_and_exclude_only_adapters ... ok
+test every_public_device_adapter_method_is_covered ... ok
+test exact_allowlists_and_update_raise_guard ... ok
+test raw_device_and_fixture_access_cannot_reopen_the_host_port ... ok
+production: 0 files / 0 sites
+test: 17 files / 118 sites
+test store_port_ratchet ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.18s
+

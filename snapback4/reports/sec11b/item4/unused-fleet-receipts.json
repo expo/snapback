@@ -1,0 +1,26 @@
+[
+  {
+    "part": "a",
+    "host": "expo-build-450a",
+    "selected": false,
+    "schemasRecorded": 14,
+    "exit": -15,
+    "trackedOwnedPids": 13,
+    "remainingOwnedPids": 0,
+    "archiveSha256": "b375a1561b7b42ff51e3c96a15184efb3e083d7f7bffebeedce8364e7ff8e080",
+    "cleanupSha256": "a82eb9b08a96209eb408b3c6ed3620f8bc7a57f4469ef0352073a7b40d41ab3a",
+    "receiptSha256": "c24f456a3f8cff7faaacf06b3d83645d94d1ccc180a3b9077dbf839662e8dc02"
+  },
+  {
+    "part": "b",
+    "host": "expo-build-450b",
+    "selected": false,
+    "schemasRecorded": 8,
+    "exit": -15,
+    "trackedOwnedPids": 13,
+    "remainingOwnedPids": 0,
+    "archiveSha256": "2c4a582a8d6516b4ef1463fde0cecd07fa483e3a2c710013b3abf1dd4a736a5f",
+    "cleanupSha256": "d010e62b2f11a74cf0e41cb23c4fdcb7ba06dd1c6b61c481b640de1b7f4972ce",
+    "receiptSha256": "35f264e3813475cb8658e18a656dd964a75abcb35eb1534e8bfc97d1371f87db"
+  }
+]

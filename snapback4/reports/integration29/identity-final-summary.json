@@ -1,0 +1,7 @@
+{
+  "schemas": 50,
+  "binarySha256": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62",
+  "method": "Merged rules: expanded check --review on clean source/fixture copies, then identical warm read using advice cache. Gate replays remain live. Literal decision IDs, witness IDs, tiers and command outcomes compared. Raw payload equality is recorded separately; standalone-vs-reused-vs-pending report identity and batched-vs-independent compilation also have product unit assertions.",
+  "identityMismatches": [],
+  "rawPayloadMismatches": []
+}

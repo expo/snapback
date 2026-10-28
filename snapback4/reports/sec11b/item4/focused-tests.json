@@ -1,0 +1,53 @@
+{
+  "receipts": [
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-lang-final-policy.log",
+      "sha256": "ce02df5cd3ab3bb25b970a3627cca705ae09d77f25a2f7a1a0225dad426b8617",
+      "results": [
+        {
+          "verdict": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-cli-custody-final.log",
+      "sha256": "aaec94bd35f8f0229f679458b2834eb26598b6b11e26e2fee80f74f9cf2685f6",
+      "results": [
+        {
+          "verdict": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-guide-focused.log",
+      "sha256": "a99f9f2646fc94f181a631d11d5eb4459c6620bfefe229904c30b129e9d277aa",
+      "results": [
+        {
+          "verdict": "ok",
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "log": "/home/ccheever/sb4-loop/reports/sec11b/item4-parent-unrestricted-regression.log",
+      "sha256": "2febf39ea92d2e2f5cfa50b1aabc95125c0fd46343aad79bc1a94e47595f905b",
+      "results": [
+        {
+          "verdict": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    }
+  ],
+  "scope": "Source reviews and focused regressions precede final native corpus qualification. Final affected-scope receipt follows measurement."
+}

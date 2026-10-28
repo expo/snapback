@@ -1,0 +1,10 @@
+{
+  "source": "9b9f1a74af4fcabcdf9705620d9546a813f9aa87",
+  "preMergeMain": "982e77a600987686239e8f8eb0157df2edb90457",
+  "binarySha256": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf",
+  "origin": "Integration28 after-production-provenance.json and latency-production-after-summary.json",
+  "version": "0.4.44",
+  "scope": "SQLite copies of wave30 applications; no configured Postgres stores",
+  "review": "Later runtime changes are Postgres ownership/admission diagnostics and uncertain configured activation recovery, plus comment-only LLP identifiers. These do not execute on this SQLite paired protocol. Guide text/test changes do not alter its native execution. Baseline is the recorded Integration28 timing production snapshot, not the later byte-identical-to-consumer d1bd binary.",
+  "diff": "baseline-main-diff.patch"
+}
