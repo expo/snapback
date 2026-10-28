@@ -1,6 +1,6 @@
 # Integration 29 — REL3, SEC11b, SEC13; Snapback 4 0.4.45
 
-Status: implementation and commissioned product checks complete; final metadata closure and landing follow. Negative metrology results remain explicit below.
+Status: 0.4.45 integrated and verified in the commissioned scope. Delivery target is origin/main by non-force push. Negative metrology results remain explicit below.
 
 ## Changes and commits
 
@@ -253,3 +253,23 @@ record below. Product evidence is bound to unchanged semantic inputs; later
 metadata commits do not claim a fresh whole-suite execution.
 Full client pool, 20k/device differential runs, full qualify-linux/test.sh,
 publication signing/publishing and Mac runs remain with publication, as requested.
+
+### Final main integration and landing record
+
+Late fetch found five incoming commits through `6d658dbc40`. They alter reports,
+proposal/review material and three test files; production code and package inputs
+remain unchanged. No-fast-forward merge `f1a4576202` keeps both journal histories,
+the integration's fail-closed census parser, and both independent precise-capture
+regressions. Main's malformed-case test now asserts a terminating refusal rather
+than accepting incomplete bindings. This resolution does not touch the security
+seam and needs no additional security resolution review.
+
+Incoming affected checks: store-handle census 9/9; retained-history client file
+78/78; strengthened real PostgreSQL 16 deferred-COMMIT regression 1/1 (held
+closure 1.107 s, maximum candidate fallback 1.056 ms); clock witness model 10/10.
+The separately owned private PG cluster stopped cleanly with no postmaster PID
+file. All production sources still match the complete consumer-only R5 inputs.
+The final affected closure binds the three exact test-only deltas and reruns
+inventory/reference/docs checks, retaining the original full conservative plan
+and original negative diagnostic receipts. Push uses `sb4-loop:main`, never force;
+external `landing.json` records the final remote and clean-worktree confirmation.

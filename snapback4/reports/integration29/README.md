@@ -69,3 +69,10 @@ client plan ran or passed.
 
 Full client pool,20k/device differential campaigns, full qualify-linux/test.sh,
 Mac execution, signing and npm publication belong to publication, as commissioned.
+
+Late main merge f1a4576202 adds only reports/proposals and three test changes.
+Incoming closure is recorded in incoming-source-binding.json: census 9/9,
+retained-history 78/78, real PG16 regression 1/1 and clock model 10/10. Production
+inputs and complete packed-consumer bytes remain unchanged. The exact journal
+append preserves every reviewed toolchain byte. Final metadata closure retains
+the original negative diagnostics and does not claim a full expanded selector run.

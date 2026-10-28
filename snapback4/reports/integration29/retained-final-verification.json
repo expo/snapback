@@ -1,8 +1,13 @@
 {
   "verified": true,
-  "currentHead": "aeb6fd4c19d88d6c9d0028149764598d99365037",
+  "currentHead": "f1a4576202c4a32b8601aa9d698d0614749257da",
   "testedReleaseHead": "aeb6fd4c19d88d6c9d0028149764598d99365037",
-  "unchangedTreesAndBlobs": 15,
+  "unchangedTreesAndBlobs": 13,
+  "testOnlyChangedTrees": [
+    "snapback4/crates",
+    "snapback4/packages"
+  ],
+  "incomingFocusedChecks": "census9/9, exact real PG16 regression, retained-history client file; private cluster stopped",
   "oldCoreLangSdkRuntimeUnchanged": true,
   "cli": "whole232crate1718passed86declaredignored; only later initializer delta reviewed/tested separately",
   "lang": "library/all199integrationtargets/docs passed via retained honest partition",
