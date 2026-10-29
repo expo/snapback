@@ -2,6 +2,7 @@
 // @ref LLP 3000.037.000#14-wave-34-one-verify-loop-ver1 — one ordered loop, first red, private full output.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { reusePhase, forgetPhase } from './verify-cache.mjs';
 import { watchParent } from './verify-parent.mjs';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, lstatSync, chmodSync, openSync, closeSync, readFileSync, writeSync, renameSync } from 'node:fs';
@@ -27,12 +28,19 @@ const path = '.snapback4/last/verify.txt';
 const temporary = `${path}.${randomUUID()}.tmp`;
 const fd = openSync(temporary, 'wx', 0o600);
 const steps = ['check', 'acceptance', 'frontend:proof', 'probe:check'];
-const passed = [], started = Date.now();
+const passed = [], reused = [], started = Date.now();
 let failed, code = 0;
 try {
   for (const step of steps) {
     unwatch.check(); // close the polling interval race before admitting a phase
     writeSync(fd, `\n=== ${step} ===\n`);
+    const phaseStarted = Date.now();
+    const progress = setInterval(() => console.log(`verify: running ${step}; ${Math.round((Date.now()-phaseStarted)/1000)}s elapsed`), 5000);
+    try {
+    const reuse = await reusePhase(step);
+    unwatch.check(); // hashing may yield; revalidate before reuse or worker admission
+    if (reuse) { passed.push(step); reused.push(step); writeSync(fd, 'reused passing phase (same source/session)\n'); continue; }
+    forgetPhase(step);
     // npm owns pre/post hooks, authored scripts and their ordinary exit codes.
     const child = spawn(process.execPath, [fileURLToPath(import.meta.url), '--worker', step], {detached:process.platform !== 'win32', stdio:['ignore', fd, fd, 'ipc']});
     code = await new Promise(resolve => {
@@ -40,7 +48,7 @@ try {
       child.once('message', message => { if (Number.isInteger(message?.code)) result = message.code; child.disconnect(); });
       child.once('error', error => { writeSync(fd, String(error)+'\n'); resolve(1); });
       child.once('exit', () => resolve(result));
-    });
+    }); } finally { clearInterval(progress); }
     if (code) { failed = step; break; }
     passed.push(step);
   }
@@ -56,7 +64,7 @@ else if (failed) {
   console.log(relevant.slice(0, 6).join('\n') || `verify: ${failed} failed; inspect ${path}`);
 }
 console.log(`verify: ${failed ? `FAIL ${failed}; exit ${code}` : 'passed'}; ${passed.length}/${steps.length} phases; ${Date.now()-started}ms`);
-console.log(`steps: ${passed.join(', ') || 'none'}${failed ? `; stopped at ${failed}` : ''}`);
+console.log(`steps: ${passed.map(step => step + (reused.includes(step) ? ' (reused)' : '')).join(', ') || 'none'}${failed ? `; rerun: npm run ${failed}` : ''}`);
 console.log(`details: ${path}; npm run verify -- --explain for complete output`);
 process.exitCode = code;
 

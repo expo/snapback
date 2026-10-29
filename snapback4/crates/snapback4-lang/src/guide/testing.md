@@ -1,7 +1,7 @@
 # Testing: fixtures and the packaged proof kit
 
-Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
-Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
+Use `npm run verify` for the starter proof loop: check, acceptance, frontend and probe shutdown.
+The kit owns server/browser lifecycles; day2:proof covers saved-version changes.
 
 ```js
 import { startDev, cleanup } from "snapback4/proof";

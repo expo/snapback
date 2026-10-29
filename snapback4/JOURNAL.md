@@ -110431,3 +110431,13 @@ ordering has a real signal-before-handler window; the assertion stays strict.
 This follow-up changes the emitted production script and release note, not the
 engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
+
+### 2026-10-29 — VER2: route builders through one proof loop
+
+Start/workflow and starter prose now name verify as the complete loop, with
+phase scripts reserved for focused reruns. New UI starter npm pre/post hooks
+retain source/session-bound passing acceptance/frontend receipts even after
+business command replacement. Verify reuses them conservatively, keeps check
+and shutdown fresh, prints five-second progress and names the first red rerun.
+LLP 3000.037.000 §18 records identity, invalidation and cache limits. This is
+mechanical routing/reuse work; CANDRUN owns the forty-lane cost decision.

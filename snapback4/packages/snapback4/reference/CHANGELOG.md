@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- `npm run verify` is the starter proof loop; separate acceptance/frontend/probe commands are targeted reruns. New starters keep pre/post proof hooks when changing business commands. Passing direct acceptance/frontend runs can be reused for identical source, environment and live builder session on Linux (up to two hours); uncertain receipts rerun. Long phases print five-second progress, and the first red names its rerun. Existing app-owned scripts remain unchanged.
+
 - Generated production serve scripts arm signal cleanup before reporting readiness. Existing app scripts can save the `serveUntilSignal(hosts)` promise before printing readiness and await it afterward, so an immediate shutdown gets graceful cleanup.
 - `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Existing apps keep their scripts and assertions; ordinary checks create neither packet and refresh only existing matrix facts. The previously automatic exhaustive scaffold is now opt-in. Explicit requests preserve builder edits; compact drafts are never rewritten.
 

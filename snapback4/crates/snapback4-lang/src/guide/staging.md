@@ -54,7 +54,8 @@ For liveness alone, verify that process with `npx snapback4 serve-check --deploy
 The script must serve the exact directory named by `--deployment`; the barrier
 checks `<deployment>/store.sqlite`. A missing store is a path error; a held
 lock names that store and its recorded holder.
-Password starters provide `npm run --silent probe:check` with a fresh deployment.
+Password starters include this phase in `npm run verify`; use `npm run probe:check`
+only for a targeted shutdown rerun with a fresh deployment.
 The verifier keeps readiness credentials out of its output and tests startup,
 30 seconds alive, SIGTERM reaping and store release. SIGTERM stops
 and reaps the backend and exits successfully. The deployment and private credentials file remain for inspection;
@@ -277,7 +278,7 @@ It refuses staging/production hosts before creating users. Use persistent
 online client, operator-only provision, and a small notes app with no personas
 or fixture files. For Expo use `--expo --online --password`.
 Run `node scripts/install.mjs` from the generated directory for streaming npm
-output and an elapsed-time heartbeat. `npm run frontend:proof` uses real staging
+output and an elapsed-time heartbeat. `npm run verify` includes the frontend phase with real staging
 accounts with provisioned roles. Development uses the same plan through
 `devAccounts` (`guide testing`); production uses `provisionAccounts`.
 

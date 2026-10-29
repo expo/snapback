@@ -11,6 +11,11 @@ fn every_ui_starter_has_one_quarry_check_before_typescript_and_one_verify_loop()
         let pkg: serde_json::Value = serde_json::from_slice(&fs::read(dir.join("package.json")).unwrap()).unwrap();
         assert_eq!(pkg["scripts"]["check"], "snapback4 check && npm run --silent typecheck");
         assert_eq!(pkg["scripts"]["verify"], "node scripts/verify.mjs");
+        for phase in ["acceptance", "frontend:proof"] {
+            assert_eq!(pkg["scripts"][format!("pre{phase}")], format!("node scripts/verify-cache.mjs before {phase}"));
+            assert_eq!(pkg["scripts"][format!("post{phase}")], format!("node scripts/verify-cache.mjs after {phase}"));
+        }
+        assert!(dir.join("scripts/verify-cache.mjs").is_file());
         assert!(pkg["scripts"]["typecheck"].as_str().is_some_and(|s| !s.contains("snapback4 check")));
         for script in ["acceptance", "frontend:proof", "probe:check", "probe:serve"] { assert!(pkg["scripts"][script].is_string(), "{args:?}: {script}"); }
         assert!(String::from_utf8_lossy(&out.stdout).contains("npm run verify"));
