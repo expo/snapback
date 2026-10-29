@@ -17,3 +17,6 @@ bypass the hook, and it would hide a real strict-mode failure.
 Expected: the hook either resolves its own dependencies, or reports a clear
 "dependencies missing; run bun install at the repo root" and exits 0 for the
 deferred (non-strict) path.
+
+Update 2026-10-28: confirmed the missing-dependency cause. After `bun install --frozen-lockfile` at the
+repository root of a fresh worktree, the push of `21ad8f53d9` ran this hook normally, with no `--no-verify`.

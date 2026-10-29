@@ -17,7 +17,8 @@ function install(root) {
   fs.mkdirSync(path.join(installed, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(installed, 'dist'));
   for (const name of ['snapback4.js', 'cli-usage.js', 'cli-commands.json', 'upgrade-warnings.js', 'release-changes.js']) fs.copyFileSync(path.join(pkg, 'bin', name), path.join(installed, 'bin', name));
-  fs.copyFileSync(path.join(pkg, 'dist/resolve-binary.js'), path.join(installed, 'dist/resolve-binary.js'));
+  // bin/snapback4.js imports both since serve began following its native/npm parent's lifetime (2bb0396331).
+  for (const name of ['resolve-binary.js', 'parent-lifetime.js']) fs.copyFileSync(path.join(pkg, 'dist', name), path.join(installed, 'dist', name));
   fs.writeFileSync(path.join(installed, 'package.json'), '{"type":"module"}');
   fs.mkdirSync(path.join(root, 'node_modules/.bin'));
   fs.symlinkSync('../snapback4/bin/snapback4.js', path.join(root, 'node_modules/.bin/snapback4'));

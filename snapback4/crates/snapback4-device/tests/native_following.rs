@@ -12,11 +12,19 @@ fn module() -> &'static [u8] {
     MODULE.get_or_init(|| {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let target = root.join("target/native-fixture");
+        // The tracked fixture lock records the workspace's snapback4-native version. After a
+        // version bump cargo rewrites it, which dirtied the release source in publication
+        // suites (0.4.46-0.4.48). Restore the tracked bytes so the build never edits source.
+        let lock = root.join("native-fixtures/following/Cargo.lock");
+        let tracked = std::fs::read(&lock).unwrap();
         let output = std::process::Command::new("cargo")
             .args(["build", "--release", "--quiet", "--target", "wasm32-unknown-unknown", "--manifest-path"])
             .arg(root.join("native-fixtures/following/Cargo.toml"))
             .arg("--target-dir").arg(&target)
             .env_remove("CARGO_TARGET_DIR").output().unwrap();
+        if std::fs::read(&lock).ok().as_deref() != Some(tracked.as_slice()) {
+            std::fs::write(&lock, &tracked).unwrap();
+        }
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
         std::fs::read(target.join("wasm32-unknown-unknown/release/sb4_fixture_following.wasm")).unwrap()
     })
