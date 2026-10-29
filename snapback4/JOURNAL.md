@@ -110478,3 +110478,12 @@ pass through the actual adapter, including hooks, exit7, signal and cleanup.
 Final guide is 7,998 source / 7,999 served bytes. A separately named after-observe
 whole-session cohort will measure this corrected flow. Its native build will be
 shared with packed qualification to freeze the same canonical platform bytes.
+
+Corrected DX17 qualification passed at d7362dfe42: source snapshot, native binary,
+platform tarball integrity and client tarball integrity all match the canonical
+bytes used by after-observe replays. Two installed checker fixtures exercise
+actual v2-row reads and ordinary nonzero frozen outcomes. The full consumer-only
+path and corrected 15-step affected set passed with unchanged-source receipts;
+neither is publication qualification. Prior snapshot differences apply only to
+retained rejected trials. Completed multi-GB consumer/old-cohort dependencies
+are deleted after hashes, sources, stores, archives and receipts are retained.

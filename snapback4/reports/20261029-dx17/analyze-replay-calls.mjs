@@ -12,6 +12,6 @@ for(const phase of ['before','after-final','after-route','after-observe'])for(co
  }
  const guide=calls.filter(c=>/\bsnapback4\s+guide\b/.test(c));
  const checker=join(dir,'.snapback4/last/day2-check.json');let receipt=null;if(existsSync(checker)){try{const r=JSON.parse(readFileSync(checker));receipt={ok:r.ok,phases:r.phases?.length,failed:r.failed}}catch{}}
- rows.push({phase,n,model:a.model,commandInputs:calls.length,guideMentionBatches:guide.length,guideOnlyExamples:guide.filter(c=>!c.includes('<<')).map(c=>c.slice(0,700)),checkerReceipt:receipt,checkerMentionBatches:calls.filter(c=>/\bsnapback4\s+day2-check\b/.test(c)).length,warning:'Guide/checker mentions are static command-input extraction, not execution counts. Heredoc/script text can mention commands; checker receipt separately records an actual invocation.'});
+ rows.push({phase,n,model:a.model,commandInputs:calls.length,guideMentionBatches:guide.length,guideCards:guide.flatMap(c=>[...c.matchAll(/\bsnapback4\s+guide(?:\s+([a-z][a-z0-9/-]*))?/g)].map(m=>m[1]??'index')),checkerReceipt:receipt,checkerMentionBatches:calls.filter(c=>/\bsnapback4\s+day2-check\b/.test(c)).length,warning:'Guide/checker mentions are static command-input extraction, not execution counts. Heredoc/script text can mention commands; checker receipt separately records an actual invocation.'});
 }
 writeFileSync(evidence+'/replay-command-analysis.json',JSON.stringify({rows},null,2));console.log(rows.map(({phase,n,guideMentionBatches,checkerReceipt})=>({phase,n,guideMentionBatches,checkerReceipt})));
