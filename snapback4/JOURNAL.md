@@ -110331,7 +110331,7 @@ whole-session token/wall measurement remain with publication and the rerun.
 
 The existing day2 card folds upgrade, real v1 capture/production, change-kind
 routes, preview/v2, exact rollback/forward scripts, frozen calls and the roster
-into one 7,972-byte read. The packaged day2-check orders existing authored
+into one bounded read (revised packet: 7,989 bytes). The packaged day2-check orders existing authored
 proofs and the harness's two release cycles; two v2 callers run before the second
 rollback measures their rows. Only the final probe adds a 30-second observation.
 First reds retain exits, cleanup receipts and private log paths. Rollback
@@ -110342,3 +110342,10 @@ are READY; actual packed workflow controls pass two complete checks with real
 accounts and frozen-v1 returns. Whole-session costs and the complete affected/
 consumer-only results are recorded in the DX17 workstream report; no empirical
 win, publication qualification or author acceptance is inferred here.
+
+DX17 replay revision: the first complete after cohort regressed cost/calls
+despite correct production/frozen-client outcomes. Retain those measurements.
+The revised packet leads with direct day2-check, restores the SDK-source reading
+guard, includes enum-label aliases and stage-boundary rules, and arms shutdown
+before readiness. The packed consumer invokes the CLI directly. A separate
+fixed-seed complete cohort will measure this revision, without best-run selection.

@@ -59,7 +59,7 @@ try{
 }finally{await host.stop();}
 ` + '`' + String.raw`);
 for(let run=0;run<2;run++){
- const r=await command('npm',['run','--silent','day2:check','--','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json')},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
+ const r=await cli(['day2-check','--deployment','./deploy','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json')},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
  const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(report.ok,true);assert.equal(report.phases.length,16);assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
  assert.ok(!JSON.stringify(report).includes('"password"'));assert.equal(existsSync(join(cwd,'deploy/proof-accounts/default.json')),true);
 }
