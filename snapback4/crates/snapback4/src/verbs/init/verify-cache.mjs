@@ -129,6 +129,7 @@ async function hook(mode, phase) {
     if (npm.argv.join(' ').trim() !== `npm run ${phase}`) return;
     const pending = join(directory, `${prefix(phase)}${npm.pid}-${npm.birth}.pending`);
     if (mode === 'before') {
+      save(pending, { scanning: true }); // every admitted run blocks reuse, including cleanup failures
       // A failed/interrupted run leaves a marker. It blocks reuse until a new
       // run starts; do not remove markers owned by concurrent live npm runs.
       for (const name of readdirSync(directory).filter(name => name.startsWith(prefix(phase)) && name.endsWith('.pending'))) {
@@ -136,9 +137,8 @@ async function hook(mode, phase) {
         if (!match) continue;
         let alive = false;
         try { alive = processIdentity(Number(match[1])).birth === match[2]; } catch {}
-        if (!alive) unlinkSync(join(directory, name));
+        if (!alive) { try { unlinkSync(join(directory, name)); } catch (error) { if (error.code !== 'ENOENT') throw error; } }
       }
-      save(pending, { scanning: true }); // block reuse before the first asynchronous scan
       const key = await phaseKey(phase); if (key) save(pending, { key });
     } else if (mode === 'after') {
       const key = await phaseKey(phase);

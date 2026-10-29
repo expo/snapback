@@ -119,3 +119,15 @@ test('interrupted overlapping pre-hook blocks an older run completing afterward'
   assert.doesNotMatch(r.out, /acceptance \(reused\)/);
   assert.equal(f.counts().filter(p => p === 'acceptance').length, 2);
 });
+test('concurrent removal of the same stale marker does not abort pass recording', { skip: process.platform !== 'linux' }, async t => {
+  const f = fixture(t), patch = join(f.cwd, 'remove-stale.mjs');
+  mkdirSync(join(f.cwd, '.snapback4/verify-cache'), { recursive: true });
+  writeFileSync(join(f.cwd, '.snapback4/verify-cache/acceptance-99999999-1.pending'), '{}');
+  // Another pre-hook can remove the marker between readdir and unlink. Force
+  // exactly that ENOENT, rather than hoping parallel npm processes interleave.
+  writeFileSync(patch, `import fs from'node:fs';import{syncBuiltinESMExports}from'node:module';const unlink=fs.unlinkSync;fs.unlinkSync=p=>{if(p.endsWith('acceptance-99999999-1.pending')){unlink(p);const e=Error('removed concurrently');e.code='ENOENT';throw e;}return unlink(p);};syncBuiltinESMExports();`);
+  const env = { NODE_OPTIONS: `--import ${JSON.stringify(patch)}` };
+  assert.equal((await f.run('acceptance', env)).code, 0);
+  const result = await f.run('verify', env); assert.equal(result.code, 0, result.out);
+  assert.match(result.out, /acceptance \(reused\)/);
+});
