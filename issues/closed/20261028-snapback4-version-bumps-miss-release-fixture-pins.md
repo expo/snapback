@@ -1,6 +1,6 @@
 # snapback4 version bumps miss the release fixture pins
 
-Status: Open
+Status: Closed
 Date: 2026-10-28
 Scope: the snapback4 release bump commits; `packages/snapback4/test/{device-version,sync-generation}.test.mjs`
 and `native-fixtures/following/Cargo.lock`.
@@ -27,3 +27,5 @@ and the tripwire pins, or have the affected-tests path run device-version and sy
 `packages/snapback4/package.json` changes, so the bump commit itself goes red.
 
 Immediate: the 0.4.49 bump (Integration 33) must advance both tripwires to 0.4.49.
+
+Resolution (2026-10-29, Integration 33): `snapback4/scripts/bump-version.mjs` validates and advances all four package manifests and platform dependencies, the Cargo workspace and both release locks, and both explicit test tripwires together. Used for 0.4.49; unrelated dependency pins are preserved.
