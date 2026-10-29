@@ -176,3 +176,15 @@ No npm publication or Mac qualification is claimed. The coordinator's same-windo
 combined cost gate remains separate. Lane samples are not individually
 significant; dollar savings are not inferred from correctness, mechanical proof
 reuse or these integration checks.
+
+## Final diagnostic test reconciliation
+
+The unchanged-source affected receipt for `8fb660abbd09` completed all 22
+steps. All steps passed except one stale language diagnostic assertion:
+STARTER2 now leads with presence binding and makes missing-is-false conditional
+on application intent. The repaired test checks that advice and compiles the
+prescribed binding, while retaining the explicit-comparison intent case.
+Only that test and this report change after the parent receipt. The final
+incremental selector receipt under `/tmp/integration34/affected-final/` supplies
+the changed-target verdict; parent passing checks retain unchanged semantic
+inputs. The complete publication red check still must pass on the final commit.
