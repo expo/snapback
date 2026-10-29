@@ -327,7 +327,9 @@ fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
     let source = "table flags:\n  active: bool\n  public\n  online only\nquery bad(id: flags):\n  return true or flags[id].active\n";
     let d = refusal(source,"E_QUARRY_TYPE");
     assert!(d.rewrite.contains("! else MISSING_VALUE") && d.rewrite.contains("only when the spec defines missing/hidden as false"), "{d}");
-    check(&source.replace("return true or flags[id].active", "flag = flags[id].active ! else MISSING_VALUE\n  return true or flag"));
+    let repaired = source.replace("return true or flags[id].active", "flag = flags[id].active ! else MISSING_VALUE\n  return true or flag");
+    let bound = compile(&[("schema.q".into(), repaired)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     // An application can still choose the explicit missing-is-false meaning.
     let b = compile(&[("schema.q".into(),source.replace("flags[id].active","(flags[id].active = true)"))]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
