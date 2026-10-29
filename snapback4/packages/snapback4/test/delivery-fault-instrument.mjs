@@ -516,3 +516,17 @@ export function awaitBoundary() {
 // outside SDK delivery. parent-lifetime and the other new proof helpers add no
 // awaits. Regenerate awaitBoundary() only; retain all 215 classified fault sites,
 // recipes and both matrix assertions without exceptions.
+
+// Integration 34 boundary audit: upstream 148cb4d372..5913715c25 defers the
+// local import in app/app-persona before client creation; web.ts now awaits
+// its runtime module at engine/open entry, before existing device ownership.
+// The former web implementation's awaits live in web-runtime.ts; synchronous
+// persistence extraction adds no awaits. web-wasm retains its 13 awaits and
+// content validation, awaiting a hash-validated compilation promise instead
+// of compiling identical bytes again. These are startup/representation sites,
+// not new durable-write, receipt, FIFO, grant or outbox transitions. Existing
+// delivery sites/recipes stay pinned and their full fault matrix still runs.
+// STARTER2 adds nine proof-browser UI/auth waits and one proof.ts mounted-control
+// wait; these operate on proof pages, outside client delivery custody. Browser
+// restore/account-switch and startup/offline regressions exercise these paths.
+// @ref LLP 3000.002#browser-startup-loading — deferred runtime opening retains the existing persistence and identity lifecycle.

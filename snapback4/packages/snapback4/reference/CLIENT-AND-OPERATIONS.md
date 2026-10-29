@@ -4096,6 +4096,25 @@ imports remain usable with ES2022/WebWorker types alone. Use the generated
 `frontend:proof` first; `guide testing` shows the short browser recipe. A custom
 proof can compose the same bounded hosts, private logs and saved release inputs:
 
+Password starter proofs can switch a restored account through the real UI.
+The helpers wait for restoration and signed-in/signed-out controls; custom screens
+still own their selectors and business-readiness assertions. Keep proof account
+credentials private:
+
+```ts
+import { withBrowser, signInUI, signOutUI } from "snapback4/proof";
+export async function passwordScreenProof(cwd: string, url: string,
+  account: { email: string; password: string }) {
+  await withBrowser({ cwd }, async context => {
+    const page = await context.newPage();
+    await page.goto(url);
+    await signInUI(page, account);
+    // Assert this account's business screen and writes here.
+    await signOutUI(page);
+  });
+}
+```
+
 For a complete paged assertion, pass each opaque continuation back unchanged.
 The helper refuses an incomplete, partial or over-limit traversal:
 

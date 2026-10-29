@@ -61,6 +61,8 @@ test('starter installer names its owned wait without polling and preserves a sil
  const source=join(root,'crates/snapback4/src/verbs/init/install.mjs');
  const result=await command(process.execPath,[source],{cwd,env:{PATH:join(cwd,'bin')+':'+process.env.PATH},timeoutMs:20000,secret:true});
  assert.equal(result.code,7);assert.match(result.stderr,/frontend install: running/);assert.match(result.stderr,/install\.mjs --wait/);assert.match(result.stderr,/npm install finished \(exit 7\)/);
- assert.equal(result.stderr.trim().split('\n').length,2,'one initial status and one completion, without periodic polling');
+ const lines=result.stderr.trim().split('\n'), progress=lines.filter(line=>/^frontend install: running; \d+s elapsed; waiting$/.test(line));
+ assert.ok(progress.length>=2,'a quiet eleven-second install supplies five-second progress');
+ assert.equal(lines.filter(line=>!progress.includes(line)).length,2,'one initial status and one completion apart from progress');
  assert.equal(readFileSync(join(cwd,'npm-runs'),'utf8'),'run\n','one owned installation');
 });

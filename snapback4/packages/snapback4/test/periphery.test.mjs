@@ -209,7 +209,9 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   const transform = transformer.module.exports.transform;
   assert.equal(transform({ src, options: { platform: "web", projectRoot:dir } }).src, 'const wasm = require("./wasm/snapback4_device_bg.wasm");');
   assert.equal(transform({ src, options: { platform: "ios", projectRoot:dir } }).src, src);
-  const shipped = read(join(root, "packages/snapback4/dist/web.js"));
+  const facade = read(join(root, "packages/snapback4/dist/web.js"));
+  assert.ok(facade.includes('import("./web-runtime.js")'), "web facade defers the local runtime");
+  const shipped = read(join(root, "packages/snapback4/dist/web-runtime.js"));
   assert.ok(transform({ src: shipped, options: { platform: "web", projectRoot:dir } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.equal(roots.length,6,"every transform resolves through the consuming Expo package");
   assert.match(read(join(dir, "src/client.ts")), /createApp/);
