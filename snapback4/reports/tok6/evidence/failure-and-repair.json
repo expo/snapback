@@ -1,0 +1,41 @@
+{
+  "logs": [
+    {
+      "path": "/tmp/tok6-consumer.log",
+      "sha256": "a65cbd1661fcc360d6a25965751ea9ec3c2d554d103dc5b53d6a634812285cf2",
+      "bytes": 37680
+    },
+    {
+      "path": "/tmp/tok6-dx8-repaired.log",
+      "sha256": "00cd8d23043b01a2faeffaab0a05100ec56e9c5af77da9fd329934add8a1bc8f",
+      "bytes": 839
+    },
+    {
+      "path": "/tmp/tok6-dx8-repaired2.log",
+      "sha256": "56830e4126c66f9186e4a4f88a3de062871265c4c62b6c72ec2c7485de15e19b",
+      "bytes": 839
+    },
+    {
+      "path": "/tmp/tok6-affected-integration.log",
+      "sha256": "88505bf3b5c5a798a9ed070bffed08373cfe5b73f00f8bc30b72c80cc8eb1f27",
+      "bytes": 322368
+    }
+  ],
+  "originalConsumerFailure": {
+    "source": "b827d8f287",
+    "status": "failed",
+    "reason": "ENOENT npm-pids.json: 300ms npm startup race"
+  },
+  "isolatedProductionDx8Reruns": {
+    "attempts": 2,
+    "status": "passed",
+    "evidence": {
+      "status": "passed",
+      "installedSDK": true,
+      "developmentClock": "operator authenticated; full/read sessions preserved or expired by policy; restart returns to wall",
+      "productionAccounts": "ordinary signup plus service-authorized provisioning",
+      "stop": "same-owner release control and lock release",
+      "processes": "npm descendants and caller-death cleanup"
+    }
+  }
+}

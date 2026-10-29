@@ -1,0 +1,36 @@
+{
+  "before": {
+    "files": 381,
+    "markdown": [
+      "README.md",
+      "dist/guide-api/app-full.md",
+      "dist/guide-api/app.md",
+      "dist/guide-api/auth-full.md",
+      "dist/guide-api/auth.md",
+      "dist/guide-api/client-full.md",
+      "dist/guide-api/client.md",
+      "dist/guide-api/proof.md",
+      "dist/guide-api/react-full.md",
+      "dist/guide-api/react.md",
+      "dist/guide-api/witness-full.md",
+      "dist/guide-api/witness.md",
+      "reference/CHANGELOG.md",
+      "reference/CLIENT-AND-OPERATIONS.md",
+      "reference/FOLLOWING-ADOPTION.md",
+      "reference/OFFLINE-UPLOADS.md",
+      "reference/SERVER.md"
+    ],
+    "bytesBeyondReadme": 555665,
+    "tokensBeyondReadme": 123816
+  },
+  "after": {
+    "files": 365,
+    "markdown": [
+      "README.md"
+    ],
+    "bytesBeyondReadme": 8550,
+    "tokensBeyondReadme": 2444
+  },
+  "ceilingTokens": 3000,
+  "pass": true
+}

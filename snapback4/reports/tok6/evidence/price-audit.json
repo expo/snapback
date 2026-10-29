@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "rows": 12,
+  "requests": 815,
+  "pricesVersion": "2026-10-28.1",
+  "pricesSha256": "98e0a551f06d00bcf6b9aae807830edf587206741f0749750d2780b4d2ea8f80",
+  "method": "independent crosscheck against harness priceUsage(perCall:true); threshold per request; reasoning included once"
+}

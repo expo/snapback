@@ -1,0 +1,81 @@
+{
+  "methods": [
+    {
+      "phase": "after",
+      "label": "after",
+      "selected": [
+        1,
+        2,
+        5,
+        39,
+        18,
+        19
+      ],
+      "harnessSha256": "771fcfc485c3a9b34d9ed5d46fb7be9a0f9dcd32a3656230025e16d4168b378a",
+      "templateSha256": "ebdf9e206d3691d20d24866936f1979f9095a0177d6ae2e217b86082a594bb7b",
+      "backendSha256": "4688b75b451f0cf47f831f2a87ae246d2971d01f30f3375ade8056eba682596b",
+      "registryUrl": "http://127.0.0.1:46881/"
+    },
+    {
+      "phase": "before",
+      "label": "before-r2",
+      "selected": [
+        5,
+        39,
+        18,
+        19
+      ],
+      "harnessSha256": "771fcfc485c3a9b34d9ed5d46fb7be9a0f9dcd32a3656230025e16d4168b378a",
+      "templateSha256": "ebdf9e206d3691d20d24866936f1979f9095a0177d6ae2e217b86082a594bb7b",
+      "backendSha256": "4688b75b451f0cf47f831f2a87ae246d2971d01f30f3375ade8056eba682596b",
+      "registryUrl": "http://127.0.0.1:38043/"
+    },
+    {
+      "phase": "before",
+      "selected": [
+        1,
+        2,
+        5,
+        39,
+        18,
+        19
+      ],
+      "harnessSha256": "771fcfc485c3a9b34d9ed5d46fb7be9a0f9dcd32a3656230025e16d4168b378a",
+      "templateSha256": "ebdf9e206d3691d20d24866936f1979f9095a0177d6ae2e217b86082a594bb7b",
+      "backendSha256": "4688b75b451f0cf47f831f2a87ae246d2971d01f30f3375ade8056eba682596b",
+      "registryUrl": "http://127.0.0.1:44813/"
+    }
+  ],
+  "briefComparison": [
+    {
+      "idea": 1,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "0a736a0083ead4827af17731b1f115c036935bdbbd37f928c632d2584c59ee2d"
+    },
+    {
+      "idea": 2,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "95ad0456594f0f60dd77afab2c39ed15f6bffd360419e4fd1b5e73b90384583b"
+    },
+    {
+      "idea": 5,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "045bc3fb778ccc8dbb79372370554f6545aa971a60df10834a2c8ec10385fe51"
+    },
+    {
+      "idea": 18,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "81fe7de22d22191f6cf573eaa8cd82b8182b613566ce9fc5a72b320015dbcb88"
+    },
+    {
+      "idea": 19,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "265d4c6a1fd2666c1f0b7ac82c7556e1d35532417e4c39626e6d503a9845709f"
+    },
+    {
+      "idea": 39,
+      "equalAfterPathPortNormalization": true,
+      "normalizedBriefSha256": "8c24364efb61871de147019ae9696eba318f1f20fac42061ee561c0436bd6f10"
+    }
+  ]
+}
