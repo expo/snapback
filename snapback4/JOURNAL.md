@@ -110431,3 +110431,22 @@ ordering has a real signal-before-handler window; the assertion stays strict.
 This follow-up changes the emitted production script and release note, not the
 engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
+
+
+### 2026-10-29 — Web startup footprint, first module split
+
+The author's preferred target is <100 KB for all local-first JS/WASM; loading
+full local execution after the initial page is an accepted practical fallback.
+On sb4/web-startup-20261029, app/persona local execution and the web device host
+are dynamic modules; worker support loads only on its path. Identity promotion,
+engine handshake, write admission and persistence use their existing sequences.
+A production consumer's initial SDK graph measures 122,883 -> 82,433 B gzip
+(103,364 -> 70,941 B Brotli), excluding React/authored UI. All emitted assets
+including optional worker code grow 873,092 -> 880,255 B gzip. Same retained
+0.4.47 device, Node 24.22.2 and Vite 8.3.5 in both measurements; not publication
+qualification. Typecheck/build, 100 app/local-session/browser startup assertions,
+the bundle regression and 15 durability assertions pass. Additional acquisition
+and worker witnesses receive server SIGTERM before readiness and remain
+unqualified. Signed-in first data still waits for the full runtime; no latency
+win, complete-runtime 100 KB claim or performance non-regression is asserted.
+LLP 3000.002 records the remaining progressive-read/SSR and custody questions.

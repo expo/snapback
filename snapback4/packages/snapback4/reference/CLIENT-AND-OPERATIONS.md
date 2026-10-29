@@ -134,6 +134,14 @@ needs neither: every client reads, and `readOnly: true` silences the write
 warning (`guide read-only`). An Expo app pays nothing on phones (the native
 module, or Expo Go's online tier) and the same wasm on Expo web.
 
+The app and web entry points now keep local execution and the browser device
+host in deferred modules. Constructing `webDevice()` does not fetch the device;
+engine preflight/open loads it during restoration or sign-in. This lets an
+initial shell or sign-in page load without the full local runtime. A restored
+local client still waits for that runtime: splitting does not make its first
+query ready earlier by itself. Keep deferred chunks and WASM with the offline
+shell; `web-shell` already caches all exported assets from the same build.
+
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
 guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local

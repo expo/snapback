@@ -12,7 +12,8 @@ import { createClient } from "./client.ts";
 import { holdClose } from "./closing-responses.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
-import { DeviceVersionError, createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
+import { DeviceVersionError } from "./device-version.ts";
+import type { DeviceOpener, LocalOptions, LocalClient } from "./local.ts";
 import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-storage.ts";
 import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
@@ -686,6 +687,8 @@ function createAppInner(options: AppOptions): App {
           capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
           recheck: () => { void authorized().catch(() => {}); },
         });
+        // @ref LLP 3000.002#browser-startup-loading — ordinary app/auth imports do not load local execution.
+        const { createLocalClient } = await import("./local.ts");
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start; commitClient = local.commit;
       } else {

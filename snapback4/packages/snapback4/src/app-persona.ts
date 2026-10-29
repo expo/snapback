@@ -18,7 +18,7 @@ import { guardClient } from "./app-client.ts";
 import { onlineCustody } from "./app-online.ts";
 import { identifyDispatch } from "./online-dispatch.ts";
 import { StorageWarning } from "./app-storage.ts";
-import { DeviceVersionError, createLocalClient } from "./local.ts";
+import { DeviceVersionError } from "./device-version.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sdkOwned } from "./admission.ts";
 import type { Client, Principal, Refusal, SessionRevocation, SignIn } from "./contract.ts";
@@ -95,6 +95,8 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     let opened: Client | undefined;
     try {
       if (options.device) {
+        // @ref LLP 3000.002#browser-startup-loading — ordinary app/auth imports do not load local execution.
+        const { createLocalClient } = await import("./local.ts");
         opened = await createLocalClient({ url, persona, device: options.device,
           ...(options.onDeviceVersion ? { onDeviceVersion: options.onDeviceVersion } : {}),
           ...(fetcher ? { fetch: fetcher } : {}),

@@ -16,7 +16,7 @@ const finalGroup = group(groups - 1);
 const seed = scaleSeed({ groups, messages, members });
 const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 const artifact = path => { const bytes = readFileSync(path); return { bytes: bytes.length, sha256: sha256(bytes) }; };
-const sourcePaths = ["bun.lock", "witness/scale.mjs", "witness/lib.mjs", "apps/chat/snapback/schema.q", "packages/snapback4/src/contract.ts", "packages/snapback4/src/local.ts", "packages/snapback4/src/web.ts"];
+const sourcePaths = ["bun.lock", "witness/scale.mjs", "witness/lib.mjs", "apps/chat/snapback/schema.q", "packages/snapback4/src/contract.ts", "packages/snapback4/src/local.ts", "packages/snapback4/src/web.ts", "packages/snapback4/src/web-runtime.ts", "packages/snapback4/src/web-persistence.ts"];
 const out = {
   at: new Date().toISOString(), witness: "chromium-scale", measurement: "cold constructor acquisition then useful queries; fresh-realm offline reopen",
   sourceCommit: spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim(),

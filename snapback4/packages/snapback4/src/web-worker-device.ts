@@ -4,7 +4,7 @@ import { deliveryCommit } from "./local-device.ts";
 import { deviceControl } from "./device-control.ts";
 import { deviceRestore } from "./device-restore.ts";
 import type { Change } from "./web.ts";
-import { indexedDbPersistence } from "./web.ts";
+import { indexedDbPersistence } from "./web-persistence.ts";
 import { claimStore } from "./web-ownership.ts";
 import { terminalReceipts, receiptHistory, lookupReceipts } from "./web-receipts.ts";
 import { admissionHost } from "./admission.ts";

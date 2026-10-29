@@ -369,3 +369,19 @@ window.mountProgress = (app) => {
   });
   assert.deepEqual(errors, []);
 });
+
+// Exercise the consumer's emitted import graph: a source-level import census
+// misses shared chunks which can pull the local engine back into startup.
+test("web startup bundle defers the local runtime under the 100 KB gzip SDK budget", async t => {
+  const { measureWebApp } = await import("../../../scripts/measure-client.mjs");
+  const result = await measureWebApp();
+  const initial = result.files.filter(file => file.initial);
+  const loaded = new Set(initial.flatMap(file => file.modules));
+  for (const module of ["local.ts", "web-runtime.ts", "wasm/snapback4_device.js", "web-worker-device.ts"]) {
+    assert.equal(loaded.has(module), false, `${module} must load with the device, not the page`);
+    assert.ok(result.files.some(file => !file.initial && file.modules.includes(module)), `${module} must remain available after startup`);
+  }
+  assert.ok(result.files.some(file => file.file.endsWith(".wasm") && !file.initial), "the full device stays a separate asset");
+  assert.ok(result.initial.gzip < 100_000, JSON.stringify(result.initial));
+  t.diagnostic(JSON.stringify({ initial: result.initial, emitted: result.emitted, note: result.note }));
+});

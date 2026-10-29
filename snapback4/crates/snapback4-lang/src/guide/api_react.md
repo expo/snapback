@@ -36,4 +36,4 @@ export function isFailed<W>(outcome: W & OutcomeInput<W>): outcome is FailedOutc
 export function sentResult<R>(write: Write<R> | null | undefined): R | undefined;
 ```
 
-Declaration fingerprint: 6c4ecd6ab300e8fdcbc8a89217655fc5f8bb2348ada54fd87d2f4afed9d75756
+Declaration fingerprint: 0ebfabd6db7bba1b7e778daf77b65021ffa10427e6dc3c4bf8dc19ac0d42a223
