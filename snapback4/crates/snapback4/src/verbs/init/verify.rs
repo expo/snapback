@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 pub(super) fn files(files: &mut Vec<(&'static str, String)>, password: bool) {
     files.push(("scripts/verify.mjs", super::without_design_references(include_str!("verify.mjs"))));
     files.push(("scripts/verify-parent.mjs", super::without_design_references(include_str!("verify-parent.mjs"))));
+    files.push(("scripts/verify-cache.mjs", super::without_design_references(include_str!("verify-cache.mjs"))));
     if !password {
         files.push(("scripts/probe-serve.mjs", include_str!("probe-serve.mjs").into()));
         files.push(("scripts/probe-check.mjs", include_str!("password-probe-check.mjs").into()));
@@ -17,6 +18,11 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, password: bool) {
         scripts["check"] = json!("snapback4 check && npm run --silent typecheck && echo \"Next: wire app assertions, then npm run verify (all four phases). Codex: yield_time_ms=30000.\"");
         // Starter fixture acceptance is replaced by the app's authored scenario.
         scripts["acceptance"] = json!("snapback4 test");
+        // Lifecycle hooks survive replacement of the app's business command.
+        for phase in ["acceptance", "frontend:proof"] {
+            scripts[format!("pre{phase}")] = json!(format!("node scripts/verify-cache.mjs before {phase}"));
+            scripts[format!("post{phase}")] = json!(format!("node scripts/verify-cache.mjs after {phase}"));
+        }
         scripts["verify"] = json!("node scripts/verify.mjs");
         if !password {
             scripts["probe:serve"] = json!("exec node scripts/probe-serve.mjs");

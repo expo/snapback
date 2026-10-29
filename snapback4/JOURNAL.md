@@ -110433,41 +110433,12 @@ engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
 
 
-### 2026-10-29 — STARTER2 starter verification and repairs
+### 2026-10-29 — VER2: route builders through one proof loop
 
-The .48 archived call census points to separate typecheck/acceptance/frontend
-polls, repeated UI sign-in and exact-select-name failures, and seven SDK write
-handler type mismatches. STARTER2 adds short five-second progress, keeps one
-ordered first-red verify batch, registers fallback Playwright selectors before
-opening pages, reuses password UI sign-in/out helpers and existing
-labelledControl, and ships src/on-write.ts typed with Write<R>/refusalOf.
-Nullable/private-field advice leads with presence binding; ordered-exists
-errors include the named-predicate search. No accepted-program semantics,
-security binder, default proof scaffolding or version changes. See LLP
-3000.037.000 §18 and reports/20261029-starter2/METHOD.md. Whole-session dollar
-results and packed qualification remain pending; source correctness is not a
-performance claim.
-
-STARTER2's first packed consumer-only qualification passed at 4a550a5b4c with
-owned strace 6.17 after retaining a failed 6.8 undecoded-fragment attempt (the
-existing 20261021 strace ticket). No audit rule was relaxed. Its first complete
-Codex set missed the target: $0.6301014 → $0.6389919/lane; zero of four used
-verify, all four kept generated check. A bounded follow-up adds a successful-
-check handoff, starts no implicit proof and preserves either failure's status.
-The same fixed draws will measure that changed candidate; all first results stay.
-
-The final Codex mean was $0.6634801 (+$0.0333787/lane), also missing the
-$0.03 saving target. All four still bypassed verify; no third candidate or
-unchanged-code reroll was selected. Poll tools averaged 20.5 → 19.0 and browser
-repair cycles totaled 2 → 0, without a dollar win. The open 20261029 STARTER2
-dollar-target ticket records follow-up. Both packed consumer-only candidates
-passed with strict auditing and owned strace 6.17; no full publication claim.
-Final Muse pairs both improve ($0.074458236 → $0.066588872 and
-$0.064478738 → $0.050230194): strict two-pair dollar non-regression passes.
-All 18 draws exit successfully and primary calls/tokens reconcile with the
-independent parser; stdout-recovery and provider/cache limits remain explicit.
-The final affected pass caught the new generated src/on-write.ts absent from
-the documentation guard's exact application-file list. Add that one emitted
-path; do not widen src/ acceptance. The failed/incomplete attempt stays in
-local evidence; repeat affected checks on the repaired committed snapshot.
-Product bytes and packed proof semantics are unchanged by this test inventory.
+Start/workflow and starter prose now name verify as the complete loop, with
+phase scripts reserved for focused reruns. New UI starter npm pre/post hooks
+retain source/session-bound passing acceptance/frontend receipts even after
+business command replacement. Verify reuses them conservatively, keeps check
+and shutdown fresh, prints five-second progress and names the first red rerun.
+LLP 3000.037.000 §18 records identity, invalidation and cache limits. This is
+mechanical routing/reuse work; CANDRUN owns the forty-lane cost decision.

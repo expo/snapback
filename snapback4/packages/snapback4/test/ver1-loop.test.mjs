@@ -9,7 +9,7 @@ const scratch=t=>{const p=mkdtempSync(join(tmpdir(),'ver1-'));t.after(()=>rmSync
 const copy=(cwd,name)=>writeFileSync(join(cwd,'scripts',name),readFileSync(join(root,'crates/snapback4/src/verbs/init',name)));
 const run=(cwd,args,env)=>new Promise((resolve,reject)=>{const c=spawn(process.execPath,args,{cwd,env,stdio:'pipe'});let out='';c.stdout.on('data',b=>out+=b);c.stderr.on('data',b=>out+=b);c.once('error',reject);c.once('close',code=>resolve({code,out}));});
 test('wave34 redundant verify calls: one ordered loop; each red stops later proofs; refusal precedes summary',{skip:process.platform==='win32'},async t=>{
- const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');
+ const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');copy(cwd,'verify-cache.mjs');
  writeFileSync(join(cwd,'bin/npm'),`#!/bin/sh
 echo "$3" >> phases
 if [ "$3" = "$FAIL_PHASE" ]; then
@@ -62,7 +62,7 @@ test('delayed detached owner cannot expose a previous successful receipt',{skip:
 
 test('verify SIGKILL and outer npm death stop the active phase and never start later proofs',{skip:process.platform==='win32',timeout:15000},async t=>{
  for(const mode of ['verify','npm']){
-  const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');
+  const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');copy(cwd,'verify-cache.mjs');
   writeFileSync(join(cwd,'package.json'),JSON.stringify({scripts:{verify:'node scripts/verify.mjs'}}));
   writeFileSync(join(cwd,'bin/npm'),`#!/bin/sh\necho "$3" >> phases\nwhile true; do echo tick >> activity; sleep 0.05; done\n`,{mode:0o755});
   const env={...process.env,PATH:join(cwd,'bin')+':'+process.env.PATH};
@@ -88,7 +88,7 @@ test('a waiting install join pins its request even when a later successful run s
 });
 
 test('parent loss at a phase boundary is checked before the next npm starts',{skip:process.platform==='win32',timeout:7000},async t=>{
- const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');
+ const cwd=scratch(t);copy(cwd,'verify.mjs');copy(cwd,'verify-parent.mjs');copy(cwd,'verify-cache.mjs');
  writeFileSync(join(cwd,'bin/npm'),`#!/bin/sh\necho "$3" >> phases\nkill -9 "$VER1_OUTER"\nexit 0\n`,{mode:0o755});
  writeFileSync(join(cwd,'outer.mjs'),`import{spawn}from'node:child_process';spawn(process.execPath,['scripts/verify.mjs'],{env:{...process.env,VER1_OUTER:String(process.pid)},stdio:'ignore'});`);
  const child=spawn(process.execPath,['outer.mjs'],{cwd,env:{...process.env,PATH:join(cwd,'bin')+':'+process.env.PATH},stdio:'ignore'});await new Promise(r=>child.once('exit',r));

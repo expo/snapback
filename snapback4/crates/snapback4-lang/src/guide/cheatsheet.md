@@ -186,7 +186,7 @@ Keyed counts: a hidden key reads null, an authorized missing count group reads 0
 ## Serve real users
 
 Use `guide production` for the complete account and serve recipe, and
-`npm run probe:check` for bounded verification. Independent security intent and
+`npm run verify` for the bounded proof loop (probe:check alone reruns shutdown). Independent security intent and
 unproved coverage belong to `guide security`; do not repeat its full card here.
 
 ## Partial existence in mutations and record inputs
