@@ -74,7 +74,7 @@ fn custom_schema_starters_have_no_todo_proof_or_leftovers_after_adaptation() {
         assert!(app.read("scripts/frontend-proof.mjs").contains("E_FRONTEND_SCENARIO"));
         assert!(!app.0.join("fixtures/todos.jsonl").exists());
         assert!(!app.0.join("fixtures/test.cases.jsonl").exists());
-        let readme=app.read("README.md");assert!(!readme.contains("# Todos") && readme.contains("npm run frontend:proof"),"{readme}");
+        let readme=app.read("README.md");assert!(!readme.contains("# Todos") && readme.contains("npm run verify") && readme.contains("targeted rerun"),"{readme}");
         let pkg:serde_json::Value=serde_json::from_str(&app.read("package.json")).unwrap();
         assert_eq!(pkg["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
         app.ok(&["check"]);

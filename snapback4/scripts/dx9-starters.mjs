@@ -8,7 +8,7 @@ import {starterCases} from './publication-starters.mjs';
 const root=resolve(import.meta.dirname,'..');
 const scratch=mkdtempSync(join(tmpdir(),'sb4-dx9-starters-'));
 const output=resolve(process.argv.slice(2).find(arg=>!arg.startsWith('--'))??join(root,'reports/20261024-dx9/starters.json'));
-const env={...process.env,CI:'1',EXPO_NO_TELEMETRY:'1',EXPO_OFFLINE:'1',npm_config_cache:'/tmp/dx9-npm-cache'};
+const env={...process.env,CI:'1',EXPO_NO_TELEMETRY:'1',EXPO_OFFLINE:'1'};
 delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
 const run=(binary,args,cwd)=>execFileSync('timeout',['240s',binary,...args],{cwd,env,encoding:'utf8',maxBuffer:4*1024*1024});
 const personaOnly=process.argv.includes('--personas');

@@ -12,7 +12,7 @@ import { once } from 'node:events';
 const root=resolve(import.meta.dirname,'../../..');
 test('DX9 packed staging recipe, password templates, task links and Quarry forms run literally', {timeout:600000}, async () => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-dx9-packed-'));
-  const env={...process.env,npm_config_cache:join(dir,'npm-cache')};
+  const env={...process.env};
   delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
   const run=(command,args,cwd=dir)=>execFileSync('timeout',['120s',command,...args],{cwd,env,encoding:'utf8',maxBuffer:8*1024*1024});
   const fence=(text,language)=>[...text.matchAll(new RegExp('```'+language+'\\n([\\s\\S]*?)```','g'))].map(m=>m[1]);

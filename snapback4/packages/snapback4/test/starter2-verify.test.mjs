@@ -14,6 +14,7 @@ test('a single verify invocation reports progress during a quiet phase and finis
  const child=spawn(process.execPath,['scripts/verify.mjs'],{cwd,env:{...process.env,PATH:join(cwd,'bin')+':'+process.env.PATH}});
  let stdout='',stderr='';child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);
  assert.equal(await new Promise(r=>child.on('exit',r)),0,stderr);
+ assert.match(stderr,/verify: running check; 0s elapsed/);
  assert.match(stderr,/verify: running check; 5s elapsed/);
  assert.equal(stdout.trim().split('\n').length,3);
  assert.match(stdout,/passed; 4\/4 phases/);

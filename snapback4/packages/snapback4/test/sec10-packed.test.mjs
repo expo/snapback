@@ -11,7 +11,7 @@ import {spawnSync} from 'node:child_process';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
 test('packed approval decisions, nonblank guards and text minimums run as documented',{timeout:300000},t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-sec10-packed-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
- const run=(command,args,cwd=dir,status=0)=>{const r=spawnSync(command,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:'',npm_config_cache:join(dir,'npm-cache')}});assert.equal(r.status,status,`${command} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
+ const run=(command,args,cwd=dir,status=0)=>{const r=spawnSync(command,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:''}});assert.equal(r.status,status,`${command} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
  const pack=source=>join(dir,JSON.parse(run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],source))[0].filename);
  const client=pack(join(root,'packages/snapback4'));const nativeName=`snapback4-${process.platform}-${process.arch}`;
  const native=join(dir,'native');mkdirSync(native);copyFileSync(join(root,'packages',nativeName,'package.json'),join(native,'package.json'));

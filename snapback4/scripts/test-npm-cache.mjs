@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 export function npmCacheEnv(directory, env = process.env) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  // npm's lowercase lifecycle configuration takes precedence over uppercase.
+  // Set both spellings: npm and lifecycle environments can prefer different cases.
   return { ...env, NPM_CONFIG_CACHE: directory, npm_config_cache: directory,
     SNAPBACK4_PRIVATE_NPM_CACHE: directory };
 }

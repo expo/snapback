@@ -8,7 +8,7 @@ const root=resolve(import.meta.dirname,'..'),scratch='/tmp/dx13-replay/packed';m
 const out=join(root,'reports/20261026-dx13/packed.json'),results=[];
 const nativeBinary=resolve(process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4'));
 const binarySha256=createHash('sha256').update(readFileSync(nativeBinary)).digest('hex');
-const env={...process.env,npm_config_cache:join(scratch,'npm-cache'),CI:'1',EXPO_NO_TELEMETRY:'1',EXPO_OFFLINE:'1',CHROME:process.env.CHROME??'/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome'};
+const env={...process.env,CI:'1',EXPO_NO_TELEMETRY:'1',EXPO_OFFLINE:'1',CHROME:process.env.CHROME??'/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome'};
 delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
 const run=(binary,args,cwd)=>execFileSync('timeout',['600s',binary,...args],{cwd,env,encoding:'utf8',maxBuffer:8*1024*1024});
 try{
