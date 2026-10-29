@@ -64,22 +64,24 @@ pub fn generic(module: &str, full: bool) -> Result<String, String> {
     let raw = rendered?;
     // Full generated declaration sets are one declaration per line. Separate
     // their fences so a large module can page without splitting TypeScript.
-    Ok(if full && raw.len() > snapback4_lang::guide::FULL_BYTES {
-        let (intro, code) = raw
-            .split_once("```ts\n")
-            .ok_or("signature reference has no TypeScript fence")?;
-        let (code, tail) = code
-            .split_once("\n```")
-            .ok_or("signature reference has no closing fence")?;
-        format!(
-            "{intro}{}\n{tail}",
-            code.lines()
-                .map(|line| format!("```ts\n{line}\n```\n\n"))
-                .collect::<String>()
-        )
-    } else {
-        raw
-    })
+    Ok(
+        if full && module != "proof" && raw.len() > snapback4_lang::guide::FULL_BYTES {
+            let (intro, code) = raw
+                .split_once("```ts\n")
+                .ok_or("signature reference has no TypeScript fence")?;
+            let (code, tail) = code
+                .split_once("\n```")
+                .ok_or("signature reference has no closing fence")?;
+            format!(
+                "{intro}{}\n{tail}",
+                code.lines()
+                    .map(|line| format!("```ts\n{line}\n```\n\n"))
+                    .collect::<String>()
+            )
+        } else {
+            raw
+        },
+    )
 }
 
 // @ref LLP 3000.037.000#18-bounded-package-reference-and-wiring-lookups-tok6 — the first wiring lookup is the app packet, not a pointer to another read.
@@ -130,16 +132,9 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<St
             .replace("typeof operation", &format!("typeof {path}"))
             .replace("Ops below", "Ops in snapback/generated/api.ts")
             .replace("Ops/Rows below", "Ops/Rows in snapback/generated/api.ts");
-        if module == "auth" {
-            for line in header.lines().filter(|line| {
-                line.starts_with("Session:") || line.starts_with("Declared refusals:")
-            }) {
-                out.push_str(line);
-                out.push('\n');
-            }
-        } else {
-            out.push_str(&header);
-            out.push_str("\n\n");
+        out.push_str(&header);
+        out.push_str("\n\n");
+        if module != "auth" {
             // GEN1 classifies paged/Following/action/held calls. Reuse its exact paths.
             let hook = calls
                 .split("return use")
@@ -165,13 +160,14 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<St
                 format!("{hook}({path}) // call .run(args) in a handler")
             };
             if module != "client" {
-                out.push_str(&format!("React: `{react}`. "));
+                out.push_str(&format!("React: `{react}`."));
+                if hook == "usePage" {
+                    out.push_str(" React args omit c; the hook owns the cursor.");
+                }
+                out.push_str("\n\n");
             }
             if module != "react" {
-                out.push_str(&format!("Plain: `client.{method}({path}, args)`. "));
-            }
-            if hook == "usePage" && module != "client" {
-                out.push_str("React args omit c; the hook owns the cursor.");
+                out.push_str(&format!("Plain: `client.{method}({path}, args)`.\n\n"));
             }
             out.push_str("\n");
         }
@@ -198,6 +194,7 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<St
             ],
             "client" => &[
                 "Read",
+                "Signal",
                 "Ready",
                 "Write",
                 "Observed",
@@ -207,6 +204,10 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<St
                 "settleMutation",
             ],
             "auth" => &[
+                "signup",
+                "login",
+                "guest",
+                "memorySessionStore",
                 "SignIn",
                 "Session",
                 "SignInOptions",
