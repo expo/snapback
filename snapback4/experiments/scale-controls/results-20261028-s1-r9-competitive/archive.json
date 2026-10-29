@@ -1,0 +1,11 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-r9-competitive-20261028.tar.gz",
+  "sha256": "d6604e9118c02cd7b0ef8d00821ba4d60d2f13e8b48e43038395647caca9af57",
+  "bytes": 1306085854,
+  "members": 33290,
+  "raw_trials": 883,
+  "raw_data_in_git": false,
+  "measurement_histograms_and_samples_outside_git": true,
+  "scope": "Full stopped measurement evidence, diagnostic/source/build witnesses and pre-commit audits; post-commit final audit is a later local receipt.",
+  "time": 1793303199.4503844
+}

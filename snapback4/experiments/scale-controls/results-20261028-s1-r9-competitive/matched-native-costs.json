@@ -1,0 +1,1406 @@
+[
+  {
+    "phase": "capacity",
+    "cell": "W4-disjoint-A",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.363125,
+        "main": 0.1981164242630892,
+        "ratio": 1.8328869065281899,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.3585537471230554,
+        "main": 0.19595510462218071,
+        "ratio": 1.8297749773570822,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.37864583333333335,
+        "main": 0.33133061339666786,
+        "ratio": 1.142803646942276,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 851.7659270833333,
+        "main": 618.5874848963658,
+        "ratio": 1.3769530549523366,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11471875,
+        "main": 0.09216102924954425,
+        "ratio": 1.2447642016819955,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W4-disjoint-A",
+    "rate": 4525,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3289134438305709,
+        "main": 0.19764988064899272,
+        "ratio": 1.6641216415136102,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.3136330936604554,
+        "main": 0.19849459525721175,
+        "ratio": 1.5800586069058744,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3985976390056261,
+        "main": 0.30617811255933797,
+        "ratio": 1.3018488998895277,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 819.2803314917127,
+        "main": 660.2841913676547,
+        "ratio": 1.2407995560134908,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.0821657458563536,
+        "main": 0.09113635528105585,
+        "ratio": 0.9015693638719944,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W4-disjoint-B",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3684375,
+        "main": 0.20418499266959883,
+        "ratio": 1.8044298710835507,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.3547725431955041,
+        "main": 0.2062550211277788,
+        "ratio": 1.7200674255378052,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.38208333333333333,
+        "main": 0.35789755249431593,
+        "ratio": 1.0675773854010961,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 805.24709375,
+        "main": 639.3357449450639,
+        "ratio": 1.2595058232184286,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11402083333333334,
+        "main": 0.09208555428108764,
+        "ratio": 1.2382054299775305,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W4-disjoint-B",
+    "rate": 4525,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3511665710460891,
+        "main": 0.19957225145316415,
+        "ratio": 1.7595961787728855,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.34089801984800105,
+        "main": 0.19655270229662644,
+        "ratio": 1.734384802980407,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4011536863634911,
+        "main": 0.3395567638161489,
+        "ratio": 1.181403903886578,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 817.7786996301963,
+        "main": 616.5221539753786,
+        "ratio": 1.3264384651177596,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.0893254706065418,
+        "main": 0.09111262143685284,
+        "ratio": 0.9803852550598641,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-hot1-A",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3802083333333333,
+        "main": 0.2041632336548248,
+        "ratio": 1.862276211671612,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.36655693575500775,
+        "main": 0.20431308537867277,
+        "ratio": 1.7940942699564892,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.38197916666666665,
+        "main": 0.34731300145113514,
+        "ratio": 1.0998124604339317,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 815.37396875,
+        "main": 610.5105876187981,
+        "ratio": 1.3355607343850329,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.114,
+        "main": 0.09070386098501489,
+        "ratio": 1.2568373469662317,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-hot1-A",
+    "rate": 4525,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.35104793287099123,
+        "main": 0.20272275171210521,
+        "ratio": 1.7316651925163713,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.3376035743509601,
+        "main": 0.20190390599175911,
+        "ratio": 1.6721002632051096,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.40201043292845445,
+        "main": 0.3124743609278121,
+        "ratio": 1.2865389394982296,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 841.0212498563163,
+        "main": 623.5977556781577,
+        "ratio": 1.3486598407361365,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.08295780574576336,
+        "main": 0.09116375016115988,
+        "ratio": 0.9099867611754673,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3703125,
+        "main": 0.2078307406483099,
+        "ratio": 1.7817984906604403,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.35847748840647015,
+        "main": 0.20727012982684362,
+        "ratio": 1.7295183281158133,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.386875,
+        "main": 0.3659813240651564,
+        "ratio": 1.0570894593821512,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 793.0445520833333,
+        "main": 626.2596921797006,
+        "ratio": 1.2663190078913382,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11332291666666666,
+        "main": 0.09196241872189281,
+        "ratio": 1.2322742076779318,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-hot1-B",
+    "rate": 4525,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.35210060017147754,
+        "main": 0.20761622290853185,
+        "ratio": 1.6959204595808501,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.3386081864053252,
+        "main": 0.20864222322077342,
+        "ratio": 1.6229130478878628,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.40648348507736903,
+        "main": 0.34017884000109383,
+        "ratio": 1.194911138729446,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 807.4398299969001,
+        "main": 620.8651659285988,
+        "ratio": 1.3005075406175355,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.09021188411236303,
+        "main": 0.09096003498988574,
+        "ratio": 0.9917749495412365,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-same-A",
+    "rate": 1600,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3570833333333333,
+        "main": 0.335625,
+        "ratio": 1.0639354438237119,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.333464062939189,
+        "main": 0.33256832253074875,
+        "ratio": 1.0026934026717396,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4116666666666667,
+        "main": 0.399591658159545,
+        "ratio": 1.0302183698296836,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 720.0265833333333,
+        "main": 513.3796120752515,
+        "ratio": 1.4025227461268783,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.14610416666666667,
+        "main": 0.1458125,
+        "ratio": 1.0020002857551078,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-same-A",
+    "rate": 2262,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.26053639846743293,
+        "main": 0.24188555761917396,
+        "ratio": 1.0771060539200235,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.24564040074694965,
+        "main": 0.24044852395862712,
+        "ratio": 1.0215924668733498,
+        "pairs": 4
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3190391983495432,
+        "main": 0.3163232216031367,
+        "ratio": 1.0085860808215148,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 664.3669908635426,
+        "main": 502.10278555637433,
+        "ratio": 1.3231692991453237,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.09843796050692602,
+        "main": 0.09893722085464542,
+        "ratio": 0.9949537662023791,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-same-B",
+    "rate": 1600,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3075,
+        "main": 0.28208333333333335,
+        "ratio": 1.090103397341211,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.2841202094327323,
+        "main": 0.28021735797944985,
+        "ratio": 1.013927943227445,
+        "pairs": 4
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.406875,
+        "main": 0.39645833333333336,
+        "ratio": 1.026274303730951,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 662.29125,
+        "main": 508.69297277026607,
+        "ratio": 1.301946921722273,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11472916666666666,
+        "main": 0.114875,
+        "ratio": 0.9987305041712005,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "capacity",
+    "cell": "W5-same-B",
+    "rate": 2262,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.2583853523673732,
+        "main": 0.2365226250106121,
+        "ratio": 1.09243397901482,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.23895220028348294,
+        "main": 0.23400646205473097,
+        "ratio": 1.0211350497987326,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3811444767088035,
+        "main": 0.35834171111148977,
+        "ratio": 1.0636341371664075,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 623.6159343429953,
+        "main": 501.51471799094276,
+        "ratio": 1.2434648714621723,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.09171828639841757,
+        "main": 0.09242503678398079,
+        "ratio": 0.9923532582711863,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "challenge",
+    "cell": "W5-same-A",
+    "rate": 2096,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.28021628498727735,
+        "main": 0.25829436651079934,
+        "ratio": 1.0848718412740197,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.261561104146936,
+        "main": 0.25609451533685307,
+        "ratio": 1.0213459815915717,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3255407124681934,
+        "main": 0.32904990616749896,
+        "ratio": 0.9893353754748702,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 686.7898059796438,
+        "main": 506.74543575063615,
+        "ratio": 1.3552954945954472,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.10946246819338422,
+        "main": 0.10883672106116996,
+        "ratio": 1.005749411835575,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "challenge",
+    "cell": "W5-same-B",
+    "rate": 1678,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.29141835518474374,
+        "main": 0.26837504966229636,
+        "ratio": 1.0858623242042933,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.2688468352067482,
+        "main": 0.26554074686468077,
+        "ratio": 1.0124503993496419,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3879618593563766,
+        "main": 0.3828197945845005,
+        "ratio": 1.013432076513852,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 697.3145411203814,
+        "main": 507.145731937464,
+        "ratio": 1.374978624894288,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.10941597139451728,
+        "main": 0.10985954665554165,
+        "ratio": 0.9959623421493339,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "low-rate",
+    "cell": "W4-disjoint-A",
+    "rate": 100,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 1.1066666666666667,
+        "main": 2.26,
+        "ratio": 0.48967551622418887,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.71402862743284,
+        "main": 2.223308338909792,
+        "ratio": 0.32115591658463655,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.7066666666666667,
+        "main": 1.01,
+        "ratio": 0.6996699669966997,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 1007.0483333333333,
+        "main": 1090.529,
+        "ratio": 0.9234493840451132,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 1.0993333333333333,
+        "main": 1.0226666666666666,
+        "ratio": 1.07496740547588,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "low-rate",
+    "cell": "W4-disjoint-A",
+    "rate": 200,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.7566666666666667,
+        "main": 1.7116666666666667,
+        "ratio": 0.442064264849075,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.5926477756150416,
+        "main": 1.6689456895582975,
+        "ratio": 0.35510309252297567,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.64,
+        "main": 0.835,
+        "ratio": 0.7664670658682635,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 998.3145,
+        "main": 833.4298333333334,
+        "ratio": 1.1978386902796656,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 1.0493333333333332,
+        "main": 0.9698333333333333,
+        "ratio": 1.0819728475683106,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "low-rate",
+    "cell": "W4-disjoint-A",
+    "rate": 400,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.6108333333333333,
+        "main": 1.3316666666666668,
+        "ratio": 0.45869837296620775,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.5148558181653493,
+        "main": 1.334122400077813,
+        "ratio": 0.3859134800040238,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.5941666666666666,
+        "main": 0.7291666666666666,
+        "ratio": 0.8148571428571428,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 914.7075833333333,
+        "main": 797.3111666666666,
+        "ratio": 1.1472404019593354,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.92925,
+        "main": 0.7711666666666667,
+        "ratio": 1.2049924357034796,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "low-rate",
+    "cell": "W4-disjoint-A",
+    "rate": 800,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.49083333333333334,
+        "main": 0.6829166666666666,
+        "ratio": 0.7187309334960342,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.44421742483116927,
+        "main": 0.6730238674837853,
+        "ratio": 0.6600322013719246,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4870833333333333,
+        "main": 0.59375,
+        "ratio": 0.8203508771929824,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 899.0917916666667,
+        "main": 686.9038333333333,
+        "ratio": 1.308904897653068,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.4731666666666667,
+        "main": 0.37445833333333334,
+        "ratio": 1.2636029820852341,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "quarter",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3793254489706526,
+        "main": 0.20652663074546626,
+        "ratio": 1.8366902495889368,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.36357627502544143,
+        "main": 0.20542554397981053,
+        "ratio": 1.7698688682122907,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.38247919404292596,
+        "main": 0.3751390299337492,
+        "ratio": 1.0195665167404018,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 799.3487253613666,
+        "main": 619.7031270905044,
+        "ratio": 1.2898897720821505,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.09407796758650898,
+        "main": 0.09197087366877885,
+        "ratio": 1.0229104479894207,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "quarter",
+    "cell": "W5-hot1-A",
+    "rate": 3805,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.36259307928164697,
+        "main": 0.211404898257585,
+        "ratio": 1.7151593093167012,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.35114618925174546,
+        "main": 0.20930009346193218,
+        "ratio": 1.6777163518831035,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3919404292597459,
+        "main": 0.3660289996344584,
+        "ratio": 1.0707906467825348,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 822.2662461673237,
+        "main": 614.8809674667966,
+        "ratio": 1.3372771148778904,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.09491896627244853,
+        "main": 0.09156304088972908,
+        "ratio": 1.0366515282816027,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W1-disjoint-A",
+    "rate": 8000,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.2532916666666667,
+        "main": 0.24504166666666666,
+        "ratio": 1.0336677435810238,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.24700696387186963,
+        "main": 0.24054626083690106,
+        "ratio": 1.0268584637836011,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.27095833333333336,
+        "main": 0.25704166666666667,
+        "ratio": 1.0541416761225484,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.23535416666666667,
+        "main": 0.2925291666666667,
+        "ratio": 0.8045494039055935,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.00027916666666666666,
+        "main": 0.0002916666666666667,
+        "ratio": 0.9571428571428571,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W1-disjoint-B",
+    "rate": 8000,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.28058333333333335,
+        "main": 0.26875,
+        "ratio": 1.0440310077519381,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.2745714425776124,
+        "main": 0.2657498200304185,
+        "ratio": 1.0331952155082706,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.2795,
+        "main": 0.2647083333333333,
+        "ratio": 1.0558791122304425,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.4042791666666667,
+        "main": 0.22289166666666665,
+        "ratio": 1.8137922009945042,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.00027916666666666666,
+        "main": 0.00027916666666666666,
+        "ratio": 1.0,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W2-disjoint-A",
+    "rate": 11313,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.07997477582604749,
+        "main": 0.0791125254132414,
+        "ratio": 1.0108990378995255,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.046776168117654504,
+        "main": 0.051478382962613256,
+        "ratio": 0.9086565161074739,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.16560731029564735,
+        "main": 0.15713485960104895,
+        "ratio": 1.0539183394194591,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.23313378901356724,
+        "main": 0.0574799344702818,
+        "ratio": 4.055916054220656,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.00021221847892405232,
+        "main": 0.00018868981458277438,
+        "ratio": 1.1246949359365468,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W2-disjoint-B",
+    "rate": 11313,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.08201654492028464,
+        "main": 0.08000471830259065,
+        "ratio": 1.0251463496200928,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.048927705071618664,
+        "main": 0.05166622469725095,
+        "ratio": 0.9469959409328006,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.1678108764341959,
+        "main": 0.15853496704560535,
+        "ratio": 1.0585101795613467,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.29243646917250654,
+        "main": 0.13472228365845387,
+        "ratio": 2.170661461721415,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.00019761213751445222,
+        "main": 0.00019168104274487253,
+        "ratio": 1.0309425214128973,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W3-disjoint-A",
+    "rate": 16000,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.011875,
+        "main": 0.0075625,
+        "ratio": 1.5702479338842976,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.007354556722745883,
+        "main": 0.004883252780134854,
+        "ratio": 1.5060774147642595,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.13397916666666668,
+        "main": 0.11835416666666666,
+        "ratio": 1.1320190107375463,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.11823541666666666,
+        "main": 0.0823125,
+        "ratio": 1.4364211592002025,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.00013958333333333333,
+        "main": 0.0001375,
+        "ratio": 1.0151515151515151,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reads",
+    "cell": "W3-disjoint-B",
+    "rate": 16000,
+    "joined_pairs": 3,
+    "eligible_pairs": 3,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.012125,
+        "main": 0.007333333333333333,
+        "ratio": 1.653409090909091,
+        "pairs": 3
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.00771875,
+        "main": 0.004875,
+        "ratio": 1.5833333333333333,
+        "pairs": 3
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.1344375,
+        "main": 0.11870833333333333,
+        "ratio": 1.1325026325026324,
+        "pairs": 3
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 0.18311041666666666,
+        "main": 0.10733958333333334,
+        "ratio": 1.7058983366651785,
+        "pairs": 3
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.0001375,
+        "main": 0.0001375,
+        "ratio": 1.0,
+        "pairs": 3
+      }
+    }
+  },
+  {
+    "phase": "reference-1",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.51105216622458,
+        "main": 0.4715590922487474,
+        "ratio": 1.08375,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.47753365383552904,
+        "main": 0.4708671230439174,
+        "ratio": 1.0141579873925277,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4786324786324786,
+        "main": 0.46684350132625996,
+        "ratio": 1.025252525252525,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 780.8773356911288,
+        "main": 561.8141762452108,
+        "ratio": 1.3899210249730423,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.22104332449160036,
+        "main": 0.22301797819039199,
+        "ratio": 0.9911457645037663,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "reference-1",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.4377989018125996,
+        "main": 0.4070144414972001,
+        "ratio": 1.075634810898009,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.40364322280763265,
+        "main": 0.404044266439044,
+        "ratio": 0.9990074265007004,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.46861184792219274,
+        "main": 0.4494547597995874,
+        "ratio": 1.042622950819672,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 793.5810492189803,
+        "main": 532.7780135573239,
+        "ratio": 1.4895153873191793,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.17686413203654583,
+        "main": 0.17825459046833092,
+        "ratio": 0.9921995925707612,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "reference-2",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.5041297935103245,
+        "main": 0.4736221632773357,
+        "ratio": 1.064413434586516,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.47202556410096985,
+        "main": 0.4705653256564055,
+        "ratio": 1.003103157765667,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.47804302976716767,
+        "main": 0.46301208370173885,
+        "ratio": 1.0324633991088479,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 776.5156203949307,
+        "main": 549.6335396404362,
+        "ratio": 1.4127879112015582,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.21735926908340703,
+        "main": 0.2236074270557029,
+        "ratio": 0.9720574667193885,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "reference-2",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.4388446802239906,
+        "main": 0.4055408193339228,
+        "ratio": 1.0821220930232558,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.40880821090196284,
+        "main": 0.4035530430107479,
+        "ratio": 1.0130222482080875,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4727379899793693,
+        "main": 0.4500442086648983,
+        "ratio": 1.0504256712508186,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 774.7512231063955,
+        "main": 533.7980253463012,
+        "ratio": 1.4513939473713415,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.1764515178308282,
+        "main": 0.17857353374594753,
+        "ratio": 0.9881168509655059,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W4-disjoint-A",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3978125,
+        "main": 0.20492101623352987,
+        "ratio": 1.9412967362344584,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.38516023713898756,
+        "main": 0.20448256475952797,
+        "ratio": 1.8835847329670234,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.37354166666666666,
+        "main": 0.3766629844868162,
+        "ratio": 0.9917132345128042,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 807.7842291666667,
+        "main": 615.4438187406945,
+        "ratio": 1.3125231005155504,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11338541666666667,
+        "main": 0.09230545242774987,
+        "ratio": 1.228371820780757,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W4-disjoint-B",
+    "rate": 3200,
+    "joined_pairs": 25,
+    "eligible_pairs": 24,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3843229166666666,
+        "main": 0.2025181696468088,
+        "ratio": 1.8977206703819458,
+        "pairs": 24
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.372059173957864,
+        "main": 0.20124835233554553,
+        "ratio": 1.8487563731081984,
+        "pairs": 24
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.37645833333333334,
+        "main": 0.37407078860565934,
+        "ratio": 1.0063826013695791,
+        "pairs": 24
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 802.4501302083333,
+        "main": 618.2618572630388,
+        "ratio": 1.2979130457128165,
+        "pairs": 24
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11395833333333333,
+        "main": 0.09202951155603195,
+        "ratio": 1.238280323415061,
+        "pairs": 24
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W5-hot1-A",
+    "rate": 3200,
+    "joined_pairs": 5,
+    "eligible_pairs": 5,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.36552083333333335,
+        "main": 0.20208868588828624,
+        "ratio": 1.8087149793996469,
+        "pairs": 5
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.352580244992572,
+        "main": 0.20189302626032787,
+        "ratio": 1.74637158857554,
+        "pairs": 5
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.3865625,
+        "main": 0.3201043895328333,
+        "ratio": 1.2076138679764965,
+        "pairs": 5
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 812.0350416666666,
+        "main": 618.877200494814,
+        "ratio": 1.3121101262373476,
+        "pairs": 5
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11328125,
+        "main": 0.09185808666212118,
+        "ratio": 1.2332202217174302,
+        "pairs": 5
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "joined_pairs": 15,
+    "eligible_pairs": 15,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.3675,
+        "main": 0.20874075923383126,
+        "ratio": 1.760556976744186,
+        "pairs": 15
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.35335155393290507,
+        "main": 0.20884161879724272,
+        "ratio": 1.6919594665465707,
+        "pairs": 15
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.38864583333333336,
+        "main": 0.3606584844803753,
+        "ratio": 1.0776006944444445,
+        "pairs": 15
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 794.5319479166667,
+        "main": 621.2536604179006,
+        "ratio": 1.2789171292483112,
+        "pairs": 15
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.11421875,
+        "main": 0.09178936929243399,
+        "ratio": 1.244357063137755,
+        "pairs": 15
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "joined_pairs": 30,
+    "eligible_pairs": 30,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.5070808567781455,
+        "main": 0.4743589743589744,
+        "ratio": 1.0689812656404147,
+        "pairs": 30
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.47487267368293373,
+        "main": 0.4738465522623574,
+        "ratio": 1.0021655141641892,
+        "pairs": 30
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.48143236074270557,
+        "main": 0.4671382257589154,
+        "ratio": 1.0305993690851736,
+        "pairs": 30
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 756.1307839669909,
+        "main": 550.7184497494843,
+        "ratio": 1.3729897451428155,
+        "pairs": 30
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.2192897141173003,
+        "main": 0.22170645446507514,
+        "ratio": 0.9890993685609837,
+        "pairs": 30
+      }
+    }
+  },
+  {
+    "phase": "repeat-control",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "joined_pairs": 15,
+    "eligible_pairs": 15,
+    "costs": {
+      "pg_cpu_ms_per_all_ack": {
+        "r9": 0.44326554671382257,
+        "main": 0.40848806366047746,
+        "ratio": 1.0851370851370852,
+        "pairs": 15
+      },
+      "pg_cpu_ms_per_measured_ack": {
+        "r9": 0.4089770928076282,
+        "main": 0.40489988614417743,
+        "ratio": 1.010069666114944,
+        "pairs": 15
+      },
+      "server_cpu_ms_per_all_ack": {
+        "r9": 0.4700854700854701,
+        "main": 0.4562334217506631,
+        "ratio": 1.0303617571059431,
+        "pairs": 15
+      },
+      "wal_bytes_per_all_ack": {
+        "r9": 706.8030946065429,
+        "main": 533.6394930739758,
+        "ratio": 1.3244954764031347,
+        "pairs": 15
+      },
+      "wal_sync_per_all_ack": {
+        "r9": 0.1752726201002063,
+        "main": 0.17674624226348365,
+        "ratio": 0.9916624979156244,
+        "pairs": 15
+      }
+    }
+  }
+]

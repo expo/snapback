@@ -110662,3 +110662,18 @@ variable cases are set. A real two-pack/install guard checks default-home
 cache growth and cleanup on success/failure. Fresh-store Rust fixtures and
 client files confine child TMPDIR to owned cleanup roots; killed hosts cannot
 leave stores outside those roots. No foreign lane store is swept.
+
+
+### 2026-10-29 — RFC: useful web data before the local runtime
+
+After the author objected to roughly seven seconds to first local data and
+requested an RFC, LLP 3000.002.000 proposes progressive web startup. Authorized
+online data and durable ordinary writes precede the full interpreter; one app
+coordinates identity, observations and write custody as local execution becomes
+available. The draft covers cached/offline starts, pending writes on return,
+cursor affinity, revocation/expiry, uncertain sends, worker preparation and an
+optional SSR path. It explicitly separates proposed first-data targets from the
+prior three-run empty-inbox measurements. Exact cross-store transfer/version
+fences and publication evidence remain acceptance questions. Drafting is
+commissioned; implementation and independent review are not claimed. The parent
+research links the RFC, which is linked into llp/current/. No runtime code changes.

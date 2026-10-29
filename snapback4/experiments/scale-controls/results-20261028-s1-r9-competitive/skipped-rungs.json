@@ -1,0 +1,176 @@
+[
+  {
+    "role": "convex",
+    "cell": "W4-disjoint-A",
+    "rate": 3200,
+    "reason": "Already failed five clean repetitions at a lower or equal rate; cannot plausibly pass the candidate deciding rung."
+  },
+  {
+    "role": "convex",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "reason": "Lower qualified/failing bracket already excludes this quarter rung; only the tied best advocate can decide the headline tie."
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-A",
+    "rate": 3805,
+    "reason": "Lower qualified/failing bracket already excludes this quarter rung; only the tied best advocate can decide the headline tie."
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-A",
+    "rate": 1131,
+    "reason": "Already failed five clean repetitions at a lower or equal rate; cannot plausibly pass the candidate deciding rung."
+  },
+  {
+    "role": "supabase",
+    "cell": "W5-same-A",
+    "rate": 1600,
+    "reason": "The advocate bracket and both native 1131 reference blocks already decide the competitive comparison; only the candidate/main higher exact ceiling is being located."
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-A",
+    "rate": 1600,
+    "reason": "The advocate bracket and both native 1131 reference blocks already decide the competitive comparison; only the candidate/main higher exact ceiling is being located."
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "reason": "Already failed five clean repetitions at a lower or equal rate; cannot plausibly pass the candidate deciding rung."
+  },
+  {
+    "role": "supabase",
+    "cell": "W5-same-B",
+    "rate": 1600,
+    "reason": "The advocate bracket and both native 1131 reference blocks already decide the competitive comparison; only the candidate/main higher exact ceiling is being located."
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-B",
+    "rate": 1600,
+    "reason": "The advocate bracket and both native 1131 reference blocks already decide the competitive comparison; only the candidate/main higher exact ceiling is being located."
+  },
+  {
+    "role": "convex",
+    "cell": "W4-disjoint-A",
+    "rate": 3805,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 3200/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 3200,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W4-disjoint-B",
+    "rate": 4525,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-A",
+    "rate": 3200,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-A",
+    "rate": 3805,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-A",
+    "rate": 4525,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-B",
+    "rate": 3200,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-hot1-B",
+    "rate": 4525,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 800/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 800,
+    "bound_passes": 0,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-A",
+    "rate": 1600,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 50/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 50,
+    "bound_passes": 2,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-A",
+    "rate": 2262,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 50/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 50,
+    "bound_passes": 2,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-B",
+    "rate": 1131,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 35/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 35,
+    "bound_passes": 4,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-B",
+    "rate": 1600,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 35/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 35,
+    "bound_passes": 4,
+    "bound_repetitions": 5
+  },
+  {
+    "role": "convex",
+    "cell": "W5-same-B",
+    "rate": 2262,
+    "reason": "Convex failed the all-pass requirement in 5 clean same-campaign repetitions at 35/s, at or below this native point. Its lower bracket excludes a plausible pass here.",
+    "origin": "Final audit of omitted native competitive points",
+    "failing_bound": 35,
+    "bound_passes": 4,
+    "bound_repetitions": 5
+  }
+]
