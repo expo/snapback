@@ -4,6 +4,7 @@
 
 ### Guide changes
 
+- Generated production serve scripts arm signal cleanup before reporting readiness. Existing app scripts can save the `serveUntilSignal(hosts)` promise before printing readiness and await it afterward, so an immediate shutdown gets graceful cleanup.
 - `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Existing apps keep their scripts and assertions; ordinary checks create neither packet and refresh only existing matrix facts. The previously automatic exhaustive scaffold is now opt-in. Explicit requests preserve builder edits; compact drafts are never rewritten.
 
 ## 0.4.48

@@ -86,6 +86,10 @@ test('password starter ships exec serve scripts and bounded prod:check against i
  await deploy('production','snapback',{cwd,env});
  const assertion="node -e \"const r=JSON.parse(process.env.SNAPBACK4_SERVE_JSON); if (!Object.values(r.sessions).flat().length || new URL(r.frontendUrl).searchParams.get('api')!==r.backendUrl) throw Error('production readiness needs users and its actual backend')\"";
  const run=launch(t,cwd,'npm',['run','--silent','prod:check','--','--then',assertion]);await until(run.closed,90000);assert.equal(run.c.exitCode,0,run.err());const report=JSON.parse(run.out().trim());assert.equal(report.ok,true,JSON.stringify(report));assert.equal(report.lockReleased,true);await released(cwd);
+ // Pause at the actual generated script's readiness announcement. The
+ // controller may signal before console.log returns; cleanup must be armed.
+ writeFileSync(join(cwd,'ready-gap.mjs'),`const log=console.log;console.log=(...args)=>{log(...args);if(typeof args[0]==='string'&&args[0].startsWith('{"backendUrl"'))Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500);};`);
+ const serving=launch(t,cwd,process.execPath,['--import','./ready-gap.mjs','scripts/prod-serve.mjs']);await ready(serving);serving.c.kill('SIGTERM');await until(serving.closed);assert.equal(serving.c.exitCode,0,serving.err());await restarted(cwd);
 });
 
 

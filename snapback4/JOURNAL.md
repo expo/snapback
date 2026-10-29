@@ -110416,3 +110416,18 @@ armed ordering as exit 0 in three trials. The original failed full run is retain
 Only test orchestration changes; runtime/client/package bytes remain unchanged.
 Final affected repair and complete publication red-check evidence belong to the
 workstream report; earlier results are never relabelled as a qualified release.
+
+
+### 2026-10-29 — Integration 33 generated production readiness
+
+Following the srv1 fixture's race to the paved form found the same ordering in
+password-prod-serve.mjs; probe-serve.mjs already arms its lifetime first. Align
+the generated production script: save the serveUntilSignal promise, announce
+readiness, then await cleanup. Existing adapted scripts remain author-owned;
+0.4.49 guide changes explain the equivalent edit. Extend the existing starter
+witness to pause inside the generated script's readiness console.log, signal the
+process immediately, and require exit 0 plus store release/restart. The former
+ordering has a real signal-before-handler window; the assertion stays strict.
+This follow-up changes the emitted production script and release note, not the
+engine, delivery paths, authority or runtime ceilings. The full Linux red check
+must be repeated for the repaired release; the initial failed run stays intact.
