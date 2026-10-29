@@ -86,11 +86,11 @@ query total():
   if (mutant === 'recovered-orphan-binding') replace('web.ts', 'journalStoreBinding(transfer?.storeId, destination)',
     'journalStoreBinding(transfer?.recovered === false ? transfer.storeId : undefined, destination)');
   if (mutant === 'transport-guards') {
-    const source = readFileSync(path('web.ts'), 'utf8');
+    const source = readFileSync(path('web-runtime.ts'), 'utf8');
     const ordinary = 'if (request.op === "begin_send" && typeof request.id === "string") {';
     const exit = ' || journal.binding(device, id) !== "allow"';
     assert.ok(source.includes(ordinary) && source.includes(exit));
-    sourceOverrides[path('web.ts')] = source.replace(ordinary, 'if (false) {').replace(exit, '');
+    sourceOverrides[path('web-runtime.ts')] = source.replace(ordinary, 'if (false) {').replace(exit, '');
   }
   if (mutant === 'ordinary-store-field') replace('local.ts', ', store_id: binding', '');
   if (mutant === 'exit-store-field') replace('local-exit.ts', ', store_id: entry.store_id', '');

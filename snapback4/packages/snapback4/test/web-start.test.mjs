@@ -369,3 +369,98 @@ window.mountProgress = (app) => {
   });
   assert.deepEqual(errors, []);
 });
+
+// Exercise the consumer's emitted import graph: a source-level import census
+// misses shared chunks which can pull the local engine back into startup.
+test("web startup bundle defers the local runtime under the 100 KB gzip SDK budget", async t => {
+  const { measureWebApp } = await import("../../../scripts/measure-client.mjs");
+  const result = await measureWebApp();
+  const initial = result.files.filter(file => file.initial);
+  const loaded = new Set(initial.flatMap(file => file.modules));
+  for (const module of ["local.ts", "web-runtime.ts", "wasm/snapback4_device.js", "web-worker-device.ts"]) {
+    assert.equal(loaded.has(module), false, `${module} must load with the device, not the page`);
+    assert.ok(result.files.some(file => !file.initial && file.modules.includes(module)), `${module} must remain available after startup`);
+  }
+  assert.ok(result.files.some(file => file.file.endsWith(".wasm") && !file.initial), "the full device stays a separate asset");
+  assert.ok(result.initial.gzip < 100_000, JSON.stringify(result.initial));
+  t.diagnostic(JSON.stringify({ initial: result.initial, emitted: result.emitted, note: result.note }));
+});
+
+test('web startup: page works during deferred download and retains offline writes across reload', { timeout: hangBudget(20) }, async t => {
+  const project = mkdtempSync(join(tmpdir(), 'sb4-deferred-start-'));
+  const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
+  writeFileSync(join(sourceDir, 'schema.q'), `use identity
+table notes:
+  body: text <=100
+  public 'Startup witness.'
+  insert <- allow
+  sync public
+mutation add(body: text <=100):
+  insert notes { body }
+query list():
+  return notes first 100
+`);
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
+  // No eager fixture bootstrap: exercise the production app/device imports.
+  const witness = await launch({ sourceDir, bootstrap: false, minify: 'oxc',
+    ready: () => typeof window.startStartup === 'function', entrySource: `
+import { createApp } from '${join(root, 'packages/snapback4/src/app.ts')}';
+import { localStorageSessionStore } from '${join(root, 'packages/snapback4/src/auth.ts')}';
+import { webDevice } from '${join(root, 'packages/snapback4/src/web.ts')}';
+document.body.innerHTML = '<label>Draft <input id="draft"></label><output id="echo"></output>';
+document.querySelector('#draft').addEventListener('input', event => {
+  document.querySelector('#echo').textContent = event.target.value;
+});
+window.startStartup = (url, offline = false) => {
+  window.offline = offline;
+  window.app = createApp({ url, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1,
+    fetch: (...args) => window.offline ? Promise.reject(new TypeError('offline')) : fetch(...args) });
+  return app.ready;
+};
+` });
+  teardownAfter(t, () => witness.close());
+  const { page, api } = witness;
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(r => r.name.includes('.wasm'))), false);
+  await page.locator('#draft').fill('page is usable');
+  assert.equal(await page.locator('#echo').textContent(), 'page is usable');
+  await page.evaluate(api => startStartup(api), api);
+  assert.equal(await page.evaluate(() => app.auth.state), 'signed-out');
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  t.after(() => release());
+  await page.route('**/*.wasm', async route => { await gate; await route.continue(); });
+  const requested = page.waitForRequest(request => request.url().endsWith('.wasm'));
+  await page.evaluate(() => { window.opening = app.auth.guest(); });
+  await requested;
+  await page.locator('#draft').fill('still responsive while loading');
+  assert.equal(await page.locator('#echo').textContent(), 'still responsive while loading');
+  assert.notEqual(await page.evaluate(() => app.auth.state), 'signed-in');
+  release();
+  assert.equal((await page.evaluate(() => opening)).ok, true);
+  await page.unroute('**/*.wasm');
+  await page.waitForFunction(() => app.client.acquired);
+  const queued = await page.evaluate(async () => {
+    window.offline = true;
+    const write = await app.mutate({ kind: 'mutation', name: 'add' }, { body: 'kept through deferred restore' });
+    const read = await app.client.query({ kind: 'query', name: 'list' }, {});
+    await app.close();
+    return { write, read };
+  });
+  assert.equal(queued.write.state, 'pending', JSON.stringify(queued.write));
+  assert.equal(queued.read.data[0].body, 'kept through deferred restore');
+  await witness.reload();
+  // The matching app shell is loaded; now take all requests offline before
+  // the deferred module opens its device. WASM must come from IndexedDB.
+  await page.route('**/*.wasm', route => route.abort());
+  const restored = await page.evaluate(async api => {
+    const ready = await startStartup(api, true);
+    const read = await app.client.query({ kind: 'query', name: 'list' }, {});
+    return { ready, read, pending: await app.client.pendingWrites() };
+  }, api);
+  assert.equal(restored.ready.ok, true, JSON.stringify(restored.ready));
+  assert.equal(restored.read.data[0].body, 'kept through deferred restore');
+  assert.equal(restored.pending.length, 1);
+  assert.deepEqual(errors, []);
+  await page.evaluate(() => app.close());
+});

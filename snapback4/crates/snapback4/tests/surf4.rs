@@ -265,3 +265,28 @@ fn deploy_and_rollback_wait_before_admission_even_with_a_closing_listener_hint()
     let status:serde_json::Value=serde_json::from_str(&success(app.run(&["releases","deployment","--json"]))).unwrap();
     assert_eq!(status["generation"],4); // exactly one activation per command
 }
+
+
+#[test]
+fn help_and_version_never_adopt_even_a_dead_supplied_supervisor() {
+    let app = App::new();
+    for args in [vec![], vec!["--help"], vec!["-h"], vec!["serve", "--help"],
+        vec!["serve", "-h"], vec!["dev", "--help"], vec!["dev", "-h"],
+        vec!["deploy", "--help"], vec!["--version"], vec!["-V"], vec!["version"]] {
+        let output = Command::new(BIN).current_dir(&app.0).args(&args)
+            .env("SNAPBACK4_SUPERVISOR_PID", u32::MAX.to_string()).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        assert!(!output.stdout.is_empty(), "{args:?}");
+    }
+    // Unsupported per-verb version flags still validate, without adopting first.
+    for verb in ["serve", "dev"] {
+        let output = Command::new(BIN).current_dir(&app.0).args([verb, "--version"])
+            .env("SNAPBACK4_SUPERVISOR_PID", u32::MAX.to_string()).output().unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_INPUT"));
+    }
+    // The poisoned launcher still refuses a real host before opening a store.
+    let output = Command::new(BIN).current_dir(&app.0).args(["serve", "missing"])
+        .env("SNAPBACK4_SUPERVISOR_PID", u32::MAX.to_string()).output().unwrap();
+    assert_eq!(output.status.code(), Some(128 + libc::SIGTERM));
+}

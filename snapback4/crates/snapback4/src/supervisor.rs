@@ -11,8 +11,14 @@ static STARTED: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
 pub(crate) fn started() -> u64 { *STARTED.get_or_init(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()) }
 fn alive(pid: u32) -> bool {
     if pid == 0 || pid > i32::MAX as u32 { return false; }
-    (unsafe { libc::kill(pid as libc::pid_t, 0) }) == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+    let result = unsafe { libc::kill(pid as libc::pid_t, 0) };
+    exists(if result == 0 { Ok(()) } else { Err(std::io::Error::last_os_error()) })
 }
+// Only ESRCH proves absence. Permission or inspection failures confer no death authority.
+fn exists(result: std::io::Result<()>) -> bool {
+    result.err().is_none_or(|error| error.raw_os_error() != Some(libc::ESRCH))
+}
+#[cfg(test)]
 fn opaque_identity(pid: u32) -> Option<(u32, String)> {
     alive(pid).then(|| (1, "unverified".into()))
 }
@@ -25,38 +31,52 @@ static PARENTS: std::sync::OnceLock<Vec<(u32, String)>> = std::sync::OnceLock::n
 pub(crate) fn parents() -> &'static [(u32, String)] { PARENTS.get().map(Vec::as_slice).unwrap_or(&[]) }
 pub(crate) fn pid() -> Option<u32> { Some(SUPERVISOR.load(Ordering::Acquire)).filter(|pid| *pid != 0) }
 
+type Identity = (u32, String);
 /// Stable process birth identity and human-readable start time; zombies are dead.
+/// Unreadable metadata falls back to signal-0 liveness on every platform.
+pub(crate) fn identity(pid: u32) -> Option<Identity> {
+    inspected_identity(read_identity(pid), || alive(pid))
+}
+fn inspected_identity(read: std::io::Result<Option<Identity>>, probe: impl FnOnce() -> bool) -> Option<Identity> {
+    read.unwrap_or_else(|_| probe().then(|| (1, "unverified".into())))
+}
 #[cfg(target_os = "linux")]
-pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
+fn read_identity(pid: u32) -> std::io::Result<Option<Identity>> {
     let text = match fs::read_to_string(format!("/proc/{pid}/stat")) {
         Ok(text) => text,
         // Minimal distribution proofs deliberately omit /proc. Kernel parent
         // notifications and getppid remain authoritative for direct custody.
-        Err(_) => return opaque_identity(pid),
+        Err(error) => return Err(error),
     };
-    let fields: Vec<_> = text.rsplit_once(") ")?.1.split_whitespace().collect();
-    if matches!(*fields.first()?, "Z" | "X") { return None; }
-    Some((fields.get(1)?.parse().ok()?, fields.get(19)?.to_string()))
+    let parsed = (|| {
+        let fields: Vec<_> = text.rsplit_once(") ")?.1.split_whitespace().collect();
+        if matches!(*fields.first()?, "Z" | "X") { return Some(None); }
+        Some(Some((fields.get(1)?.parse().ok()?, fields.get(19)?.to_string())))
+    })();
+    parsed.ok_or_else(|| std::io::Error::other("unreadable process identity"))
 }
 #[cfg(target_os = "macos")]
-pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
+fn read_identity(pid: u32) -> std::io::Result<Option<Identity>> {
     let mut info = std::mem::MaybeUninit::<libc::proc_bsdinfo>::uninit();
     let size = std::mem::size_of::<libc::proc_bsdinfo>();
     let read = unsafe { libc::proc_pidinfo(pid as i32, libc::PROC_PIDTBSDINFO, 0, info.as_mut_ptr().cast(), size as i32) };
-    if read != size as i32 { return None; }
+    if read != size as i32 { return Err(std::io::Error::last_os_error()); }
     let info = unsafe { info.assume_init() };
-    if info.pbi_status == libc::SZOMB { return None; }
-    Some((info.pbi_ppid, format!("{}.{:06} Unix seconds", info.pbi_start_tvsec, info.pbi_start_tvusec)))
+    if info.pbi_status == libc::SZOMB { return Ok(None); }
+    Ok(Some((info.pbi_ppid, format!("{}.{:06} Unix seconds", info.pbi_start_tvsec, info.pbi_start_tvusec))))
 }
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
-    let output = Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "ppid=,stat=,lstart="]).output().ok()?;
-    if !output.status.success() { return None; }
-    let text = String::from_utf8(output.stdout).ok()?;
-    let mut fields = text.split_whitespace();
-    let parent = fields.next()?.parse().ok()?;
-    if fields.next()?.starts_with('Z') { return None; }
-    Some((parent, fields.collect::<Vec<_>>().join(" ")))
+fn read_identity(pid: u32) -> std::io::Result<Option<Identity>> {
+    let output = Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "ppid=,stat=,lstart="]).output()?;
+    let parsed = (|| {
+        if !output.status.success() { return None; }
+        let text = String::from_utf8(output.stdout).ok()?;
+        let mut fields = text.split_whitespace();
+        let parent = fields.next()?.parse().ok()?;
+        if fields.next()?.starts_with('Z') { return Some(None); }
+        Some(Some((parent, fields.collect::<Vec<_>>().join(" "))))
+    })();
+    parsed.ok_or_else(|| std::io::Error::other("unreadable process identity"))
 }
 fn npm(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
@@ -100,25 +120,12 @@ pub(crate) fn adopt() {
     // was rejected above; an initially PID-1 parent is not proof of orphaning.
     if parent <= 1 { return; }
     PARENT.store(parent, Ordering::Release);
-    let mut watched = Vec::new();
-    if let Some((_, birth)) = identity(parent) { watched.push((parent, birth)); }
-    // npm can leave sh -c alive when only the npm PID is killed. Observe the
-    // nearest npm ancestor too, without tying hosts to arbitrary ancestors.
-    let mut next = parent;
-    for _ in 0..32 {
-        let Some((ppid, birth)) = identity(next) else {
-            // An ancestor vanished while we captured launch custody.
-            unsafe { libc::kill(libc::getpid(), libc::SIGTERM); }
-            return;
-        };
-        if Some(next) == supplied {
-            SUPERVISOR.store(next, Ordering::Release);
-            if next != parent { watched.push((next, birth.clone())); }
-        }
-        if npm(next) { if next != parent { watched.push((next, birth)); } break; }
-        if ppid <= 1 { break; }
-        next = ppid;
-    }
+    let Some((supervisor, watched)) = capture_parents(parent, supplied, identity, npm) else {
+        // Only confirmed death (or a zombie) during capture authorizes shutdown.
+        unsafe { libc::kill(libc::getpid(), libc::SIGTERM); }
+        return;
+    };
+    SUPERVISOR.store(supervisor, Ordering::Release);
     let _ = PARENTS.set(watched.clone());
     #[cfg(target_os = "linux")]
     unsafe {
@@ -135,6 +142,26 @@ pub(crate) fn adopt() {
             return;
         }
     }).expect("start parent-death watchdog");
+}
+
+
+// Keep the death decision injectable without sending signals from unit tests.
+fn capture_parents(parent: u32, supplied: Option<u32>, mut identify: impl FnMut(u32) -> Option<Identity>, is_npm: impl Fn(u32) -> bool) -> Option<(u32, Vec<Identity>)> {
+    let mut watched = Vec::new();
+    let mut supervisor = 0;
+    let mut next = parent;
+    for depth in 0..32 {
+        let (ppid, birth) = identify(next)?;
+        if depth == 0 { watched.push((next, birth.clone())); }
+        if Some(next) == supplied {
+            supervisor = next;
+            if next != parent { watched.push((next, birth.clone())); }
+        }
+        if is_npm(next) { if next != parent { watched.push((next, birth)); } break; }
+        if ppid <= 1 { break; }
+        next = ppid;
+    }
+    Some((supervisor, watched))
 }
 
 
@@ -180,6 +207,29 @@ mod tests {
         assert!(!super::changed("unverified", "12345"));
         assert!(!super::changed("12345", "unverified"));
         assert!(super::changed("12345", "12346"));
+    }
+    #[test]
+    fn permission_denied_ancestor_does_not_request_self_termination() {
+        use super::*;
+        let denied = || std::io::Error::from_raw_os_error(libc::EPERM);
+        // A shell is readable, its root-owned ancestor is not. Both the metadata
+        // read and signal-0 probe can return EPERM on Darwin.
+        let identify = |pid| {
+            if pid == 42 { Some((43, "shell-birth".into())) }
+            else { inspected_identity(Err(denied()), || exists(Err(denied()))) }
+        };
+        let (_, watched) = capture_parents(42, None, identify, |_| false)
+            .expect("EPERM must not take adopt's self-SIGTERM branch");
+        assert_eq!(watched, vec![(42, "shell-birth".into())]);
+        let (_, watched) = capture_parents(43, Some(43), identify, |_| false).unwrap();
+        assert_eq!(watched, vec![(43, "unverified".into())]);
+        // The watchdog uses the same identity, with no false birth change.
+        assert!(watched.iter().all(|(pid, birth)| identify(*pid)
+            .is_some_and(|(_, current)| !changed(birth, &current))));
+        assert!(capture_parents(42, None, |_| None, |_| false).is_none());
+        assert!(!exists(Err(std::io::Error::from_raw_os_error(libc::ESRCH))));
+        assert!(exists(Err(std::io::Error::from_raw_os_error(libc::EACCES))));
+        assert!(inspected_identity(Ok(None), || panic!("a known zombie stays dead")).is_none());
     }
     #[test]
     fn darwin_npm_argv_never_inspects_inherited_environment() {

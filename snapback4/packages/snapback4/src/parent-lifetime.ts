@@ -8,18 +8,20 @@ function identity(pid: number): Identity | undefined {
     if (process.platform === 'linux') {
       const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
       const fields = stat.slice(stat.lastIndexOf(') ') + 2).trim().split(/\s+/);
-      if (!fields[19] || !fields[1] || !fields[0] || ['Z', 'X'].includes(fields[0])) return;
+      if (['Z', 'X'].includes(fields[0]!)) return;
+      if (!fields[19] || !fields[1] || !fields[0]) throw Error('unreadable process identity');
       return { parent: Number(fields[1]), birth: fields[19], command: readFileSync(`/proc/${pid}/comm`, 'utf8').trim() };
     }
     // Darwin has no /proc; ps lstart pins the original process incarnation.
     const fields = execFileSync('ps', ['-p', String(pid), '-o', 'ppid=,stat=,lstart=,args='], { env: { ...process.env, LC_ALL: 'C' }, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/);
-    if (fields.length < 8 || fields[1]?.startsWith('Z')) return;
+    if (fields[1]?.startsWith('Z')) return;
+    if (fields.length < 8) throw Error('unreadable process identity');
     return { parent: Number(fields[0]), birth: fields.slice(2, 7).join(' '), command: fields.slice(7).join(' ') };
   } catch {
     // Linux minimal userspaces may have no /proc; ps may also be unavailable.
     // Preserve direct-parent custody rather than mistaking absent metrology for death.
     try { process.kill(pid, 0); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EPERM') return; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return; }
     return { parent: 1, birth: 'unverified', command: '' };
   }
 }

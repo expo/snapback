@@ -5,6 +5,7 @@ import type { Persistence } from "./web.ts";
 export type WasmSource = URL | string | Response | BufferSource | WebAssembly.Module;
 let runtime: { identity: string | WebAssembly.Module; initialized: unknown; engine: DeviceEngine } | undefined;
 let initialization: Promise<unknown> = Promise.resolve();
+let compilation: { identity: string | WebAssembly.Module; module: Promise<WebAssembly.Module> } | undefined;
 export const wasmMemoryBytes = () => (runtime!.initialized as { memory: WebAssembly.Memory }).memory.buffer.byteLength;
 
 // @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
@@ -29,8 +30,8 @@ export async function cachedWasm(source: WasmSource | Promise<WasmSource>, persi
   const hex = pointer && saved.find((c) => c.s === "sha256" && c.k === pointer)?.v;
   const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
   if (hex) {
-    const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
-    if (pointer && await digest(bytes) === pointer) {
+    const bytes = unhex(hex);
+    if (bytes && pointer && await digest(bytes) === pointer) {
       try { const result = await initializeWasm(bytes, pointer, stampOnly); capture?.(bytes, url); return result; } catch {
         // A cache from an interrupted/older installer may be unusable even
         // when its content hash matches. An online fetch can repair it.
@@ -47,14 +48,22 @@ export async function cachedWasm(source: WasmSource | Promise<WasmSource>, persi
   // The content and URL pointer are then installed in one atomic host save.
   const initialized = await initializeWasm(bytes, hash, stampOnly);
   if (!stampOnly) await persist.save(name, [
-    { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
+    { s: "sha256", k: hash, v: hexBytes(bytes) },
     ...(url ? [{ s: "url", k: url, v: hash }] : []),
   ]);
   return initialized;
 }
 
 async function initializeWasm(source: BufferSource | WebAssembly.Module, identity: string | WebAssembly.Module, stampOnly = false): Promise<unknown> {
-  const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
+  // The content hash was checked on this call. Reuse preflight's compiled
+  // module without trusting an unchecked URL or retaining a second VM.
+  // @ref LLP 3000.002#browser-startup-loading — reuse validated preparation and bound cache conversion allocations.
+  if (!(source instanceof WebAssembly.Module) && compilation?.identity !== identity) {
+    const pending = { identity, module: WebAssembly.compile(source) };
+    compilation = pending;
+    void pending.module.catch(() => { if (compilation === pending) compilation = undefined; });
+  }
+  const module = source instanceof WebAssembly.Module ? source : await compilation!.module;
   const sections = WebAssembly.Module.customSections(module, "snapback4.engine");
   let stamp = unknownEngine();
   if (sections.length === 1) { try { stamp = normalizeEngine(JSON.parse(new TextDecoder().decode(sections[0]))); } catch {} }
@@ -78,4 +87,28 @@ async function initializeWasm(source: BufferSource | WebAssembly.Module, identit
   });
   initialization = work.catch(() => {});
   return work;
+}
+
+// Keep the persisted format: cached bytes and their URL pointer still install
+// atomically. Avoid an array of millions of per-byte strings during startup.
+function hexBytes(bytes: Uint8Array): string {
+  const table = Array.from({ length: 256 }, (_, b) => b.toString(16).padStart(2, "0")), chunks: string[] = [];
+  for (let at = 0; at < bytes.length; at += 8192) {
+    const end = Math.min(bytes.length, at + 8192), parts: string[] = [];
+    for (let i = at; i < end; i++) parts.push(table[bytes[i]!]!);
+    chunks.push(parts.join(""));
+  }
+  return chunks.join("");
+}
+
+function unhex(hex: string): Uint8Array | undefined {
+  if (hex.length % 2) return;
+  const bytes = new Uint8Array(hex.length / 2);
+  const digit = (c: number) => c >= 48 && c <= 57 ? c - 48 : c >= 65 && c <= 70 ? c - 55 : c >= 97 && c <= 102 ? c - 87 : -1;
+  for (let i = 0; i < bytes.length; i++) {
+    const high = digit(hex.charCodeAt(2 * i)), low = digit(hex.charCodeAt(2 * i + 1));
+    if (high < 0 || low < 0) return;
+    bytes[i] = high * 16 + low;
+  }
+  return bytes;
 }

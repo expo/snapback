@@ -110431,3 +110431,91 @@ ordering has a real signal-before-handler window; the assertion stays strict.
 This follow-up changes the emitted production script and release note, not the
 engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
+
+
+### 2026-10-29 — Web startup footprint, first module split
+
+The author's preferred target is <100 KB for all local-first JS/WASM; loading
+full local execution after the initial page is an accepted practical fallback.
+On sb4/web-startup-20261029, app/persona local execution and the web device host
+are dynamic modules; worker support loads only on its path. Identity promotion,
+engine handshake, write admission and persistence use their existing sequences.
+A production consumer's initial SDK graph measures 122,883 -> 82,433 B gzip
+(103,364 -> 70,941 B Brotli), excluding React/authored UI. All emitted assets
+including optional worker code grow 873,092 -> 880,255 B gzip. Same retained
+0.4.47 device, Node 24.22.2 and Vite 8.3.5 in both measurements; not publication
+qualification. Typecheck/build, 100 app/local-session/browser startup assertions,
+the bundle regression and 15 durability assertions pass. Additional acquisition
+and worker witnesses receive server SIGTERM before readiness and remain
+unqualified. Signed-in first data still waits for the full runtime; no latency
+win, complete-runtime 100 KB claim or performance non-regression is asserted.
+LLP 3000.002 records the remaining progressive-read/SSR and custody questions.
+
+
+### 2026-10-29 — Web startup validation limit
+
+The later persona test times out after its 122 s server-readiness guard, before
+its client assertions; the rest of that test file is cancelled. The retained
+0.4.47 test binary remains a scope limit. The selector asks for a broad affected
+battery (31 steps, including 460 client files); it has not run. The module split
+is a local checkpoint, not a qualified landing or publication. The initial-byte
+regression and ref-check both pass again; no product source changed after the
+reported targeted passes.
+
+### 2026-10-29 — Deferred web startup, browser proof and cache initialization
+
+The Linux worktree replaces the retained-artifact startup limitation: 46
+persona, engine identity, persistence and acquisition tests pass against the
+matching 0.4.49 artifacts, including direct/worker offline reopen. The native
+binary is then rebuilt from this branch. The standalone IDB witness hits its
+inherited undeclared-mallory fixture and is not counted as passing.
+
+WASM preparation now reuses the compiled module after validating the content
+hash, and converts the existing hex cache with bounded temporary strings.
+Exact-byte cache round trip, offline reuse, corrupt-cache refusal and online
+repair pass. A production browser test with no eager fixture bootstrap keeps
+page input working while the WASM request is held, then preserves a pending
+local write through a new document with WASM requests blocked. Initial SDK
+bytes with the 0.4.49 device are 82,432 gzip / 70,929 Brotli; emitted JS/WASM is
+880,779 gzip. This remains the accepted deferral fallback, not a complete
+runtime under 100 KB. The full interpreter and its existing semantics remain.
+
+Four runs per variant in Chromium at 4× CPU throttle, same host/artifact and
+only the cache implementation changed, give median runtime opening 995 ->
+435 ms cold and 1,992 -> 433 ms offline. This measures initialization after
+shell load on loopback, not network startup or physical mobile performance.
+Typecheck/build and focused regressions pass. Broad affected qualification
+and landing remain pending at this entry; no publication claim is made.
+
+### 2026-10-29 — Web startup compressed-network comparison
+
+A minimal production persona app/device page, gzip served, in three fresh
+Chromium 151 contexts per variant at 1.6 Mbps / 150 ms latency / 4× CPU throttle:
+median first contentful paint 1,012 -> 788 ms; first local inbox result 6,901 ->
+6,514 ms. Order alternates between variants. Actual downloaded SDK assets grow
+860,256 -> 861,553 B gzip; optional worker chunks stay unloaded. The early
+paint improves, but full local readiness still pays the large WASM download.
+The representative entry retaining common React hooks separately measures
+122,882 -> 82,432 B gzip with the matching 0.4.49 device, React/UI excluded.
+Raw samples, scope and WASM digest are in the existing metrics streams. These
+are synthetic host probes, not physical-mobile or publication qualification.
+The broad affected run is in progress. No product behavior changes after its
+selected revision; this entry, measurement records, current-byte reference
+correction and one trailing blank-line cleanup retain that semantic delta.
+
+### 2026-10-29 — Web startup client qualification and ordinary landing
+
+The complete selected app/browser batch passes 1,028 tests across 33 files,
+including both 5,000-sequence session models, worker/admission review and the
+new deferred-load/offline-reload regression. Typecheck, package build,
+docs-budget, packaged-doc lint and ref-check pass. The moved device and
+persistence function bodies compare byte-for-byte with their former locations.
+The tested product revision is 1b375a217a; later commits record evidence/docs
+and remove a trailing blank line, without changing its semantic delta.
+
+The conservative selector expands the research-LLP/doc change to 31 steps,
+including every Rust package, the client pool and root-repository checks. Its
+install, native build, WASM build, client build and typecheck pass; backend
+suites are still running. Ordinary landing uses the scoped app/browser proof
+under the fast/affected cadence; that broad follow-up remains outstanding and
+is not represented as passing. This is not an npm release qualification.
