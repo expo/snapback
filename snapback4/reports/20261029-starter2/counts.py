@@ -18,6 +18,6 @@ for phase in ['before','after']:
   tools=[t for s in d['sessions'] for t in s['tools']]
   rows.append(dict(phase=phase,n=n,calls=sum(s['N'] for s in d['sessions']),input=sum(s['sumC'] for s in d['sessions']),cached=sum(s['cached'] for s in d['sessions']),output=sum(s['out_tok'] for s in d['sessions']),
    maxCallInput=max(s['maxC'] for s in d['sessions']),polls=sum(t['cat'].startswith('poll:') for t in tools),frontendCycles=sum(c['fam']=='frontend' for c in cycles),timeoutCycles=sum(c['cls']=='TimeoutError' for c in cycles),
-   frontendAttempts=sum(t['cat']=='proofs:frontend' for t in tools),verifyAdopted=any('npm run verify' in t['cmd'] and not t['cat'].startswith('poll:') for t in tools),purposes=dict(purposes),cycles=cycles))
+   browserFailedRuns=sum(not t['cat'].startswith('poll:') and calls.red_of(t) and (t['cat']=='proofs:frontend' or 'TimeoutError' in (t.get('codes') or [])) for t in tools),frontendAttempts=sum(t['cat']=='proofs:frontend' for t in tools),verifyAdopted=any('npm run verify' in t['cmd'] and not t['cat'].startswith('poll:') for t in tools),purposes=dict(purposes),cycles=cycles))
 json.dump(rows,open('/tmp/starter2-evidence/counts.json','w'),indent=2)
 print([(r['phase'],r['n'],r['calls'],r['polls'],r['frontendCycles']) for r in rows])
