@@ -111,7 +111,7 @@ idempotence limits; add `--field Task --value "Browser proof" --button Add` for 
 |---|---|
 | Node script, seed, test or worker | `createClient({ url, persona })` from `snapback4/client` in development; `createClient({ url, session })` after `signup`/`login` from `snapback4/auth` |
 | Browser app, no synced table | `createApp({ url, sessionStore: localStorageSessionStore() })` under `AppProvider`: writes are journaled without a device, no wasm (below) |
-| Browser app with synced tables | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider`; the device is about 650 KB gzip of wasm (below) |
+| Browser app with synced tables | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider`; the device is about 742 KB gzip of wasm (below) |
 | Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })`; `webDevice()` on web |
 
 **Browser writes need `createApp`.** A bare `createClient()` in a browser has
@@ -122,14 +122,15 @@ most once. When no table declares `sync`, it does this without a device (see
 "Browser writes without a device"); synced tables need `webDevice()`.
 
 **Budget for the device before choosing it.** `webDevice()` is the
-whole local interpreter compiled to wasm: about 2.1 MB raw, 650 KB gzip (a
-release budget caps the gzip size), plus a 24 KB worker, on top of the app's
+whole local interpreter compiled to wasm: about 2.4 MB raw, 742 KB gzip or
+556 KB Brotli in 0.4.49 (a release budget caps the gzip size), on top of the app's
 JavaScript. A Vite production build emits it as its own asset, and the
 device fetches it when it opens at restore or sign-in. It buys offline reads
-and predictions over synced tables. With no synced table, omit it: the same
-writing page measured 274,853 B raw (88,485 B gzip) of JavaScript and no wasm,
-against 2,503,672 B (766,377 B gzip) with `webDevice()` (Vite production
-builds of one page). A browser page that never writes
+and predictions over synced tables. With no synced table, omit it. The
+representative app/auth/device/React-hook SDK entry starts at 82,432 B gzip
+(70,929 B Brotli), excluding React and authored UI; all emitted SDK JS/WASM,
+including optional worker assets, totals 880,779 B gzip. Measure your own
+production entry with its actual imports. A browser page that never writes
 needs neither: every client reads, and `readOnly: true` silences the write
 warning (`guide read-only`). An Expo app pays nothing on phones (the native
 module, or Expo Go's online tier) and the same wasm on Expo web.

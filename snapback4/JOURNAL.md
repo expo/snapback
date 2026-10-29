@@ -110486,3 +110486,19 @@ only the cache implementation changed, give median runtime opening 995 ->
 shell load on loopback, not network startup or physical mobile performance.
 Typecheck/build and focused regressions pass. Broad affected qualification
 and landing remain pending at this entry; no publication claim is made.
+
+### 2026-10-29 — Web startup compressed-network comparison
+
+A minimal production persona app/device page, gzip served, in three fresh
+Chromium 151 contexts per variant at 1.6 Mbps / 150 ms latency / 4× CPU throttle:
+median first contentful paint 1,012 -> 788 ms; first local inbox result 6,901 ->
+6,514 ms. Order alternates between variants. Actual downloaded SDK assets grow
+860,256 -> 861,553 B gzip; optional worker chunks stay unloaded. The early
+paint improves, but full local readiness still pays the large WASM download.
+The representative entry retaining common React hooks separately measures
+122,882 -> 82,432 B gzip with the matching 0.4.49 device, React/UI excluded.
+Raw samples, scope and WASM digest are in the existing metrics streams. These
+are synthetic host probes, not physical-mobile or publication qualification.
+The broad affected run is in progress. No product behavior changes after its
+selected revision; this entry, measurement records, current-byte reference
+correction and one trailing blank-line cleanup retain that semantic delta.

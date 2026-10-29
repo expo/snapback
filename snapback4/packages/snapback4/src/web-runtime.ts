@@ -536,4 +536,3 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
   }
   return retry;
 }
-
