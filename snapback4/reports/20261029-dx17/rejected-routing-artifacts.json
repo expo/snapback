@@ -1,0 +1,32 @@
+{
+  "source": "495cff6b4aaa9ede35637f32aa202785c20d733a",
+  "nativeProfile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "guideBytes": 7989,
+  "binarySha256": "4b1d657091aa6afcc0278b35f6e241713d403ae9deff94091f81d32a0e1767fa",
+  "artifacts": [
+    {
+      "filename": "snapback4-0.4.49.tgz",
+      "bytes": 1414925,
+      "sha256": "48f88415ea71fbe2c5d599fe91b3170c708a5bb6c563c263c8691876e9d4af84",
+      "integrity": "sha512-xOFhDuVDrXimDyLwB6VYWodbjq5ieIKYZsO5MfVG+o+6+LIT3ok0YBfpX6mMUx98c/MJ/vv/S1OOgkPknCZqsA=="
+    },
+    {
+      "filename": "snapback4-expo-0.4.49.tgz",
+      "bytes": 5789773,
+      "sha256": "84dfb7278fff0bdaf85028afb0037ffad511c41a049add9c957a7d4f689d940f",
+      "integrity": "sha512-BJnhECl0WOsQIZZw01q3Wi0CZDxnuisFJRiK7gK5DGzhdMV2AhSn2MwX+4MGKaaItx/oISFxYt8cMtczoDtitg=="
+    },
+    {
+      "filename": "snapback4-linux-x64-0.4.49.tgz",
+      "bytes": 18780575,
+      "sha256": "ceef9f1656745ba3fed2740c51b73d3ab71f2b0d5da67a1d5f21d98611b06960",
+      "integrity": "sha512-gWBwpxuRHPt1xHXWZ2jCAeJPcQXKn2sbXon+1ISoro06+qAZrrr+iFH2EJMlVdxWsHGSeSZ/Iqfha0yGyr0zMQ=="
+    }
+  ],
+  "expo": "Unchanged published 0.4.48 Expo payload repacked with Integration 33 0.4.49 manifest only; no Mac compilation or qualification.",
+  "expoPayloadComparison": {
+    "allNonManifestFileDigestsEqual": true,
+    "files": 27
+  }
+}

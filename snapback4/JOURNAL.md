@@ -110433,12 +110433,69 @@ engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
 
 
-### 2026-10-29 — VER2: route builders through one proof loop
+### 2026-10-29 — DX17: one day-two release packet
 
-Start/workflow and starter prose now name verify as the complete loop, with
-phase scripts reserved for focused reruns. New UI starter npm pre/post hooks
-retain source/session-bound passing acceptance/frontend receipts even after
-business command replacement. Verify reuses them conservatively, keeps check
-and shutdown fresh, prints five-second progress and names the first red rerun.
-LLP 3000.037.000 §18 records identity, invalidation and cache limits. This is
-mechanical routing/reuse work; CANDRUN owns the forty-lane cost decision.
+The existing day2 card folds upgrade, real v1 capture/production, change-kind
+routes, preview/v2, exact rollback/forward scripts, frozen calls and the roster
+into one bounded read (revised packet: 7,989 bytes). The packaged day2-check orders existing authored
+proofs and the harness's two release cycles; two v2 callers run before the second
+rollback measures their rows. Only the final probe adds a 30-second observation.
+First reds retain exits, cleanup receipts and private log paths. Rollback
+previews reuse disposable TOK2 output deltas. No scaffold or release/rule
+semantics change. The temporary scaffold is explicitly insufficient for the
+growing-production contract. Fresh Codex and Muse round-four source reviews
+are READY; actual packed workflow controls pass two complete checks with real
+accounts and frozen-v1 returns. Whole-session costs and the complete affected/
+consumer-only results are recorded in the DX17 workstream report; no empirical
+win, publication qualification or author acceptance is inferred here.
+
+DX17 replay revision: the first complete after cohort regressed cost/calls
+despite correct production/frozen-client outcomes. Retain those measurements.
+The revised packet leads with direct day2-check, restores the SDK-source reading
+guard, includes enum-label aliases and stage-boundary rules, and arms shutdown
+before readiness. The packed consumer invokes the CLI directly. A separate
+fixed-seed complete cohort will measure this revision, without best-run selection.
+
+DX17 final verification: affected checks at 02be4d732f passed all 15 scoped steps
+with unchanged:true; 699 CLI unit tests and all 135 guide tests passed. Complete
+consumer-only qualification passed on installed .49 tarballs, never publication
+qualification. The exact replay platform independently passed two checker loops.
+A native build begun before documentation merge resolution retained the prior
+changelog placement; all 60 default guide packets were compared and only changes
+differed. Separate digests and this measurement limit are retained. No source
+semantics changed to make the benchmark or packed proof pass.
+
+DX17 observation correction: the exact day-two brief records how frozen v1 fared,
+rather than asserting old calls still succeed under tighter intended rules.
+The rejected asserting cohort is retained. Completed ordinary legacy exits now
+produce visible exit/per-call-code observations while strict current callers,
+authored assertions, observable signals, timeouts and cleanup still fail.
+Raw caller output/rows/credentials stay out of the private report. A proposed
+capture-adapter bypass was rejected because it skipped npm pre/post hooks;
+the original frozen client:calls lifecycle remains intact. Opaque wrappers may
+mask nested signals, so the report explicitly avoids a nested-process-status
+certification. No frozen caller or authorization rule is edited. New controls
+pass through the actual adapter, including hooks, exit7, signal and cleanup.
+Final guide is 7,998 source / 7,999 served bytes. A separately named after-observe
+whole-session cohort will measure this corrected flow. Its native build will be
+shared with packed qualification to freeze the same canonical platform bytes.
+
+Corrected DX17 qualification passed at d7362dfe42: source snapshot, native binary,
+platform tarball integrity and client tarball integrity all match the canonical
+bytes used by after-observe replays. Two installed checker fixtures exercise
+actual v2-row reads and ordinary nonzero frozen outcomes. The full consumer-only
+path and corrected 15-step affected set passed with unchanged-source receipts;
+neither is publication qualification. Prior snapshot differences apply only to
+retained rejected trials. Completed multi-GB consumer/old-cohort dependencies
+are deleted after hashes, sources, stores, archives and receipts are retained.
+
+DX17 complete measured verdict: final fixed 3 Muse/2 Codex sessions are all
+archived and priced with matching native traces. Muse misses cost/call targets:
+$0.066543→ $0.080256,118.33→136.67. Codex improves $0.772266→ $0.605831,
+36.5→36 calls and13.35→11.20 raw minutes. Corrected repeated proof processes,
+release stages, conservation and probes pass; raw frozen compatibility and
+row reachability are mixed and remain explicit. Preserve both rejected cohorts,
+small-sample/MUSE1 confounding, and the baseline018 exit-delay sensitivity. One
+missing baseline011 probe was supplemented later with identical native bytes,
+without changing its model price/wall or overwriting a red. The guide-gap cost
+follow-up is filed; this is not a claimed Muse optimization success.

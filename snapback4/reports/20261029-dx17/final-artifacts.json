@@ -1,0 +1,35 @@
+{
+  "source": "d7362dfe42ff9d70155a93c0aa62ac2865c6116b",
+  "nativeBuild": "Shared with canonical consumer-only qualification; packed only after its installed DX17 fixture passed. Compare platform integrity to final consumer.json.",
+  "nativeProfile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "guideBytes": 7998,
+  "binarySha256": "71d67a92a731ea55f6d02cf9f8d52058571b11c7f6d9488402640aef40325804",
+  "artifacts": [
+    {
+      "filename": "snapback4-0.4.49.tgz",
+      "bytes": 1415565,
+      "sha256": "12b17c3a090eaef1b75ccf59c4476e8d8df01b9725514a0e60f7a84436987b05",
+      "integrity": "sha512-zJt/EdS/5KJHY3m4bvuYbyrr9Mgg7Cfbs+d5mN1zCqLh6tjhi1SvB6A/bzK5ag/fLsPtbk+u1SJ1msB3H5WiUQ=="
+    },
+    {
+      "filename": "snapback4-expo-0.4.49.tgz",
+      "bytes": 5789773,
+      "sha256": "84dfb7278fff0bdaf85028afb0037ffad511c41a049add9c957a7d4f689d940f",
+      "integrity": "sha512-BJnhECl0WOsQIZZw01q3Wi0CZDxnuisFJRiK7gK5DGzhdMV2AhSn2MwX+4MGKaaItx/oISFxYt8cMtczoDtitg=="
+    },
+    {
+      "filename": "snapback4-linux-x64-0.4.49.tgz",
+      "bytes": 18780578,
+      "sha256": "bcfad9a3b020384f3d71f7e57a0e46660788dd2b536d3cc2c1999b047c2e5646",
+      "integrity": "sha512-JAoGysEO3IOFg5qZ9sw3YTkV/flRgu3JTWRnOy10BZ0s43fqbR9oAW6ivR21drIn1Avrp2bLSigrf8SRtMnsuQ=="
+    }
+  ],
+  "expo": "Same unchanged registry .48 payload repacked with .49 manifest; no Mac qualification.",
+  "qualificationBinding": {
+    "source": true,
+    "binary": true,
+    "platformTarballIntegrity": true,
+    "clientTarballIntegrity": true
+  }
+}

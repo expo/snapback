@@ -26,6 +26,8 @@ const APP_FILES: &[&str] = &[
     "../snapback/generated/api.ts",
     // Private CLI outputs, covered by the end-to-end output-custody tests.
     ".snapback4/last/<command>.txt", ".snapback4/last/test.txt",
+    // DX17's literal packed release recipe and ordered checker outputs.
+    ".snapback4/last/deploy.txt", ".snapback4/last/day2-check.json", "day2-proof.json", "deploy/proof-accounts/default.json",
 
     // The executable auth-card example and the installed social starter seed.
     "seed.mjs", "scripts/seed.mjs", "placements.mjs",

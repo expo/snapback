@@ -26,7 +26,10 @@ if (process.argv[2] === "web-shell") {
   process.exit(0);
 }
 
-if (process.argv[2] === "serve-check") {
+if (process.argv[2] === "day2-check") {
+  try { process.exitCode = await (await import('./day2-check.js')).day2Check(process.argv.slice(3)); }
+  catch (error) { console.error(`day2-check: ${error.message}`); process.exitCode = 2; }
+} else if (process.argv[2] === "serve-check") {
   try {
     const presentation = process.argv.slice(3).filter(arg => ["--json", "--verbose", "--explain"].includes(arg));
     const args = process.argv.slice(3).filter(arg => !presentation.includes(arg)), options = {};

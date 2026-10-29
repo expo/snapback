@@ -35,6 +35,8 @@ fn release_budgets_complete_evidence_and_disposable_delta_history() {
     assert!(changed.contains("WARNING")&&changed.contains("RESULT REVIEW"),"{changed}");
     a.ok(&["deploy","production"],3);
     a.ok(&["rollback","production","--to","1","--check"],3);
+    assert!(a.ok(&["rollback","production","--to","1","--check"],1).contains("unchanged"));
+    assert!(a.ok(&["rollback","production","--to","1","--check","--explain"],usize::MAX).contains("preview"));
     a.ok(&["rollback","production","--to","1"],3);
     let detail=a.detail("rollback");assert!(detail.contains("generation"));
     let full=a.ok(&["releases","production","--explain"],usize::MAX);assert!(full.contains("\"events\""));

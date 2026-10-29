@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "d7362dfe42ff9d70155a93c0aa62ac2865c6116b",
+  "version": "0.4.49",
+  "route": "proot",
+  "clientIntegrity": "sha512-zJt/EdS/5KJHY3m4bvuYbyrr9Mgg7Cfbs+d5mN1zCqLh6tjhi1SvB6A/bzK5ag/fLsPtbk+u1SJ1msB3H5WiUQ==",
+  "expoIntegrity": "sha512-BJnhECl0WOsQIZZw01q3Wi0CZDxnuisFJRiK7gK5DGzhdMV2AhSn2MwX+4MGKaaItx/oISFxYt8cMtczoDtitg==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.49",
+    "filename": "snapback4-linux-x64-0.4.49.tgz",
+    "integrity": "sha512-JAoGysEO3IOFg5qZ9sw3YTkV/flRgu3JTWRnOy10BZ0s43fqbR9oAW6ivR21drIn1Avrp2bLSigrf8SRtMnsuQ==",
+    "bytes": 18780578
+  },
+  "binarySha256": "71d67a92a731ea55f6d02cf9f8d52058571b11c7f6d9488402640aef40325804",
+  "publicationQualified": false,
+  "exitCode": 0,
+  "qualificationBinding": {
+    "source": true,
+    "binary": true,
+    "platformTarballIntegrity": true,
+    "clientTarballIntegrity": true
+  },
+  "evidenceSha256": "12300c7779160b606a4eabbac928e03cbaec245b5d53c6a6aa02a42bec563300",
+  "dx17": {
+    "status": "passed",
+    "runs": 2,
+    "phasesPerRun": 16,
+    "literalStageScripts": true,
+    "realAccounts": true,
+    "frozenV1ReturnsV2Rows": true
+  }
+}

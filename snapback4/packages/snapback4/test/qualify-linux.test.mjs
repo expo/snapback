@@ -22,6 +22,7 @@ function qualify(t, scenario = {}) {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
   writeFileSync(join(root, "scripts/publication-dx16.mjs"), `export async function proveDX16(){if (${JSON.stringify(scenario.dx16Fail ?? false)}) throw Error('deliberately failing packed DX16 guide');return {status:"passed"};}`);
+  writeFileSync(join(root, "scripts/publication-dx17.mjs"), `export async function proveDX17(){if (${JSON.stringify(scenario.dx17Fail ?? false)}) throw Error('deliberately failing packed DX17 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
   writeFileSync(join(root, "scripts/publication-release-transitions.mjs"), `export async function proveReleaseTransitions(){if (${JSON.stringify(scenario.releaseTransitionsFail ?? false)}) throw Error('deliberately failing packed release transitions');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-dormant.mjs"), `export async function proveDormant(){if (${JSON.stringify(scenario.dormantFail ?? false)}) throw Error('deliberately failing packed dormant proof');return {status:'passed'};}`);
@@ -267,6 +268,7 @@ for (const consumerOnly of [false, true]) for (const [refusal, message] of [
 
 for (const consumerOnly of [false, true]) for (const [refusal, message] of [
   ["dx16Fail", "deliberately failing packed DX16 guide"],
+  ["dx17Fail", "deliberately failing packed DX17 guide"],
   ["dx7Fail", "deliberately failing packed DX7 guide"],
   ["dx8Fail", "deliberately failing packed DX8 guide"],
   ["releaseTransitionsFail", "deliberately failing packed release transitions"],

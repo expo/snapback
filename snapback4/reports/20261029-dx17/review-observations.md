@@ -1,0 +1,9 @@
+Review DX17's final correctness amendment. Read-only; do not edit or run tests.
+Use exact task /home/ccheever/sb4-loop/bakeoff/brief-bakeoff-day2.md lines172-245. In particular frozen v1 outcomes are recorded, not asserted; current caller scripts carry their own expected-refusal contract. Inspect working changes in:
+- snapback4/packages/snapback4/bin/day2-check.js
+- snapback4/packages/snapback4/test/dx17-day2-check.test.mjs
+- snapback4/scripts/publication-dx17.mjs
+- snapback4/crates/snapback4-lang/src/guide/day2.md
+- llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md section18.
+The first revisions incorrectly treated every frozen exit as an assertion. New flow records completed frozen exits and whitelisted per-call labels/booleans/codes, continues remaining stage drills, still fails current client nonzero, frozen signal/timeout, authored-proof/serve cleanup errors. No release/refusal/authorization semantics or frozen callers may change. Private credentials, rows, arbitrary error diagnostics stay out of report. Guide <=8000 served bytes, task truthful, no fake compatibility pass. Tests include nonzero frozen observations and strict current failure. Packed fixture second run deliberately exits7 frozen; first run verifies actual v2 rows through old client.
+Return READY or NOT_READY with material source findings only; separate final whole-session cohort, affected checks and packed consumers will run. No source review confers empirical success or author acceptance. Other reports contain incomplete measurements: do not treat them as final.

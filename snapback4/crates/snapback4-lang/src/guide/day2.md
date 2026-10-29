@@ -1,42 +1,60 @@
-# Day two: change, prove, release, return
+# Day two: one release recipe
 
-Start here with an existing app. Keep its store and saved sources. Before editing:
+Use this SQLite recipe, then `npx snapback4 day2-check` for validation and release drills. Before capture, ensure client:calls exercises day-one business calls.
 
 ```sh
+npx snapback4 upgrade
+npm run check && npm run acceptance && npm run frontend:proof
 npx snapback4 init --adapt --day2 --apply
 npx snapback4 deploy ./deploy --save-version versions/v1
 ```
 
-Adapt saves absent versions/v1 and versions/v2 source/fixture snapshots plus a frozen v1/ ESM client and generated API. Existing snapshots
-and authored proofs stay untouched. Capture BEFORE the edit. If v1 is already deployed/saved, inspect `releases ./deploy --json` and reuse
-its saved source; never recapture it from v2. If these are starter drafts, choose unused versions/vN and versions/vM: save vN, copy it to vM for edits, and run
-`npm run day2:proof -- versions/vN versions/vM`. Preserve snapshots. Substitute the chosen pair in ALL examples below, including both proof runs.
+## Save v1
 
-Read this card, ONE change route, and `guide api proof` for proofs. Do not read deploy/production/evolution --full next:
-those commands list reference sections. Do not read dist/proof.js or the full declarations. Use the signature digest and a specific section
-only when a refusal needs it. After the selected route, edit the schema (or write the discovery plan). Lookup more only for a concrete refusal.
+Use the final checker for repeats; individual phases only repair reds. Signatures: guide api proof; leave SDK source/declarations closed. Postgres: guide release-json.
 
-## Choose one change route
+Use the requested pin; restart old hosts. Adapt preserves owned scripts/snapshots and freezes checked source/API/calls under v1/ BEFORE edits. Retain existing v1; never recapture it from v2. If v1/v2 are starter drafts, save actual v1 as versions/vN, copy to vM. Keep old snapshots. Substitute the chosen pair in ALL examples below, including both proof runs. Record v1 ID once with releases ./deploy --json; 1 below assumes the first release.
 
-| Change | Read at most these sections |
+## Production v1 with real users
+
+Set prod:serve to `exec node scripts/prod-serve.mjs` below. Replace roles/handle/args with your enrollment plan; serve the current selection.
+
+```js
+import {startServe, serveUntilSignal, cleanup} from 'snapback4/proof';
+import {api} from '../snapback/generated/api.ts';
+const host = await startServe('./deploy', {
+  provisionUsers:{roles:{member:2, admin:2}, provision:api.provision}
+});
+try {
+  const serving = serveUntilSignal([host]);
+  console.log(JSON.stringify({backendUrl:host.url, users:host.sessions}));
+  await serving;
+} finally { await cleanup(() => host.stop()); }
+```
+
+Signup confers no role; provisioning uses the authorized operator mutation. Accounts: `{kind:'user',role,email,password,principal,token,expiresAt}`. Reruns login/finish partial setup from deploy/proof-accounts/default.json (0600); retain it. Plan mismatch: reuse it or choose another roster. Readiness stays private; other logs go to stderr. Build v1 for this host; write as two real users/role BEFORE edits.
+
+## Change route
+
+| Change | Paved form and compatibility |
 |---|---|
-| Rename a field/table/operation or argument | `guide rename --section opening`; `guide deploy --section 'Keep v1 clients working'` |
-| Loosen a required field, allow null or an empty album | `guide deploy --section 'Bridge a safety gate'`; `guide security --section 'N_PRESENCE_LOOSENING'` if the check asks for presence intent |
-| Add a required field computed from old values | `guide deploy --section 'Migrations and adoption'`; `guide deploy --section 'Which migration shape'` |
-| Change record kind, move media into children, split a list | `guide evolution --section 'Move media'`; `guide deploy --section 'Keep v1 clients working'` |
+| Rename | Enum label: `alias records.status 'paused' = 'ready'` (forward/reverse values). Field: `charge: Int renamed from price`; old argument `charge: Int alias price`; `alias oldItem = item`. Preserve old result names with `return row {id:.id, price:.charge}`. Rename and stricter editing belong in one release. |
+| Required → optional, empty album | Use `TYPE ?` / the new list minimum; fix nullable UI reads. Preserve independent presence intent where check requests it. Default rollback may keep current guards; record old callers on null/empty. |
+| Required derived field | Literal default or named backfill computes historical values; maintain the value on EVERY later insert/update path. Contextual defaults cannot invent history. Private reads intersect row access; hidden fields are omitted/optional. |
+| Asset into children | `extract scans from orders via order: {scan:scan}`; map several asset columns together for one child, or use `each` for list elements. Declare the child with `order: orders on delete restrict`, immutable order and `read through .order`. Keep the same audience. Scalar-only splits need backfill/down plus child-writing mutations. |
 
-For a rename use `renamed from`; keep old operation/argument aliases and result wrappers. For private added fields use `read (field) <-
-policy`, intersected with row access; whole rows omit hidden fields, scalar selections return null and SDK properties are optional. Keep the
-existing row audience. For example:
+Derived/private field and alias:
 
 ```quarry
 use identity password
 table records:
   owner: principal
   consent: file <=10000000 ?
+  status: enum('open', 'ready', 'closed') default 'open'
   summary: enum('held', 'none') read <- .owner = viewer
   read <- .owner = viewer
   online only
+alias records.status 'paused' = 'ready'
 backfill records summary(consent: file <=10000000 ?):
   {summary: 'held' if consent != null else 'none'}
 query item(id: records alias oldId):
@@ -44,82 +62,46 @@ query item(id: records alias oldId):
 alias oldItem = item
 ```
 
-Backfill computes historical values, not later maintenance: update the summary on EVERY consent-changing path. New required fields need a
-literal default or named backfill; contextual defaults cannot invent history. Media/reference moves use extract, not a scalar transform.
-Loosening a field still needs independent presence intent at the transitions that require it. Only an intentional policy choice can use a
-presence tautology; it does not prove workflow safety. Rename + stricter edits belongs in ONE release: `charge: TYPE renamed from price`;
-retain `charge: TYPE alias price` on the old create call. Preserve old result fields with an explicit projection such as `return row
-{id:.id, price:.charge}`. For an allowed creator but narrower editor, combine the existing update rule with `old.charge = next.charge or
-OWNER_POLICY` in `update (old, next) <- ...`. A column `write <- POLICY` also restricts non-default creation: use it only when that matches
-the requested creator too. A require never grants a denied write. Preserve existing guards. These forms are enough to plan the change; leave
-security/language/rule-recipes closed until check names a concrete refusal. Reuse the inherited client:calls as the frozen business probe;
-keep its handles.
+For narrower editors, combine the existing update rule with `old.charge = next.charge or OWNER_POLICY` in `update (old, next) <- ...`. Column `write <- POLICY` also restricts non-default creation. For a restricted stage boundary, guard only moves into/out of that stage. A require grants no denied write. For extraction, initial child IDs equal parent IDs; each-list children retain receipt order. Compatible rollback views can retain v2-native parents/multiple children. Selection alone proves neither shape nor readability. Review hiding/broader policy before --exact. Missing reverse values need a truthful down/bridge, not a misleading default. Follow only the refusal's named section.
 
-## Preview, deploy v2, rollback and forward
+## Preview and scripts
 
-Update your working snapback/*.q and versions/v2 (source and contemporary fixtures); keep versions/v1 frozen. With production v1 already in
-./deploy:
+Update snapback/*.q and versions/v2 with fixtures; freeze versions/v1.
 
 ```sh
 npx snapback4 check
 npx snapback4 test --source versions/v2
 npx snapback4 deploy ./deploy --schema versions/v2 --check
 npx snapback4 deploy ./deploy --schema versions/v2
-npx snapback4 rollback ./deploy --to 1 --check
-npx snapback4 rollback ./deploy --to 1
-npx snapback4 rollback ./deploy --to latest --check
-npx snapback4 rollback ./deploy --to latest
 ```
 
-Replace 1 with the saved v1 release ID. Preview writes nothing; later writes can change its result. Await activation; no sleep. Default rollback may use a registered compatible view retaining current guards. Inspect `releases ./deploy --json` for live
-source/view and row shape; a successful rollback alone does not establish frozen-v1 result compatibility. Use --exact only after
-deliberately reviewing the old source's broader policy. If preview requires a bridge or --restore-dormant, follow its concrete instruction
-and preview again. Never prune/reset/delete storage to make a proof pass.
+Preview writes no live data; activation revalidates under the writer. Await completion; fix the first red. Repeated previews show deltas/unchanged; full evidence: .snapback4/last/deploy.txt, `deploy --explain`, or deploy --json. Do not repeatedly dump releases/data after a green phase: put the assertion in the proof.
 
-Run `npm run day2:proof` twice. The generated proof owns a fresh temporary store, checks persisted IDs/values across two rollback/forward
-cycles and cleans up. Its default business hook proves storage conservation only: add authenticated v1/v2 business calls, refusals and reads
-of v2-native rows. Return explicit changed-field/deletion declarations for intentional old-client writes. A custom proof must also preserve
-data and stop every host it starts.
+package.json scripts (replace 1 with the recorded v1 ID):
 
-## Frozen v1 calls and repeatable users
+```json
+{
+  "day2:rollback": "snapback4 rollback ./deploy --to 1",
+  "day2:forward": "snapback4 rollback ./deploy --to latest"
+}
+```
+
+Wrappers select either state on the same store; no hosts. `latest` selects the newest ordinary forward release, not a rollback view. Refused move: `rollback ./deploy --to 1 --check`; follow its bridge/restore instruction and preview again. Never prune, reset or delete storage to make a drill green.
+
+## Proof and one check
+
+day2:proof reuses EXISTING ./deploy: v1 → fresh real users/data → v2/old calls → rollback/old calls → forward; leave v2 selected. Assert ALL inherited IDs/values, v2 features and cross-user refusals. Record frozen-v1 outcomes and v2-row readability at v2/rollback truthfully; compatibility is observed, not asserted. Exhaust pages; compare IDs; account for intentional client writes/deletes. After cleanup write `JSON.stringify({ok:true,...results})` to day2-proof.json (node:fs writeFileSync); results holds counts, flags and migrationFiles. Stop hosts in finally. Use freshUser per role/run and uniqueName; reuse sessions. A cap refusal needs a fresh owner/group or authorized cleanup, never retries or raised caps.
+
+Adapted day2:proof uses a TEMPORARY store, no business assertions; existing destinations refuse. Customize for production; retain saved-source tests. Signatures: guide api proof.
 
 ```sh
-BACKEND_URL=http://127.0.0.1:4400 CALLS_USERS='{"member":[{"email":"...","password":"..."}]}' npm --prefix v1 run client:calls
+npx snapback4 day2-check --deployment ./deploy
 ```
 
-The frozen runner accepts inline JSON or a JSON file path. Inline users become a private temporary file, removed after exit. Keep its
-handles; run it on v1, v2, rollback and forward using your bounded host's BACKEND_URL. A missing day-one client:calls is a coverage gap:
-author a business client before claiming it. Record intended new guard denials separately from transport failures. Keep v1's API.
+This runs check once; acceptance, frontend:proof and day2:proof twice each; rollback/forward twice each, with bounded prod:serve and frozen calls after EVERY move (v2 calls twice after first forward); finally bounded probe:serve + frozen calls. It deletes dist before each frontend proof and stale day2-proof.json before each day-two proof. Stage hosts span calls; probe is observed for 30s; shutdown/store release is checked. Authored/current-client/infrastructure reds stop. Frozen v1 exits/call codes are observations in private .snapback4/last/day2-check.json; ordinary exits do not stop it. Observable signals/timeouts/cleanup fail. Read without rerunning. --explain/--json rerun the drill. Rerun after a repair/relevant edit, not for reassurance. Authored assertions decide coverage.
 
-```js
-import { uniqueName, freshUser } from "snapback4/proof";
-const title = uniqueName("proof");
-const member = await freshUser(host, {role:"member", provision:api.provision});
-// Real signup + ordinary operator provision; customize args for your schema.
-```
+## Frozen callers
 
-Use one freshUser per role per run; reuse sessions through release cycles. uniqueName changes names, not cap owners. A capacity refusal
-needs a fresh owner/group or authorized cleanup. Never raise caps/reset shared production or retry a refused write to make a proof green.
+Frozen calls: `npm --prefix v1 run client:calls`, BACKEND_URL and CALLS_USERS (private JSON file). Never edit frozen callers or relax v2 rules for green replays. prod:serve serves the current selection; probe:serve selects v2, builds the production frontend, prints backendUrl/frontendUrl/sessions and stays up for its caller. Use serveUntilSignal/finally cleanup; the checker passes users privately. --timeout-ms bounds scripts; --up-ms sets probe time.
 
-## Production roster and complete inspection
-
-`guide api proof` includes startServe, provisionAccounts, account/roster shapes and exact options. For production use
-`guide production --section 'Serve script and reusable accounts'` only. Signup creates an account; an authorized provisioning mutation
-grants its role.
-
-```js
-import { startServe } from "snapback4/proof";
-const host = await startServe("./deploy", {
-  provisionUsers:{roles:{member:2, admin:2}, provision:api.provision}
-});
-const users = host.sessions; // {member:[account,account], admin:[account,account]}
-// Private harness readiness: {backendUrl:host.url, users}; do not log elsewhere.
-// Stop host in finally, or use your existing serve-check bounded driver.
-```
-
-Production provisioning reuses its roster. Keep production/proof-accounts/default.json (0600) with its store:
-credentials, provision IDs and partial completion. Use freshUser for isolated proof batches. Neither helper bypasses rules.
-
-`data TABLE --release ./deploy --all --json` and `snapshotAll("TABLE", {release:"./deploy"})` merge active and retained rows/cells once per
-ID. Active values win; deleted rows stay absent. This bypasses app read rules: it is admin inspection, not frozen-client compatibility
-evidence. Ephemeral rows need a serving-memory read. `releases ./deploy --json` shows history.
+`data TABLE --release ./deploy --all --json` / snapshotAll merge active/retained rows/cells by ID. Admin inspection bypasses rules; it cannot prove client readability.
