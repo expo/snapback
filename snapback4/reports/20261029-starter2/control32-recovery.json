@@ -1,0 +1,50 @@
+{
+  "recovery": {
+    "reason": "builder stdout path absent at completion; exact-workspace read-only session-index recovery",
+    "originalStdoutRecovered": false,
+    "primarySessionEventsRecovered": true,
+    "sessions": [
+      {
+        "session_id": "01a186d5-4e19-7373-aac1-43047a4bc8ce",
+        "session_stream_id": "01a186d5-4e19-7373-aac1-43047a4bc8ce",
+        "session_log_path": "/home/ccheever/.local/share/muse/sessions/2026/10/29/01a186d5-4e19-7373-aac1-43047a4bc8ce/session.jsonl",
+        "workspace_root": "/tmp/starter2-replay/before/032-snapback-gown-preservation-orders",
+        "provider_id": "meta",
+        "model_id": "muse-spark-1.3-contributor",
+        "sha256": "6698f0cd39e8008ba11ec83ee8c8926b2a986e707ec4bf512041c9ce16f88f5a"
+      },
+      {
+        "session_id": "01a186d5-56f0-79f0-b458-1ab3b9fc0e5d",
+        "session_stream_id": "01a186d5-56f0-79f0-b458-1ab3b9fc0e5d",
+        "session_log_path": "/home/ccheever/.local/share/muse/sessions/2026/10/29/01a186d5-56f0-79f0-b458-1ab3b9fc0e5d/session.jsonl",
+        "workspace_root": "/tmp/starter2-replay/before/032-snapback-gown-preservation-orders",
+        "provider_id": "meta",
+        "model_id": "muse-spark-1.3-contributor",
+        "sha256": "295f67ef14b0c9d92688134d5e0e0773068639cc2a0ba301565e47fc5ced3d17"
+      }
+    ]
+  },
+  "archived": {
+    "version": 1,
+    "at": "2026-10-29T09:13:11.663Z",
+    "sessions": [
+      {
+        "model": "muse",
+        "id": "01a186d5-4e19-7373-aac1-43047a4bc8ce",
+        "files": [
+          "muse-01a186d5-4e19-7373-aac1-43047a4bc8ce-session.jsonl"
+        ]
+      },
+      {
+        "model": "muse",
+        "id": "01a186d5-56f0-79f0-b458-1ab3b9fc0e5d",
+        "files": [
+          "muse-01a186d5-56f0-79f0-b458-1ab3b9fc0e5d-session.jsonl"
+        ]
+      }
+    ],
+    "matched": 2,
+    "missing": [],
+    "clean": true
+  }
+}

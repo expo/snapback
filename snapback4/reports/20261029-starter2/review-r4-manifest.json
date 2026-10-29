@@ -1,0 +1,12 @@
+{
+  "before/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md": "7ab9314209831066b63395b144f2a27a07ee5dbfda837f006d2150f9ef753b4d",
+  "before/snapback4/crates/snapback4/src/verbs/init/verify.rs": "322de056d2fe2be6f878140926461a472d0b619995dcc0ad909897530508121d",
+  "before/snapback4/crates/snapback4/tests/init_ver1.rs": "8d4fa39cc4db800c993af8f07ff8ce2f645d82442866739571b27c449367df40",
+  "before/snapback4/packages/snapback4/reference/CHANGELOG.md": "be2eae51af762aa23ce5abd05f59a960433ca4b942bb986024cc7102543b5370",
+  "after/llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md": "55c71c41459e788667a302fcabe6d4c08d61f1b05245508bd04e406ae3333888",
+  "after/snapback4/crates/snapback4/src/verbs/init/verify.rs": "a46928f39d1c98285b122ebc07e7b53762f91f61a452d2689fa3be3206a2e32c",
+  "after/snapback4/crates/snapback4/tests/init_ver1.rs": "d812a62797bfd85aaaf8794267ea1e53bf1ae3677cc74d1e3e66f2d4c7375935",
+  "after/snapback4/packages/snapback4/reference/CHANGELOG.md": "61d093a066c6b254fdfc0fd66db586904c97bbfd4f471056983f1eee992c2bfe",
+  "context/snapback4/crates/snapback4/src/verbs/init/verify-parent.mjs": "9fc653a96104bd77e4b14bf4c86fb564845190e2f8368917883e2025588a07dd",
+  "context/snapback4/crates/snapback4/src/verbs/init/verify.mjs": "b5b21bc377dbbc644fd9c520128bae9585c9b34081a0fa3c7ffd2f12ea7115a3"
+}
