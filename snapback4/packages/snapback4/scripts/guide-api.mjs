@@ -1,12 +1,14 @@
 // @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — signatures come from built declarations, never handwritten API copies.
 import ts from 'typescript';
 import { getEncoding } from 'js-tiktoken';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 const root = new URL('../', import.meta.url), dist = new URL('dist/', root);
 const out = new URL('../../crates/snapback4-lang/src/guide/', root);
 const encoding = getEncoding('o200k_base');
+// Digests are embedded in the CLI. Do not install duplicate Markdown manuals.
+if (!process.argv.includes('--check')) rmSync(new URL('guide-api/', dist), {recursive:true, force:true});
 // Names are the wave-34 React/observation/account grep targets. Never silently
 // drop a requested declaration to fit: a new surface must earn its reading cost.
 const modules = {
@@ -75,7 +77,7 @@ function digest(module, names) {
   if (encoding.encode(text).length > 2400) throw Error(`guide api ${module} exceeds 2400 tokens`);
   if (module !== 'proof') {
     const complete = `${title}\n\`\`\`ts\n${exports.map(s => declarations(s.name, false)).join('\n')}\n\`\`\`\n`;
-    for (const target of [new URL(`api_${module}_full.md`,out), new URL(`guide-api/${module}-full.md`,dist)]) {
+    for (const target of [new URL(`api_${module}_full.md`,out)]) {
       if (process.argv.includes('--check')) { if (readFileSync(target,'utf8') !== complete) throw Error(`guide api ${module} --full drift`); }
       else writeFileSync(target, complete);
     }
@@ -84,10 +86,10 @@ function digest(module, names) {
 }
 // digest() writes full references before returning the compact card. A clean
 // client preparation removes dist, so create their common home first.
-if (!process.argv.includes('--check')) mkdirSync(new URL('guide-api/',dist), { recursive:true });
+
 for (const [module,names] of Object.entries(modules)) {
-  const text = digest(module,names), tracked = new URL(`api_${module}.md`,out), packed = new URL(`guide-api/${module}.md`,dist);
-  if (process.argv.includes('--check')) { if (readFileSync(tracked,'utf8') !== text || readFileSync(packed,'utf8') !== text) throw Error(`guide api ${module} drift; rebuild client`); }
-  else { writeFileSync(tracked,text); writeFileSync(packed,text); }
+  const text = digest(module,names), tracked = new URL(`api_${module}.md`,out);
+  if (process.argv.includes('--check')) { if (readFileSync(tracked,'utf8') !== text) throw Error(`guide api ${module} drift; rebuild client`); }
+  else { writeFileSync(tracked,text); }
   console.log(`guide api ${module}: ${encoding.encode(text).length}/2400 tokens`);
 }

@@ -1,0 +1,15 @@
+import {mkdirSync,copyFileSync,rmSync,readFileSync,writeFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {resolve,join} from 'node:path';
+import {createHash} from 'node:crypto';
+const root=resolve(import.meta.dirname,'../..'), phase=process.argv[2];
+if(!['before','after'].includes(phase))throw Error('before|after');
+const out=join(root,'target/tok6',phase);mkdirSync(out,{recursive:true});
+const pack=cwd=>{const [p]=JSON.parse(execFileSync('npm',['pack','--ignore-scripts','--json','--pack-destination',out],{cwd,encoding:'utf8'}));return join(out,p.filename);};
+const stage=join(out,'platform');mkdirSync(stage,{recursive:true});
+for(const f of ['package.json','THIRD-PARTY-NOTICES'])copyFileSync(join(root,'packages/snapback4-linux-x64',f),join(stage,f));
+copyFileSync(join(out,'snapback4'),join(stage,'snapback4'));
+const artifacts=[pack(join(root,'packages/snapback4')),pack(stage),pack(join(root,'packages/snapback4-expo'))].map(path=>({path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex')}));
+rmSync(stage,{force:true,recursive:true});
+writeFileSync(join(out,'artifacts.json'),JSON.stringify({phase,source:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),profile:'development; incremental=0; debug=0; same before/after',artifacts},null,2));
+console.log(artifacts.map(a=>a.path).join('\n'));

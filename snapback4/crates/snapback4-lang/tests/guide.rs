@@ -125,7 +125,7 @@ fn w11r2_native_boundary_sentence_matches_both_published_copies() {
 fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     assert!(readme.contains("guide start") && readme.contains("guide workflow"));
-    assert!(card("package-reference").unwrap().contains("reference/CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
+    assert!(card("package-reference").unwrap().contains("guide package-reference client --section your first working account screen"));
     let reference = include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md");
     let path = reference.split_once("## Your first working account screen").expect("one linked optional walkthrough").1;
     for text in [

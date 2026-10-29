@@ -126,7 +126,7 @@ nothing. Legacy entries lacking dispatch metadata are queued unless a
 retained sequence proves dispatch.
 
 For keyed lists, `usePendingItems` (`guide client`; "Intent cards through
-settlement" in reference/CLIENT-AND-OPERATIONS.md) keeps intent cards until settlement.
+settlement" in guide package-reference client) keeps intent cards until settlement.
 
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends only the oldest unconfirmed write with keepalive, including a retry

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.50
+
+### Guide changes
+
+- Long package references are embedded in the CLI: `guide package-reference <topic>` lists bounded sections. The installed package contains only the README Markdown entry. Scripts reading reference files should use the guide commands.
+- In a project, `guide api client/react/auth/generated` starts with this app's current calls, shapes and caller guards, followed by complementary SDK signatures. `--generic` selects SDK-only signatures; no runtime behavior or application source changes.
+
 ## 0.4.49
 
 ### Guide changes

@@ -13,7 +13,7 @@ test('wave32 Codex 001/025 + Muse 019/028: first schema and exact signatures fit
  const start=readFileSync(join(root,'crates/snapback4-lang/src/guide/start.md'),'utf8');
  assert.ok(encoding.encode(start).length<=8000);
  for(const module of ['proof','client','auth']){
-  const card=readFileSync(join(root,`packages/snapback4/dist/guide-api/${module}.md`),'utf8');
+  const card=readFileSync(join(root,`crates/snapback4-lang/src/guide/api_${module}.md`),'utf8');
   assert.ok(encoding.encode(card).length<=3000,module);
   assert.match(card,/Declaration fingerprint:/);
  }

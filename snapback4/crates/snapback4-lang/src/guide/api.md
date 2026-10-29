@@ -54,4 +54,4 @@ Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contra
 
 ## Signature digests
 
-`guide api app`, `guide api witness`, `guide api react`, `guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 2,400 tokens each). `guide api generated` reads the checked project operation index. Starter script headers point here.
+`guide api app`, `guide api witness`, `guide api react`, `guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 2,400 tokens each). `guide api client/react/auth/generated` binds the current project schema and opens with this app's calls, argument/result shapes and caller guards; complementary SDK signatures follow. `--sections` lists the app packet, `--section <heading>` selects one and `--generic` opens the SDK-only digest. Without a bound schema, module lookups show generic signatures. Starter script headers point here.

@@ -24,6 +24,8 @@ mod social;
 #[path = "guide/start.rs"]
 mod start;
 pub use start::START_CARDS;
+#[path = "guide/package_reference.rs"]
+pub mod package_reference;
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]

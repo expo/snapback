@@ -222,7 +222,7 @@ mutation add(title: text <=80):
 - A host that runs the device itself (the native module or the wasm device
   without `snapback4/client`) must route each device `query` reply: some say
   "ask the server" (`unknown` without `retained`) and carry a placeholder
-  `data`. "The device reply" in reference/CLIENT-AND-OPERATIONS.md §7 is that contract.
+  `data`. "The device reply" in guide package-reference client §7 is that contract.
 
 ## Numbers, money and decimals
 
@@ -397,7 +397,7 @@ curl -s -OJ "$U/assets/<id>" -H 'x-snapback-persona: alice'   # Content-Disposit
 arrives as an attachment, and `Range` works on ordinary assets.
 
 The full reference, including the rest of `/auth`, worker and action
-doors, and clock headers, is "The wire" in reference/CLIENT-AND-OPERATIONS.md §5, which
+doors, and clock headers, is "The wire" in guide package-reference client §5, which
 ships in the package beside README.md.
 
 

@@ -19,7 +19,7 @@ export function guideReference(cli, card, options = {}) {
   const env={...(spawnOptions.env??process.env)};
   if(js&&actual.includes(sep+'node_modules'+sep))delete env.SNAPBACK4_BIN;
   const invoke = args => {
-    const result = spawnSync(js?process.execPath:actual, [...(js?[actual]:[]),"guide",card,...args], {encoding:"utf8",timeout:30_000,maxBuffer:4*1024*1024,...spawnOptions,env});
+    const result = spawnSync(js?process.execPath:actual, [...(js?[actual]:[]),"guide",...card.split(/\s+/),...args], {encoding:"utf8",timeout:30_000,maxBuffer:4*1024*1024,...spawnOptions,env});
     if (result.status !== 0) throw Error(result.stderr + result.stdout);
     return result.stdout;
   };

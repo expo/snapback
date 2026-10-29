@@ -48,7 +48,7 @@ if(write.state === "sent" && !write.replayed) { const id:string = write.result.i
   const fileColumn = guide.stdout.match(/`(doc: file <=10000000 \?)`/)?.[1];
   assert.ok(fileColumn, "packed PDF recipe states its backend file-column declaration");
   writeFileSync(join(cwd, "snapback/schema.q"), schema.replace("  priority: text <=20 ?", `  priority: text <=20 ?\n  ${fileColumn}`));
-  const reference = readFileSync(join(cwd, "node_modules/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "utf8");
+  const reference = guideReference(cli, "package-reference client", {cwd,env});
   const short = [...reference.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
   assert.ok(short, "packed guide has the short-screen recipe");
   writeFileSync(join(cwd, "src/short-screen.tsx"), short);

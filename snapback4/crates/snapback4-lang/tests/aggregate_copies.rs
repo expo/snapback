@@ -167,7 +167,7 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     // TOK3 routes optional reference questions through a guide pointer. The
     // complete path must still reach feeds and its pinned aggregate-copy claim.
     assert!(README.contains("guide package-reference"));
-    assert!(guide::card("package-reference").unwrap().contains("reference/CLIENT-AND-OPERATIONS.md"));
+    assert!(guide::card("package-reference").unwrap().contains("guide package-reference client"));
     assert!(include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").contains("guide feeds"), "the linked reference reaches the aggregate card");
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
     let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
