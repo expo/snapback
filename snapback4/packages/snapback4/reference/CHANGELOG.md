@@ -4,7 +4,7 @@
 
 ### Guide changes
 
-- `guide day2` consolidates upgrade, frozen v1, real production accounts, change routes, preview, v2, exact stage-script bodies and old-client checks in one bounded read. `day2-check` runs authored checks/proofs and two production rollback/forward drills in order, stops at the first red and retains complete private evidence; it preserves existing scripts and release semantics.
+- `guide day2` consolidates upgrade, frozen v1, real production accounts, change routes, preview, v2, exact stage-script bodies and old-client checks in one bounded read. `day2-check` runs authored checks/proofs and two production rollback/forward drills in order, stops at the first authored/current-client/infrastructure failure, records frozen-v1 outcomes without asserting them and retains private evidence; it preserves existing scripts and release semantics.
 - Generated production serve scripts arm signal cleanup before reporting readiness. Existing app scripts can save the `serveUntilSignal(hosts)` promise before printing readiness and await it afterward, so an immediate shutdown gets graceful cleanup.
 - `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Existing apps keep their scripts and assertions; ordinary checks create neither packet and refresh only existing matrix facts. The previously automatic exhaustive scaffold is now opt-in. Explicit requests preserve builder edits; compact drafts are never rewritten.
 

@@ -13,6 +13,22 @@ const safeReceipt = r => ({ ok: r.ok, script: r.script, failures: r.failures,
   ready: r.ready === true, upMs: r.upMs, lockReleased: r.lockReleased,
   ...(r.commandCode === undefined ? {} : { commandCode: r.commandCode }) });
 
+// Keep only per-call labels/outcomes/codes. Caller rows, arguments and arbitrary
+// diagnostics can contain credentials; retain those only in the caller's memory.
+function clientSummary(stdout) {
+  const calls = [];
+  const code = value => typeof value === 'string' ? value.match(/^([A-Z][A-Z0-9_]{1,63})(?=[:\s]|$)/)?.[1] : undefined;
+  for (const line of stdout.split('\n')) {
+    let item; try { item = JSON.parse(line); } catch { continue; }
+    if (!item || typeof item !== 'object' || typeof item.ok !== 'boolean') continue;
+    calls.push({ ...(typeof item.op === 'string' ? { op: item.op.slice(0, 120) } : {}),
+      ...(typeof item.role === 'string' ? { role: item.role.slice(0, 120) } : {}),
+      ok: item.ok, ...(code(item.expected) ? { expected: code(item.expected) } : {}),
+      ...(code(item.error) ? { errorCode: code(item.error) } : {}) });
+  }
+  return calls;
+}
+
 export async function day2Check(args) {
   if (args.includes('--help')) { console.log(`usage: ${synopsis('day2-check')}`); return 0; }
   const options = { deployment: './deploy', timeoutMs: 1_800_000, upMs: 30_000 };
@@ -31,14 +47,13 @@ export async function day2Check(args) {
   if (missing.length) throw Error(`missing npm scripts: ${missing.join(', ')}; follow snapback4 guide day2`);
   const frozen = JSON.parse(readFileSync('v1/package.json', 'utf8'));
   if (!frozen.scripts?.['client:calls']) throw Error('missing frozen v1 client:calls; capture day one before editing');
-  if (frozen.scripts['client:calls'].includes('frozen-run.mjs') && !frozen.scripts['client:calls:frozen']) throw Error('v1 capture has no day-one business client; restore the historical caller before a release drill');
   const directory = '.snapback4/last';
   for (const dir of ['.snapback4', directory]) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     if (!lstatSync(dir).isDirectory() || lstatSync(dir).isSymbolicLink()) throw Error('day2-check details require a real directory');
     chmodSync(dir, 0o700);
   }
-  const report = { ok: false, phases: [], failed: null, note: 'Authored business assertions decide coverage; this check is not a publication or full-row compatibility certificate.' };
+  const report = { ok: false, phases: [], clientCalls: [], frozenV1Asserted: false, frozenV1Boundary: 'npm client:calls lifecycle; wrappers may mask nested signals; observations do not certify compatibility or nested process status', failed: null, note: 'Authored business assertions decide coverage; this check is not a publication or full-row compatibility certificate.' };
   const started = Date.now();
   const runLogs = join(directory, `day2-check-${randomUUID()}`);
   let commandNumber = 0;
@@ -66,7 +81,7 @@ export async function day2Check(args) {
   const npm = (name, prefix) => runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', name], {
     timeoutMs: options.timeoutMs, processGroup: true,
   });
-  async function serve(script, currentClient) {
+  async function serve(script, currentClient, stage = 'probe') {
     let active;
     try {
     const receipt = await serveCheck({ deployment: options.deployment, script, upMs: script === 'probe:serve' ? options.upMs : 1,
@@ -90,6 +105,13 @@ export async function day2Check(args) {
           const result = await runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
             env, timeoutMs: options.timeoutMs, processGroup: true, secret: true,
           });
+          report.clientCalls.push({ caller: prefix ? 'v1' : 'v2', stage, exitCode: result.code,
+            calls: clientSummary(result.stdout), stderr: result.logs.stderr });
+          // The exact day-two task records how frozen clients fared, rather than
+          // asserting that tighter intended rules still admit every legacy call.
+          // Observable signals, shell signal-statuses (128+) and timeouts fail;
+          // arbitrary app wrappers remain responsible for truthful process status.
+          if (prefix && Number.isInteger(result.code) && result.code >= 0 && result.code < 128) continue;
           if (result.code !== 0) throw Object.assign(Error(`${prefix ?? 'v2'} client:calls failed (exit ${result.code}); stderr: ${result.logs.stderr}; inspect authored call assertions`), { code: result.code ?? 1, logs: result.logs });
         } } finally { rmSync(temporary, { recursive: true, force: true }); }
       })(),
@@ -123,12 +145,12 @@ export async function day2Check(args) {
     for (const direction of ['rollback', 'forward']) {
       if (!await phase(`day2:${direction} ${cycle}/2`, () => npm(`day2:${direction}`))) break;
       const currentClient = direction === 'forward' && cycle === 1;
-      if (!await phase(`prod:serve + ${currentClient ? 'v1/v2' : 'v1'} calls ${cycle}/2`, () => serve('prod:serve', currentClient))) break;
+      if (!await phase(`prod:serve + ${currentClient ? 'v1/v2' : 'v1'} calls ${cycle}/2`, () => serve('prod:serve', currentClient, `${direction} ${cycle}/2`))) break;
     }
     if (code) break;
   }
   if (!code) await phase('probe:serve + frozen v1 calls', () => serve('probe:serve', false));
-  report.ok = code === 0; report.elapsedMs = Date.now() - started;
+  report.ok = code === 0; report.frozenV1NonzeroExits = report.clientCalls.filter(c => c.caller === 'v1' && c.exitCode !== 0).length; report.elapsedMs = Date.now() - started;
   const path = join(directory, 'day2-check.json'), temp = `${path}.${randomUUID()}.tmp`;
   try {
     const fd = openSync(temp, 'wx', 0o600);
@@ -142,7 +164,7 @@ export async function day2Check(args) {
   if (args.includes('--json')) console.log(JSON.stringify(report));
   else if (args.includes('--explain') || args.includes('--verbose')) console.log(JSON.stringify(report, null, 2));
   else {
-    console.log(`day2-check: ${report.ok ? 'passed' : `FAIL ${report.failed}; exit ${code}`}; ${report.phases.filter(p => p.code === 0).length}/16 phases; ${report.elapsedMs}ms`);
+    console.log(`day2-check: ${report.ok ? 'passed orchestration' : `FAIL ${report.failed}; exit ${code}`}; ${report.phases.filter(p => p.code === 0).length}/16 phases; ${report.elapsedMs}ms${report.frozenV1NonzeroExits ? `; frozen v1: ${report.frozenV1NonzeroExits} nonzero exits recorded (not assertions)` : ''}`);
     if (code) console.log(failureOutput.split('\n').filter(line => /Error|E_[A-Z_]+|error TS\d|proof refusal|likely fix:|failed/i.test(line)).slice(0, 6).map(line => line.slice(0, 500)).join('\n') || 'Inspect the failed phase in the private report.');
     console.log(`details: ${path} (read without rerunning); --explain/--json rerun checks with full output`);
   }

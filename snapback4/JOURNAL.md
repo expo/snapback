@@ -110454,3 +110454,27 @@ The revised packet leads with direct day2-check, restores the SDK-source reading
 guard, includes enum-label aliases and stage-boundary rules, and arms shutdown
 before readiness. The packed consumer invokes the CLI directly. A separate
 fixed-seed complete cohort will measure this revision, without best-run selection.
+
+DX17 final verification: affected checks at 02be4d732f passed all 15 scoped steps
+with unchanged:true; 699 CLI unit tests and all 135 guide tests passed. Complete
+consumer-only qualification passed on installed .49 tarballs, never publication
+qualification. The exact replay platform independently passed two checker loops.
+A native build begun before documentation merge resolution retained the prior
+changelog placement; all 60 default guide packets were compared and only changes
+differed. Separate digests and this measurement limit are retained. No source
+semantics changed to make the benchmark or packed proof pass.
+
+DX17 observation correction: the exact day-two brief records how frozen v1 fared,
+rather than asserting old calls still succeed under tighter intended rules.
+The rejected asserting cohort is retained. Completed ordinary legacy exits now
+produce visible exit/per-call-code observations while strict current callers,
+authored assertions, observable signals, timeouts and cleanup still fail.
+Raw caller output/rows/credentials stay out of the private report. A proposed
+capture-adapter bypass was rejected because it skipped npm pre/post hooks;
+the original frozen client:calls lifecycle remains intact. Opaque wrappers may
+mask nested signals, so the report explicitly avoids a nested-process-status
+certification. No frozen caller or authorization rule is edited. New controls
+pass through the actual adapter, including hooks, exit7, signal and cleanup.
+Final guide is 7,998 source / 7,999 served bytes. A separately named after-observe
+whole-session cohort will measure this corrected flow. Its native build will be
+shared with packed qualification to freeze the same canonical platform bytes.

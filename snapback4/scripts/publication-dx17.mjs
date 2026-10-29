@@ -24,6 +24,7 @@ writeFileSync(join(cwd,'finite.mjs'),"import{mkdirSync,existsSync}from'node:fs';
 const calls=String.raw` + '`' + String.raw`
 import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{createClient}from'snapback4/client';import{exhaustPages}from'snapback4/proof';import{api}from'./snapback/generated/api.ts';
 const users=JSON.parse(readFileSync(process.env.CALLS_USERS));
+if(process.env.DX17_FROZEN_EXIT&&process.cwd().endsWith('/v1')){console.log(JSON.stringify({op:'new-rule',role:'member',ok:false,error:'E_RULE: private-observation-sentinel'}));process.exit(7);}
 for(const accounts of Object.values(users))for(const account of accounts){
  const client=createClient({url:process.env.BACKEND_URL,session:account});
  try{const rows=await exhaustPages(c=>client.query(api.myNotes,{c}));
@@ -59,8 +60,8 @@ try{
 }finally{await host.stop();}
 ` + '`' + String.raw`);
 for(let run=0;run<2;run++){
- const r=await cli(['day2-check','--deployment','./deploy','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json')},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
- const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(report.ok,true);assert.equal(report.phases.length,16);assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
+ const r=await cli(['day2-check','--deployment','./deploy','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json'),...(run===1?{DX17_FROZEN_EXIT:'1'}:{})},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
+ const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(report.ok,true);assert.equal(report.phases.length,16);assert.equal(report.frozenV1Asserted,false);assert.equal(report.frozenV1NonzeroExits,run===1?5:0);assert.ok(!JSON.stringify(report).includes('private-observation-sentinel'));assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
  assert.ok(!JSON.stringify(report).includes('"password"'));assert.equal(existsSync(join(cwd,'deploy/proof-accounts/default.json')),true);
 }
 console.log('DX17 packed: bounded packet, literal stage/roster scripts, two complete checks, v2-native rows through frozen v1, retained migration values');
