@@ -6,6 +6,8 @@ Prove production using your existing `prod:serve` or `probe:serve` script. The k
 npx snapback4 serve-check --deployment production --script prod:serve --up-ms 30000 --then 'npm run day2:business'
 ```
 
+For an existing app's v1 → v2 → rollback/forward task, `guide day2` is the single release recipe, including exact stage scripts, real-user roster and `day2-check`. This card covers service/proof details.
+
 It checks one JSON readiness line, keeps the script up for at least 30 seconds
 including business work, sends group SIGTERM and checks shutdown/store release.
 The business command reads `SNAPBACK_URL`, `FRONTEND_URL` and private

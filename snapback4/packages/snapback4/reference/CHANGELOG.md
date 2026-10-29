@@ -4,6 +4,7 @@
 
 ### Guide changes
 
+- `guide day2` consolidates upgrade, frozen v1, real production accounts, change routes, preview, v2, exact stage-script bodies and old-client checks in one bounded read. `day2-check` runs authored checks/proofs and two production rollback/forward drills in order, stops at the first red and retains complete private evidence; it preserves existing scripts and release semantics.
 - README is the only Markdown file at the package root. Detailed server, client, adoption, upload and release references now live in `reference/`, reached through `guide package-reference`; existing apps keep their source and runtime behavior. Update any scripts that read those reference files by path.
 - Every `Write<R>` permits reading `.why`: it is undefined while pending or sent and carries the refusal on failure. Existing pending `.reason` strings and failure `.why` callers keep compiling. `refusalOf(write)` from `snapback4/client`, `snapback4/react` or `snapback4/contract` returns the failure or undefined; `guide api client` includes both shapes.
 
