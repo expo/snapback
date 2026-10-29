@@ -110450,3 +110450,14 @@ and worker witnesses receive server SIGTERM before readiness and remain
 unqualified. Signed-in first data still waits for the full runtime; no latency
 win, complete-runtime 100 KB claim or performance non-regression is asserted.
 LLP 3000.002 records the remaining progressive-read/SSR and custody questions.
+
+
+### 2026-10-29 — Web startup validation limit
+
+The later persona test times out after its 122 s server-readiness guard, before
+its client assertions; the rest of that test file is cancelled. The retained
+0.4.47 test binary remains a scope limit. The selector asks for a broad affected
+battery (31 steps, including 460 client files); it has not run. The module split
+is a local checkpoint, not a qualified landing or publication. The initial-byte
+regression and ref-check both pass again; no product source changed after the
+reported targeted passes.
