@@ -7,8 +7,8 @@ fn start_routes_to_one_compiling_workflow_before_feature_reference_reads() {
     let start = card("start").unwrap();
     assert!(START_CARDS.is_empty(), "start no longer concatenates eight cards");
     assert!(start.len() <= 8000);
-    // VER1 owns probe:check inside verify; the first read names the loop and SCAF1 packet.
-    for word in ["guide workflow", "guide api", "npm run verify", "scripts/proof-scaffold/cases.mjs"] { assert!(start.contains(word), "{word}"); }
+    // MUSE1 keeps verify, with an explicit optional scaffold request.
+    for word in ["guide workflow", "guide api", "npm run verify", "Optional helpers:", "check --proof-draft", "check --proof-scaffold"] { assert!(start.contains(word), "{word}"); }
     let workflow = card("workflow").unwrap();
     assert!(workflow.len() <= 8000);
     for word in ["use identity password", "mutation approve", "evidence: file", "price: money", "deliveredAt !", "## Acceptance"] { assert!(workflow.contains(word), "{word}"); }

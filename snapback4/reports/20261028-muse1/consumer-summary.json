@@ -1,0 +1,118 @@
+{
+  "source": "8f60156e9d74a94bab4f1c6b101a552448a8454a",
+  "version": "0.4.48",
+  "mode": "consumer-only",
+  "binarySha256": "35b3b4024a43601909cc822a44e943d1d0c0936f58d31b7eff665e23a8ab1433",
+  "clientIntegrity": "sha512-3EbDPiVG/ltYXPLssMeHJIwlaBlfrC/YAHFDWQ50XKHDyEtKyxjDAZh8bd3qt/dFJgQ/8CP+vpfssW/XZZoPYg==",
+  "expoIntegrity": "sha512-aYD1G0pQ8V3SIQgDXATTG+To5dJM8Lp0jGDNorppnaqB7hOLFvnqWsnRct/XCSi9682VKynPKzl7QmuIiZBUHA==",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "consumerChainCompleted": true,
+  "consumerReceiptSha256": "3e04df78721e18a42183530ea0c17ce71a1696d754d42285863c4feaffb96454",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.48",
+    "filename": "snapback4-linux-x64-0.4.48.tgz",
+    "integrity": "sha512-gkkNstkdVPnysUQbJPPFYfbHtRWS0zM4nFykGtExL9CJ0eDfGZJcw6r4A6cvJ+p4+aq9DuAfsdz0QEtZSgBJqg==",
+    "bytes": 18783102
+  },
+  "platformMatchesReplayTarball": true,
+  "proofKitStatus": "passed",
+  "scaffold": {
+    "status": "passed",
+    "syntax": 5,
+    "realAccounts": "admin/member/roleless signup plus sign-in, including custom member/level provisioning args",
+    "frontend": "six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection",
+    "positive": "operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread",
+    "negative": [
+      "unfilled acceptance",
+      "unfilled frontend",
+      "UI click without a durable write",
+      "wrong refusal code",
+      "missing excluded role",
+      "new operation with preserved edits",
+      "edited stale schema facts",
+      "empty acceptance"
+    ],
+    "qualification": false
+  },
+  "starters": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 2
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 2
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "template": "chat",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "template": "chat",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "template": "social",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "audit": "passed",
+      "frontendChecks": 2,
+      "adaptedChecks": 0
+    }
+  ]
+}

@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+### Guide changes
+
+- `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Ordinary checks create neither packet and refresh only existing matrix facts. Explicit requests preserve builder edits; compact drafts are never rewritten.
+
 ## 0.4.48
 
 ### Guide changes

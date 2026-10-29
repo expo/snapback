@@ -1,0 +1,33 @@
+{
+  "source": "54886c98244d6ce7e8de72f073bad6b75564539f",
+  "base": "1e9a50c8a7",
+  "patchSha256": "1dcdb4db3a9ec65b02409dfeb12651a00d342dc7539467c9bade75e66fa06e06",
+  "files": {
+    "snapback4/crates/snapback4-lang/src/guide/start.md": "989e203498407c4371029b1ea07abf4280ca13b2107dfc1d92131286b35ed853",
+    "snapback4/crates/snapback4-lang/src/guide/workflow.md": "0469778853955ff1e91fd9d7ce1f578cc6bea7d6e3df7d7f3dd09aa117b44e78",
+    "snapback4/crates/snapback4-lang/tests/guide/start.rs": "bad843d41e479e8f9d32d45011eda810a74146bc89f2d6a0b580add55590b573",
+    "snapback4/crates/snapback4/src/cli_flags.rs": "272d6992b88df4287a15ebdd87a11b7e76a4ee99a5169ac5b37f9f10e84f8d4f",
+    "snapback4/crates/snapback4/src/proof_scaffold.rs": "7ad0c25a3ad9a80d43483ce37c1d5d80dc2cdeea6254fb8e97f4634d68bfc491",
+    "snapback4/crates/snapback4/src/proof_scaffold/README.md": "1cc15d1314add3c91ecb3129751b00daca331c8d10212f2f4cf26accb89afb12",
+    "snapback4/crates/snapback4/src/proof_scaffold/acceptance.mjs": "b37a6bca497c47e18f06a690a24fc13dfd5d041002cd795bf2a8bd56dcb2af9d",
+    "snapback4/crates/snapback4/src/proof_scaffold/cases.mjs": "e12dac03c60e1515d8c5d6e8b8e3e7a59b66619555804f70f361461105c7fd9a",
+    "snapback4/crates/snapback4/src/proof_scaffold/frontend-proof.mjs": "e158c8fee22813e42480eb6e55918a06f97782b35e17b3024d20425a1280a6e3",
+    "snapback4/crates/snapback4/src/proof_scaffold/host.mjs": "5c0ac24fc7d054815d2d096ecb841a921e68407b0db922bd6528efaec935cf96",
+    "snapback4/crates/snapback4/src/proof_scaffold/infer.rs": "774eac2d06e8e586092ea079635870b0bee9baa6093d8cb0f2a7d1856bb41b63",
+    "snapback4/crates/snapback4/src/proof_scaffold/probe-serve.mjs": "632a2f8c6b34c8a0c9a811016f3541cbffece72c104e8b815667d64fc58afabc",
+    "snapback4/crates/snapback4/src/verb_help.rs": "408c142573f5b7e5027750a3141424a6304e2d3cd1745bdf7eb6941995fda842",
+    "snapback4/crates/snapback4/src/verbs.rs": "73c667b84aed9cf8efd7d2897b71dceb10e5074a7d6e750e5025dc1023700f9b",
+    "snapback4/crates/snapback4/src/verbs/init.rs": "43a480bff72c63fd7ac39bce85550214152a9150b0ddd7e9c98d73886b9057d2",
+    "snapback4/crates/snapback4/src/verbs/init/adapt.rs": "c103b65890e6025efc68ce353d326014d2ca70c57f32c3abd26c29994c28683a",
+    "snapback4/crates/snapback4/src/verbs/init/previous/readme-proofs-0.4.46.md": "8aed017ff5cc1865da15c67901217b8ece9352df46b3a8f46c28060b2eeb1e25",
+    "snapback4/crates/snapback4/src/verbs/init/proof.rs": "5098b82b6aba296acd0295c0edd5f40154c6710c44640d837f056da32c45cb95",
+    "snapback4/crates/snapback4/src/verbs/init/verify-parent.mjs": "9fc653a96104bd77e4b14bf4c86fb564845190e2f8368917883e2025588a07dd",
+    "snapback4/crates/snapback4/src/verbs/init/verify.mjs": "193c773a8e9ecdb7296c12752d778b33c68ea25ea21e5d69bed853f0e4e6ed3e",
+    "snapback4/crates/snapback4/src/verbs/init/verify.rs": "322de056d2fe2be6f878140926461a472d0b619995dcc0ad909897530508121d",
+    "snapback4/crates/snapback4/tests/scaf1.rs": "9074a3bf26c3d8c58fff4391885fe56ddb765d9074233227fa5d9230f6e6b168",
+    "snapback4/packages/snapback4/bin/cli-commands.json": "74024986efd98fe192917daee03caf89d06d9518f8830f81f4ca70f02899f594",
+    "snapback4/packages/snapback4/reference/CHANGELOG.md": "73be110688c22b6a202aaaa84640b5bbd91ac73fe55be111182fac2380f7fd5e",
+    "snapback4/scripts/publication-scaf1.mjs": "3175876a2e9a070ed253271a60e3084b0c4f85b0d6ddb4e830ce68a78d8f57b1"
+  },
+  "excluded": "all reviews, workstream reports, measurement results and git history"
+}

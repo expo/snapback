@@ -110326,3 +110326,50 @@ remain. Clean wasm is 738,518 gzip bytes; budget739,018 = measurement+500.
 Main's census refresh is byte-identical; reconciliation changes ancestry only.
 Reports/integration32 retains compact bindings. Full platform qualification and
 whole-session token/wall measurement remain with publication and the rerun.
+
+### 2026-10-28 — MUSE1 optional exhaustive proof drafts
+
+The wave34r1/r2 per-call decomposition finds the default expanded matrix driving
+Muse scaffold reading and construction: ~52KB scaffold reads and ~1.35M repeated
+input tokens per lane, with extra authoring and verification calls. Check now
+requires --proof-scaffold to emit/refresh code drafts; ordinary checks keep
+existing packets' bound coverage facts current. Start/workflow keep verify as
+the default loop and describe the matrix as optional. Coverage, stale-fact
+refusals, first-red output and cleanup remain. See LLP 3000.037.000 §17 and the
+MUSE1 report for measured controls; no performance or publication claim follows
+from these source changes alone.
+
+### 2026-10-28 — MUSE1 complete controls reject opt-in-only; compact default
+
+All 18 sessions completed. Muse candidate medians 118.5 calls / 13.176M input
+miss .46's 96 / 8.993M; Codex 40.5 / 2.719M miss .47's 34.5 / 2.227M.
+Keep these negative measurements. Revised default emits a <=8KB, three-file,
+one-scenario business draft once, preserving the real-account/lifecycle helpers
+without an exhaustive matrix or automatic code rewrites. Matrix remains opt-in;
+empty/unfilled/refusal-only drafts refuse; coverage stays application-owned.
+Six new after sessions reuse the fixed draws and twelve completed controls.
+Source reviews and packed controls must be repeated for this amendment.
+
+### 2026-10-29 — MUSE1 fallback: both helpers opt-in
+
+The compact default still attracts expansion: gown Muse authored 16KB of cases
+and finished at 118 calls / 12.883M input versus .46's 83 / 8.015M. Completed
+Codex draws improve median input 8.3% but miss calls 36 versus .47's 34.5.
+The compact default is withdrawn. Ordinary check creates neither helper;
+--proof-draft explicitly creates the bounded single-scenario draft once, and
+--proof-scaffold retains the exhaustive matrix. Verify is unchanged. Preserve
+all six default-compact after sessions (remaining Muse results still running),
+then measure six opt-in fallback sessions against the same completed controls.
+
+### 2026-10-29 — MUSE1 final measured opt-in fallback
+
+All 30 complete sessions retained, exact parser/provider totals match, all replay
+copies removed. Final Muse medians 83 calls / 8.114M input versus .46 96 / 8.993M:
+both bars pass; wall 16.69 versus 16.31min is not a wall win. Codex 46 / 2.879M
+versus .47 34.5 / 2.227M misses both bars; do not claim overall non-regression.
+Fixture/security-note retries are recorded as a follow-up, without changing
+bind/security. Both helper choices remain explicit; verify is unchanged.
+Packed Linux consumer-only qualification passes at fc71b6edcc with unchanged
+source and byte-identical replay/qualification platform tarball (native 4b4767de).
+Suite not run, publicationQualified false; final affected run follows the report
+commit. See WORKSTREAM-REPORT.md and reports/20261028-muse1/RESULTS.md.

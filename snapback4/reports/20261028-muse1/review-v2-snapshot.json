@@ -1,0 +1,106 @@
+[
+  {
+    "path": "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md",
+    "sha256": "9c2f47a55f7c2926ffcc8022f549a9b96b2909500e6ca2346f8511fa0b27030c"
+  },
+  {
+    "path": "llp/3000.037.000-wave-30-default-verdict-and-password-starters.rfc.md",
+    "sha256": "c5978365c4083901daa5884f22474705e6d7ce54cc4c30fbcf33535b4a7444fb"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/start.md",
+    "sha256": "d7fab3cacdec451741fa272f770de26fcefc42db13ed565a674db0d87a2290e9"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/workflow.md",
+    "sha256": "d0e20ce99b2d2e760407761278363604d644381901b4a68622b702a5ba02fbf3"
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/start.rs",
+    "sha256": "bad843d41e479e8f9d32d45011eda810a74146bc89f2d6a0b580add55590b573"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/cli_flags.rs",
+    "sha256": "272d6992b88df4287a15ebdd87a11b7e76a4ee99a5169ac5b37f9f10e84f8d4f"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold.rs",
+    "sha256": "4cd090b39a341c7103431d59866b5e67492a02a4f90f10a03761868b8e6093b0"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/README.md",
+    "sha256": "1cc15d1314add3c91ecb3129751b00daca331c8d10212f2f4cf26accb89afb12"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/acceptance.mjs",
+    "sha256": "b37a6bca497c47e18f06a690a24fc13dfd5d041002cd795bf2a8bd56dcb2af9d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/cases.mjs",
+    "sha256": "e12dac03c60e1515d8c5d6e8b8e3e7a59b66619555804f70f361461105c7fd9a"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/compact.rs",
+    "sha256": "26c44cc21e8cdf675ba90bf3dec1f72600c66a271ecd234df12c6139dc53f1a7"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/draft-acceptance.mjs",
+    "sha256": "94d8136c1bac75b71ad2085e40d7e15c5ccb576518b0b2095af7267c28c6b35b"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/draft-cases.mjs",
+    "sha256": "a8358b71679023e6cfd6656b661162e13e81d432c119a126730b430550982c96"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/frontend-proof.mjs",
+    "sha256": "e158c8fee22813e42480eb6e55918a06f97782b35e17b3024d20425a1280a6e3"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/host.mjs",
+    "sha256": "61d367f443cee20e4212db0fc8d9590fae9383658e12d2c3c80b357ccdc1e9f5"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/infer.rs",
+    "sha256": "774eac2d06e8e586092ea079635870b0bee9baa6093d8cb0f2a7d1856bb41b63"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/probe-serve.mjs",
+    "sha256": "632a2f8c6b34c8a0c9a811016f3541cbffece72c104e8b815667d64fc58afabc"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/proof_scaffold/schema-facts.mjs.inc",
+    "sha256": "f71ea8c908e1b5ce2c80485bf6cf282180e64358ce6dd68bb4764c53fb8338c1"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verb_help.rs",
+    "sha256": "408c142573f5b7e5027750a3141424a6304e2d3cd1745bdf7eb6941995fda842"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs.rs",
+    "sha256": "73c667b84aed9cf8efd7d2897b71dceb10e5074a7d6e750e5025dc1023700f9b"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init.rs",
+    "sha256": "a4198c06c84b64b5d0bde3fa1721d3d18c387e380c995bb9dbc733da131baab4"
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/proof.rs",
+    "sha256": "8d43e5682fbb9f558d194efadaad43dd0bd70526610ca3e4685d910db720254d"
+  },
+  {
+    "path": "snapback4/crates/snapback4/tests/scaf1.rs",
+    "sha256": "ed14cd71126f72c71cdb5fab3e83d8edbf4c21110188e215ebea151fd3a93dfc"
+  },
+  {
+    "path": "snapback4/packages/snapback4/bin/cli-commands.json",
+    "sha256": "74024986efd98fe192917daee03caf89d06d9518f8830f81f4ca70f02899f594"
+  },
+  {
+    "path": "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "sha256": "a2c9563c91c86b8458cb2cf21f323b1d9ed6fe7e06e0858b1ff9dca99dcbea92"
+  },
+  {
+    "path": "snapback4/scripts/publication-scaf1.mjs",
+    "sha256": "0694b6ea261916c807a9def5ea93401e78e1dedb0bdf45f216d131e16e6defc4"
+  }
+]

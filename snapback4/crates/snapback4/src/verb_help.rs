@@ -67,6 +67,8 @@ Output:
   --ack-notes  record reviewed compiler notes in snapback/check-notes.json; any Quarry edit invalidates them
   --verbose    every note in full, with its card excerpt, rewrites and execution facts
   --json       one JSON object (ok, notes, problems, plans) on stdout
+  --proof-draft     opt into a compact one-scenario draft (created once)
+  --proof-scaffold  opt into exhaustive editable proof drafts
   --cost       each operation's read and write plan and the scale summary
   --residency  what a device holds; with --fixture and --as, measured on that data
   --fix        apply mechanical source repairs (for example // comments to --)
