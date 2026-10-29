@@ -34,9 +34,9 @@ for(const accounts of Object.values(users))for(const account of accounts){
 ` + '`' + String.raw`;
 writeFileSync(join(cwd,'calls.mjs'),calls);writeFileSync(join(cwd,'expected.json'),'[]');
 await checked(['check']);await checked(['init','--adapt','--day2','--apply']);
-await checked(['deploy','./deploy','--save-version','versions/saved1']);
+await checked(['deploy','./deploy','--save-version','versions/v3']);
 const v2=source.replace('  body: text 1..200\n',"  body: text 1..200\n  label: text <=20 default 'new'\n");
-writeFileSync(join(cwd,'snapback/schema.q'),v2);await checked(['check']);await checked(['deploy','./deploy','--save-version','versions/saved2']);
+writeFileSync(join(cwd,'snapback/schema.q'),v2);await checked(['check']);await checked(['deploy','./deploy','--save-version','versions/v4']);
 // Miniature assertion-bearing production proof, deliberately separate from the temporary scaffold.
 writeFileSync(join(cwd,'business.mjs'),String.raw` + '`' + String.raw`
 import assert from'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';

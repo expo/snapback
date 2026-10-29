@@ -110326,3 +110326,19 @@ remain. Clean wasm is 738,518 gzip bytes; budget739,018 = measurement+500.
 Main's census refresh is byte-identical; reconciliation changes ancestry only.
 Reports/integration32 retains compact bindings. Full platform qualification and
 whole-session token/wall measurement remain with publication and the rerun.
+
+### 2026-10-29 — DX17: one day-two release packet
+
+The existing day2 card folds upgrade, real v1 capture/production, change-kind
+routes, preview/v2, exact rollback/forward scripts, frozen calls and the roster
+into one 7,972-byte read. The packaged day2-check orders existing authored
+proofs and the harness's two release cycles; two v2 callers run before the second
+rollback measures their rows. Only the final probe adds a 30-second observation.
+First reds retain exits, cleanup receipts and private log paths. Rollback
+previews reuse disposable TOK2 output deltas. No scaffold or release/rule
+semantics change. The temporary scaffold is explicitly insufficient for the
+growing-production contract. Fresh Codex and Muse round-four source reviews
+are READY; actual packed workflow controls pass two complete checks with real
+accounts and frozen-v1 returns. Whole-session costs and the complete affected/
+consumer-only results are recorded in the DX17 workstream report; no empirical
+win, publication qualification or author acceptance is inferred here.

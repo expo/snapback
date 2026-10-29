@@ -268,7 +268,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","serve-check","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","serve-check","day2-check","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
@@ -292,6 +292,7 @@ pub(crate) fn top_help() -> String {
         "prune"=>"Preview or explicitly remove dormant release storage.", "releases"=>"Inspect database-authoritative release history and storage.",
         "serve"=>"Serve the active production release; bearer sessions only, behind a TLS proxy.",
         "serve-check"=>"Check an npm serve script through the packaged Node CLI; keep credential stdout private.",
+        "day2-check"=>"Check authored day-two proofs and production release stages in one ordered loop (npm wrapper).",
         "stop"=>"Gracefully stop the retained server that owns a deployment directory.",
         "run"=>"Run one operation or system job locally or against a serving backend.",
         "clock"=>"Advance the development clock, sweep expiry and run due jobs.", "reset"=>"Empty a development backend and optionally reseed it atomically.",
