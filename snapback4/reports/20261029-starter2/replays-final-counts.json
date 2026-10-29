@@ -1,0 +1,905 @@
+[
+  {
+    "phase": "before",
+    "n": 5,
+    "calls": 42,
+    "input": 2883720,
+    "cached": 2797824,
+    "output": 40950,
+    "maxCallInput": 109037,
+    "polls": 26,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 5,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 4,
+      "install": 1,
+      "verify": 9,
+      "fix-after-red": 4,
+      "own-reads": 2,
+      "lookup": 5,
+      "authoring": 11,
+      "waiting": 3,
+      "reporting": 2,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 1,
+        "k0": 6
+      },
+      {
+        "fam": "check",
+        "cls": "E_STRUCTURAL_FANOUT",
+        "calls": 1,
+        "k0": 7
+      },
+      {
+        "fam": "check",
+        "cls": "TS2322",
+        "calls": 1,
+        "k0": 15
+      },
+      {
+        "fam": "acceptance",
+        "cls": "E_INPUT",
+        "calls": 1,
+        "k0": 28
+      },
+      {
+        "fam": "check",
+        "cls": "TS2379",
+        "calls": 1,
+        "k0": 35
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "n": 23,
+    "calls": 36,
+    "input": 1870654,
+    "cached": 1792896,
+    "output": 24403,
+    "maxCallInput": 85669,
+    "polls": 15,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 3,
+      "install": 1,
+      "own-reads": 4,
+      "waiting": 5,
+      "verify": 7,
+      "fix-after-red": 7,
+      "lookup": 4,
+      "authoring": 3,
+      "reporting": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 4,
+        "k0": 7
+      },
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_TYPE",
+        "calls": 1,
+        "k0": 11
+      },
+      {
+        "fam": "check",
+        "cls": "TS2322",
+        "calls": 1,
+        "k0": 19
+      },
+      {
+        "fam": "check",
+        "cls": "E_COLUMN_READ",
+        "calls": 1,
+        "k0": 23
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "n": 36,
+    "calls": 31,
+    "input": 1845785,
+    "cached": 1786240,
+    "output": 30625,
+    "maxCallInput": 90801,
+    "polls": 25,
+    "frontendCycles": 2,
+    "timeoutCycles": 2,
+    "browserFailedRuns": 2,
+    "frontendAttempts": 2,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 4,
+      "reporting": 2,
+      "verify": 6,
+      "waiting": 4,
+      "own-reads": 2,
+      "lookup": 3,
+      "authoring": 5,
+      "fix-after-red": 4,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 1,
+        "k0": 20
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 8,
+        "k0": 23,
+        "dangling": true
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "n": 39,
+    "calls": 30,
+    "input": 1512367,
+    "cached": 1444096,
+    "output": 19558,
+    "maxCallInput": 77356,
+    "polls": 16,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "own-reads": 4,
+      "install": 2,
+      "learning": 3,
+      "verify": 5,
+      "lookup": 3,
+      "authoring": 5,
+      "waiting": 6,
+      "reporting": 1,
+      "message": 1
+    },
+    "cycles": []
+  },
+  {
+    "phase": "before",
+    "n": 19,
+    "calls": 140,
+    "input": 15693600,
+    "cached": 15437418,
+    "output": 89826,
+    "maxCallInput": 188184,
+    "polls": 0,
+    "frontendCycles": 6,
+    "timeoutCycles": 6,
+    "browserFailedRuns": 6,
+    "frontendAttempts": 9,
+    "verifyAdopted": true,
+    "purposes": {
+      "own-reads": 15,
+      "install": 3,
+      "learning": 6,
+      "other": 7,
+      "authoring": 19,
+      "verify": 26,
+      "lookup": 4,
+      "waiting": 8,
+      "fix-after-red": 40,
+      "reporting": 10,
+      "message": 2
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "check: red (no code)",
+        "calls": 2,
+        "k0": 39
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 4,
+        "k0": 46
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 50
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 5,
+        "k0": 64
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 4,
+        "k0": 69
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 8,
+        "k0": 73
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 2,
+        "k0": 81
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 2,
+        "k0": 83
+      },
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_TYPE",
+        "calls": 2,
+        "k0": 90
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 10,
+        "k0": 85
+      },
+      {
+        "fam": "script",
+        "cls": "E_ASSET_TYPE",
+        "calls": 8,
+        "k0": 99
+      }
+    ]
+  },
+  {
+    "phase": "before",
+    "n": 32,
+    "calls": 123,
+    "input": 14277051,
+    "cached": 14052969,
+    "output": 69823,
+    "maxCallInput": 171099,
+    "polls": 0,
+    "frontendCycles": 1,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 1,
+    "frontendAttempts": 3,
+    "verifyAdopted": true,
+    "purposes": {
+      "learning": 17,
+      "own-reads": 14,
+      "other": 13,
+      "install": 3,
+      "authoring": 21,
+      "verify": 18,
+      "lookup": 7,
+      "fix-after-red": 17,
+      "waiting": 6,
+      "reporting": 6,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "TS2345",
+        "calls": 2,
+        "k0": 46
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 53
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 55
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 57
+      },
+      {
+        "fam": "frontend",
+        "cls": "ERR_ASSERTION",
+        "calls": 6,
+        "k0": 67
+      },
+      {
+        "fam": "test",
+        "cls": "test: red (no code)",
+        "calls": 3,
+        "k0": 108
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "n": 5,
+    "calls": 42,
+    "input": 2669499,
+    "cached": 2594944,
+    "output": 37912,
+    "maxCallInput": 102097,
+    "polls": 21,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 1,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 3,
+      "install": 2,
+      "own-reads": 1,
+      "waiting": 9,
+      "verify": 9,
+      "fix-after-red": 3,
+      "lookup": 10,
+      "authoring": 4,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 1,
+        "k0": 7
+      },
+      {
+        "fam": "acceptance",
+        "cls": "E_INPUT",
+        "calls": 2,
+        "k0": 31
+      },
+      {
+        "fam": "check",
+        "cls": "TS2379",
+        "calls": 13,
+        "k0": 29,
+        "dangling": true
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "n": 23,
+    "calls": 32,
+    "input": 1885165,
+    "cached": 1834112,
+    "output": 30042,
+    "maxCallInput": 91773,
+    "polls": 14,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 4,
+      "install": 2,
+      "verify": 5,
+      "fix-after-red": 2,
+      "own-reads": 1,
+      "lookup": 4,
+      "authoring": 8,
+      "waiting": 4,
+      "reporting": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 2,
+        "k0": 6
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "n": 36,
+    "calls": 27,
+    "input": 1404477,
+    "cached": 1355520,
+    "output": 23554,
+    "maxCallInput": 81746,
+    "polls": 13,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 3,
+      "install": 2,
+      "own-reads": 3,
+      "waiting": 5,
+      "verify": 5,
+      "lookup": 3,
+      "authoring": 3,
+      "reporting": 2,
+      "message": 1
+    },
+    "cycles": []
+  },
+  {
+    "phase": "after",
+    "n": 39,
+    "calls": 36,
+    "input": 2081771,
+    "cached": 1966080,
+    "output": 28531,
+    "maxCallInput": 92884,
+    "polls": 16,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "own-reads": 4,
+      "install": 2,
+      "learning": 3,
+      "verify": 5,
+      "waiting": 7,
+      "lookup": 7,
+      "authoring": 3,
+      "reporting": 2,
+      "fix-after-red": 2,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "data",
+        "cls": "data: red (no code)",
+        "calls": 2,
+        "k0": 26
+      },
+      {
+        "fam": "acceptance",
+        "cls": "acceptance: red (no code)",
+        "calls": 4,
+        "k0": 25
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "n": 19,
+    "calls": 88,
+    "input": 8414583,
+    "cached": 8302439,
+    "output": 51093,
+    "maxCallInput": 139498,
+    "polls": 1,
+    "frontendCycles": 1,
+    "timeoutCycles": 1,
+    "browserFailedRuns": 1,
+    "frontendAttempts": 4,
+    "verifyAdopted": true,
+    "purposes": {
+      "own-reads": 9,
+      "learning": 5,
+      "other": 7,
+      "authoring": 14,
+      "verify": 16,
+      "install": 1,
+      "lookup": 6,
+      "fix-after-red": 24,
+      "waiting": 3,
+      "reporting": 2,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 31
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 33
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 35
+      },
+      {
+        "fam": "acceptance",
+        "cls": "E_QUARRY_TYPE",
+        "calls": 3,
+        "k0": 53
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 14,
+        "k0": 43
+      },
+      {
+        "fam": "probe",
+        "cls": "probe: red (no code)",
+        "calls": 6,
+        "k0": 67
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "n": 32,
+    "calls": 101,
+    "input": 9442785,
+    "cached": 9303460,
+    "output": 53434,
+    "maxCallInput": 133202,
+    "polls": 2,
+    "frontendCycles": 1,
+    "timeoutCycles": 1,
+    "browserFailedRuns": 1,
+    "frontendAttempts": 6,
+    "verifyAdopted": false,
+    "purposes": {
+      "own-reads": 14,
+      "learning": 4,
+      "other": 5,
+      "authoring": 22,
+      "verify": 22,
+      "install": 1,
+      "lookup": 8,
+      "reporting": 3,
+      "fix-after-red": 15,
+      "waiting": 6,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 3,
+        "k0": 36
+      },
+      {
+        "fam": "frontend",
+        "cls": "TimeoutError",
+        "calls": 2,
+        "k0": 64
+      },
+      {
+        "fam": "script",
+        "cls": "script: red (no code)",
+        "calls": 5,
+        "k0": 75
+      },
+      {
+        "fam": "script",
+        "cls": "script: red (no code)",
+        "calls": 17,
+        "k0": 80
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 5,
+    "calls": 38,
+    "input": 2181435,
+    "cached": 2126208,
+    "output": 29343,
+    "maxCallInput": 90015,
+    "polls": 17,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "own-reads": 6,
+      "install": 1,
+      "learning": 3,
+      "verify": 5,
+      "fix-after-red": 6,
+      "lookup": 3,
+      "authoring": 7,
+      "waiting": 5,
+      "reporting": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 2,
+        "k0": 6
+      },
+      {
+        "fam": "check",
+        "cls": "E_STRUCTURAL_FANOUT",
+        "calls": 1,
+        "k0": 8
+      },
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_TYPE",
+        "calls": 1,
+        "k0": 9
+      },
+      {
+        "fam": "acceptance",
+        "cls": "TS2379",
+        "calls": 1,
+        "k0": 30
+      },
+      {
+        "fam": "acceptance",
+        "cls": "E_INPUT",
+        "calls": 1,
+        "k0": 32
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 23,
+    "calls": 43,
+    "input": 2814378,
+    "cached": 2748032,
+    "output": 28653,
+    "maxCallInput": 99314,
+    "polls": 23,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 2,
+    "verifyAdopted": false,
+    "purposes": {
+      "install": 2,
+      "reporting": 2,
+      "learning": 3,
+      "verify": 9,
+      "fix-after-red": 14,
+      "own-reads": 1,
+      "lookup": 6,
+      "waiting": 3,
+      "authoring": 2,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 5,
+        "k0": 6
+      },
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_SYNTAX",
+        "calls": 1,
+        "k0": 11
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 13,
+        "k0": 30,
+        "dangling": true
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 36,
+    "calls": 38,
+    "input": 2507122,
+    "cached": 2443264,
+    "output": 33096,
+    "maxCallInput": 95977,
+    "polls": 22,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 0,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 4,
+      "reporting": 2,
+      "verify": 5,
+      "waiting": 6,
+      "own-reads": 5,
+      "lookup": 5,
+      "authoring": 8,
+      "fix-after-red": 1,
+      "other": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "TS2322",
+        "calls": 1,
+        "k0": 14
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 39,
+    "calls": 34,
+    "input": 2103275,
+    "cached": 2033280,
+    "output": 29707,
+    "maxCallInput": 99389,
+    "polls": 14,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 2,
+    "verifyAdopted": false,
+    "purposes": {
+      "learning": 4,
+      "install": 1,
+      "waiting": 8,
+      "verify": 4,
+      "fix-after-red": 2,
+      "own-reads": 2,
+      "lookup": 5,
+      "authoring": 6,
+      "reporting": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_UNKNOWN",
+        "calls": 2,
+        "k0": 7
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 19,
+    "calls": 105,
+    "input": 11268877,
+    "cached": 10945286,
+    "output": 61696,
+    "maxCallInput": 166029,
+    "polls": 0,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 3,
+    "verifyAdopted": false,
+    "purposes": {
+      "own-reads": 12,
+      "other": 10,
+      "install": 2,
+      "learning": 21,
+      "authoring": 23,
+      "verify": 20,
+      "fix-after-red": 8,
+      "reporting": 6,
+      "lookup": 1,
+      "waiting": 1,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 49
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 51
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 53
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 2,
+        "k0": 55
+      },
+      {
+        "fam": "probe",
+        "cls": "probe: red (no code)",
+        "calls": 1,
+        "k0": 91
+      }
+    ]
+  },
+  {
+    "phase": "after2",
+    "n": 32,
+    "calls": 110,
+    "input": 11292379,
+    "cached": 11133597,
+    "output": 60424,
+    "maxCallInput": 151162,
+    "polls": 0,
+    "frontendCycles": 0,
+    "timeoutCycles": 0,
+    "browserFailedRuns": 0,
+    "frontendAttempts": 3,
+    "verifyAdopted": true,
+    "purposes": {
+      "own-reads": 10,
+      "install": 2,
+      "learning": 5,
+      "other": 9,
+      "authoring": 27,
+      "verify": 17,
+      "fix-after-red": 13,
+      "lookup": 17,
+      "reporting": 6,
+      "waiting": 3,
+      "message": 1
+    },
+    "cycles": [
+      {
+        "fam": "check",
+        "cls": "E_QUARRY_UNKNOWN",
+        "calls": 4,
+        "k0": 11
+      },
+      {
+        "fam": "check",
+        "cls": "TS2344",
+        "calls": 4,
+        "k0": 40
+      },
+      {
+        "fam": "acceptance",
+        "cls": "acceptance: red (no code)",
+        "calls": 2,
+        "k0": 48
+      },
+      {
+        "fam": "acceptance",
+        "cls": "ERR_ASSERTION",
+        "calls": 3,
+        "k0": 53
+      }
+    ]
+  }
+]

@@ -31,3 +31,14 @@ owned-process exit checks. Do not accept arbitrary undecoded strings.
 Evidence: `snapback4/reports/integration20/logs/earlier-strace68-refused.trace.gz`,
 `packed-consumer.json`, and `logs/qualify-linux-integrated-main.log.gz`.
 Upstream source: https://strace.io/files/6.17/strace-6.17.tar.xz.
+
+## 2026-10-29 STARTER2 reproduction
+
+The first candidate consumer-only run again refused a nested undecoded 6.8
+fragment after the frontend scenario passed. Raw failed traces/logs remain in
+`/tmp/starter2-evidence/consumer-attempt1-files.tgz` and
+`failed-strace68-listener.trace.gz`. Task-owned upstream strace 6.17 made both
+candidate consumer-only runs pass; no listener decoder/assertion was changed.
+Summaries and receipt hashes: `snapback4/reports/20261029-starter2/consumer-v1-summary.json`
+and `consumer-v2-summary.json`. This repeats the environment workaround; it does
+not resolve reliable 6.8 support or identify an upstream fix. The ticket stays open.

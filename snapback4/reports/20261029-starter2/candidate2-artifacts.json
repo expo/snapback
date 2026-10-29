@@ -1,0 +1,18 @@
+{
+  "source": "38eef3a3882f7f4f2a0e209beed693c7171bb35f",
+  "packages": {
+    "snapback4": {
+      "file": "snapback4-0.4.49.tgz",
+      "sha256": "da1828aac8193c073ef4c8e38434ab302e369e567578a01520914ab8c59f6b08"
+    },
+    "snapback4-expo": {
+      "file": "snapback4-expo-0.4.49.tgz",
+      "sha256": "8899a4abdf7344cff2d16a20232ba50ea1fc69c1f2371c29425e98141518352b"
+    },
+    "snapback4-linux-x64": {
+      "file": "snapback4-linux-x64-0.4.49.tgz",
+      "sha256": "eb2e4e5c29c9377aab73c35c4fb10b1c88178a20cbedeefb1eb88b41d1f5cec7"
+    }
+  },
+  "nativeSha256": "0e559ec81aa4cf4715a0de7dc752f0f93f31a742230bc100e0b4781836312ce1"
+}

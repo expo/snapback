@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "38eef3a3882f7f4f2a0e209beed693c7171bb35f",
+  "version": "0.4.49",
+  "route": "proot",
+  "clientIntegrity": "sha512-eJ9XIPHuNJOuLxPvJO1aOumPaP6GQaG8FVdbFTWi7JXJUuGz0QgwW05kMkbSp0tkpFI+Pqc+5QvB0b/mGZil5Q==",
+  "expoIntegrity": "sha512-oIOpC9BXT+ODYmNvkwpw6Qyk0uAOsaXui2aI1kkxiarJPtJE918pjsWmpGwPcphhOa1Pgwtqtcaiqyt7pRvI4A==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.49",
+    "filename": "snapback4-linux-x64-0.4.49.tgz",
+    "integrity": "sha512-QGrxxNa3LKa/oYoA3jMvmCxvg4E9waxaCPEbCYQgVmrgdPJTx4hkF9fW+qYqKwuTnAucJcS9a7k4yZiBwBlhlw==",
+    "bytes": 18780324
+  },
+  "binarySha256": "0e559ec81aa4cf4715a0de7dc752f0f93f31a742230bc100e0b4781836312ce1",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "result": "passed",
+  "receiptSha256": "578bd99d235c21f99fcf2c64d37dd8b73aab90b7e02565fd079da966205f9af3",
+  "receiptPath": "/tmp/starter2-evidence/consumer-v2/consumer.json",
+  "tracerRepair": "owned strace 6.17; strict decoder unchanged"
+}

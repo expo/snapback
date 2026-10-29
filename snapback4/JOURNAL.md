@@ -110454,3 +110454,14 @@ Codex set missed the target: $0.6301014 → $0.6389919/lane; zero of four used
 verify, all four kept generated check. A bounded follow-up adds a successful-
 check handoff, starts no implicit proof and preserves either failure's status.
 The same fixed draws will measure that changed candidate; all first results stay.
+
+The final Codex mean was $0.6634801 (+$0.0333787/lane), also missing the
+$0.03 saving target. All four still bypassed verify; no third candidate or
+unchanged-code reroll was selected. Poll tools averaged 20.5 → 19.0 and browser
+repair cycles totaled 2 → 0, without a dollar win. The open 20261029 STARTER2
+dollar-target ticket records follow-up. Both packed consumer-only candidates
+passed with strict auditing and owned strace 6.17; no full publication claim.
+Final Muse pairs both improve ($0.074458236 → $0.066588872 and
+$0.064478738 → $0.050230194): strict two-pair dollar non-regression passes.
+All 18 draws exit successfully and primary calls/tokens reconcile with the
+independent parser; stdout-recovery and provider/cache limits remain explicit.
