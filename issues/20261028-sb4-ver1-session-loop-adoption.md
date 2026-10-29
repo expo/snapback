@@ -27,3 +27,20 @@ Acceptance: ≥30% fewer verify calls, zero Codex install polls, no Muse foregro
 probe wait >15 s, and unchanged 10/10 process-group survival.
 
 Evidence: [VER1 results](../snapback4/reports/20261028-ver1/RESULTS.md).
+
+## 2026-10-29 — VER2 routing and mechanical replay
+
+VER2 (product 067f042626) routes starters/start/workflow through verify, retains
+focused phase reruns, and reuses source/session-matched direct passes. Scripted
+Muse sequences execute acceptance/frontend once; the real web starter replay
+also reports both reused after excluding its known runtime report/log/Vite
+outputs. Codex-shaped actual tool replay: four separate issuing calls plus
+four completion polls become one issuing call plus three polls (21.824 s).
+These are mechanical results, not whole-session model cost/adoption evidence.
+
+The current measurement instruction supersedes the old two-pair replay recipe:
+CANDRUN will run forty Snapback-only lanes before merge, with dollar cost from
+~/sb4-loop/bakeoff/prices.json primary and wall clock secondary. Leave this
+session-adoption ticket open pending that measurement; do not infer the old
+performance bars from synthetic calls or the packed starter proofs. Intentional
+probe hold, business assertions and installer survival contracts remain intact.
