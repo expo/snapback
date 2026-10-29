@@ -64,5 +64,8 @@
     "frontendExecutions": 1,
     "test": "packages/snapback4/test/ver2-routing.test.mjs"
   },
-  "decision": "CANDRUN forty-lane Snapback-only rerun before merge; dollars are primary, using ~/sb4-loop/bakeoff/prices.json"
+  "decision": "CANDRUN forty-lane Snapback-only rerun before merge; dollars are primary, using ~/sb4-loop/bakeoff/prices.json",
+  "npmProcessTitleEvidence": [
+    "npm run acceptance"
+  ]
 }

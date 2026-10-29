@@ -17,7 +17,7 @@ for (const [kind, flags] of [['web', ['--web']], ['password', ['--web', '--onlin
   const env = { ...process.env, CI: '1', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', VER2_COUNTS: counts };
   delete env.SNAPBACK4_BIN;
   writeFileSync(join(cwd, 'package.json'), '{"private":true}');
-  await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', client, platform], cwd, env);
+  await run('npm', ['install', '--no-save', '--ignore-scripts', '--no-audit', '--no-fund', client, platform], cwd, env);
   const cli = join(cwd, 'node_modules/.bin/snapback4');
   await run(cli, ['init', '--no-install', ...flags], cwd, env);
   const pkg = JSON.parse(readFileSync(join(cwd, 'package.json')));
