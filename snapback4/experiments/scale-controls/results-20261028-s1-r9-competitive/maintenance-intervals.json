@@ -1,0 +1,132 @@
+{
+  "time": 1793302491.778785,
+  "scope": "Each private cluster, first cohort WAL-before through last cohort WAL-after; all raw attempts, including contaminated attempts and diagnostic/one-CPU phases. Fixture seed, the first primer and final shutdown outside those edges are excluded.",
+  "interpretation": "Intercohort gaps contain service startup, authenticated priming, snapshots, background maintenance and statistics-publication lag. They cannot be attributed solely to maintenance or to a specific cell. Publication lag can move work caused inside a cohort into the next gap. No intercohort CPU total or intrinsic successful-write cost is inferred.",
+  "cohort_costs": "Matched per-cell CPU/WAL costs retain their original cohort edges and ACK divisors in COSTS.md.",
+  "roles": [
+    {
+      "role": "r9",
+      "raw_attempts": 264,
+      "eligible_raw_attempts": 261,
+      "first_edge_unix": 1793165457.329643,
+      "last_edge_unix": 1793301993.480392,
+      "span_s": 136536.15074896812,
+      "all_ack_in_raw_attempts": 23925035,
+      "counters": {
+        "wal_bytes": {
+          "first_to_last_edges": 14984198080,
+          "cohort_intervals": 14275123444,
+          "intercohort_gaps": 709074636
+        },
+        "wal_records": {
+          "first_to_last_edges": 130000934,
+          "cohort_intervals": 125699679,
+          "intercohort_gaps": 4301255
+        },
+        "wal_fpi": {
+          "first_to_last_edges": 275908,
+          "cohort_intervals": 221160,
+          "intercohort_gaps": 54748
+        },
+        "wal_sync": {
+          "first_to_last_edges": 2242586,
+          "cohort_intervals": 2130965,
+          "intercohort_gaps": 111621
+        }
+      }
+    },
+    {
+      "role": "main",
+      "raw_attempts": 251,
+      "eligible_raw_attempts": 250,
+      "first_edge_unix": 1793165591.35666,
+      "last_edge_unix": 1793302160.466072,
+      "span_s": 136569.1094121933,
+      "all_ack_in_raw_attempts": 20206186,
+      "counters": {
+        "wal_bytes": {
+          "first_to_last_edges": 8614020365,
+          "cohort_intervals": 8261801792,
+          "intercohort_gaps": 352218573
+        },
+        "wal_records": {
+          "first_to_last_edges": 96824444,
+          "cohort_intervals": 94275524,
+          "intercohort_gaps": 2548920
+        },
+        "wal_fpi": {
+          "first_to_last_edges": 69139,
+          "cohort_intervals": 29869,
+          "intercohort_gaps": 39270
+        },
+        "wal_sync": {
+          "first_to_last_edges": 1671764,
+          "cohort_intervals": 1596894,
+          "intercohort_gaps": 74870
+        }
+      }
+    },
+    {
+      "role": "supabase",
+      "raw_attempts": 211,
+      "eligible_raw_attempts": 210,
+      "first_edge_unix": 1793165721.716812,
+      "last_edge_unix": 1793302311.669916,
+      "span_s": 136589.95310401917,
+      "all_ack_in_raw_attempts": 10186288,
+      "counters": {
+        "wal_bytes": {
+          "first_to_last_edges": 1226455390,
+          "cohort_intervals": 1188964064,
+          "intercohort_gaps": 37491326
+        },
+        "wal_records": {
+          "first_to_last_edges": 22051721,
+          "cohort_intervals": 21476139,
+          "intercohort_gaps": 575582
+        },
+        "wal_fpi": {
+          "first_to_last_edges": 1450,
+          "cohort_intervals": 410,
+          "intercohort_gaps": 1040
+        },
+        "wal_sync": {
+          "first_to_last_edges": 1630108,
+          "cohort_intervals": 1580596,
+          "intercohort_gaps": 49512
+        }
+      }
+    },
+    {
+      "role": "convex",
+      "raw_attempts": 140,
+      "eligible_raw_attempts": 140,
+      "first_edge_unix": 1793165276.839577,
+      "last_edge_unix": 1793301729.04624,
+      "span_s": 136452.2066631317,
+      "all_ack_in_raw_attempts": 1605918,
+      "counters": {
+        "wal_bytes": {
+          "first_to_last_edges": 5495744865,
+          "cohort_intervals": 4086284967,
+          "intercohort_gaps": 1409459898
+        },
+        "wal_records": {
+          "first_to_last_edges": 29278244,
+          "cohort_intervals": 23274183,
+          "intercohort_gaps": 6004061
+        },
+        "wal_fpi": {
+          "first_to_last_edges": 300982,
+          "cohort_intervals": 49333,
+          "intercohort_gaps": 251649
+        },
+        "wal_sync": {
+          "first_to_last_edges": 859565,
+          "cohort_intervals": 671992,
+          "intercohort_gaps": 187573
+        }
+      }
+    }
+  ]
+}

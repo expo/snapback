@@ -1,0 +1,2344 @@
+{
+  "scope": "Separate instrumented fresh-service companions at candidate qualifying/first-failing write rungs, plus explicitly labelled reference/challenge companions where native capacity is inconclusive. They do not qualify native latency or replace any native repetition.",
+  "prefix_scope": "Outcome confirmation to prefix reply release includes committed, void and error outcomes; committed-only ACK distribution unavailable.",
+  "phase_window": "Before/after product snapshots include warm-up and drain; phase p99 values are histogram upper bounds.",
+  "occupancy_window": "Estimated measured 20 s, using the historical resource-sampler start + 100 ms launch allowance + 10 s warm-up anchor, as in the CPU ledger.",
+  "rows": [
+    {
+      "cell": "W4-disjoint-A",
+      "rate": 3200,
+      "id": "0761-diagnostic-W4-disjoint-A-qualifying-3200-r9-3200-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 6.106548856,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 16.339236389160156,
+          "p99": 27,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.4117123413085937,
+          "p99": 12,
+          "peak": 22
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.1121123413085938,
+          "p99": 10,
+          "peak": 22
+        },
+        "allocated_minus_w": {
+          "mean": 18.44344873046875,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 18.44344873046875,
+          "p99": 29,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 18.44344873046875,
+          "p99": 29,
+          "peak": 32
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 301,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 326,
+          "mean_ms": 1.502274773006135,
+          "p99_ms_upper": 2.5,
+          "max_ms_upper": 4.3
+        },
+        "completion_owner_wait": {
+          "count": 96001,
+          "mean_ms": 0.07145822841428735,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 3.35
+        },
+        "continuation": {
+          "count": 96001,
+          "mean_ms": 0.01403566888886574,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 96000,
+          "mean_ms": 0.008135069229166667,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 16.8
+        },
+        "dispatch_lock": {
+          "count": 96000,
+          "mean_ms": 0.07031699379166667,
+          "p99_ms_upper": 0.9,
+          "max_ms_upper": 10.6
+        },
+        "finish": {
+          "count": 96001,
+          "mean_ms": 0.0160924679326257,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 2.2
+        },
+        "flight": {
+          "count": 96001,
+          "mean_ms": 5.174833533234029,
+          "p99_ms_upper": 8.35,
+          "max_ms_upper": 39.8
+        },
+        "handler_execute": {
+          "count": 96001,
+          "mean_ms": 0.06527378928344496,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 96000,
+          "mean_ms": 0.009839269302083333,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 96629,
+          "mean_ms": 5.164501046673359,
+          "p99_ms_upper": 8.4,
+          "max_ms_upper": 31.3
+        },
+        "pool_wait": {
+          "count": 96629,
+          "mean_ms": 0.0019654593031077625,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 11.55
+        },
+        "prefix_ack_wait": {
+          "count": 96001,
+          "mean_ms": 0.32428638644389124,
+          "p99_ms_upper": 1.95,
+          "max_ms_upper": 6.45
+        },
+        "prefix_blocked": {
+          "count": 12597,
+          "mean_ms": 2.1286179249027546e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 96001,
+          "mean_ms": 0.12769525676815865,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 2.5
+        },
+        "reservation_prepare": {
+          "count": 96001,
+          "mean_ms": 0.03566912383204341,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 7.9
+        },
+        "sql_encoding": {
+          "count": 96001,
+          "mean_ms": 0.05214305072863824,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 12.057396,
+          "p99_ms_upper": 12.1,
+          "max_ms_upper": 12.1
+        }
+      }
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "rate": 3805,
+      "id": "0762-diagnostic-W4-disjoint-A-first-failing-3805-r9-3805-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 7.104550291458606,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 20.566735986328126,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 2.75605,
+          "p99": 17,
+          "peak": 28
+        },
+        "confirmed_count_above_w": {
+          "mean": 2.06195,
+          "p99": 15,
+          "peak": 28
+        },
+        "allocated_minus_w": {
+          "mean": 24.0756,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 24.0756,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 24.0756,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 301,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 329,
+          "mean_ms": 1.6372696747720366,
+          "p99_ms_upper": 2.65,
+          "max_ms_upper": 5.05
+        },
+        "completion_owner_wait": {
+          "count": 114151,
+          "mean_ms": 0.08882814266191273,
+          "p99_ms_upper": 0.45,
+          "max_ms_upper": 1.95
+        },
+        "continuation": {
+          "count": 114151,
+          "mean_ms": 0.016568913535580064,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 114150,
+          "mean_ms": 0.08408337959702146,
+          "p99_ms_upper": 1.95,
+          "max_ms_upper": 16.95
+        },
+        "dispatch_lock": {
+          "count": 114150,
+          "mean_ms": 0.2848819880157687,
+          "p99_ms_upper": 2.5,
+          "max_ms_upper": 10.9
+        },
+        "finish": {
+          "count": 114151,
+          "mean_ms": 0.01897496529158746,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 1.15
+        },
+        "flight": {
+          "count": 114151,
+          "mean_ms": 5.40429500374942,
+          "p99_ms_upper": 9.55,
+          "max_ms_upper": 43.9
+        },
+        "handler_execute": {
+          "count": 114151,
+          "mean_ms": 0.07553957359112053,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 114150,
+          "mean_ms": 0.011757729908015768,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 114782,
+          "mean_ms": 5.39074619909045,
+          "p99_ms_upper": 9.55,
+          "max_ms_upper": 28.8
+        },
+        "pool_wait": {
+          "count": 114782,
+          "mean_ms": 0.004639728650833755,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 15.1
+        },
+        "prefix_ack_wait": {
+          "count": 114151,
+          "mean_ms": 0.487194968769437,
+          "p99_ms_upper": 3.0,
+          "max_ms_upper": 18.9
+        },
+        "prefix_blocked": {
+          "count": 16623,
+          "mean_ms": 2.6438789628827528e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 114151,
+          "mean_ms": 0.14871473173252972,
+          "p99_ms_upper": 0.6,
+          "max_ms_upper": 5.2
+        },
+        "reservation_prepare": {
+          "count": 114151,
+          "mean_ms": 0.03895995059176004,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 8.35
+        },
+        "sql_encoding": {
+          "count": 114151,
+          "mean_ms": 0.060531351148916786,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 10.545512,
+          "p99_ms_upper": 10.55,
+          "max_ms_upper": 10.55
+        }
+      }
+    },
+    {
+      "cell": "W4-disjoint-B",
+      "rate": 4525,
+      "id": "0763-diagnostic-W4-disjoint-B-first-failing-4525-r9-4525-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": false,
+      "errors": 14614,
+      "sent_mean_upper_ms": 8.433836469625492,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 22.406423254394532,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 3.241596179199219,
+          "p99": 18,
+          "peak": 28
+        },
+        "confirmed_count_above_w": {
+          "mean": 2.3794576416015625,
+          "p99": 16,
+          "peak": 28
+        },
+        "allocated_minus_w": {
+          "mean": 26.625477075195313,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.625477075195313,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.625477075195313,
+          "p99": 32,
+          "peak": 32
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 310,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 329,
+          "mean_ms": 2.6562722006079027,
+          "p99_ms_upper": 3.7,
+          "max_ms_upper": 4.6
+        },
+        "completion_owner_wait": {
+          "count": 115929,
+          "mean_ms": 0.09648447035685635,
+          "p99_ms_upper": 0.5,
+          "max_ms_upper": 2.45
+        },
+        "continuation": {
+          "count": 115929,
+          "mean_ms": 0.019220654133133213,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 115928,
+          "mean_ms": 0.3737096880477538,
+          "p99_ms_upper": 3.05,
+          "max_ms_upper": 37.85
+        },
+        "dispatch_lock": {
+          "count": 115928,
+          "mean_ms": 0.5856443250552067,
+          "p99_ms_upper": 2.95,
+          "max_ms_upper": 15.6
+        },
+        "finish": {
+          "count": 115929,
+          "mean_ms": 0.02184523606690302,
+          "p99_ms_upper": 0.25,
+          "max_ms_upper": 1.55
+        },
+        "flight": {
+          "count": 115929,
+          "mean_ms": 6.183861120013111,
+          "p99_ms_upper": 10.15,
+          "max_ms_upper": 51.25
+        },
+        "handler_execute": {
+          "count": 115929,
+          "mean_ms": 0.08083072560791518,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 115928,
+          "mean_ms": 0.013065110672141328,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 116569,
+          "mean_ms": 6.163432952903431,
+          "p99_ms_upper": 10.15,
+          "max_ms_upper": 51.25
+        },
+        "pool_wait": {
+          "count": 116569,
+          "mean_ms": 0.011733695793907472,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 8.9
+        },
+        "prefix_ack_wait": {
+          "count": 115929,
+          "mean_ms": 0.567682542211181,
+          "p99_ms_upper": 3.15,
+          "max_ms_upper": 19.55
+        },
+        "prefix_blocked": {
+          "count": 18946,
+          "mean_ms": 2.896363348464056e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 115929,
+          "mean_ms": 0.16326441331332106,
+          "p99_ms_upper": 0.7,
+          "max_ms_upper": 4.1
+        },
+        "reservation_prepare": {
+          "count": 115929,
+          "mean_ms": 0.04033824555546929,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 11.35
+        },
+        "sql_encoding": {
+          "count": 115929,
+          "mean_ms": 0.06815328827126949,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 15.192171,
+          "p99_ms_upper": 15.2,
+          "max_ms_upper": 15.2
+        }
+      }
+    },
+    {
+      "cell": "W5-hot1-A",
+      "rate": 3200,
+      "id": "0764-diagnostic-W5-hot1-A-qualifying-3200-r9-3200-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 6.242154104,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 16.504779077148438,
+          "p99": 27,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.5334,
+          "p99": 13,
+          "peak": 24
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.209,
+          "p99": 11,
+          "peak": 24
+        },
+        "allocated_minus_w": {
+          "mean": 18.73385,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 18.73385,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 18.92165,
+          "p99": 30,
+          "peak": 33
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 300,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 326,
+          "mean_ms": 1.4982224601226994,
+          "p99_ms_upper": 2.25,
+          "max_ms_upper": 3.2
+        },
+        "completion_owner_wait": {
+          "count": 96001,
+          "mean_ms": 0.07903894860470204,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 12.95
+        },
+        "continuation": {
+          "count": 96001,
+          "mean_ms": 0.013699998947927627,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 96000,
+          "mean_ms": 0.020380518552083334,
+          "p99_ms_upper": 0.25,
+          "max_ms_upper": 27.75
+        },
+        "dispatch_lock": {
+          "count": 96000,
+          "mean_ms": 0.09325192479166666,
+          "p99_ms_upper": 1.2,
+          "max_ms_upper": 16.15
+        },
+        "finish": {
+          "count": 96001,
+          "mean_ms": 0.015790058978552308,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 1.6
+        },
+        "flight": {
+          "count": 96001,
+          "mean_ms": 5.245646513525901,
+          "p99_ms_upper": 9.25,
+          "max_ms_upper": 37.75
+        },
+        "handler_execute": {
+          "count": 96001,
+          "mean_ms": 0.06604027577837732,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 96000,
+          "mean_ms": 0.00997297009375,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 96628,
+          "mean_ms": 5.2352597518110695,
+          "p99_ms_upper": 9.3,
+          "max_ms_upper": 36.7
+        },
+        "pool_wait": {
+          "count": 96628,
+          "mean_ms": 0.0024062044334975372,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 23.75
+        },
+        "prefix_ack_wait": {
+          "count": 96001,
+          "mean_ms": 0.36307615189425113,
+          "p99_ms_upper": 2.1,
+          "max_ms_upper": 13.3
+        },
+        "prefix_blocked": {
+          "count": 12178,
+          "mean_ms": 2.1584989325012316e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 96001,
+          "mean_ms": 0.12923290702180187,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 2.45
+        },
+        "reservation_prepare": {
+          "count": 96001,
+          "mean_ms": 0.035962473651316135,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 1.7
+        },
+        "sql_encoding": {
+          "count": 96001,
+          "mean_ms": 0.05280052600493745,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 12.030736,
+          "p99_ms_upper": 12.05,
+          "max_ms_upper": 12.05
+        }
+      }
+    },
+    {
+      "cell": "W5-hot1-A",
+      "rate": 3805,
+      "id": "0765-diagnostic-W5-hot1-A-first-failing-3805-r9-3805-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": false,
+      "errors": 516,
+      "sent_mean_upper_ms": 8.72504485434748,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 19.473597412109374,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 3.51595,
+          "p99": 18,
+          "peak": 32
+        },
+        "confirmed_count_above_w": {
+          "mean": 2.5659,
+          "p99": 17,
+          "peak": 30
+        },
+        "allocated_minus_w": {
+          "mean": 23.70041055908203,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 23.70041055908203,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 23.913023706054688,
+          "p99": 33,
+          "peak": 33
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 360,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 382,
+          "mean_ms": 1.5743730418848167,
+          "p99_ms_upper": 2.8,
+          "max_ms_upper": 3.6
+        },
+        "completion_owner_wait": {
+          "count": 112881,
+          "mean_ms": 0.10335671259999468,
+          "p99_ms_upper": 0.55,
+          "max_ms_upper": 10.5
+        },
+        "conflict": {
+          "count": 103,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 113635,
+          "mean_ms": 0.01800203450521406,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 113634,
+          "mean_ms": 0.2524305045496946,
+          "p99_ms_upper": 2.65,
+          "max_ms_upper": 37.0
+        },
+        "dispatch_lock": {
+          "count": 113634,
+          "mean_ms": 1.0675223967562526,
+          "p99_ms_upper": 21.55,
+          "max_ms_upper": 39.45
+        },
+        "finish": {
+          "count": 112881,
+          "mean_ms": 0.020616715408261797,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 2.05
+        },
+        "flight": {
+          "count": 112881,
+          "mean_ms": 5.460563225759872,
+          "p99_ms_upper": 9.05,
+          "max_ms_upper": 31.0
+        },
+        "handler_execute": {
+          "count": 112881,
+          "mean_ms": 0.08123473746688992,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 113634,
+          "mean_ms": 0.012903412121372125,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 117,
+          "mean_ms": 0.0012193846153846155,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 113727,
+          "mean_ms": 5.4372008614489085,
+          "p99_ms_upper": 9.05,
+          "max_ms_upper": 28.45
+        },
+        "mailbox_wait": {
+          "count": 117,
+          "mean_ms": 3.434468658119658,
+          "p99_ms_upper": 25.8,
+          "max_ms_upper": 35.4
+        },
+        "ordered": {
+          "count": 117,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 117,
+          "mean_ms": 5.85901405982906,
+          "p99_ms_upper": 11.0,
+          "max_ms_upper": 11.05
+        },
+        "ordered_final": {
+          "count": 726,
+          "mean_ms": 5.073664920110193,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 754,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 726,
+          "mean_ms": 3.56620100137741,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 117,
+          "mean_ms": 4.774337572649573,
+          "p99_ms_upper": 7.9,
+          "max_ms_upper": 8.45
+        },
+        "ordered_refresh": {
+          "count": 103,
+          "mean_ms": 1.1567368640776698,
+          "p99_ms_upper": 2.2,
+          "max_ms_upper": 2.6
+        },
+        "ordered_selective": {
+          "count": 117,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 113727,
+          "mean_ms": 0.005782671432465466,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 6.95
+        },
+        "prefix_ack_wait": {
+          "count": 112881,
+          "mean_ms": 0.6132198275617686,
+          "p99_ms_upper": 3.2,
+          "max_ms_upper": 13.1
+        },
+        "prefix_blocked": {
+          "count": 16893,
+          "mean_ms": 2.788663943645297e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 112881,
+          "mean_ms": 0.1607141604432987,
+          "p99_ms_upper": 0.7,
+          "max_ms_upper": 2.55
+        },
+        "reservation_prepare": {
+          "count": 112881,
+          "mean_ms": 0.04079213131527892,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 11.9
+        },
+        "route_pending": {
+          "count": 768,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 112881,
+          "mean_ms": 0.06542013194425988,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 11.660139,
+          "p99_ms_upper": 11.7,
+          "max_ms_upper": 11.7
+        }
+      }
+    },
+    {
+      "cell": "W5-hot1-B",
+      "rate": 3200,
+      "id": "0766-diagnostic-W5-hot1-B-qualifying-3200-r9-3200-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 6.8754342,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 18.381214501953124,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.6708862548828125,
+          "p99": 13,
+          "peak": 29
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.2931431274414062,
+          "p99": 11,
+          "peak": 28
+        },
+        "allocated_minus_w": {
+          "mean": 20.691836254882812,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 20.691836254882812,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 20.89933625488281,
+          "p99": 31,
+          "peak": 33
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 301,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 329,
+          "mean_ms": 2.5194409270516718,
+          "p99_ms_upper": 3.45,
+          "max_ms_upper": 6.1
+        },
+        "completion_owner_wait": {
+          "count": 96001,
+          "mean_ms": 0.08302414293601108,
+          "p99_ms_upper": 0.4,
+          "max_ms_upper": 11.8
+        },
+        "continuation": {
+          "count": 96001,
+          "mean_ms": 0.014074327007010345,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 96000,
+          "mean_ms": 0.02329597978125,
+          "p99_ms_upper": 0.85,
+          "max_ms_upper": 17.7
+        },
+        "dispatch_lock": {
+          "count": 96000,
+          "mean_ms": 0.10171678117708334,
+          "p99_ms_upper": 1.2,
+          "max_ms_upper": 14.85
+        },
+        "finish": {
+          "count": 96001,
+          "mean_ms": 0.01615289084488703,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 2.15
+        },
+        "flight": {
+          "count": 96001,
+          "mean_ms": 5.8573759588441785,
+          "p99_ms_upper": 9.85,
+          "max_ms_upper": 45.15
+        },
+        "handler_execute": {
+          "count": 96001,
+          "mean_ms": 0.06555962200393746,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 96000,
+          "mean_ms": 0.01019493765625,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 96632,
+          "mean_ms": 5.846894432827635,
+          "p99_ms_upper": 9.9,
+          "max_ms_upper": 37.3
+        },
+        "pool_wait": {
+          "count": 96632,
+          "mean_ms": 0.0029869438488285454,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 16.55
+        },
+        "prefix_ack_wait": {
+          "count": 96001,
+          "mean_ms": 0.39431778365850356,
+          "p99_ms_upper": 2.7,
+          "max_ms_upper": 12.4
+        },
+        "prefix_blocked": {
+          "count": 13577,
+          "mean_ms": 2.355269941813361e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 96001,
+          "mean_ms": 0.13019172815908167,
+          "p99_ms_upper": 0.4,
+          "max_ms_upper": 3.6
+        },
+        "reservation_prepare": {
+          "count": 96001,
+          "mean_ms": 0.03557087270965928,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 13.9
+        },
+        "sql_encoding": {
+          "count": 96001,
+          "mean_ms": 0.05371568658659806,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 16.280529,
+          "p99_ms_upper": 16.3,
+          "max_ms_upper": 16.3
+        }
+      }
+    },
+    {
+      "cell": "W5-hot1-B",
+      "rate": 4525,
+      "id": "0767-diagnostic-W5-hot1-B-first-failing-4525-r9-4525-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": false,
+      "errors": 14751,
+      "sent_mean_upper_ms": 8.448643977095406,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 22.302501147460937,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 3.3612818359375,
+          "p99": 18,
+          "peak": 29
+        },
+        "confirmed_count_above_w": {
+          "mean": 2.4939216064453125,
+          "p99": 16,
+          "peak": 28
+        },
+        "allocated_minus_w": {
+          "mean": 26.598302294921876,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 26.598302294921876,
+          "p99": 32,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 26.872192065429687,
+          "p99": 33,
+          "peak": 33
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 317,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 347,
+          "mean_ms": 2.7006902824207493,
+          "p99_ms_upper": 3.85,
+          "max_ms_upper": 4.35
+        },
+        "completion_owner_wait": {
+          "count": 115245,
+          "mean_ms": 0.10193774412772788,
+          "p99_ms_upper": 0.5,
+          "max_ms_upper": 1.75
+        },
+        "conflict": {
+          "count": 15,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 115327,
+          "mean_ms": 0.01909940656567846,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 115326,
+          "mean_ms": 0.36142738922706064,
+          "p99_ms_upper": 2.85,
+          "max_ms_upper": 47.8
+        },
+        "dispatch_lock": {
+          "count": 115326,
+          "mean_ms": 0.6920739444877998,
+          "p99_ms_upper": 3.3,
+          "max_ms_upper": 46.15
+        },
+        "finish": {
+          "count": 115245,
+          "mean_ms": 0.021665723476072714,
+          "p99_ms_upper": 0.25,
+          "max_ms_upper": 0.95
+        },
+        "flight": {
+          "count": 115245,
+          "mean_ms": 6.085360143121177,
+          "p99_ms_upper": 9.2,
+          "max_ms_upper": 38.3
+        },
+        "handler_execute": {
+          "count": 115245,
+          "mean_ms": 0.0805949500802638,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 115326,
+          "mean_ms": 0.013000377000849765,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 15,
+          "mean_ms": 0.0010979333333333333,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 115925,
+          "mean_ms": 6.0640216535346125,
+          "p99_ms_upper": 9.25,
+          "max_ms_upper": 31.2
+        },
+        "mailbox_wait": {
+          "count": 15,
+          "mean_ms": 1.2817080666666667,
+          "p99_ms_upper": 3.8,
+          "max_ms_upper": 3.8
+        },
+        "ordered": {
+          "count": 15,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 15,
+          "mean_ms": 8.139741466666667,
+          "p99_ms_upper": 9.9,
+          "max_ms_upper": 9.9
+        },
+        "ordered_final": {
+          "count": 76,
+          "mean_ms": 6.965512736842105,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 82,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 76,
+          "mean_ms": 5.251810013157895,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 15,
+          "mean_ms": 5.643556,
+          "p99_ms_upper": 7.45,
+          "max_ms_upper": 7.45
+        },
+        "ordered_refresh": {
+          "count": 15,
+          "mean_ms": 1.5410480666666666,
+          "p99_ms_upper": 2.1,
+          "max_ms_upper": 2.1
+        },
+        "ordered_selective": {
+          "count": 15,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 115925,
+          "mean_ms": 0.01124888480483071,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 9.2
+        },
+        "prefix_ack_wait": {
+          "count": 115245,
+          "mean_ms": 0.6002143946895744,
+          "p99_ms_upper": 3.15,
+          "max_ms_upper": 8.0
+        },
+        "prefix_blocked": {
+          "count": 18806,
+          "mean_ms": 2.889003509518239e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 115245,
+          "mean_ms": 0.1637520266215454,
+          "p99_ms_upper": 0.7,
+          "max_ms_upper": 4.1
+        },
+        "reservation_prepare": {
+          "count": 115245,
+          "mean_ms": 0.040134019922773226,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 0.7
+        },
+        "route_pending": {
+          "count": 82,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 115245,
+          "mean_ms": 0.06853284958132673,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 16.278859,
+          "p99_ms_upper": 16.3,
+          "max_ms_upper": 16.3
+        }
+      }
+    },
+    {
+      "cell": "W5-same-A",
+      "rate": 1600,
+      "id": "0768-diagnostic-W5-same-A-qualifying-1600-r9-1600-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 10.734681368,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 0,
+      "complete": false,
+      "occupancy": null,
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 3,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 4,
+          "mean_ms": 1.32844875,
+          "p99_ms_upper": 1.45,
+          "max_ms_upper": 1.45
+        },
+        "completion_owner_wait": {
+          "count": 3,
+          "mean_ms": 0.01733933333333333,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "conflict": {
+          "count": 2,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 47991,
+          "mean_ms": 0.011460305223896147,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 35,
+          "mean_ms": 1.3818284857142857,
+          "p99_ms_upper": 23.75,
+          "max_ms_upper": 23.75
+        },
+        "dispatch_lock": {
+          "count": 35,
+          "mean_ms": 37.789995742857144,
+          "p99_ms_upper": 52.6,
+          "max_ms_upper": 52.6
+        },
+        "finish": {
+          "count": 3,
+          "mean_ms": 0.02093633333333333,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "flight": {
+          "count": 3,
+          "mean_ms": 6.019104333333333,
+          "p99_ms_upper": 10.9,
+          "max_ms_upper": 10.9
+        },
+        "handler_execute": {
+          "count": 3,
+          "mean_ms": 0.15342833333333333,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 48000,
+          "mean_ms": 0.006585868958333334,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 2,
+          "mean_ms": 0.001708,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 12,
+          "mean_ms": 4.11894375,
+          "p99_ms_upper": 13.8,
+          "max_ms_upper": 13.8
+        },
+        "mailbox_wait": {
+          "count": 47968,
+          "mean_ms": 2.2784034175283523,
+          "p99_ms_upper": 6.15,
+          "max_ms_upper": 53.55
+        },
+        "ordered": {
+          "count": 7263,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 7263,
+          "mean_ms": 0.003429317086603332,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 17.6
+        },
+        "ordered_final": {
+          "count": 47987,
+          "mean_ms": 4.615288048909079,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 47998,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 47997,
+          "mean_ms": 3.2078547460257933,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 7263,
+          "mean_ms": 0.0021253578411124883,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 12.25
+        },
+        "ordered_refresh": {
+          "count": 1,
+          "mean_ms": 0.952611,
+          "p99_ms_upper": 1.0,
+          "max_ms_upper": 1.0
+        },
+        "ordered_selective": {
+          "count": 7263,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 12,
+          "mean_ms": 0.0038915,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "prefix_ack_wait": {
+          "count": 3,
+          "mean_ms": 0.13225566666666666,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 0.2
+        },
+        "prepare_encode": {
+          "count": 3,
+          "mean_ms": 0.6971746666666666,
+          "p99_ms_upper": 1.65,
+          "max_ms_upper": 1.65
+        },
+        "reservation_prepare": {
+          "count": 3,
+          "mean_ms": 0.07648366666666667,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 0.15
+        },
+        "route_hot": {
+          "count": 1,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "route_pending": {
+          "count": 32,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 3,
+          "mean_ms": 0.093553,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 11.421783,
+          "p99_ms_upper": 11.45,
+          "max_ms_upper": 11.45
+        }
+      }
+    },
+    {
+      "cell": "W5-same-A",
+      "rate": 2262,
+      "id": "0769-diagnostic-W5-same-A-first-failing-2262-r9-2262-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 11.668255096198054,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 0,
+      "complete": false,
+      "occupancy": null,
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 3,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 4,
+          "mean_ms": 1.3948285,
+          "p99_ms_upper": 1.5,
+          "max_ms_upper": 1.5
+        },
+        "completion_owner_wait": {
+          "count": 3,
+          "mean_ms": 0.013552,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "conflict": {
+          "count": 2,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 67846,
+          "mean_ms": 0.01024724692686378,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 35,
+          "mean_ms": 1.7388408,
+          "p99_ms_upper": 30.0,
+          "max_ms_upper": 30.0
+        },
+        "dispatch_lock": {
+          "count": 35,
+          "mean_ms": 40.677013714285714,
+          "p99_ms_upper": 54.35,
+          "max_ms_upper": 54.35
+        },
+        "finish": {
+          "count": 3,
+          "mean_ms": 0.021156333333333333,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "flight": {
+          "count": 3,
+          "mean_ms": 6.091023,
+          "p99_ms_upper": 11.2,
+          "max_ms_upper": 11.2
+        },
+        "handler_execute": {
+          "count": 3,
+          "mean_ms": 0.12872866666666666,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 67860,
+          "mean_ms": 0.005551854936634247,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 2,
+          "mean_ms": 0.0011375,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 12,
+          "mean_ms": 4.135012166666667,
+          "p99_ms_upper": 13.7,
+          "max_ms_upper": 13.7
+        },
+        "mailbox_wait": {
+          "count": 67828,
+          "mean_ms": 2.8419839282744586,
+          "p99_ms_upper": 6.9,
+          "max_ms_upper": 55.15
+        },
+        "ordered": {
+          "count": 6976,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 6976,
+          "mean_ms": 0.0019169803612385321,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 6.35
+        },
+        "ordered_final": {
+          "count": 67842,
+          "mean_ms": 4.6168104489254445,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 67858,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 67857,
+          "mean_ms": 3.4097955453085165,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 6976,
+          "mean_ms": 0.004082791857798165,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 25.15
+        },
+        "ordered_refresh": {
+          "count": 1,
+          "mean_ms": 1.008397,
+          "p99_ms_upper": 1.05,
+          "max_ms_upper": 1.05
+        },
+        "ordered_selective": {
+          "count": 6976,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 12,
+          "mean_ms": 0.0039359166666666666,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "prefix_ack_wait": {
+          "count": 3,
+          "mean_ms": 4.190478333333333,
+          "p99_ms_upper": 12.4,
+          "max_ms_upper": 12.4
+        },
+        "prepare_encode": {
+          "count": 3,
+          "mean_ms": 0.713756,
+          "p99_ms_upper": 1.7,
+          "max_ms_upper": 1.7
+        },
+        "reservation_prepare": {
+          "count": 3,
+          "mean_ms": 0.051631,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 0.1
+        },
+        "route_hot": {
+          "count": 1,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "route_pending": {
+          "count": 32,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 3,
+          "mean_ms": 0.08516666666666667,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 11.053109,
+          "p99_ms_upper": 11.1,
+          "max_ms_upper": 11.1
+        }
+      }
+    },
+    {
+      "cell": "W5-same-B",
+      "rate": 1131,
+      "id": "0770-diagnostic-W5-same-B-qualifying-1131-r9-1131-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 12.711129924137932,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 0,
+      "complete": false,
+      "occupancy": null,
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 3,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 4,
+          "mean_ms": 2.26629275,
+          "p99_ms_upper": 2.35,
+          "max_ms_upper": 2.35
+        },
+        "completion_owner_wait": {
+          "count": 3,
+          "mean_ms": 0.014504,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "conflict": {
+          "count": 2,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 33922,
+          "mean_ms": 0.013234261393785744,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 35,
+          "mean_ms": 0.14003157142857142,
+          "p99_ms_upper": 2.0,
+          "max_ms_upper": 2.0
+        },
+        "dispatch_lock": {
+          "count": 35,
+          "mean_ms": 31.26835734285714,
+          "p99_ms_upper": 48.15,
+          "max_ms_upper": 48.15
+        },
+        "finish": {
+          "count": 3,
+          "mean_ms": 0.021934333333333333,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "flight": {
+          "count": 3,
+          "mean_ms": 3.9787666666666666,
+          "p99_ms_upper": 4.05,
+          "max_ms_upper": 4.05
+        },
+        "handler_execute": {
+          "count": 3,
+          "mean_ms": 0.15680166666666664,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 33930,
+          "mean_ms": 0.007818042941349837,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 2,
+          "mean_ms": 0.002064,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 12,
+          "mean_ms": 3.4225178333333335,
+          "p99_ms_upper": 6.95,
+          "max_ms_upper": 6.95
+        },
+        "mailbox_wait": {
+          "count": 33898,
+          "mean_ms": 2.6155548801699218,
+          "p99_ms_upper": 7.15,
+          "max_ms_upper": 48.9
+        },
+        "ordered": {
+          "count": 6192,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 6192,
+          "mean_ms": 0.0028459360465116277,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 9.9
+        },
+        "ordered_final": {
+          "count": 33918,
+          "mean_ms": 4.920406534435993,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 33928,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 33927,
+          "mean_ms": 4.194746273852684,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 6192,
+          "mean_ms": 0.0015608325258397934,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 6.0
+        },
+        "ordered_refresh": {
+          "count": 1,
+          "mean_ms": 1.418858,
+          "p99_ms_upper": 1.45,
+          "max_ms_upper": 1.45
+        },
+        "ordered_selective": {
+          "count": 6192,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 12,
+          "mean_ms": 0.0028555,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "prefix_ack_wait": {
+          "count": 3,
+          "mean_ms": 0.11219433333333333,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 0.15
+        },
+        "prepare_encode": {
+          "count": 3,
+          "mean_ms": 1.0230743333333334,
+          "p99_ms_upper": 2.5,
+          "max_ms_upper": 2.5
+        },
+        "reservation_prepare": {
+          "count": 3,
+          "mean_ms": 0.06419366666666666,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 0.1
+        },
+        "route_hot": {
+          "count": 1,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "route_pending": {
+          "count": 32,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 3,
+          "mean_ms": 0.09143566666666667,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 16.797513,
+          "p99_ms_upper": 16.8,
+          "max_ms_upper": 16.8
+        }
+      }
+    },
+    {
+      "cell": "W5-same-B",
+      "rate": 1600,
+      "id": "0771-diagnostic-W5-same-B-first-failing-1600-r9-1600-rep1",
+      "purpose": "Separate native qualifying/first-failing companion; not capacity evidence.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 13.672910872,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 0,
+      "complete": false,
+      "occupancy": null,
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 3,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 4,
+          "mean_ms": 2.3412735,
+          "p99_ms_upper": 2.55,
+          "max_ms_upper": 2.55
+        },
+        "completion_owner_wait": {
+          "count": 3,
+          "mean_ms": 0.013127666666666666,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "conflict": {
+          "count": 2,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "continuation": {
+          "count": 47989,
+          "mean_ms": 0.01253490524911959,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 35,
+          "mean_ms": 2.2573392285714284,
+          "p99_ms_upper": 38.8,
+          "max_ms_upper": 38.8
+        },
+        "dispatch_lock": {
+          "count": 35,
+          "mean_ms": 52.66408334285715,
+          "p99_ms_upper": 71.95,
+          "max_ms_upper": 71.95
+        },
+        "finish": {
+          "count": 3,
+          "mean_ms": 0.02304,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "flight": {
+          "count": 3,
+          "mean_ms": 6.699557666666667,
+          "p99_ms_upper": 11.8,
+          "max_ms_upper": 11.8
+        },
+        "handler_execute": {
+          "count": 3,
+          "mean_ms": 0.14184,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 48000,
+          "mean_ms": 0.0070098420625,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent_auth": {
+          "count": 2,
+          "mean_ms": 0.0016025,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "loan_custody": {
+          "count": 12,
+          "mean_ms": 5.0258975,
+          "p99_ms_upper": 14.75,
+          "max_ms_upper": 14.75
+        },
+        "mailbox_wait": {
+          "count": 47968,
+          "mean_ms": 2.993467161857905,
+          "p99_ms_upper": 7.65,
+          "max_ms_upper": 70.9
+        },
+        "ordered": {
+          "count": 5778,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_catchup": {
+          "count": 5778,
+          "mean_ms": 0.004707304430598823,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 18.5
+        },
+        "ordered_final": {
+          "count": 47985,
+          "mean_ms": 4.962931409336251,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_members": {
+          "count": 47998,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_preparation": {
+          "count": 48003,
+          "mean_ms": 4.513093224215154,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "ordered_r_drain": {
+          "count": 5778,
+          "mean_ms": 0.003129110072689512,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 14.05
+        },
+        "ordered_refresh": {
+          "count": 1,
+          "mean_ms": 1.494381,
+          "p99_ms_upper": 1.5,
+          "max_ms_upper": 1.5
+        },
+        "ordered_selective": {
+          "count": 5778,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "pool_wait": {
+          "count": 12,
+          "mean_ms": 0.0026714166666666666,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 0.05
+        },
+        "prefix_ack_wait": {
+          "count": 3,
+          "mean_ms": 0.10353466666666668,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 0.15
+        },
+        "prepare_encode": {
+          "count": 3,
+          "mean_ms": 1.009776,
+          "p99_ms_upper": 2.55,
+          "max_ms_upper": 2.55
+        },
+        "reservation_prepare": {
+          "count": 3,
+          "mean_ms": 0.09630133333333332,
+          "p99_ms_upper": 0.2,
+          "max_ms_upper": 0.2
+        },
+        "route_hot": {
+          "count": 1,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "route_pending": {
+          "count": 32,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "sql_encoding": {
+          "count": 3,
+          "mean_ms": 0.08191433333333333,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 16.410645,
+          "p99_ms_upper": 16.45,
+          "max_ms_upper": 16.45
+        }
+      }
+    },
+    {
+      "cell": "W4-disjoint-B",
+      "rate": 3200,
+      "id": "0772-diagnostic-inconclusive-W4-disjoint-B-3200-r9-3200-rep1",
+      "purpose": "Informational native reference/challenge for an inconclusive cell; not a qualifying or first-failing ceiling and not a replacement native repetition.",
+      "eligible": true,
+      "companion_pass": true,
+      "errors": 0,
+      "sent_mean_upper_ms": 6.919317528,
+      "available_data_width": 29,
+      "product_cap": 32,
+      "measured_series_coverage_ms": 20000.0,
+      "complete": true,
+      "occupancy": {
+        "loans": {
+          "mean": 18.694202502441406,
+          "p99": 28,
+          "peak": 29
+        },
+        "resolved_revision_minus_w": {
+          "mean": 1.59245,
+          "p99": 13,
+          "peak": 26
+        },
+        "confirmed_count_above_w": {
+          "mean": 1.2347,
+          "p99": 12,
+          "peak": 26
+        },
+        "allocated_minus_w": {
+          "mean": 20.931352502441406,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_results": {
+          "mean": 20.931352502441406,
+          "p99": 30,
+          "peak": 32
+        },
+        "retained_footprint_keys": {
+          "mean": 20.931352502441406,
+          "p99": 30,
+          "peak": 32
+        }
+      },
+      "partial_occupancy": null,
+      "phases": {
+        "barrier_noop": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "bound_parse": {
+          "count": 0,
+          "mean_ms": null,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "catchup": {
+          "count": 301,
+          "mean_ms": 0.0,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "clock_sample": {
+          "count": 323,
+          "mean_ms": 2.52345766873065,
+          "p99_ms_upper": 3.65,
+          "max_ms_upper": 4.25
+        },
+        "completion_owner_wait": {
+          "count": 96001,
+          "mean_ms": 0.0747198866470141,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 4.05
+        },
+        "continuation": {
+          "count": 96001,
+          "mean_ms": 0.014457800481244986,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "dispatch_capacity_wait": {
+          "count": 96000,
+          "mean_ms": 0.015800649312499998,
+          "p99_ms_upper": 0.45,
+          "max_ms_upper": 18.5
+        },
+        "dispatch_lock": {
+          "count": 96000,
+          "mean_ms": 0.08586629402083333,
+          "p99_ms_upper": 1.0,
+          "max_ms_upper": 14.3
+        },
+        "finish": {
+          "count": 96001,
+          "mean_ms": 0.016552969625316404,
+          "p99_ms_upper": 0.15,
+          "max_ms_upper": 2.7
+        },
+        "flight": {
+          "count": 96001,
+          "mean_ms": 5.847352084353288,
+          "p99_ms_upper": 9.35,
+          "max_ms_upper": 28.3
+        },
+        "handler_execute": {
+          "count": 96001,
+          "mean_ms": 0.06497686405349944,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "intent": {
+          "count": 96000,
+          "mean_ms": 0.010139543677083333,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "loan_custody": {
+          "count": 96626,
+          "mean_ms": 5.837578192080806,
+          "p99_ms_upper": 9.4,
+          "max_ms_upper": 28.3
+        },
+        "pool_wait": {
+          "count": 96626,
+          "mean_ms": 0.0023467430815722477,
+          "p99_ms_upper": 0.05,
+          "max_ms_upper": 3.65
+        },
+        "prefix_ack_wait": {
+          "count": 96001,
+          "mean_ms": 0.3527190854053604,
+          "p99_ms_upper": 2.55,
+          "max_ms_upper": 6.55
+        },
+        "prefix_blocked": {
+          "count": 13765,
+          "mean_ms": 2.35397021431166e-05,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "prepare_encode": {
+          "count": 96001,
+          "mean_ms": 0.12852651410922802,
+          "p99_ms_upper": 0.35,
+          "max_ms_upper": 4.4
+        },
+        "reservation_prepare": {
+          "count": 96001,
+          "mean_ms": 0.03565414243601629,
+          "p99_ms_upper": 0.1,
+          "max_ms_upper": 9.75
+        },
+        "sql_encoding": {
+          "count": 96001,
+          "mean_ms": 0.05285449024489328,
+          "p99_ms_upper": null,
+          "max_ms_upper": null
+        },
+        "warm_miss": {
+          "count": 1,
+          "mean_ms": 15.086354,
+          "p99_ms_upper": 15.1,
+          "max_ms_upper": 15.1
+        }
+      }
+    }
+  ]
+}

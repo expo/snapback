@@ -1,0 +1,370 @@
+{
+  "tested": true,
+  "logical_cpu": 0,
+  "cpu_max": "100000 100000",
+  "repetitions": 5,
+  "rows": [
+    {
+      "cell": "W4-disjoint-A",
+      "role": "convex",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1055.916031,
+        1055.391743,
+        1055.916031,
+        1054.867455,
+        1055.391743
+      ],
+      "throttled_periods": 39,
+      "throttled_ms": 14.376,
+      "cpu_pressure_some_ms": 319585.942,
+      "median_pg_cpu_usage_ms": 65095.006,
+      "median_observation_window_s": 198.9494035243988
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "main",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1014.497279,
+        1015.021567,
+        1016.070143,
+        1015.021567,
+        1015.021567
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 20728.761,
+      "median_pg_cpu_usage_ms": 14868.634,
+      "median_observation_window_s": 50.180256366729736
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "main",
+      "rate": 3805,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1015.021567,
+        1017.118719,
+        1016.070143,
+        1015.021567,
+        1014.497279
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 20879.105,
+      "median_pg_cpu_usage_ms": 14845.315,
+      "median_observation_window_s": 50.10903787612915
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "r9",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1014.497279,
+        1013.972991,
+        1015.545855,
+        1013.972991,
+        1013.972991
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 85560.872,
+      "median_pg_cpu_usage_ms": 20430.564,
+      "median_observation_window_s": 54.51099371910095
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "r9",
+      "rate": 3805,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1015.021567,
+        1014.497279,
+        1014.497279,
+        1015.021567,
+        1014.497279
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 86020.838,
+      "median_pg_cpu_usage_ms": 20394.994,
+      "median_observation_window_s": 47.435587644577026
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "supabase",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1020.788735,
+        1021.313023,
+        1020.788735,
+        1020.264447,
+        1020.788735
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 101710.219,
+      "median_pg_cpu_usage_ms": 21928.079,
+      "median_observation_window_s": 41.79566788673401
+    },
+    {
+      "cell": "W4-disjoint-A",
+      "role": "supabase",
+      "rate": 3805,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1021.313023,
+        1020.788735,
+        1020.788735,
+        1020.788735,
+        1020.788735
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 101558.21800000001,
+      "median_pg_cpu_usage_ms": 21901.384,
+      "median_observation_window_s": 42.784276247024536
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "convex",
+      "rate": 565,
+      "repetitions": 5,
+      "passes": 3,
+      "ineligible": 0,
+      "p99_ms": [
+        32.030719,
+        30.326783,
+        1075.838975,
+        31.211519,
+        1083.179007
+      ],
+      "throttled_periods": 54,
+      "throttled_ms": 20.994,
+      "cpu_pressure_some_ms": 513655.284,
+      "median_pg_cpu_usage_ms": 121062.34,
+      "median_observation_window_s": 246.0040590763092
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "convex",
+      "rate": 800,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1053.818879,
+        1054.343167,
+        1053.294591,
+        1054.343167,
+        1053.818879
+      ],
+      "throttled_periods": 120,
+      "throttled_ms": 48.544,
+      "cpu_pressure_some_ms": 749568.328,
+      "median_pg_cpu_usage_ms": 144892.739,
+      "median_observation_window_s": 242.02031803131104
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "main",
+      "rate": 2690,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1017.643007,
+        1018.167295,
+        1017.643007,
+        1017.643007,
+        1018.167295
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 26269.581,
+      "median_pg_cpu_usage_ms": 13637.581,
+      "median_observation_window_s": 42.9897358417511
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "main",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1018.691583,
+        1017.643007,
+        1017.118719,
+        1019.215871,
+        1017.643007
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 25909.506999999998,
+      "median_pg_cpu_usage_ms": 13739.025,
+      "median_observation_window_s": 53.15209221839905
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "main",
+      "rate": 4525,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1018.167295,
+        1018.691583,
+        1017.643007,
+        1017.643007,
+        1017.118719
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 26406.84,
+      "median_pg_cpu_usage_ms": 13649.661,
+      "median_observation_window_s": 53.17152285575867
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "r9",
+      "rate": 2690,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1016.070143,
+        643.301375,
+        1009.254399,
+        1006.632959,
+        1007.157247
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 67653.04000000001,
+      "median_pg_cpu_usage_ms": 18878.999,
+      "median_observation_window_s": 44.50424814224243
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "r9",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1013.972991,
+        1015.021567,
+        1015.545855,
+        1015.545855,
+        1015.021567
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 81174.215,
+      "median_pg_cpu_usage_ms": 19603.626,
+      "median_observation_window_s": 47.53705358505249
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "r9",
+      "rate": 4525,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1017.643007,
+        1018.691583,
+        1016.594431,
+        1016.594431,
+        1016.594431
+      ],
+      "throttled_periods": 1,
+      "throttled_ms": 0.246,
+      "cpu_pressure_some_ms": 80915.156,
+      "median_pg_cpu_usage_ms": 19491.459,
+      "median_observation_window_s": 48.409032344818115
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "supabase",
+      "rate": 2690,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1021.313023,
+        1021.313023,
+        1021.313023,
+        1021.837311,
+        1021.313023
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 94698.54699999999,
+      "median_pg_cpu_usage_ms": 20940.359,
+      "median_observation_window_s": 41.766067028045654
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "supabase",
+      "rate": 3200,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1020.788735,
+        1021.313023,
+        1021.837311,
+        1021.837311,
+        1020.788735
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 94700.461,
+      "median_pg_cpu_usage_ms": 20918.991,
+      "median_observation_window_s": 41.75674653053284
+    },
+    {
+      "cell": "W5-hot1-B",
+      "role": "supabase",
+      "rate": 4525,
+      "repetitions": 5,
+      "passes": 0,
+      "ineligible": 0,
+      "p99_ms": [
+        1021.313023,
+        1020.788735,
+        1021.313023,
+        1020.788735,
+        1021.313023
+      ],
+      "throttled_periods": 0,
+      "throttled_ms": 0.0,
+      "cpu_pressure_some_ms": 94510.331,
+      "median_pg_cpu_usage_ms": 20925.215,
+      "median_observation_window_s": 41.76706099510193
+    }
+  ],
+  "summary": "5 repetitions per point of information at the dedicated-grant W4/A and hot1/B deciding rates. Each system\u2019s private PG family, background workers included, is pinned to logical CPU **0** with aggregate **cpu.max = 100000 100000** (1 CPU-s/s). App/proxy/generator placement and memory/storage/durability stay fixed. The rate set includes SPR9 and Supabase qualified/failing bounds. Hot1/B Convex uses its own qualified/failing bracket because it already fails far below those deciding rates; W4/A uses its direct comparison points and skips implausible higher rates.\n\n| Cell | System | Rate /s | Passes | p99 ms by repetition | Throttled periods | Throttled ms | CPU some-pressure ms |\n|---|---|---:|---:|---|---:|---:|---:|\n| W4-disjoint-A | convex | 3200 | 0/5 | 1055.916, 1055.392, 1055.916, 1054.867, 1055.392 | 39 | 14.376 | 319585.942 |\n| W4-disjoint-A | main | 3200 | 0/5 | 1014.497, 1015.022, 1016.070, 1015.022, 1015.022 | 0 | 0.000 | 20728.761 |\n| W4-disjoint-A | main | 3805 | 0/5 | 1015.022, 1017.119, 1016.070, 1015.022, 1014.497 | 0 | 0.000 | 20879.105 |\n| W4-disjoint-A | r9 | 3200 | 0/5 | 1014.497, 1013.973, 1015.546, 1013.973, 1013.973 | 0 | 0.000 | 85560.872 |\n| W4-disjoint-A | r9 | 3805 | 0/5 | 1015.022, 1014.497, 1014.497, 1015.022, 1014.497 | 0 | 0.000 | 86020.838 |\n| W4-disjoint-A | supabase | 3200 | 0/5 | 1020.789, 1021.313, 1020.789, 1020.264, 1020.789 | 0 | 0.000 | 101710.219 |\n| W4-disjoint-A | supabase | 3805 | 0/5 | 1021.313, 1020.789, 1020.789, 1020.789, 1020.789 | 0 | 0.000 | 101558.218 |\n| W5-hot1-B | convex | 565 | 3/5 | 32.031, 30.327, 1075.839, 31.212, 1083.179 | 54 | 20.994 | 513655.284 |\n| W5-hot1-B | convex | 800 | 0/5 | 1053.819, 1054.343, 1053.295, 1054.343, 1053.819 | 120 | 48.544 | 749568.328 |\n| W5-hot1-B | main | 2690 | 0/5 | 1017.643, 1018.167, 1017.643, 1017.643, 1018.167 | 0 | 0.000 | 26269.581 |\n| W5-hot1-B | main | 3200 | 0/5 | 1018.692, 1017.643, 1017.119, 1019.216, 1017.643 | 0 | 0.000 | 25909.507 |\n| W5-hot1-B | main | 4525 | 0/5 | 1018.167, 1018.692, 1017.643, 1017.643, 1017.119 | 0 | 0.000 | 26406.840 |\n| W5-hot1-B | r9 | 2690 | 0/5 | 1016.070, 643.301, 1009.254, 1006.633, 1007.157 | 0 | 0.000 | 67653.040 |\n| W5-hot1-B | r9 | 3200 | 0/5 | 1013.973, 1015.022, 1015.546, 1015.546, 1015.022 | 0 | 0.000 | 81174.215 |\n| W5-hot1-B | r9 | 4525 | 0/5 | 1017.643, 1018.692, 1016.594, 1016.594, 1016.594 | 1 | 0.246 | 80915.156 |\n| W5-hot1-B | supabase | 2690 | 0/5 | 1021.313, 1021.313, 1021.313, 1021.837, 1021.313 | 0 | 0.000 | 94698.547 |\n| W5-hot1-B | supabase | 3200 | 0/5 | 1020.789, 1021.313, 1021.837, 1021.837, 1020.789 | 0 | 0.000 | 94700.461 |\n| W5-hot1-B | supabase | 4525 | 0/5 | 1021.313, 1020.789, 1021.313, 1020.789, 1021.313 | 0 | 0.000 | 94510.331 |\n\nCPU statistics/pressure span the outer per-trial observation, including the final quiet gate and drain; they are evidence of the imposed constraint, not an exactly matching 20 s CPU-cost window. Zero throttling is reported as zero: affinity already limits execution to one logical CPU, so pressure can show contention without quota throttling. These two-cell observations do not qualify the RFC\u2019s six-write/six-read one-CPU gate, default-on or an \u201cevery scenario\u201d claim. A dedicated-grant rate that fails here is a limit on transferring that capacity claim to one CPU.",
+  "full_one_cpu_gate_qualified": false
+}

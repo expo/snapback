@@ -1,0 +1,8 @@
+{
+  "pid_start_identities_checked": 54186,
+  "live_or_zombie_owned": [],
+  "private_path_processes": [],
+  "pids_left": [],
+  "time": 1793303200.7084115,
+  "method": "Recorded PID/birth identities plus /proc private-path census; no name-based or unowned signals."
+}

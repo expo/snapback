@@ -1,0 +1,69 @@
+{
+  "groups": [
+    {
+      "scope_unit": "s1-r9-pg-main-3259803.scope",
+      "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/s1-r9-pg-main-3259803.scope",
+      "already_absent": true,
+      "stop": {
+        "status": 5,
+        "stdout": "",
+        "stderr": "Failed to stop s1-r9-pg-main-3259803.scope: Unit s1-r9-pg-main-3259803.scope not loaded."
+      },
+      "reset": {
+        "status": 1,
+        "stdout": "",
+        "stderr": "Failed to reset failed state of unit s1-r9-pg-main-3259803.scope: Unit s1-r9-pg-main-3259803.scope not loaded."
+      },
+      "removed": true
+    },
+    {
+      "scope_unit": "s1-r9-pg-supabase-3270696.scope",
+      "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/s1-r9-pg-supabase-3270696.scope",
+      "already_absent": true,
+      "stop": {
+        "status": 5,
+        "stdout": "",
+        "stderr": "Failed to stop s1-r9-pg-supabase-3270696.scope: Unit s1-r9-pg-supabase-3270696.scope not loaded."
+      },
+      "reset": {
+        "status": 1,
+        "stdout": "",
+        "stderr": "Failed to reset failed state of unit s1-r9-pg-supabase-3270696.scope: Unit s1-r9-pg-supabase-3270696.scope not loaded."
+      },
+      "removed": true
+    },
+    {
+      "scope_unit": "s1-r9-pg-convex-3271240.scope",
+      "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/s1-r9-pg-convex-3271240.scope",
+      "already_absent": true,
+      "stop": {
+        "status": 5,
+        "stdout": "",
+        "stderr": "Failed to stop s1-r9-pg-convex-3271240.scope: Unit s1-r9-pg-convex-3271240.scope not loaded."
+      },
+      "reset": {
+        "status": 1,
+        "stdout": "",
+        "stderr": "Failed to reset failed state of unit s1-r9-pg-convex-3271240.scope: Unit s1-r9-pg-convex-3271240.scope not loaded."
+      },
+      "removed": true
+    },
+    {
+      "scope_unit": "s1-r9-pg-r9-3259804.scope",
+      "cgroup": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/s1-r9-pg-r9-3259804.scope",
+      "already_absent": true,
+      "stop": {
+        "status": 5,
+        "stdout": "",
+        "stderr": "Failed to stop s1-r9-pg-r9-3259804.scope: Unit s1-r9-pg-r9-3259804.scope not loaded."
+      },
+      "reset": {
+        "status": 1,
+        "stdout": "",
+        "stderr": "Failed to reset failed state of unit s1-r9-pg-r9-3259804.scope: Unit s1-r9-pg-r9-3259804.scope not loaded."
+      },
+      "removed": true
+    }
+  ],
+  "time": 1793302330.8203924
+}

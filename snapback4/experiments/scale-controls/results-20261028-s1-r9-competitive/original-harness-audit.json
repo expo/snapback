@@ -1,0 +1,23 @@
+{
+  "cells": 881,
+  "trials": 881,
+  "scheduled_arrivals": 43690040,
+  "cells_with_passing_rate": 544,
+  "unknown_write_outcome_trials": 28,
+  "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets",
+  "scope": "Every raw attempt, including contaminated trials/retries; hard-linked normalized one-rate/one-repetition views. No observed result changed.",
+  "raw_trials": 883,
+  "terminal_failure_predicate_exceptions": [
+    {
+      "root": "competition",
+      "path": "r9/0564-W5-same-A-headlines-r9-2262-rep2/w5-n1000000-d500-c32-same/rate-2262-r0.json",
+      "reason": "Explicit settlement/service exit failure is audited by the independent SLO auditor; old S1 auditor lacks this predicate."
+    },
+    {
+      "root": "competition",
+      "path": "r9/0683-W5-same-B-headlines-r9-1600-rep2/w5-n1000000-d1000-c32-same/rate-1600-r0.json",
+      "reason": "Explicit settlement/service exit failure is audited by the independent SLO auditor; old S1 auditor lacks this predicate."
+    }
+  ],
+  "time": 1793302486.3921971
+}

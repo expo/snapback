@@ -1,0 +1,298 @@
+{
+  "raw_trials": 883,
+  "selected_trials": 879,
+  "measured_arrivals": 43767280,
+  "contaminated_attempts": 5,
+  "contaminated_selected": 1,
+  "counter_mismatches": [
+    {
+      "id": "0447-W5-same-A-supabase-frontier-200-convex-1131-rep1",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 1131,
+      "delta": 2492.0,
+      "ack": 2491,
+      "retained": true
+    },
+    {
+      "id": "0463-W5-same-A-supabase-frontier-200-convex-1131-rep5",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 1131,
+      "delta": 2507.0,
+      "ack": 2506,
+      "retained": true
+    },
+    {
+      "id": "0466-W5-same-A-supabase-frontier-400-supabase-400-rep1",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 400,
+      "delta": 8359,
+      "ack": 8353,
+      "retained": true
+    },
+    {
+      "id": "0471-W5-same-A-supabase-frontier-400-supabase-400-rep2",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 400,
+      "delta": 8329,
+      "ack": 8326,
+      "retained": true
+    },
+    {
+      "id": "0474-W5-same-A-supabase-frontier-400-supabase-400-rep3",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 400,
+      "delta": 8414,
+      "ack": 8409,
+      "retained": true
+    },
+    {
+      "id": "0476-W5-same-A-supabase-frontier-400-supabase-400-rep4",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 400,
+      "delta": 8198,
+      "ack": 8195,
+      "retained": true
+    },
+    {
+      "id": "0478-W5-same-A-supabase-frontier-400-supabase-400-rep5",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 400,
+      "delta": 8350,
+      "ack": 8347,
+      "retained": true
+    },
+    {
+      "id": "0483-W5-same-A-supabase-frontier-282-supabase-282-rep1",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 282,
+      "delta": 8266,
+      "ack": 8263,
+      "retained": true
+    },
+    {
+      "id": "0487-W5-same-A-supabase-frontier-282-supabase-282-rep3",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 282,
+      "delta": 8277,
+      "ack": 8276,
+      "retained": true
+    },
+    {
+      "id": "0495-W5-same-A-supabase-frontier-282-supabase-282-rep5",
+      "role": "supabase",
+      "cell": "W5-same-A",
+      "rate": 282,
+      "delta": 8313,
+      "ack": 8312,
+      "retained": true
+    },
+    {
+      "id": "0496-W5-same-A-convex-frontier-200-convex-200-rep1",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 200,
+      "delta": 2343.0,
+      "ack": 2340,
+      "retained": true
+    },
+    {
+      "id": "0503-W5-same-A-convex-frontier-200-convex-200-rep2",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 200,
+      "delta": 2330.0,
+      "ack": 2328,
+      "retained": true
+    },
+    {
+      "id": "0509-W5-same-A-convex-frontier-200-convex-200-rep4",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 200,
+      "delta": 2343.0,
+      "ack": 2342,
+      "retained": true
+    },
+    {
+      "id": "0518-W5-same-A-convex-frontier-70-convex-70-rep1",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 70,
+      "delta": 1737.0,
+      "ack": 1736,
+      "retained": true
+    },
+    {
+      "id": "0521-W5-same-A-convex-frontier-70-convex-70-rep2",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 70,
+      "delta": 1710.0,
+      "ack": 1708,
+      "retained": true
+    },
+    {
+      "id": "0531-W5-same-A-convex-frontier-70-convex-70-rep4",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 70,
+      "delta": 1786.0,
+      "ack": 1785,
+      "retained": true
+    },
+    {
+      "id": "0539-W5-same-A-convex-frontier-50-convex-50-rep1",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 50,
+      "delta": 1488.0,
+      "ack": 1487,
+      "retained": true
+    },
+    {
+      "id": "0555-W5-same-A-convex-frontier-50-convex-50-rep5",
+      "role": "convex",
+      "cell": "W5-same-A",
+      "rate": 50,
+      "delta": 1484.0,
+      "ack": 1483,
+      "retained": true
+    },
+    {
+      "id": "0648-W5-same-B-supabase-frontier-400-supabase-400-rep1",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 400,
+      "delta": 7249,
+      "ack": 7243,
+      "retained": true
+    },
+    {
+      "id": "0650-W5-same-B-supabase-frontier-400-supabase-400-rep2",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 400,
+      "delta": 7423,
+      "ack": 7421,
+      "retained": true
+    },
+    {
+      "id": "0652-W5-same-B-supabase-frontier-400-supabase-400-rep3",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 400,
+      "delta": 7268,
+      "ack": 7263,
+      "retained": true
+    },
+    {
+      "id": "0657-W5-same-B-supabase-frontier-400-supabase-400-rep4",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 400,
+      "delta": 7204,
+      "ack": 7195,
+      "retained": true
+    },
+    {
+      "id": "0660-W5-same-B-supabase-frontier-400-supabase-400-rep5",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 400,
+      "delta": 7341,
+      "ack": 7329,
+      "retained": true
+    },
+    {
+      "id": "0663-W5-same-B-supabase-frontier-282-supabase-282-rep1",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 282,
+      "delta": 7355,
+      "ack": 7349,
+      "retained": true
+    },
+    {
+      "id": "0666-W5-same-B-supabase-frontier-282-supabase-282-rep2",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 282,
+      "delta": 7343,
+      "ack": 7342,
+      "retained": true
+    },
+    {
+      "id": "0668-W5-same-B-supabase-frontier-282-supabase-282-rep3",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 282,
+      "delta": 7231,
+      "ack": 7222,
+      "retained": true
+    },
+    {
+      "id": "0670-W5-same-B-supabase-frontier-282-supabase-282-rep4",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 282,
+      "delta": 7302,
+      "ack": 7297,
+      "retained": true
+    },
+    {
+      "id": "0675-W5-same-B-supabase-frontier-282-supabase-282-rep5",
+      "role": "supabase",
+      "cell": "W5-same-B",
+      "rate": 282,
+      "delta": 7227,
+      "ack": 7221,
+      "retained": true
+    }
+  ],
+  "all_plan_repetitions_and_declaration_times_checked": true,
+  "arrival_histogram_original_and_counter_arithmetic_recomputed": true,
+  "census_arithmetic_and_quiet_tails_verified": true,
+  "same_binary_flag_off_main_and_g6_verified": true,
+  "all_round9_selected_flags_and_base_r_flags_verified": true,
+  "collectors_off_in_native_slo_cohorts": true,
+  "time": 1793302476.3809328,
+  "cohort_windows": {
+    "part1": {
+      "raw_attempts": 17,
+      "start_utc": "2026-10-28 03:49:30 UTC",
+      "end_utc": "2026-10-28 04:28:13 UTC",
+      "elapsed_span_s": 2323.1788482666016,
+      "scope": "Outer retained cohort edges include warm-up and drain; elapsed span also includes intervening quiet/setup periods."
+    },
+    "native_competition": {
+      "raw_attempts": 764,
+      "start_utc": "2026-10-28 05:27:56 UTC",
+      "end_utc": "2026-10-29 13:21:33 UTC",
+      "elapsed_span_s": 114816.89489412308,
+      "scope": "Outer retained cohort edges include warm-up and drain; elapsed span also includes intervening quiet/setup periods."
+    },
+    "diagnostic_companions": {
+      "raw_attempts": 12,
+      "start_utc": "2026-10-29 13:24:01 UTC",
+      "end_utc": "2026-10-29 13:55:19 UTC",
+      "elapsed_span_s": 1877.699850320816,
+      "scope": "Outer retained cohort edges include warm-up and drain; elapsed span also includes intervening quiet/setup periods."
+    },
+    "one_cpu": {
+      "raw_attempts": 90,
+      "start_utc": "2026-10-29 13:56:55 UTC",
+      "end_utc": "2026-10-29 19:31:51 UTC",
+      "elapsed_span_s": 20096.113992214203,
+      "scope": "Outer retained cohort edges include warm-up and drain; elapsed span also includes intervening quiet/setup periods."
+    }
+  }
+}
