@@ -15,7 +15,8 @@ async function until(fn,ms=12000){const end=performance.now()+ms;while(performan
 async function project(t){const cwd=mkdtempSync(join(tmpdir(),'srv1-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use identity guests\nquery alive():\n  return true\n');await deploy('production','snapback',{cwd,env});return cwd;}
 function launch(t,cwd,command,args,extra={}){const c=spawn(command,args,{cwd,env,detached:true,stdio:['ignore','pipe','pipe'],...extra});let out='',err='';c.stdout?.on('data',d=>out+=d);c.stderr?.on('data',d=>err+=d);c.on('error',()=>{});let closed=false;c.once('close',()=>closed=true);t.after(()=>{try{process.kill(-c.pid,'SIGKILL');}catch{}});return {c,out:()=>out,err:()=>err,closed:()=>closed};}
 function npmScript(cwd,body,script='node serve.mjs'){writeFileSync(join(cwd,'package.json'),JSON.stringify({type:'module',scripts:{'prod:serve':script,'probe:serve':script}}));writeFileSync(join(cwd,'serve.mjs'),body);}
-const driver=`import{startServe,serveUntilSignal}from ${JSON.stringify(proof)};const h=await startServe('production');console.log(JSON.stringify({backendUrl:h.url,pid:h.pid,driver:process.pid}));await serveUntilSignal([h]);`;
+// Readiness authorizes signalling only after the lifetime has armed its handlers.
+const driver=`import{startServe,serveUntilSignal}from ${JSON.stringify(proof)};const h=await startServe('production');const lifetime=serveUntilSignal([h]);console.log(JSON.stringify({backendUrl:h.url,pid:h.pid,driver:process.pid}));await lifetime;`;
 async function ready(run){return until(()=>{const line=run.out().split('\n').find(l=>l.startsWith('{"backendUrl"'));if(line)return JSON.parse(line);assert.equal(run.closed(),false,run.err());});}
 async function released(cwd){const result=await cli(['serve','production','--wait-stopped'],{cwd,env});assert.equal(result.code,0,result.stderr);return result;}
 async function restarted(cwd){await released(cwd);const h=await startServe('production',{cwd,env});await h.stop();const d=await cli(['deploy','production'],{cwd,env});assert.equal(d.code,0,d.stderr);assert.doesNotMatch(d.stderr,/E_STORE_BUSY/);}
@@ -50,7 +51,7 @@ test('direct native serve observes launching parent death without wrapper enviro
 });
 
 test('harness: detached npm --hold child survives idle and group TERM releases hosts',{skip:process.platform==='win32',timeout:30000},async t=>{
- const cwd=await project(t);npmScript(cwd,driver.replace("const h=",'const guard=(await import('+JSON.stringify(proof)+')).probeServeGuard();const h=').replace('await serveUntilSignal([h]);','const now=Date.now;Date.now=()=>now()+61000;await serveUntilSignal([h]);guard.close();'));
+ const cwd=await project(t);npmScript(cwd,driver.replace("const h=",'const guard=(await import('+JSON.stringify(proof)+')).probeServeGuard();const h=').replace('const lifetime=serveUntilSignal([h]);','const now=Date.now;Date.now=()=>now()+61000;const lifetime=serveUntilSignal([h]);').replace('await lifetime;','await lifetime;guard.close();'));
  const run=launch(t,cwd,'bash',['-c','exec npm run --silent probe:serve']);const value=await ready(run);await sleep(1300);assert.equal(run.closed(),false,run.err());assert.equal((await fetch(value.backendUrl+'/auth/config')).status,200);process.kill(-run.c.pid,'SIGTERM');await until(run.closed);await restarted(cwd);
 });
 

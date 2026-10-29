@@ -110401,3 +110401,18 @@ Integration verification and the complete Linux red-check receipt are retained
 in the workstream report. The supplied redcheck-at.sh hardcodes a publication
 worktree, so a local driver preserves its full prepare/qualify sequence in this
 worktree with explicit external records and memory/timeout bounds.
+
+
+### 2026-10-29 — Integration 33 publication fixture readiness
+
+The complete Linux red check passed Rust but exposed a srv1-lifetime SIGTERM
+fixture race: the driver printed readiness before invoking serveUntilSignal,
+so its controller could signal before handlers existed. Arm the lifetime promise
+before announcing readiness; preserve every exit-code, pipe, stop/restart and
+store-release assertion, including SIGTERM, SIGINT and SIGHUP. The held-clock
+variant keeps its original clock jump before lifetime setup and closes its guard.
+A controlled scheduling gap reproduces old ordering as signal exit -15 and the
+armed ordering as exit 0 in three trials. The original failed full run is retained.
+Only test orchestration changes; runtime/client/package bytes remain unchanged.
+Final affected repair and complete publication red-check evidence belong to the
+workstream report; earlier results are never relabelled as a qualified release.
