@@ -419,8 +419,9 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       await context.addInitScript({ content: webWitnessObserverScript() });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       try { return await proof(context); } catch (error) {
-        if (error instanceof Error && error.name === "TimeoutError") console.error("browser repair: wait for the signed-in screen before business controls; use signInUI(page, account) for the password starter (it signs out restored sessions). Give selects explicit aria-label/accessibilityLabel values: wrapping labels include option text. Assert the write receipt before waiting for its result; a refused write cannot render it.");
-        reportProofFailure(error); throw error;
+        reportProofFailure(error);
+        if (error instanceof Error && error.name === "TimeoutError") console.error("likely fix: browser controls: wait for the signed-in screen before business controls; use signInUI(page, account) for the password starter (it signs out restored sessions). Give selects explicit aria-label/accessibilityLabel values: wrapping labels include option text. Assert the write receipt before waiting for its result; a refused write cannot render it.");
+        throw error;
       }
     } finally {
       try { if (context) await bounded(context.close(), 5000, "browser context close"); }

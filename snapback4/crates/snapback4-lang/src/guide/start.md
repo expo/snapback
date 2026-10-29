@@ -31,7 +31,7 @@ Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
 `T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
 Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
 An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
-NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false`.
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
 Supply every required insert field without a default.
 
 A job's where/by cursor columns must be immutable. Sweep by id when the deadline

@@ -103,6 +103,7 @@ SDK handler (src/on-write.ts); keep auth/AppProvider:
 import { refusalOf, type Write } from 'snapback4/contract';
 // Inside the component; setProblem is its state setter.
 async function onWrite<R>(run: () => PromiseLike<Write<R>>) {
+  setProblem('');
   try { const w = await run(); setProblem(refusalOf(w)?.message ?? ''); return w; }
   catch { setProblem('Check write status before retry.'); }
 }
@@ -175,8 +176,8 @@ try {
 } finally { for (const c of clients) await c.close(); await host.stop(); }
 ```
 
-Keep frontend build/cleanup; edit UI assertions.
+Keep build/cleanup; edit UI assertions.
 snapback4/proof: signInUI(page,account)/signOutUI(page) handle restored sessions;
 labelledControl(page,'combobox','Owner') excludes option text in wrapping labels.
 Assert the SDK receipt before rendered results.
-Keep credentials private. Hooks: guide api generated.
+Keep credentials private.
