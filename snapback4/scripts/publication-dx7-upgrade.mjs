@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // Published old CLIs acquire a candidate alias; executable bytes stay unchanged.
 import assert from "node:assert/strict";
 import {createServer} from "node:http";

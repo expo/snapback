@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import { fixtureCommand } from './helpers/fixture-command.mjs';
 import { fixtureTestMs, fixtureWorkMs } from '../../../scripts/test-work-bounds.mjs';
 import { signalTargetAlive } from '../../../scripts/test-signals.mjs';

@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#18-starter-verification-and-repair-guidance-starter2 — UI session switching waits for credential removal and screen readiness.
+// @ref LLP 3000.037.000#starter-verification-and-repair-guidance-starter2 — UI session switching waits for credential removal and screen readiness.
 /** UI helpers for the password starter's labelled controls. Custom screens keep
  * their own selectors and business assertions. No backend login bypass. */
 import type { Locator, Page } from 'playwright-core';

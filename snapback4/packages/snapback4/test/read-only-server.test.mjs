@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 // @ref LLP 3000.033#3 — the receipts oracle, ephemeral live adoption, and a real published downgrade.
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -7,6 +7,9 @@ failures=()
 child_pids=()
 client_test_concurrency=1
 parallel_dir=$(mktemp -d "${TMPDIR:-/tmp}/snapback4-test.XXXXXX")
+export NPM_CONFIG_CACHE="$parallel_dir/npm-cache" npm_config_cache="$parallel_dir/npm-cache"
+export SNAPBACK4_PRIVATE_NPM_CACHE="$parallel_dir/npm-cache"
+mkdir -m 700 "$parallel_dir/npm-cache"
 
 cleanup() {
   local status=$?

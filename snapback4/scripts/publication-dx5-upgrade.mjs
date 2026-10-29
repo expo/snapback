@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // Real old executables perform acquisition; only candidate package metadata is substituted.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

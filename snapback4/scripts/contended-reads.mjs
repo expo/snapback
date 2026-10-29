@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './test-npm-cache.mjs';
 // Qualification only. Node 24, npm, a built snapback4 and the retained fixture packet.
 // Mac: node scripts/contended-reads.mjs --prepare --work /tmp/ct-store --binary target/production/snapback4
 // Then: node scripts/contended-reads.mjs --work /tmp/ct-store --binary target/production/snapback4 --out /tmp/ct-after

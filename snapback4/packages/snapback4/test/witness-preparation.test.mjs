@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

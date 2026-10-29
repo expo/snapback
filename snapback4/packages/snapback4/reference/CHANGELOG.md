@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Repository test and packed consumer installs use disposable npm caches. Fresh test hosts confine temporary stores to fixture cleanup roots, including killed-child cleanup.
+
 - `guide day2` consolidates upgrade, frozen v1, production accounts, change routes, preview and rollback/forward. `day2-check` runs authored proofs and two production drills, records frozen-v1 outcomes, and retains private evidence. Existing scripts and release semantics remain.
 
 - `npm run verify` is the starter proof loop; separate phases are targeted reruns. Keep pre/post proof hooks when changing business commands. Passing direct acceptance/frontend runs can be reused for identical source, environment and live builder session on Linux (up to two hours); uncertain receipts rerun. Check and shutdown remain fresh.

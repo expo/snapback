@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — execute emitted code through installed tarballs and reject missing/incorrect proofs.
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';

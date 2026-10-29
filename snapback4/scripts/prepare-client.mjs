@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { lintPackagedDocs } from "./packaged-docs.mjs";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";

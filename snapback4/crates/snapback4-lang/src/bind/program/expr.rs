@@ -173,7 +173,7 @@ impl Binder<'_> {
                 if op == "not" {
                     if !t.is_bool() {
                         let operand = print::expression(value);
-                        // @ref LLP 3000.037.000#18-starter-verification-and-repair-guidance-starter2 — missing/hidden flags require an explicit policy choice.
+                        // @ref LLP 3000.037.000#starter-verification-and-repair-guidance-starter2 — missing/hidden flags require an explicit policy choice.
                         if t.is_optional() && t.required().is_bool() {
                             return Err(type_error(site, format!("not needs a bool, got {}; `{operand}` can be missing or hidden by its field read rule, even after a role require", t.name()),
                                 format!("bind `flag = {operand} ! else MISSING_VALUE`, then use `not flag`; keep authorization guards. Use `not ({operand} ?? false)` only if the spec intentionally treats missing/hidden as false")));

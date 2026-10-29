@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.000.000.001#13-wave-26-developer-loop-repairs-dx9 — qualify every template through installed bytes, collecting all results.
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,copyFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';

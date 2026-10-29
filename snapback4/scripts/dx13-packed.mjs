@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // Run modified starters and literal guide recipes through installed tarballs.
 import {createHash} from 'node:crypto';
 import {mkdirSync,readFileSync,writeFileSync,copyFileSync,rmSync} from 'node:fs';

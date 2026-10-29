@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 // @ref LLP 3000.011.003.000.000#9-wave-13-saved-version-proofs-day3-2026-10-16 — generated proofs cannot claim success without business evidence or their own build.
 import test from "node:test";
 import { runInNewContext } from "node:vm";

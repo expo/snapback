@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { checkVerbHelp } from "./check-verb-help.mjs";
 import { mkdirSync, writeFileSync, copyFileSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";

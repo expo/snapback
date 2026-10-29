@@ -22,7 +22,7 @@ impl Project {
         Project(dir)
     }
     fn run(&self, args: &[&str]) -> Output {
-        let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
+        let mut command=Command::new(BIN);command.current_dir(&self.0).env("TMPDIR", &self.0).args(args);
         if args.first()==Some(&"test") {command.arg("--explain");}
         // This file probes query/refusal diagnostics; DAY5 checks the default
         // zero-case refusal independently.
@@ -36,7 +36,7 @@ impl Project {
     }
     /// `dev --fresh --no-watch` on `port`; returns the child and its URL.
     fn dev(&self, port: u16) -> (Dev, String) {
-        let mut child = Command::new(BIN).current_dir(&self.0)
+        let mut child = Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0)
             .args(["dev", "--port", &port.to_string(), "--fresh", "--no-watch"])
             .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
         let mut line = String::new();
@@ -75,7 +75,7 @@ fn http(url: &str, method: &str, path: &str, persona: Option<&str>, body: &str) 
 fn a_closed_pipe_ends_a_one_shot_verb_without_a_panic() {
     let project = Project::new("use personas alice\nquery alive():\n  return true\n");
     for args in [&["guide", "language", "--full"][..], &["--help"], &["check"], &["test"]] {
-        let mut child = Command::new(BIN).current_dir(&project.0).args(args)
+        let mut child = Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(args)
             .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
         // Close the read end before the verb writes (or while it does).
         drop(child.stdout.take());
@@ -136,7 +136,7 @@ fn dev_prints_a_tagged_ready_line_and_stops_with_a_killed_supervisor() {
         }
     };
     // Without a wrapper: no wrapperPid anywhere.
-    let mut child = Command::new(BIN).current_dir(&project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
+    let mut child = Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
         .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let mut url = String::new();
     BufReader::new(child.stdout.take().unwrap()).read_line(&mut url).unwrap();
@@ -149,7 +149,7 @@ fn dev_prints_a_tagged_ready_line_and_stops_with_a_killed_supervisor() {
     drop(dev);
 
     // Under a supervising shell: both PIDs, and the server dies with it.
-    let mut shell = Command::new("sh").current_dir(&project.0)
+    let mut shell = Command::new("sh").current_dir(&project.0).env("TMPDIR", &project.0)
         .args(["-c", "SNAPBACK4_SUPERVISOR_PID=$$ \"$0\" dev --port 0 --fresh --no-watch; :", BIN])
         .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let mut stdout = BufReader::new(shell.stdout.take().unwrap());
@@ -186,7 +186,7 @@ fn dev_prints_a_tagged_ready_line_and_stops_with_a_killed_supervisor() {
 fn a_supervisor_pid_that_is_not_the_parent_is_ignored() {
     let project = Project::new("use personas alice\nquery alive():\n  return true\n");
     let mut stranger = Command::new("sleep").arg("60").spawn().unwrap();
-    let mut child = Command::new(BIN).current_dir(&project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
+    let mut child = Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
         .env("SNAPBACK4_SUPERVISOR_PID", stranger.id().to_string())
         .stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap();
     let mut url = String::new();
@@ -589,7 +589,7 @@ fn dev_binds_the_first_free_port_of_a_range() {
     let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let taken = held.local_addr().unwrap().port();
     let high = taken.saturating_add(30);
-    let mut child = Command::new(BIN).current_dir(&project.0)
+    let mut child = Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0)
         .args(["dev", "--port", &format!("{taken}-{high}"), "--fresh", "--no-watch"])
         .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let mut line = String::new();
@@ -682,7 +682,7 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
     let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let taken = held.local_addr().unwrap().port();
     for port in ["0".to_owned(), format!("{taken}-{}", taken + 20)] {
-        let child = Command::new(BIN).current_dir(&project.0)
+        let child = Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0)
             .args(["serve", "deployment", &format!("--port={port}")])
             .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
         let mut server = Dev(child);

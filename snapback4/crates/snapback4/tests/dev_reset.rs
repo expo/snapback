@@ -51,10 +51,10 @@ impl Project {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, text).unwrap();
     }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).output().unwrap() }
     fn start(&self, args: &[&str]) -> Host {
         let stderr = fs::File::create(self.0.join(format!("stderr-{}.log", SERIAL.fetch_add(1, Ordering::Relaxed)))).unwrap();
-        let mut child = Command::new(BIN).current_dir(&self.0).args(args).stdout(Stdio::piped()).stderr(stderr).spawn().unwrap();
+        let mut child = Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).stdout(Stdio::piped()).stderr(stderr).spawn().unwrap();
         let mut line = String::new();
         BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host(child, line.trim().trim_start_matches("http://").parse().unwrap_or_else(|_| panic!("{line:?}")));
@@ -67,6 +67,19 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 
 struct Host(Child, SocketAddr);
 impl Drop for Host { fn drop(&mut self) { let _ = self.0.kill(); let _ = self.0.wait(); } }
+
+#[test]
+fn killed_fresh_host_store_is_confined_to_fixture_cleanup() {
+    let project = Project::new();
+    let root = project.0.clone();
+    let host = project.dev(&[]);
+    let prefix = format!("snapback4-fresh-{}-", host.0.id());
+    assert!(fs::read_dir(&root).unwrap().any(|entry|
+        entry.unwrap().file_name().to_string_lossy().starts_with(&prefix)));
+    drop(host); // SIGKILL cannot unwind FreshDirectory; fixture still owns it.
+    drop(project);
+    assert!(!root.exists());
+}
 impl Host {
     fn port(&self) -> String { self.1.port().to_string() }
     fn request_from(&self, peer: SocketAddr, path: &str, persona: Option<&str>, body: &str) -> (u16, Value) {

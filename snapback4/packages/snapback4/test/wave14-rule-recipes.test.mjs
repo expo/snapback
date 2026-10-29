@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Execute exact guide sources through packed client/native packages, with no checkout binary fallback.
 import test from 'node:test';

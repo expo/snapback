@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

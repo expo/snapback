@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdtempSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";

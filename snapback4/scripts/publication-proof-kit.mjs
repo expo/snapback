@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { proveScaffolds } from "./publication-scaf1.mjs";
 import { guideReference } from "./publication-guide.mjs";
 // Packed guide recipes and pre-wave controls. Every example executes unchanged.

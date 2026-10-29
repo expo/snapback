@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.011.003.000.000#9-wave-13-saved-version-proofs-day3-2026-10-16 — packed feature compositions must execute together.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";

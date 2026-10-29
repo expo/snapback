@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 // Every public subpath loads from a CommonJS script (Node 24's require(esm)),
 // the way `npm init -y` acceptance and seed scripts load it, and
 // `snapback4/bin-path` names the binary the CLI shim runs.

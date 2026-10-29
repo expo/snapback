@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // Runs unchanged from a packed client/platform installation in the cwd.
 import assert from "node:assert/strict";
 import {mkdirSync,writeFileSync,readFileSync,existsSync,unlinkSync} from "node:fs";

@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#18-one-proof-path-and-session-reuse-ver2 — disposable passing-phase receipts, never authority.
+// @ref LLP 3000.037.000#one-verify-path-and-conservative-phase-reuse-ver2 — disposable passing-phase receipts, never authority.
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync, lstatSync, realpathSync, mkdirSync, chmodSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -54,10 +54,10 @@ impl Fixture {
         fs::create_dir_all(path.join("snapback")).unwrap();
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
-    fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).output().unwrap() }
     fn start(&self, args: &[&str]) -> Host { self.start_on_port(args,"0") }
     fn start_on_port(&self, args: &[&str], port: &str) -> Host {
-        let mut child = Command::new(BIN).current_dir(&self.0).args(args).args(["--port", port]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+        let mut child = Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).args(["--port", port]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
         assert!(!host.address.is_empty(), "host did not start"); host
@@ -711,7 +711,7 @@ fn future_store_explains_itself_at_restart_and_doctor_but_not_under_the_same_off
     fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\nmutation appointment():\n  return insert counters {{n: 0, at: now + 864000000}}\nmutation fixed():\n  return insert counters {{id: 'fixed', n: 0, at: now}}\n")).unwrap();
     let start = |args: &[&str]| {
         let log = f.0.join("startup.log");
-        let mut child = Command::new(BIN).current_dir(&f.0).args(args).args(["--port", "0"])
+        let mut child = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(args).args(["--port", "0"])
             .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let text = fs::read_to_string(log).unwrap();
@@ -805,7 +805,7 @@ fn startup_clock_advice_ignores_bad_row_images_and_reports_inspection_failure() 
         if bad_commit { conn.execute("UPDATE _commits SET at = 'unparsable commit stamp'", []).unwrap(); }
         drop(conn);
         let log = f.0.join("startup.log");
-        let mut child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--hold-schedules", "--port", "0"])
+        let mut child = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(["dev", "--no-watch", "--hold-schedules", "--port", "0"])
             .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let text = fs::read_to_string(&log).unwrap();
@@ -831,7 +831,7 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     // before 06:00 UTC used to run tick an extra time and make the final n=2 fail.
     let start = |args: &[&str]| {
         let log = f.0.join("startup.log");
-        let mut child = Command::new(BIN).current_dir(&f.0).args(args).args(["--port", "0"])
+        let mut child = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(args).args(["--port", "0"])
             .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let text = fs::read_to_string(log).unwrap();

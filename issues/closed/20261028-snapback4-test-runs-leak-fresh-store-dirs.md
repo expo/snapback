@@ -1,6 +1,6 @@
 # Test runs leak /tmp/snapback4-fresh-<pid>-<ulid> store directories
 
-Status: Open
+Status: Closed
 Date: 2026-10-28
 Scope: `crates/snapback4/src/serve_readers.rs` (`FreshDirectory`) and the test harnesses that stop `snapback4 dev --fresh`.
 
@@ -31,3 +31,13 @@ Fixes, either or both:
   `snapback4-fresh-<pid>-*` entries whose pid is gone at startup. Alternatively,
   register the directory for removal from the signal and exit paths that do not
   unwind.
+
+## Resolution (Integration 34, 2026-10-29)
+
+Fresh-host Rust fixtures now set child TMPDIR to their fixture-owned roots.
+The client-file runner similarly confines every file and child to its owned
+temporary root, removed after process-group cleanup. SIGKILL cannot unwind
+FreshDirectory, but enclosing fixture teardown now reclaims it. The dev_reset
+regression starts a real fresh host, observes its store inside the fixture,
+kills it and verifies fixture removal reclaims the entire tree. No product
+startup sweeper touches concurrent lane stores.

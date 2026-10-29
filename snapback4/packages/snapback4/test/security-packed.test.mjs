@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Execute the published security card and starter through actual npm packs.
 import test from 'node:test';

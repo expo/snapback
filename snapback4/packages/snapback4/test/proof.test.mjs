@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync, chmodSync } from "node:fs";

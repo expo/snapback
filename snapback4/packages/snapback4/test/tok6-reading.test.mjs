@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 // @ref LLP 3000.037.000#18-bounded-package-reference-and-wiring-lookups-tok6 — first-lookups carry the app's facts; packed Markdown is cheap.
 import test from 'node:test';
 import assert from 'node:assert/strict';

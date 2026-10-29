@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.011.003.000#10 — packed starters must pass their real web toolchains
 import assert from "node:assert/strict";
 import { createServer } from "node:net";

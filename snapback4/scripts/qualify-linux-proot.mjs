@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.021#3.3 — clean distribution consumers without privileges or namespaces
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -49,7 +50,7 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
       rmSync(join(root, "etc/resolv.conf"), { force: true });
       writeFileSync(join(root, "etc/resolv.conf"), readFileSync("/etc/resolv.conf"));
       writeFileSync(join(root, "etc/hosts"), "127.0.0.1 localhost\n::1 localhost\n");
-      for (const file of ["test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "starter-audit-allowlist.json"])
+      for (const file of ["test-npm-cache.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "starter-audit-allowlist.json"])
         copyFileSync(new URL(`./${file}`, import.meta.url), join(inputs, file));
       copyFileSync(expo, join(inputs, "expo.tgz"));
       copyFileSync(new URL("./publication-starters.mjs", import.meta.url), join(inputs, "starters.mjs"));

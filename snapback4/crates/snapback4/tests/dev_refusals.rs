@@ -21,7 +21,7 @@ impl Project {
   for n in 0..40 {source.push_str(&format!("mutation add{n}(owner: principal):\n  return insert rows {{owner}}\n"));}
   fs::write(dir.join("snapback/schema.q"),source).unwrap();Arc::new(Self(dir))
  }
- fn why(&self,args:&[&str])->Output {Command::new(BIN).current_dir(&self.0).args(["why","recent"]).args(args).output().unwrap()}
+ fn why(&self,args:&[&str])->Output {Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(["why","recent"]).args(args).output().unwrap()}
  fn record_path(&self,store:&str)->PathBuf {
   let legacy=self.0.join(".snapback4/dev-refusals.json");
   if legacy.exists() {return legacy;}
@@ -49,10 +49,10 @@ impl Host {
   Self::start_storage(project,dev,blocked_stderr,extra,true)
  }
  fn start_storage(project:Arc<Project>,dev:bool,blocked_stderr:bool,extra:&[&str],fresh:bool)->Self {
-  if !dev {let out=Command::new(BIN).current_dir(&project.0).args(["deploy","release"]).output().unwrap();assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));}
+  if !dev {let out=Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(["deploy","release"]).output().unwrap();assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));}
   let stderr=project.0.join(format!("stderr-{}.log",NEXT.fetch_add(1,Ordering::Relaxed)));
   let sink=if blocked_stderr {Stdio::piped()} else {Stdio::from(fs::File::create(&stderr).unwrap())};
-  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev && fresh {vec!["dev","--fresh","--no-watch","--port","0"]} else if dev {vec!["dev","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(extra).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
+  let mut child=Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(if dev && fresh {vec!["dev","--fresh","--no-watch","--port","0"]} else if dev {vec!["dev","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(extra).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
   let mut line=String::new();BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
   assert!(line.starts_with("http://"),"{line}: {:?}",fs::read_to_string(&stderr));
   Self{child,project,address:line.trim().trim_start_matches("http://").into(),stderr}
@@ -430,7 +430,7 @@ fn fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard
  let fixture=project.0.join("fixture");fs::create_dir(&fixture).unwrap();
  fs::write(fixture.join("rows.jsonl"),"{\"id\":\"hidden\",\"owner\":\"dev:bob\"}\n").unwrap();
  fs::write(fixture.join("test.cases.jsonl"),"{\"as\":\"alice\",\"op\":\"point\",\"args\":{\"id\":\"hidden\"},\"expect\":\"complete\",\"data\":null}\n{\"as\":\"alice\",\"op\":\"add\",\"args\":{\"owner\":\"alice\"},\"expect\":\"E_INPUT\"}\n").unwrap();
- let out=Command::new(BIN).current_dir(&project.0).args(["test","--fixture","fixture","--explain"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
+ let out=Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(["test","--fixture","fixture","--explain"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
 }
 impl Host {
  fn post_authenticated(&self,path:&str,payload:Value,auth:&str)->Value {
@@ -484,7 +484,7 @@ fn an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding() 
  }
  drop(host);
  let prod=Host::start(project.clone(),false,false);
- let minted=Command::new(BIN).current_dir(&project.0).args(["token","--service","roster-test","--release","release"]).output().unwrap();
+ let minted=Command::new(BIN).current_dir(&project.0).env("TMPDIR", &project.0).args(["token","--service","roster-test","--release","release"]).output().unwrap();
  assert!(minted.status.success(), "{minted:?}");
  let token=String::from_utf8(minted.stdout).unwrap();
  let refusal=prod.request("add","bob",&format!("Authorization: Bearer {}",token.trim()));

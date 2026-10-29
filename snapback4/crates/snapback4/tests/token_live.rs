@@ -32,7 +32,7 @@ impl Project {
     fn store(&self) -> PathBuf { self.root.join(if self.release { "release/store.sqlite" } else { ".snapback4/store.sqlite" }) }
     fn proof(&self) -> PathBuf { PathBuf::from(format!("{}-token", self.store().display())) }
     fn secret(&self) -> String { fs::read_to_string(self.proof()).unwrap() }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.root).args(args).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.root).env("TMPDIR", &self.root).args(args).output().unwrap() }
     fn mint(&self, name: &str, days: &str) -> Output {
         let mut args = vec!["token", "--service", name, "--days", days, "--json"];
         if self.release { args.extend(["--release", "release"]); }
@@ -64,7 +64,7 @@ impl Host {
         let mut args = if p.release { vec!["serve", "release"] } else { vec!["dev", "--no-watch", "--clock-offset", "+25h"] };
         args.extend(["--port", "0", "--bind", bind, "--i-understand-cleartext"]);
         args.extend_from_slice(flags);
-        let mut child = Command::new(BIN).current_dir(&p.root).args(args).stdout(Stdio::piped())
+        let mut child = Command::new(BIN).current_dir(&p.root).env("TMPDIR", &p.root).args(args).stdout(Stdio::piped())
             .stderr(fs::File::create(p.root.join("server.log")).unwrap()).spawn().unwrap();
         let stdout = child.stdout.take().unwrap();
         let (send, receive) = mpsc::channel();

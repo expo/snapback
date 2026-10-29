@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import {guideReference} from '../../../scripts/publication-guide.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';

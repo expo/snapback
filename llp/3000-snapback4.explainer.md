@@ -2789,6 +2789,21 @@ Load verification must also keep its executable inode stable: rebuilding a
 CLI whose live workers re-exec `current_exe()` invalidates that concurrent run.
 See [FL round 8](../snapback4/reports/20261007-fl-dry-run-flakes/round-8/REPORT.md).
 
+### Disposable proof caches
+
+Integration 34 (2026-10-29): packed test and consumer installs use private npm
+caches, with both uppercase and lowercase cache configuration set. The creator
+removes its cache on exit; client-file runners own the enclosing directory and
+remove it after group cleanup, including forced exits. Standalone consumers
+inherit the same cache through nested toolchain commands. Clean-userspace
+consumers keep their cache inside the disposable userspace. A real packed-install
+regression guards zero growth in the default home cache and cleanup on success
+and failure. No shared home cache is cleared by tests.
+
+Fresh-store test hosts set TMPDIR to a fixture-owned directory. SIGKILL may
+prevent FreshDirectory's Drop, but fixture/file teardown still removes that
+store. No startup sweep opens or removes another lane's stores.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

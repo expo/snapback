@@ -13,10 +13,10 @@ impl Fixture {
         fs::create_dir_all(path.join("snapback")).unwrap();
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
-    fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).output().unwrap() }
     fn start(&self) -> Host { self.start_with(&[]) }
     fn start_with(&self, args: &[&str]) -> Host {
-        let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--no-watch", "--port", "0"]).args(args).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+        let mut child = Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(["dev", "--no-watch", "--port", "0"]).args(args).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
         assert!(!host.address.is_empty()); host
@@ -357,7 +357,7 @@ fn bounds_guide_growth_recipe_runs_verbatim_against_dev() {
     let bin = fixture.0.join("bin"); fs::create_dir(&bin).unwrap();
     std::os::unix::fs::symlink(BIN, bin.join("snapback4")).unwrap();
     let result = Command::new("sh").arg("-eu").arg("-c").arg(recipe)
-        .current_dir(&fixture.0).env("SB4_URL", format!("http://{}", host.address))
+        .current_dir(&fixture.0).env("TMPDIR", &fixture.0).env("SB4_URL", format!("http://{}", host.address))
         .env("SB4_OP", "fast").env("SB4_ARGS", "{}").env("SB4_PERSONA", "alice")
         .env("PATH", format!("{}:{}", bin.display(), std::env::var("PATH").unwrap()))
         .output().unwrap();

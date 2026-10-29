@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { guideReference } from "./publication-guide.mjs";
 // @ref LLP 3000.036.004#4-counterexamples-and-generated-tests — qualify the installed policy surface and its finite campaigns.
 import assert from "node:assert/strict";

@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 // Test-only await census and instrumentation. No hooks enter the shipped client.
 import ts from 'typescript';
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'node:fs';

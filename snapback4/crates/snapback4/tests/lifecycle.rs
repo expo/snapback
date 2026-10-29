@@ -62,7 +62,7 @@ fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     assert!(String::from_utf8_lossy(&second.stderr).contains("E_STORE_BUSY"), "{second:?}");
     fs::write(dir.0.join("snapback/schema.q"), schema.replace("return 1", "return 2")).unwrap();
     // Address discovery does not depend on the serving shell's runtime env.
-    let deployed = Command::new(BIN).current_dir(&dir.0).args(["deploy", release, "--explain"])
+    let deployed = Command::new(BIN).current_dir(&dir.0).env("TMPDIR", &dir.0).args(["deploy", release, "--explain"])
         .env("XDG_RUNTIME_DIR", dir.0.join("different-runtime")).output().unwrap();
     assert!(deployed.status.success(), "{deployed:?}");
     assert!(String::from_utf8_lossy(&deployed.stdout).contains("release 2 is current as generation 2"), "{deployed:?}");
@@ -125,7 +125,7 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
     for (verb, initial_soft, hard_low) in [("dev", 64, false), ("serve", 64, false), ("dev", 64, true), ("dev", 1024, true), ("serve", 1024, true)] {
         let mut command = Command::new(BIN);
-        command.arg(verb).args(["--port", "0", "--verbose"]).current_dir(&dir.0);
+        command.arg(verb).args(["--port", "0", "--verbose"]).current_dir(&dir.0).env("TMPDIR", &dir.0);
         if verb == "dev" { command.args(["--fresh", "--replay", "--no-watch"]); }
         else { command.arg(&deployment); }
         unsafe { command.pre_exec(move || {
@@ -158,7 +158,7 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
         }
         if verb == "dev" {
             let mut command = Command::new(BIN);
-            command.args(["doctor", "--url", &url, "--json"]).current_dir(&dir.0);
+            command.args(["doctor", "--url", &url, "--json"]).current_dir(&dir.0).env("TMPDIR", &dir.0);
             // Even a doctor that cannot raise its own limit must use the live server's.
             unsafe { command.pre_exec(|| {
                 let limit = libc::rlimit { rlim_cur: 1024, rlim_max: 1024 };
@@ -189,7 +189,7 @@ fn offline_doctor_reports_its_inherited_limit_without_raising_it() {
     let dir = Directory::new();
     for hard_low in [false, true] {
         let mut command = Command::new(BIN);
-        command.arg("doctor").current_dir(&dir.0);
+        command.arg("doctor").current_dir(&dir.0).env("TMPDIR", &dir.0);
         unsafe { command.pre_exec(move || {
             let mut limit: libc::rlimit = std::mem::zeroed();
             if libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) != 0 { return Err(std::io::Error::last_os_error()); }
@@ -244,7 +244,7 @@ impl Directory {
         fs::write(path.join("snapback/schema.q"), SCHEMA).unwrap();
         Self(path)
     }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).args(args).current_dir(&self.0).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).args(args).current_dir(&self.0).env("TMPDIR", &self.0).output().unwrap() }
 }
 impl Drop for Directory { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
@@ -252,7 +252,7 @@ struct Host { child: Child, stdout: PathBuf, stderr: PathBuf, port: u16 }
 impl Host {
     fn start(dir: &Directory, args: &[&str]) -> Self {
         let stdout = dir.0.join("stdout"); let stderr = dir.0.join("stderr");
-        let child = Command::new(BIN).args(args).args(["--port", "0"]).current_dir(&dir.0)
+        let child = Command::new(BIN).args(args).args(["--port", "0"]).current_dir(&dir.0).env("TMPDIR", &dir.0)
             .env(MAIN_REACHED, "1")
             .stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
         let mut host = Self { child, stdout, stderr, port: 0 };

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './test-npm-cache.mjs';
 import { checkVerbHelp } from "./check-verb-help.mjs";
 import { lintPackagedDocs } from "./packaged-docs.mjs";
 // @ref LLP 3000.021#3.3 — a publication is one client and a qualified artifact per platform

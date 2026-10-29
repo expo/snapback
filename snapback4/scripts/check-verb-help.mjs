@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // Publication checks the binary's generated help against announced CLI flags.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

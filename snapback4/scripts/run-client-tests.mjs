@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 3000#publication-suite-under-contention — a watchdog outside each
 // test process also bounds blocked JS and leaked handles after a failed test.
+import { npmCacheEnv } from './test-npm-cache.mjs';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, readFileSync, openSync, closeSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -59,7 +60,7 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
   // File fixtures own their tools; dependency installation has dedicated TOK1 and packed-starter proofs.
-  const env = { ...process.env, SNAPBACK4_INIT_INSTALL: process.env.SNAPBACK4_INIT_INSTALL ?? "0", ...overrides };
+  const env = npmCacheEnv(join(temp, "npm-cache"), { ...process.env, SNAPBACK4_INIT_INSTALL: process.env.SNAPBACK4_INIT_INSTALL ?? "0", ...overrides, TMPDIR: temp });
   delete env.NODE_TEST_CONTEXT;
   const started = performance.now();
   onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);

@@ -1,4 +1,4 @@
-// @ref LLP 3000.037.000#18-one-day-two-release-recipe-dx17 — run authored proofs once in one ordered check, with private complete evidence.
+// @ref LLP 3000.037.000#one-day-two-release-recipe-dx17 — run authored proofs once in one ordered check, with private complete evidence.
 import { readFileSync, rmSync, mkdtempSync, mkdirSync, lstatSync, chmodSync, openSync, writeFileSync, closeSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';

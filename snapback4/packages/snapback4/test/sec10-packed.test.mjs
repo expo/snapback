@@ -1,3 +1,4 @@
+import '../../../scripts/test-npm-cache.mjs';
 import {guideReference} from '../../../scripts/publication-guide.mjs';
 // SEC10's documented repairs through installed client and native tarballs.
 import test from 'node:test';

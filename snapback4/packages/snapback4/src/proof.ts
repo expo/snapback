@@ -361,7 +361,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   if (!caller) {
     try {
       const peer = await import("playwright-core");
-      // @ref LLP 3000.037.000#18-starter-verification-and-repair-guidance-starter2 — register on the peer that owns this browser before any page injects its selector engines.
+      // @ref LLP 3000.037.000#starter-verification-and-repair-guidance-starter2 — register on the peer that owns this browser before any page injects its selector engines.
       await registerRenderedSelector(peer.selectors);
       caller = peer.chromium;
     }

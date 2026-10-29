@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { guideReference } from "./publication-guide.mjs";
 // Run the production guide's complete starter slice using the installed packs.
 import assert from "node:assert/strict";

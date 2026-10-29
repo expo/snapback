@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { guideReference } from "./publication-guide.mjs";
 // Execute the packed staging guide verbatim; production refuses bulk setup.
 import assert from "node:assert/strict";

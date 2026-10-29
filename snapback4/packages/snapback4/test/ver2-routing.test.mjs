@@ -1,4 +1,5 @@
-// @ref LLP 3000.037.000#18-one-proof-path-and-session-reuse-ver2 — wave34r4 direct proofs then verify, and one polled command.
+import '../../../scripts/test-npm-cache.mjs';
+// @ref LLP 3000.037.000#one-verify-path-and-conservative-phase-reuse-ver2 — wave34r4 direct proofs then verify, and one polled command.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, copyFileSync, symlinkSync } from 'node:fs';
@@ -25,9 +26,10 @@ function fixture(t) {
   const env = { ...process.env, VER2_COUNTS: join(evidence, 'counts'), VER2_FAIL: join(evidence, 'fail') };
   const run = (phase, more = {}) => new Promise((done, reject) => {
     const child = spawn('npm', ['run', '--silent', phase], { cwd, env: { ...env, ...more }, stdio: 'pipe' });
-    let out = ''; const chunks = []; const start = Date.now();
-    for (const stream of [child.stdout, child.stderr]) stream.on('data', b => { out += b; chunks.push({ ms: Date.now() - start, text: String(b) }); });
-    child.once('error', reject); child.once('close', code => done({ code, out, chunks, ms: Date.now() - start }));
+    let out = '', stderr = ''; const chunks = []; const start = Date.now();
+    child.stdout.on('data', b => { out += b; chunks.push({ ms: Date.now() - start, text: String(b) }); });
+    child.stderr.on('data', b => { stderr += b; chunks.push({ ms: Date.now() - start, text: String(b) }); });
+    child.once('error', reject); child.once('close', code => done({ code, out, stderr, chunks, ms: Date.now() - start }));
   });
   const counts = () => readFileSync(env.VER2_COUNTS, 'utf8').trim().split('\n');
   return { cwd, env, run, counts };
@@ -67,11 +69,11 @@ test('Codex lane: one verify command supplies progress to 1s exec plus 5s comple
   const f = fixture(t); const r = await f.run('verify', { VER2_SLOW: '2600' });
   assert.equal(r.code, 0, r.out);
   // Even sub-five-second phases must not create a silent eleven-second loop.
-  assert.equal(r.chunks.filter(c => c.text.includes('verify: running')).length, 2);
+  assert.equal(r.chunks.filter(c => c.text.includes('verify: running') && c.ms > 1000).length, 2);
   assert.equal(r.out.trim().split('\n').filter(line => !line.startsWith('verify: running ')).length, 3);
   const slow = await f.run('verify', { VER2_SLOW: '5300' }); assert.equal(slow.code, 0, slow.out);
-  assert.equal(slow.chunks.filter(c => c.text.includes('verify: running')).length, 4);
-  const progress = slow.chunks.filter(c => c.text.includes('verify: running')).map(c => c.ms);
+  assert.equal(slow.chunks.filter(c => c.text.includes('verify: running') && c.ms > 1000).length, 4);
+  const progress = slow.chunks.filter(c => c.text.includes('verify: running') && c.ms > 1000).map(c => c.ms);
   assert.ok(progress[0] < 6500, JSON.stringify(progress));
   for (let i = 1; i < progress.length; i++) assert.ok(progress[i] - progress[i - 1] < 6500, JSON.stringify(progress));
   assert.equal(slow.out.trim().split('\n').filter(line => !line.startsWith('verify: running ')).length, 3);

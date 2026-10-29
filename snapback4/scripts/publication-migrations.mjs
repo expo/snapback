@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { guideReference } from "./publication-guide.mjs";
 // @ref LLP 3000.000.000.002#5-evidence — execute the installed guide's persistent production lifecycle verbatim.
 import assert from "node:assert/strict";

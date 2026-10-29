@@ -14,9 +14,9 @@ impl Fixture {
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
     fn engine(&self) -> Engine { Engine::open(Store::open(&self.0.join(".snapback4/store.sqlite")).unwrap()).unwrap() }
-    fn command(&self, args: &[&str]) -> std::process::Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn command(&self, args: &[&str]) -> std::process::Output { Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(args).output().unwrap() }
     fn start(&self, flags: &[&str]) -> Host {
-        let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--port", "0", "--no-watch"]).args(flags).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+        let mut child = Command::new(BIN).current_dir(&self.0).env("TMPDIR", &self.0).args(["dev", "--port", "0", "--no-watch"]).args(flags).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
         assert!(!host.address.is_empty(), "dev did not start"); host
@@ -38,7 +38,7 @@ impl Host {
 fn held_effects_remain_durable_and_claimable_after_restart() {
     let f = Fixture::new("effects");
     assert!(f.command(&["test", "--residency", "--fixture-only"]).status.success());
-    let token = Command::new(BIN).current_dir(&f.0).args(["token", "--service", "worker"]).output().unwrap();
+    let token = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(["token", "--service", "worker"]).output().unwrap();
     assert!(token.status.success());
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
     let host = f.start(&["--hold-effects"]);
@@ -85,7 +85,7 @@ fn replay_startup_and_doctor_report_the_active_policy() {
     for replay in [true, false] {
         let log = f.0.join("startup.log");
         let mut command = Command::new(BIN);
-        command.current_dir(&f.0).args(["dev", "--port", "0", "--no-watch"]);
+        command.current_dir(&f.0).env("TMPDIR", &f.0).args(["dev", "--port", "0", "--no-watch"]);
         if replay { command.arg("--replay"); }
         let mut child = command.stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         let mut line = String::new();
@@ -220,7 +220,7 @@ fn competing_starts_preserve_the_live_replay_policy() {
         let host = f.start(&["--replay"]);
         (f.engine().store()).test_support_set_meta("schedule:ticking", "0").unwrap();
         let port = if same_port { host.address.rsplit(':').next().unwrap() } else { "0" };
-        let child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--port", port])
+        let child = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(["dev", "--no-watch", "--port", port])
             .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let mut contender = Host { child, address: String::new() };
         let mut status = None;
@@ -286,7 +286,7 @@ fn serve_emits_with_replay_metadata_left_in_the_release_store() {
     assert!(token.status.success(), "{token:?}");
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
     let log = f.0.join("serve-startup.log");
-    let mut child = Command::new(BIN).current_dir(&f.0).args(["serve", dir.to_str().unwrap(), "--port", "0", "--verbose"])
+    let mut child = Command::new(BIN).current_dir(&f.0).env("TMPDIR", &f.0).args(["serve", dir.to_str().unwrap(), "--port", "0", "--verbose"])
         .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
     let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
     let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
@@ -317,7 +317,7 @@ fn w7c_dev_banner_names_the_store_and_stdout_is_readiness() {
         let f = Fixture::new(&format!("w7c-banner-{flag:?}"));
         let log = f.0.join("startup.log");
         let mut command = Command::new(BIN);
-        command.current_dir(&f.0).args(["dev", "--port", "0", "--no-watch"]);
+        command.current_dir(&f.0).env("TMPDIR", &f.0).args(["dev", "--port", "0", "--no-watch"]);
         if let Some(flag) = flag { command.arg(flag); }
         let mut child = command.stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
         let mut line = String::new();

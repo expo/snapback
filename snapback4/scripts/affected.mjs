@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 0189#snapback-4-affected-selection-2026-10-24 — conservative landing selection;
 // the scheduled battery and publication qualification retain their own custody.
+import './test-npm-cache.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, writeFileSync } from 'node:fs';

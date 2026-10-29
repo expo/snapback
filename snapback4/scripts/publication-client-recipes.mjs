@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 import { guideReference } from "./publication-guide.mjs";
 // Packed client contracts: execute the guide's narrowing recipe verbatim and
 // typecheck the handler argument shapes against the installed declarations.

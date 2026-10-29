@@ -1,3 +1,4 @@
+import './test-npm-cache.mjs';
 // @ref LLP 3000.011.003.000#10 — upgrade the actual packed Expo consumer with both supported acquisition paths.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';

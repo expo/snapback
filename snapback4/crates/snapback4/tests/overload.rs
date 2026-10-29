@@ -21,7 +21,7 @@ fn check(full: bool) {
         let mut reader = unsafe { File::from_raw_fd(fds[0]) };
         let mut writer = unsafe { File::from_raw_fd(fds[1]) };
         let child = Command::new(std::env::var("SNAPBACK4_OVERLOAD_BIN").unwrap_or_else(|_| env!("CARGO_BIN_EXE_snapback4").into()))
-            .args(["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"]).current_dir(&dir)
+            .args(["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"]).current_dir(&dir).env("TMPDIR", &dir)
             .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(writer.try_clone().unwrap()).spawn().unwrap();
         let mut host = Host { child, dir };
         let stdout = host.child.stdout.take().unwrap();
