@@ -110461,3 +110461,28 @@ battery (31 steps, including 460 client files); it has not run. The module split
 is a local checkpoint, not a qualified landing or publication. The initial-byte
 regression and ref-check both pass again; no product source changed after the
 reported targeted passes.
+
+### 2026-10-29 — Deferred web startup, browser proof and cache initialization
+
+The Linux worktree replaces the retained-artifact startup limitation: 46
+persona, engine identity, persistence and acquisition tests pass against the
+matching 0.4.49 artifacts, including direct/worker offline reopen. The native
+binary is then rebuilt from this branch. The standalone IDB witness hits its
+inherited undeclared-mallory fixture and is not counted as passing.
+
+WASM preparation now reuses the compiled module after validating the content
+hash, and converts the existing hex cache with bounded temporary strings.
+Exact-byte cache round trip, offline reuse, corrupt-cache refusal and online
+repair pass. A production browser test with no eager fixture bootstrap keeps
+page input working while the WASM request is held, then preserves a pending
+local write through a new document with WASM requests blocked. Initial SDK
+bytes with the 0.4.49 device are 82,432 gzip / 70,929 Brotli; emitted JS/WASM is
+880,779 gzip. This remains the accepted deferral fallback, not a complete
+runtime under 100 KB. The full interpreter and its existing semantics remain.
+
+Four runs per variant in Chromium at 4× CPU throttle, same host/artifact and
+only the cache implementation changed, give median runtime opening 995 ->
+435 ms cold and 1,992 -> 433 ms offline. This measures initialization after
+shell load on loopback, not network startup or physical mobile performance.
+Typecheck/build and focused regressions pass. Broad affected qualification
+and landing remain pending at this entry; no publication claim is made.

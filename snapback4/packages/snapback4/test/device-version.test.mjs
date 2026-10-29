@@ -91,3 +91,40 @@ test('another initialized artifact cannot skip identity admission through a glob
   await assert.rejects(opener.open('must-not-decode',{initial_backend:{not:'a backend'}}),DeviceVersionError);
   assert.equal(claims,0,'identity is checked before store opening or backend decoding');
 });
+
+test('web startup reuses compiled preflight and preserves verified offline cache bytes', async t => {
+  // A fresh host module gives this test its own compilation/instance identity.
+  const { prepareWasm, initializePreparedWasm } = await import('../dist/web-wasm.js?startup-cache');
+  const bytes = readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm', import.meta.url));
+  const memory = memoryPersistence(), save = memory.save, compile = WebAssembly.compile, fetch = globalThis.fetch;
+  const url = 'https://startup.invalid/device.wasm';
+  let compilations = 0, requests = 0, saves = 0;
+  WebAssembly.compile = source => { compilations++; return compile(source); };
+  globalThis.fetch = async () => { requests++; return new Response(bytes); };
+  memory.save = async (...args) => { saves++; return save(...args); };
+  t.after(() => { WebAssembly.compile = compile; globalThis.fetch = fetch; });
+  const prepared = await prepareWasm(url, memory);
+  assert.equal(saves, 0, 'preflight must not install a cache or instantiate the VM');
+  assert.equal(compilations, 1);
+  await initializePreparedWasm(prepared, memory);
+  assert.equal(compilations, 1, 'opening reuses the validated compiled module');
+  assert.equal(saves, 1);
+  const saved = await memory.load('snapback4-wasm');
+  const pointer = saved.find(c => c.s === 'url' && c.k === url).v;
+  const cached = saved.find(c => c.s === 'sha256' && c.k === pointer);
+  assert.equal(cached.v, bytes.toString('hex'), 'cache format and every byte survive chunked encoding');
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  assert.deepEqual((await prepareWasm(url, memory)).engine, prepared.engine);
+  assert.equal(compilations, 1);
+  assert.equal(requests, 1);
+  for (const corrupt of ['a', 'gg', 'ff' + cached.v.slice(2)]) {
+    await save('snapback4-wasm', [{ ...cached, v: corrupt }]);
+    await assert.rejects(prepareWasm(url, memory), /offline/, 'invalid cache bytes cannot reuse compiled content by URL');
+  }
+  globalThis.fetch = async () => { requests++; return new Response(bytes); };
+  const repaired = await prepareWasm(url, memory);
+  await initializePreparedWasm(repaired, memory);
+  assert.equal(requests, 2);
+  assert.equal(compilations, 1);
+  assert.equal((await memory.load('snapback4-wasm')).find(c => c.s === 'sha256' && c.k === pointer).v, cached.v);
+});

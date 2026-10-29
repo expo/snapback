@@ -92,7 +92,8 @@ export async function devServer({ seed = [], extraSource = "", sourceDir, port =
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
-export async function launch({ seed = [], extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset, worker = false, watch = false, memory = false, unsafeDevDoors = false }) {
+export async function launch({ seed = [], extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset, worker = false, watch = false, memory = false, unsafeDevDoors = false,
+  bootstrap = true, minify = false, ready = () => typeof window.createLocalClient === "function" }) {
   const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
@@ -104,10 +105,10 @@ export async function launch({ seed = [], extraSource = "", headless = true, sou
   // Keep defaults in their own module: custom entries may import the same
   // public names without redeclaring bootstrap bindings in one module.
   writeFileSync(join(harness, "bootstrap.ts"), `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nimport { createApp } from "${join(root, "packages/snapback4/src/app.ts")}";\nimport { localStorageSessionStore } from "${join(root, "packages/snapback4/src/auth.ts")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice, createApp, localStorageSessionStore });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice({ worker: ${worker} }), ...options });\n`);
-  writeFileSync(entry, `import "./bootstrap.ts";\n${entrySource}\n`);
+  writeFileSync(entry, `${bootstrap ? 'import "./bootstrap.ts";' : ''}\n${entrySource}\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   const overrides = () => ({ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } });
-  await build({ root: harness, resolve: { alias: { "snapback4/contract": join(root, "packages/snapback4/src/contract.ts") } }, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
+  await build({ root: harness, resolve: { alias: { "snapback4/contract": join(root, "packages/snapback4/src/contract.ts") } }, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify, target: "es2022", assetsInlineLimit: 0 } });
 
   const dev = await devServer({ seed, extraSource, sourceDir, clockOffset, watch, memory, unsafeDevDoors });
   const { api, app, seeded, seedMs } = dev;
@@ -130,8 +131,7 @@ export async function launch({ seed = [], extraSource = "", headless = true, sou
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("Performance.enable");
-  const ready = async () => { await page.goto(pageUrl); await page.waitForFunction(() => typeof window.createLocalClient === "function"); };
-  await ready();
+  await page.goto(pageUrl); await page.waitForFunction(ready);
   return {
     page,
     api,
@@ -139,7 +139,7 @@ export async function launch({ seed = [], extraSource = "", headless = true, sou
     seeded,
     seedMs,
     chromium: exe.includes("Testing") ? exe.split("/").find((p) => p.startsWith("chromium-")) : "system chrome",
-    async reload() { await page.reload(); await page.waitForFunction(() => typeof window.createLocalClient === "function"); },
+    async reload() { await page.reload(); await page.waitForFunction(ready); },
     async heapMb() { const { metrics } = await cdp.send("Performance.getMetrics"); return +((metrics.find((m) => m.name === "JSHeapUsedSize")?.value ?? 0) / 1_048_576).toFixed(1); },
     async close() {
       await browser.close();

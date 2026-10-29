@@ -141,6 +141,11 @@ initial shell or sign-in page load without the full local runtime. A restored
 local client still waits for that runtime: splitting does not make its first
 query ready earlier by itself. Keep deferred chunks and WASM with the offline
 shell; `web-shell` already caches all exported assets from the same build.
+Render the page before awaiting `app.ready`; let `useAuth()` show restoration
+or sign-in progress while local data becomes available. Awaiting readiness at
+the page's entry point still delays that page until the device opens. WASM
+preflight and opening share the validated compiled module; its offline cache
+retains the existing content checks and persistent format.
 
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
