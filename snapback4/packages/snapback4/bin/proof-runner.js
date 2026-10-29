@@ -19,7 +19,8 @@ export async function runProofSuite(suite) {
   const baseline = new Map(['PipeWrap', 'TTYWrap'].map(name => [name, Math.min(3, initial.get(name) ?? 0)]));
   // A pending promise alone does not keep Node alive (for example an awaited
   // unref timer). Keep the finite suite alive without imposing a new deadline.
-  const running = setInterval(() => {}, 0x7fff_ffff);
+  const started = Date.now();
+  const running = setInterval(() => console.error(`snapback4 proof: running; ${Math.round((Date.now()-started)/1000)}s elapsed; waiting`), 5000);
   let failed = false, failure;
   try { await suite(); }
   catch (error) { failed = true; failure = error; process.exitCode = 1; }

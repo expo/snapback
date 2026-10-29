@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Starter verification batches checks and proofs with 5-second progress and one bounded final summary; use an initial tool wait of 30000ms. Basic password browser proofs reuse `signInUI`/`signOutUI` to handle restored sessions and await screen readiness. Keep exact accessible labels and assert receipts before rendered results. `src/on-write.ts` includes SDK-typed `onWrite`/`refusalOf` handling; nullable/private-field and ordered-exists errors name safe repairs. Proof drafts remain opt-in.
+
 - Generated production serve scripts arm signal cleanup before reporting readiness. Existing app scripts can save the `serveUntilSignal(hosts)` promise before printing readiness and await it afterward, so an immediate shutdown gets graceful cleanup.
 - `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Existing apps keep their scripts and assertions; ordinary checks create neither packet and refresh only existing matrix facts. The previously automatic exhaustive scaffold is now opt-in. Explicit requests preserve builder edits; compact drafts are never rewritten.
 

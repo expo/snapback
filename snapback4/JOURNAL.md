@@ -110431,3 +110431,18 @@ ordering has a real signal-before-handler window; the assertion stays strict.
 This follow-up changes the emitted production script and release note, not the
 engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
+
+### 2026-10-29 — STARTER2 starter verification and repairs
+
+The .48 archived call census points to separate typecheck/acceptance/frontend
+polls, repeated UI sign-in and exact-select-name failures, and seven SDK write
+handler type mismatches. STARTER2 adds short five-second progress, keeps one
+ordered first-red verify batch, registers fallback Playwright selectors before
+opening pages, reuses password UI sign-in/out helpers and existing
+labelledControl, and ships src/on-write.ts typed with Write<R>/refusalOf.
+Nullable/private-field advice leads with presence binding; ordered-exists
+errors include the named-predicate search. No accepted-program semantics,
+security binder, default proof scaffolding or version changes. See LLP
+3000.037.000 §18 and reports/20261029-starter2/METHOD.md. Whole-session dollar
+results and packed qualification remain pending; source correctness is not a
+performance claim.

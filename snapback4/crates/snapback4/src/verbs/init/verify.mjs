@@ -29,8 +29,14 @@ const fd = openSync(temporary, 'wx', 0o600);
 const steps = ['check', 'acceptance', 'frontend:proof', 'probe:check'];
 const passed = [], started = Date.now();
 let failed, code = 0;
+let active = steps[0];
+// Progress stays separate from the budgeted final verdict and private phase logs.
+const progress = () => console.error(`verify: running ${active}; ${Math.round((Date.now()-started)/1000)}s elapsed; waiting`);
+progress();
+const heartbeat = setInterval(progress, 5000);
 try {
   for (const step of steps) {
+    active = step;
     unwatch.check(); // close the polling interval race before admitting a phase
     writeSync(fd, `\n=== ${step} ===\n`);
     // npm owns pre/post hooks, authored scripts and their ordinary exit codes.
@@ -44,7 +50,7 @@ try {
     if (code) { failed = step; break; }
     passed.push(step);
   }
-} finally { unwatch(); closeSync(fd); renameSync(temporary, path); }
+} finally { clearInterval(heartbeat); unwatch(); closeSync(fd); renameSync(temporary, path); }
 const detail = readFileSync(path, 'utf8');
 if (args.length) process.stdout.write(detail);
 else if (failed) {

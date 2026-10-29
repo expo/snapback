@@ -1,6 +1,6 @@
 # Workflow
 
-Copy and rename this recipe.
+Adapt this recipe.
 
 ## Roles/private fields: schema.q
 
@@ -84,37 +84,42 @@ invariant requests.read only .owner = viewer or exists roles[viewer, staff = tru
 invariant requests.price read only exists roles[viewer, role = 'intake'] or exists roles[viewer, role = 'director']
 ```
 
-Rules grant writes; require cannot. Hidden fields are omitted; price is cents.
-If approval gates an action, require `r.approvedBy != null` there.
+Require cannot grant writes. Hidden fields are omitted; money is cents.
+Require `r.approvedBy != null` when approval gates an action.
 
 ## Deadlines/jobs and nullable values
 
-Deadlines use stored server events; guard before status despite sweep lateness.
-30d is a duration. For exact UTC anniversary validity set dueAt: nextYear(now),
-then guard against that immutable deadline. nextYear clamps leap day to February
-28 at the same UTC time. Test such a deadline after 366d rather than 31d.
-
-Nullable arithmetic: `at = r.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
-Nullable conditions: `(flag ?? false)`. Assert nullable times before comparing.
-Inserts supply every required column without a default, including evidence/price.
+Guard deadlines despite sweep lateness; test nextYear after 366d (leap day clamps).
+Bind `at = r.deliveredAt ! else NOT_DELIVERED` before `at + 30d`. Private fields
+stay nullable after role guards; keep guards. `flag ?? false` needs spec intent.
+Ordered existence:
+`exists requests where .owner = viewer and .dueAt < now`.
 
 ## Uploads, live board and approval
 
-Hooks from snapback4/react: usePage(api.board,{}) gives live items/read/loading/
-why/hasMore/loadMore. useMutation(api.approve).run({request,reason}) returns sent
-(committed) or failed (why). Keep auth/AppProvider; hooks go at component top level.
+SDK handler (src/on-write.ts); keep auth/AppProvider:
 
-As the placing account, upload bytes with `{file:{type:'application/pdf'}}` for
-valid PDF bytes; require result.ok, then pass `{evidence:{id:result.asset.id}}`.
-Images: client.upload(imageBytes). Upload separately per column. Observe returns
-getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
+```ts
+import { refusalOf, type Write } from 'snapback4/contract';
+// Inside the component; setProblem is its state setter.
+async function onWrite<R>(run: () => PromiseLike<Write<R>>) {
+  try { const w = await run(); setProblem(refusalOf(w)?.message ?? ''); return w; }
+  catch { setProblem('Check write status before retry.'); }
+}
+// void onWrite(() => approve.run({request, reason}));
+```
+
+Only sent is committed; pending is queued.
+Upload per column as the placing account: client.upload(pdf,{file:{type:'application/pdf'}}).
+Require ok; pass {evidence:{id:upload.asset.id}}. Close observers on cleanup.
 
 ## Acceptance: scripts/acceptance.mjs
 
 seedUsers in scripts/staging.mjs is
 `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
-Adapt these assertions; run `npm run verify`. Optional account/lifecycle drafts:
-`check --proof-draft` (one scenario) or `check --proof-scaffold` (exhaustive).
+Adapt assertions, then `npm run verify`: one batch, 5s progress, bounded summary.
+Initial tool wait: 30000ms; allow a long proof timeout and wait.
+Optional: `check --proof-draft` or `--proof-scaffold`.
 
 ```js
 import assert from 'node:assert/strict';
@@ -170,7 +175,8 @@ try {
 } finally { for (const c of clients) await c.close(); await host.stop(); }
 ```
 
-Test boundaries and refusals twice.
-Edit frontend proof assertions; keep build/cleanup. Run `npm run verify`.
-Keep credentials private.
-Args/hooks: `guide api generated`.
+Keep frontend build/cleanup; edit UI assertions.
+snapback4/proof: signInUI(page,account)/signOutUI(page) handle restored sessions;
+labelledControl(page,'combobox','Owner') excludes option text in wrapping labels.
+Assert the SDK receipt before rendered results.
+Keep credentials private. Hooks: guide api generated.

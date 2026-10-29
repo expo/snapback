@@ -26,8 +26,8 @@ fi
   assert.equal(r.code,failed?17:0,r.out);
   const expected=failed?steps.slice(0,steps.indexOf(failed)+1):steps;
   assert.deepEqual(readFileSync(join(cwd,'phases'),'utf8').trim().split('\n'),expected);
-  assert.ok(r.out.trim().split('\n').length<=(failed?9:3),r.out);
-  if(failed) {assert.ok(r.out.startsWith('proof refusal:'),r.out);assert.match(r.out,/# likely fix: supply until/);assert.match(readFileSync(join(cwd,'.snapback4/last/verify.txt'),'utf8'),/AssertionError/);}
+  assert.ok(r.out.trim().split('\n').filter(line=>!line.startsWith('verify: running ')).length<=(failed?9:3),r.out);
+  if(failed) {assert.ok(r.out.split('\n').filter(line=>!line.startsWith('verify: running ')).join('\n').startsWith('proof refusal:'),r.out);assert.match(r.out,/# likely fix: supply until/);assert.match(readFileSync(join(cwd,'.snapback4/last/verify.txt'),'utf8'),/AssertionError/);}
   assert.equal(statSync(join(cwd,'.snapback4/last/verify.txt')).mode&0o777,0o600);
  }
 });

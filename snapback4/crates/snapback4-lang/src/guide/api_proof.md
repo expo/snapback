@@ -20,6 +20,8 @@ export interface CliResult { code: number | null; signal: NodeJS.Signals | null;
 export function command(binary: string, args: readonly string[], options?: ProofOptions): Promise<CliResult>;
 export function startStatic(dir: string, options?: ProofOptions): Promise<ProofHost>;
 export function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType; }, proof: (context: BrowserContext) => Promise<T>): Promise<T>;
+export function signInUI(page: Page, account: { email: string; password: string; }): Promise<void>;
+export function signOutUI(page: Page): Promise<void>;
 export function renderedText(page: Page, text: string | RegExp, options?: { within?: Locator; exact?: boolean; } | null): Locator;
 export function waitForFresh(locator: Locator, previous: string | null, options?: number | { within?: Locator; timeoutMs?: number; trigger?: () => unknown | Promise<unknown>; }): Promise<string>;
 export function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options?: { timeoutMs?: number; label?: string; }): Promise<T>;
@@ -44,4 +46,4 @@ export function freshUser(host: Pick<ServeHost, "url" | "operatorToken">, option
 export interface FreshUserOptions { role?: string; provision?: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 ```
 
-Declaration fingerprint: 08e7a5e6802133ca49414b24c648a05caf4e364729ab1db34b0ee941e9af85eb
+Declaration fingerprint: ceaf35d4b583b0d302d043a0aaa45c977304c985aeaab26521e81511983785f1

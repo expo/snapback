@@ -52,7 +52,9 @@ local calls, rather than assuming advance() freezes the server clock.
 - package.json: EDIT business script commands; keep pinned toolchain/config.
 - versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
 
-Run `npm run verify` after wiring application assertions. Optional helpers:
+Run `npm run verify` after wiring application assertions; allow an initial tool
+wait of 30000ms. It batches phases, prints 5s progress and one final summary.
+Optional helpers:
 `npx snapback4 check --proof-draft` creates one small business draft once;
 `npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
 probe:serve exits after 10s ready without requests; use --hold for a harness.

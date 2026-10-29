@@ -18,5 +18,8 @@ pub(super) fn files(sources:&[(String,String)], proof:String)->Vec<(&'static str
         .replace("await fillRN(page.getByLabel(\"Email\", { exact: true }), `proof-${randomUUID()}@example.test`);", "const account = Object.values(dev.sessions).flat()[0];\n      await fillRN(page.getByLabel(\"Email\", { exact: true }), account.email);")
         .replace("await fillRN(page.getByLabel(\"Password\", { exact: true }), \"Proof-password-928!\");", "await fillRN(page.getByLabel(\"Password\", { exact: true }), account.password);")
         .replace("name: \"Sign up\", exact: true", "name: \"Sign in\", exact: true");
+    // Social reveals its account controls only after navigating to Profile.
+    // Its existing navigation owns readiness; the helper targets the basic shell.
+    let proof = if proof.contains("await page.getByText(\"Profile\", { exact: true }).click();") { proof } else { proof.replace("await fillRN(page.getByLabel(\"Email\", { exact: true }), account.email);\n      await fillRN(page.getByLabel(\"Password\", { exact: true }), account.password);\n      await page.getByRole(\"button\", { name: \"Sign in\", exact: true }).click();", "await signInUI(page, account);") };
     vec![("scripts/prod-serve.mjs",include_str!("password-prod-serve.mjs").replace("SEED_PLAN",&plan)),("scripts/prod-check.mjs",include_str!("password-prod-check.mjs").into()),("scripts/probe-check.mjs",include_str!("password-probe-check.mjs").into()),("scripts/staging.mjs",staging),("scripts/probe-serve.mjs",include_str!("password-probe.mjs").into()),("scripts/frontend-proof.mjs",proof)]
 }
