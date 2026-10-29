@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import '../scripts/test-npm-cache.mjs';
 // The loop bar (LLP 3000 §3; rules/NOT-DOING.md "The bars"): a fresh agent,
 // the published package, the reduced Clique M1–M3, ≤ 1,200 s wall clock,
 // ≤ 1 Snapback-attributed correction loop, N ≥ 3. One line per run to

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import '../scripts/test-npm-cache.mjs';
 // @ref LLP 3000.007#21.5 — N >= 3, with derived-data ceremony and chosen-number counters.
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, cpSync, readdirSync } from 'node:fs';
