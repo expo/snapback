@@ -178,7 +178,7 @@ try {
 ```
 
 Keep build/cleanup; edit UI assertions.
-snapback4/proof: signInUI(page,account)/signOutUI(page) handle restored sessions;
-labelledControl(page,'combobox','Owner') excludes option text in wrapping labels.
-Assert the SDK receipt before rendered results.
+Use snapback4/proof signInUI/signOutUI for restored sessions;
+labelledControl(page,'combobox','Owner') handles wrapping labels.
+Assert receipts before rendered results.
 Keep credentials private.
