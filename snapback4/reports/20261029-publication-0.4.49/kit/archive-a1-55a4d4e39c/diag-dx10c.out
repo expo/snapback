@@ -1,0 +1,4 @@
+samples 194
+tree changes written
+not ok 8 - native store releases on npm death even when its proof driver ignores TERM
+-- client files: 1/1; failed 1; tests {"tests":15,"pass":14,"fail":1,"cancelled":0,"skipped":0,"todo":0}

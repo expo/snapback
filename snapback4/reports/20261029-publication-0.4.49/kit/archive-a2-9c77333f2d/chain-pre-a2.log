@@ -1,0 +1,12 @@
+2026-10-29T09:56:13Z waiting load=113
+2026-10-29T09:57:14Z pre-darwin start load={ 46.15 180.01 137.38 }
+2026-10-29T10:28:14Z pre-darwin rc=1: -- client files: 40/40; failed 2; tests {"tests":841,"pass":829,"fail":2,"cancelled":0,"skipped":10,"todo":0}
+2026-10-29T10:28:14Z STOP: pre-darwin red; no dry run until triaged: -- client file FAIL: packages/snapback4/test/server-e2e.test.mjs (51713 ms) -- client file FAIL: packages/snapback4/test/export-background.test.mjs (754109 ms) 
+2026-10-29T10:29:08Z flake-rule isolation start: server-e2e x6, export-background x6
+2026-10-29T10:34:23Z server-e2e alone: 6/6 passed
+2026-10-29T11:47:10Z export-background alone: 6/6 passed
+2026-10-29T11:47:10Z both 6/6 alone: flakes; starting gate-after-triage-a2.sh
+2026-10-29T11:47:11Z refresh start (after triage) load={ 10.01 9.29 8.89 }
+2026-10-29T11:47:32Z refresh: 0/6 ok; web init FAILED web-online init FAILED 
+2026-10-29T11:47:34Z starting gate-tolerant ATT=1 RUSTPROCS=2 (after triage)
+2026-10-29T11:47:34Z gate pid 93893

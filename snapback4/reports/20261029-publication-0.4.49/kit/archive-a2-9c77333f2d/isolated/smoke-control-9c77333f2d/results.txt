@@ -1,0 +1,12 @@
+host=Charlies-MacBook-Pro-M5Max-Black.local date=2026-10-29T15:39:04Z tty=/dev/ttys056 node=v24.18.0
+ancestry: | 35798 35797 ccheever bash | 35797 35676 ccheever zsh | 35676 35439 ccheever sshd-session: ccheever@ttys056 | 35439 1 root sshd-session: ccheever [priv]
+native=node_modules/snapback4-darwin-arm64/snapback4 shim=node_modules/.bin/snapback4
+PASS native-version rc=0 (want 0) out=snapback4 0.4.49 
+FAIL native-serve-help rc=143 (want 0) out=
+FAIL native-dev-help rc=143 (want 0) out=
+FAIL native serve exited before ready rc=143 err=
+FAIL shim-version rc=143 (want 0) out=
+FAIL shim-serve-help rc=143 (want 0) out=
+FAIL shim-dev-help rc=143 (want 0) out=
+FAIL shim deploy rc=143 
+RESULT FAIL

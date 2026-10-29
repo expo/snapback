@@ -1,0 +1,7 @@
+2026-10-29T17:10:44Z starting dry run attempt 2 (100%;)
+2026-10-29T18:32:43Z starting dry run attempt 3 (100%;)
+2026-10-29T21:25:18Z att=3 on battery with the lid open (100%): tolerated while there is no sleep, no wall-clock gap and >= 25%
+2026-10-29T21:26:22Z att=3 back on AC
+2026-10-29T22:19:52Z att=3 on battery with the lid open (100%): tolerated while there is no sleep, no wall-clock gap and >= 25%
+2026-10-29T22:28:06Z att=3 back on AC
+2026-10-29T22:57:07Z attempt 3 finished: done after 15864 s

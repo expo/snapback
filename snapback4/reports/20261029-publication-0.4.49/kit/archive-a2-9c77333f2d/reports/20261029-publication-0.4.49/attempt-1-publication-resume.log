@@ -1,0 +1,12 @@
+file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/check-verb-help.mjs:56
+      if (result.status !== 0) throw new Error(`${verb} --help failed: ${result.stderr}`);
+                                     ^
+
+Error: serve --help failed: 
+    at file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/check-verb-help.mjs:56:38
+    at assertChangelogHelp (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/check-verb-help.mjs:46:20)
+    at checkVerbHelp (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/check-verb-help.mjs:53:3)
+    at proveDarwin (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/publication-consumer.mjs:20:1)
+    at file:///Users/ccheever/sb4-pub-0444-wt/snapback4/scripts/publish.mjs:113:41
+
+Node.js v24.18.0

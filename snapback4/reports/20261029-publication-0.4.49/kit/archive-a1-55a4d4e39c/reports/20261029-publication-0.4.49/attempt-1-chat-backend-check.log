@@ -1,0 +1,47 @@
+runtime changes: 0.4.44 → 0.4.49
+## 0.4.49
+
+- Generated production serve scripts arm signal cleanup before reporting readiness. Existing app scripts can save the `serveUntilSignal(hosts)` promise before printing readiness and await it afterward, so an immediate shutdown gets graceful cleanup.
+- `npm run verify` retains its compact first-failure loop. Proof helpers are optional: `snapback4 check --proof-draft` creates a compact one-scenario draft once (at most 8KB); `check --proof-scaffold` creates exhaustive operation/role/guard drafts. Existing apps keep their scripts and assertions; ordinary checks create neither packet and refresh only existing matrix facts. The previously automatic exhaustive scaffold is now opt-in. Explicit requests preserve builder edits; compact drafts are never rewritten.
+
+## 0.4.48
+
+- README is the only Markdown file at the package root. Detailed server, client, adoption, upload and release references now live in `reference/`, reached through `guide package-reference`; existing apps keep their source and runtime behavior. Update any scripts that read those reference files by path.
+- Every `Write<R>` permits reading `.why`: it is undefined while pending or sent and carries the refusal on failure. Existing pending `.reason` strings and failure `.why` callers keep compiling. `refusalOf(write)` from `snapback4/client`, `snapback4/react` or `snapback4/contract` returns the failure or undefined; `guide api client` includes both shapes.
+- Checked `snapback/generated/api.ts` now carries this app's client usage: React/plain calls, argument/result shapes, session guards and declared refusals. Green check and `guide api client/react/generated` point to it; the generated operation index names the packet. Regenerate after schema edits.
+
+## 0.4.47
+
+- Start app proofs from the schema-generated `scripts/proof-scaffold/cases.mjs`, fill business assertions and route acceptance, frontend and probe scripts to its runners. `npm run verify` checks Quarry and TypeScript, then runs acceptance, frontend proof and probe shutdown, stopping at the first failure. Check preserves edited scaffold files; existing app scripts remain application-owned.
+- Finite suites can await tests and cleanup with `runProofSuite` from `snapback4/proof-runner`; reports drain before exit with the suite status and one line names residual resource types. New frontend/day-two recipes use it. Release commands reuse pure compilation within one invocation; source reads, security, admission and durable activation still run.
+- An empty unheld `probe:serve` exits after 10 seconds ready; another empty idle attempt refuses early. Intentional harness service uses `SNAPBACK4_PROBE_HOLD=1`. Foreground installation remains default; the app installer supports explicit detached background admission, request-bound status and one blocking join.
+
+## 0.4.46
+
+- Existing app rows, accounts, releases and frozen v1 clients remain. Restart serving hosts after upgrading. Shared campaign fixtures, lazy replay IDs and ordered concurrent searches reduce check/deploy work while retaining security gates, witnessed questions, payloads and search budgets. No store migration beyond 0.4.45's fence is needed.
+- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores details and `--json` keeps complete evidence. Proof failures lead with operation, role, code, field and repair, retaining original assertions and exits.
+- `guide start` routes to one `guide workflow` app recipe; README is a pointer. `guide api` digests replace declaration tours; starter scripts mark business edit regions. Nullable conditions/arithmetic and required inserts have compiling examples. App-owned scripts stay owned by the app.
+- `guide day2` routes saved versions, preview, rollback, forward and frozen callers. Large `guide --full` reads list bounded sections; `guide --repeat` forces rereading. `init --adapt --day2 --apply` explicitly freezes checked v1 source/API. `uniqueName`/`freshUser` isolate reruns without retrying writes or raising caps.
+- Serve and proof hosts follow parent/npm lifetime and forward termination. Busy stores name the holder and `snapback4 stop <dir>` recovery. Password starters add `prod:serve` and bounded `prod:check`; existing scripts can adopt the production-card recipe. Init owns one foreground frontend install with private logs and propagates its status; explicit deferred installs need one join.
+- `promote STAGING PRODUCTION [--check]` copies stopped, real-time, quiescent SQLite staging into new production, retaining data/assets/password accounts/releases. Users sign in again, devices reacquire and inherited service credentials are revoked. Existing targets, live guests, unfinished work, advanced clocks and security refutations refuse with repairs.
+- Required-to-optional rollback views retain independent invariants. Intentional null hiding refuses null writes with `ROLLBACK_NULL`; unavailable hiding views no longer veto safe forward activation. `deploy --check` reports adoption before security. Extraction defaults and missing reverse values refuse at check/preview with column repairs; bare global `cap N` survives generated views.
+- `check --fix` applies context-compiled `E_QUARRY_*` edits with exact diffs; defaults, arbitrary bounds and security intent stay manual. Image-only backends accept `client.upload` file metadata through verified image handling; invalid bytes and bounds still refuse.
+- Administrative `data --all` / `snapshotAll` merge active and retained rows/cells once per ID; limited reads remain active-only. Proof imports load browsers lazily and dispatch native commands directly, retaining deadlines, cleanup and fresh real-user staging worlds.
+
+## 0.4.45
+
+- Default check and deploy add witnessed questions for approval acts and history, staff assignment scope, bypassed transitions, missing optional media/child evidence, movable stored deadline anchors and event-time windows. These are nonblocking specification questions; existing gates still require current evaluated evidence. Existing apps may see new pending questions on upgrade; unsupported evidence questions cannot be acknowledged without a current replay. Review and answer the exact operation/caller witness, or enforce the intended guard in source. An authored column update-only policy answers an inferred approval-input freeze for that column; authored assertions and language enforcement remain.
+- Rollback to the already-live release is an idempotent no-op. A redundant historical rollback no longer prevents forward selection; preview repair with `rollback DIR --to latest --exact --check`. Real authored old-release conflicts still refuse with row, field and bridge advice. Pointer-only legacy stores require one explicit deploy before serve or rollback.
+- `alias result list.oldName = currentName` preserves old result property names. Receipt-owned rollback views retain extracted asset fields through their original child identities and current authorization. Rename plus safe domain widening can activate together; scalar-only extraction explicitly refuses with a backfill/down repair. Preview output names changed properties and retained preimages.
+- Existing app rows, accounts and users remain. Restart serving hosts and use this CLI for cold release commands: successful release moves upgrade the internal server-store fence to 11 and require activation protocol 11. Older executors refuse unsupported receipt-owned result views. Rebuild clients for generated result aliases; no source rewrite is required unless choosing them.
+- New Expo starters include a local patched configuration merger for the unpatched deepmerge advisory. Existing projects keep their toolchain files; `init --expo --skip-existing` adds the patch only when its files and dependency override do not conflict.
+History begins at 0.4.26; earlier changes are not recorded.
+upgrade delta: 0.4.44 → 0.4.49 for snapback/*.q
+  new notes: none
+  new compiler refusals: none
+  pending security review gates: none
+  generated/api.ts types: unchanged
+  query completeness: unchanged
+  release card: snapback4 guide changes
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`); 18992.0 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)

@@ -1,0 +1,5 @@
+free 72G load 6.74 6.68 5.38
+  sb4-pub49-after-prepare.service loaded active running /bin/bash -c "./linux-after-prepare.sh > linux-after-prepare.out 2>&1"
+  sb4-pub49-disklog-1.service     loaded active running /bin/bash -c "bash ./disklog.sh 1"
+  sb4-pub49-linux-1.service       loaded active running /bin/bash -c "ATTEMPT=1 bash ./linux.sh > linux-1.out 2>&1"
+  sb4-pub49-onpass-1.service      loaded active running /bin/bash -c "./on-linux-pass.sh 1 > on-linux-pass-1.out 2>&1"

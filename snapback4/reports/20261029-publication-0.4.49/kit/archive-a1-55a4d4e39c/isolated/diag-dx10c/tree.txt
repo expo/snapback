@@ -1,0 +1,705 @@
+== 1793266075.53
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 RN node
+== 1793266075.83
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35105 ppid=35098 pgid=35105 SNs (node)
+      35115 ppid=35105 pgid=35105 SN (clang)
+        35133 ppid=35115 pgid=35105 RN (ld)
+== 1793266076.14
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266076.46
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35250 ppid=35198 pgid=35250 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35254 ppid=35250 pgid=35250 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35256 ppid=35250 pgid=35250 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266076.79
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35250 ppid=35198 pgid=35250 SNs (node)
+            35254 ppid=35250 pgid=35250 SN (node)
+            35256 ppid=35250 pgid=35250 RN (snapback4)
+== 1793266077.09
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35381 ppid=35198 pgid=35381 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35388 ppid=35381 pgid=35381 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35414 ppid=35381 pgid=35381 SN (node)
+              35449 ppid=35414 pgid=35381 SN (node)
+== 1793266077.39
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35484 ppid=35198 pgid=35484 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35486 ppid=35484 pgid=35484 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35500 ppid=35484 pgid=35484 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266077.72
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35484 ppid=35198 pgid=35484 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35486 ppid=35484 pgid=35484 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35500 ppid=35484 pgid=35484 RN (snapback4)
+== 1793266078.03
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35607 ppid=35198 pgid=35607 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35609 ppid=35607 pgid=35607 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35613 ppid=35607 pgid=35607 SN npm run prod:serve
+              35666 ppid=35613 pgid=35607 SN node
+== 1793266078.94
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35607 ppid=35198 pgid=35607 SNs (node)
+            35609 ppid=35607 pgid=35607 SN (node)
+          35841 ppid=35198 pgid=35841 SNs (node)
+            35871 ppid=35841 pgid=35841 RN (node)
+== 1793266079.26
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          35879 ppid=35198 pgid=35879 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35884 ppid=35879 pgid=35879 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            35890 ppid=35879 pgid=35879 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266079.58
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36014 ppid=35198 pgid=36014 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36021 ppid=36014 pgid=36014 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266079.90
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36014 ppid=35198 pgid=36014 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36021 ppid=36014 pgid=36014 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36025 ppid=36014 pgid=36014 SN npm run prod:serve
+              36053 ppid=36025 pgid=36014 SN node
+== 1793266080.52
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36014 ppid=35198 pgid=36014 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36021 ppid=36014 pgid=36014 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36025 ppid=36014 pgid=36014 SN (node)
+              36053 ppid=36025 pgid=36014 SN (node)
+== 1793266080.85
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36263 ppid=35198 pgid=36263 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36265 ppid=36263 pgid=36263 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36267 ppid=36263 pgid=36263 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266081.57
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36374 ppid=35198 pgid=36374 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36381 ppid=36374 pgid=36374 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36390 ppid=36374 pgid=36374 SN (node)
+              36429 ppid=36390 pgid=36374 RN (node)
+== 1793266081.87
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36481 ppid=35198 pgid=36481 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36485 ppid=36481 pgid=36481 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36488 ppid=36481 pgid=36481 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266082.56
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36576 ppid=35198 pgid=36576 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36600 ppid=36576 pgid=36576 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36611 ppid=36576 pgid=36576 SN npm run prod:serve
+              36644 ppid=36611 pgid=36576 SN node
+== 1793266082.86
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36576 ppid=35198 pgid=36576 SNs (node)
+            36600 ppid=36576 pgid=36576 SN (node)
+            36611 ppid=36576 pgid=36576 SN (node)
+              36644 ppid=36611 pgid=36576 SN (node)
+          36743 ppid=35198 pgid=36743 SNs (node)
+            36748 ppid=36743 pgid=36743 RN (node)
+== 1793266083.19
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36753 ppid=35198 pgid=36753 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36780 ppid=36753 pgid=36753 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36786 ppid=36753 pgid=36753 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266083.50
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36868 ppid=35198 pgid=36868 RNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266083.81
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36972 ppid=35198 pgid=36972 SNs (node)
+            36974 ppid=36972 pgid=36972 SN (node)
+            36979 ppid=36972 pgid=36972 RN (snapback4)
+== 1793266084.13
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          36981 ppid=35198 pgid=36981 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36983 ppid=36981 pgid=36981 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            36990 ppid=36981 pgid=36981 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266084.44
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37103 ppid=35198 pgid=37103 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37110 ppid=37103 pgid=37103 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266084.75
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37103 ppid=35198 pgid=37103 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37110 ppid=37103 pgid=37103 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37210 ppid=35198 pgid=35185 RN (ps)
+== 1793266085.04
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37223 ppid=35198 pgid=37223 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37225 ppid=37223 pgid=37223 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37226 ppid=37223 pgid=37223 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266085.36
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266085.67
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37312 ppid=35198 pgid=37312 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37337 ppid=37312 pgid=37312 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37345 ppid=37312 pgid=37312 SN npm run prod:serve
+              37370 ppid=37345 pgid=37312 RN node
+                37389 ppid=37370 pgid=37389 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37432 ppid=37389 pgid=37389 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37441 ppid=37389 pgid=37389 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266085.98
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37312 ppid=35198 pgid=37312 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37337 ppid=37312 pgid=37312 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37345 ppid=37312 pgid=37312 SN npm run prod:serve
+              37370 ppid=37345 pgid=37312 SN node
+                37389 ppid=37370 pgid=37389 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37432 ppid=37389 pgid=37389 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37441 ppid=37389 pgid=37389 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+          37502 ppid=35198 pgid=37502 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37510 ppid=37502 pgid=37502 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266086.28
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          37312 ppid=35198 pgid=37312 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37337 ppid=37312 pgid=37312 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37345 ppid=37312 pgid=37312 SN npm run prod:serve
+              37370 ppid=37345 pgid=37312 SN node
+                37389 ppid=37370 pgid=37389 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37432 ppid=37389 pgid=37389 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                  37441 ppid=37389 pgid=37389 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+          37502 ppid=35198 pgid=37502 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37510 ppid=37502 pgid=37502 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            37535 ppid=37502 pgid=37502 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266091.17
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          38435 ppid=35198 pgid=38435 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38437 ppid=38435 pgid=38435 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38445 ppid=38435 pgid=38435 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266091.46
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          38435 ppid=35198 pgid=38435 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38437 ppid=38435 pgid=38435 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38445 ppid=38435 pgid=38435 RN (snapback4)
+== 1793266091.74
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          38523 ppid=35198 pgid=38523 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38527 ppid=38523 pgid=38523 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38531 ppid=38523 pgid=38523 SN npm run prod:serve
+              38603 ppid=38531 pgid=38523 SN node
+                38623 ppid=38603 pgid=38523 SN /opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python
+== 1793266092.03
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          38523 ppid=35198 pgid=38523 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38527 ppid=38523 pgid=38523 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38531 ppid=38523 pgid=38523 SN npm run prod:serve
+              38603 ppid=38531 pgid=38523 SN node
+                38623 ppid=38603 pgid=38523 SN /opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python
+          38674 ppid=35198 pgid=38674 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38678 ppid=38674 pgid=38674 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            38701 ppid=38674 pgid=38674 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266097.09
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39633 ppid=35198 pgid=39633 RNs (node)
+== 1793266097.39
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39644 ppid=35198 pgid=39644 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39646 ppid=39644 pgid=39644 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39653 ppid=39644 pgid=39644 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266097.69
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39736 ppid=35198 pgid=39736 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39760 ppid=39736 pgid=39736 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266097.98
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 UN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39736 ppid=35198 pgid=39736 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39760 ppid=39736 pgid=39736 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39783 ppid=39736 pgid=39736 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266098.27
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39856 ppid=35198 pgid=39856 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39858 ppid=39856 pgid=39856 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39860 ppid=39856 pgid=39856 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266098.84
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          39995 ppid=35198 pgid=39995 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39997 ppid=39995 pgid=39995 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            39999 ppid=39995 pgid=39995 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+          40001 ppid=35198 pgid=40001 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40004 ppid=40001 pgid=40001 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266099.13
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40046 ppid=35198 pgid=40046 RNs (node)
+== 1793266099.41
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 UN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266099.71
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40079 ppid=35198 pgid=40079 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40087 ppid=40079 pgid=40079 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40129 ppid=40079 pgid=40079 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266099.99
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40210 ppid=35198 pgid=35185 RN npm pack
+== 1793266100.55
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40321 ppid=35198 pgid=40321 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40326 ppid=40321 pgid=40321 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40354 ppid=40321 pgid=40321 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40436 ppid=40354 pgid=40436 RNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266100.84
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40321 ppid=35198 pgid=40321 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40326 ppid=40321 pgid=40321 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40354 ppid=40321 pgid=40321 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40436 ppid=40354 pgid=40436 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40440 ppid=40436 pgid=40436 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40443 ppid=40436 pgid=40436 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266101.13
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40321 ppid=35198 pgid=40321 SNs (node)
+            40326 ppid=40321 pgid=40321 SN (node)
+            40354 ppid=40321 pgid=40321 SN (node)
+              40548 ppid=40354 pgid=40548 SNs (node)
+                40557 ppid=40548 pgid=40548 SN (node)
+                40575 ppid=40548 pgid=40548 UN (snapback4)
+== 1793266101.41
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40581 ppid=35198 pgid=40581 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40583 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40589 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40657 ppid=40589 pgid=40657 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40662 ppid=40657 pgid=40657 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40666 ppid=40657 pgid=40657 SN npm run prod:serve
+                  40685 ppid=40666 pgid=40657 RN node
+== 1793266101.70
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40581 ppid=35198 pgid=40581 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40583 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40589 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40657 ppid=40589 pgid=40657 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40662 ppid=40657 pgid=40657 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40666 ppid=40657 pgid=40657 SN npm run prod:serve
+                  40685 ppid=40666 pgid=40657 SN node
+                    40709 ppid=40685 pgid=40709 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40711 ppid=40709 pgid=40709 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40724 ppid=40709 pgid=40709 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+              40782 ppid=40589 pgid=40782 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40786 ppid=40782 pgid=40782 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40790 ppid=40782 pgid=40782 RN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266101.99
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40581 ppid=35198 pgid=40581 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40583 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40589 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40657 ppid=40589 pgid=40657 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40662 ppid=40657 pgid=40657 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40666 ppid=40657 pgid=40657 SN npm run prod:serve
+                  40685 ppid=40666 pgid=40657 SN node
+                    40709 ppid=40685 pgid=40709 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40711 ppid=40709 pgid=40709 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40724 ppid=40709 pgid=40709 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+              40782 ppid=40589 pgid=40782 SNs (node)
+                40786 ppid=40782 pgid=40782 SN (node)
+                40790 ppid=40782 pgid=40782 RN (snapback4)
+== 1793266102.28
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40581 ppid=35198 pgid=40581 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40583 ppid=40581 pgid=40581 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            40589 ppid=40581 pgid=40581 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              40657 ppid=40589 pgid=40657 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40662 ppid=40657 pgid=40657 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                40666 ppid=40657 pgid=40657 SN npm run prod:serve
+                  40685 ppid=40666 pgid=40657 SN node
+                    40709 ppid=40685 pgid=40709 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40711 ppid=40709 pgid=40709 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      40724 ppid=40709 pgid=40709 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266102.57
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          40581 ppid=35198 pgid=40581 ?Ns (node)
+            40583 ppid=40581 pgid=40581 ?N (node)
+            40589 ppid=40581 pgid=40581 ?N (node)
+              40657 ppid=40589 pgid=40657 ?Ns (node)
+                40662 ppid=40657 pgid=40657 ?N (node)
+== 1793266103.08
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 RN npm run prod:serve
+== 1793266103.38
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266109.04
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266109.34
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266113.00
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266113.31
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266115.16
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266115.48
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41279 ppid=41276 pgid=41276 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      41283 ppid=41276 pgid=41276 SN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266133.34
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          41085 ppid=35198 pgid=41085 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41090 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            41112 ppid=41085 pgid=41085 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              41201 ppid=41112 pgid=41201 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41202 ppid=41201 pgid=41201 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                41206 ppid=41201 pgid=41201 SN npm run prod:serve
+                  41236 ppid=41206 pgid=41201 SN node
+                    41276 ppid=41236 pgid=41276 SNs (node)
+                      41279 ppid=41276 pgid=41276 SN (node)
+                      41283 ppid=41276 pgid=41276 SN (snapback4)
+              46986 ppid=41112 pgid=41085 RN (ps)
+== 1793266133.62
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          47063 ppid=35198 pgid=47063 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47064 ppid=47063 pgid=47063 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47066 ppid=47063 pgid=47063 RN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+== 1793266133.91
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          47063 ppid=35198 pgid=47063 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47064 ppid=47063 pgid=47063 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47066 ppid=47063 pgid=47063 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              47137 ppid=47066 pgid=47137 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                47142 ppid=47137 pgid=47137 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                47149 ppid=47137 pgid=47137 SN npm run prod:serve
+                  47222 ppid=47149 pgid=47137 SN node
+                    47243 ppid=47222 pgid=47243 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      47244 ppid=47243 pgid=47243 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                      47249 ppid=47243 pgid=47243 UN /Users/ccheever/sb4-pub-0444-wt/snapback4/target/debug/snapback4
+== 1793266134.20
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+          47063 ppid=35198 pgid=47063 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47064 ppid=47063 pgid=47063 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+            47066 ppid=47063 pgid=47063 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+              47137 ppid=47066 pgid=47137 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                47142 ppid=47137 pgid=47137 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+                47149 ppid=47137 pgid=47137 SN (node)
+                  47222 ppid=47149 pgid=47137 SN (node)
+                    47345 ppid=47222 pgid=47345 RNs (node)
+== 1793266134.48
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 SN node
+    35185 ppid=35098 pgid=35185 SNs /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+      35189 ppid=35185 pgid=35185 SN /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+        35198 ppid=35189 pgid=35185 UN (node)
+== 1793266134.78
+35070 ppid=35051 pgid=35070 SN timeout
+  35098 ppid=35070 pgid=35070 RN node
+    47463 ppid=35098 pgid=35070 ?N (ps)

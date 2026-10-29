@@ -1,0 +1,215 @@
+-- client file start: packages/snapback4/test/srv1-lifetime.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGTERM","pipeEOFms":341,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+ok 1 - 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 1490.334958
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGTERM","pipeEOFms":157,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+ok 2 - 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 1416.800833
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGKILL","pipeEOFms":541,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+ok 3 - 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 1697.536125
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGKILL","pipeEOFms":363,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+ok 4 - 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 1678.69325
+  type: 'test'
+  ...
+# 024 transcript: node driver.mjs | tail -n 2 -> requests complete, EOF, exit 0; next serve/deploy succeeds
+# Subtest: 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+ok 5 - 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+  ---
+  duration_ms: 1584.953125
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGTERM and closes inherited pipes
+ok 6 - serveUntilSignal handles SIGTERM and closes inherited pipes
+  ---
+  duration_ms: 1223.274125
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGINT and closes inherited pipes
+ok 7 - serveUntilSignal handles SIGINT and closes inherited pipes
+  ---
+  duration_ms: 1281.188042
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGHUP and closes inherited pipes
+ok 8 - serveUntilSignal handles SIGHUP and closes inherited pipes
+  ---
+  duration_ms: 1527.96425
+  type: 'test'
+  ...
+# Subtest: direct native serve observes launching parent death without wrapper environment
+ok 9 - direct native serve observes launching parent death without wrapper environment
+  ---
+  duration_ms: 1325.69375
+  type: 'test'
+  ...
+# Subtest: harness: detached npm --hold child survives idle and group TERM releases hosts
+ok 10 - harness: detached npm --hold child survives idle and group TERM releases hosts
+  ---
+  duration_ms: 2665.960958
+  type: 'test'
+  ...
+# Subtest: E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+ok 11 - E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+  ---
+  duration_ms: 5959.987833
+  type: 'test'
+  ...
+# Subtest: SIGKILL holder stale record is reclaimed once, with a notice
+ok 12 - SIGKILL holder stale record is reclaimed once, with a notice
+  ---
+  duration_ms: 658.590625
+  type: 'test'
+  ...
+# Subtest: Linux PDEATHSIG spawning-thread exit does not kill a live-parent host
+ok 13 - Linux PDEATHSIG spawning-thread exit does not kill a live-parent host # SKIP
+  ---
+  duration_ms: 0.078583
+  type: 'test'
+  ...
+# Subtest: password starter ships exec serve scripts and bounded prod:check against its real deployment
+ok 14 - password starter ships exec serve scripts and bounded prod:check against its real deployment
+  ---
+  duration_ms: 33736.99925
+  type: 'test'
+  ...
+# Subtest: busy persistent dev has exact stop recovery without signalling a PID hint
+ok 15 - busy persistent dev has exact stop recovery without signalling a PID hint
+  ---
+  duration_ms: 810.159542
+  type: 'test'
+  ...
+# Subtest: Darwin design witness: C-locale ps captures npm argv and parent birth changes
+ok 16 - Darwin design witness: C-locale ps captures npm argv and parent birth changes
+  ---
+  duration_ms: 581.0755
+  type: 'test'
+  ...
+# Subtest: aliased database recovery names its actual deployment control directory
+not ok 17 - aliased database recovery names its actual deployment control directory
+  ---
+  duration_ms: 6430.209208
+  type: 'test'
+  location: '/Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/srv1-lifetime.test.mjs:108:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    waiting for store owner cleanup: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/srv1-yxuoBB/external/store.sqlite (up to 5000 ms); no work admitted
+    SNAPBACK4_EXIT verb=serve generation=0 status=1 reason="E_STORE_BUSY at /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/srv1-yxuoBB/external/store.sqlite: owned by pid 20308, command snapback4 serve, start time 1793265547.057340 Unix seconds, still alive: true; address http://127.0.0.1:64772; directory /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/srv1-yxuoBB/aliased; no work was admitted. Recovery: run `snapback4 stop '/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/srv1-yxuoBB/aliased'`, rerun this command once, then restart the server. For an active CLI command wait for it to finish. For a disposable parallel proof use `dev --memory` (startDev({args:[\"--memory\"]})). Leave <database>-owner in place; deleting it does not stop that process and ends exclusion"
+    snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=65536; descriptor_exhaustions=0; startup soft=65536 target=65536; details: .snapback4/last/serve.txt
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/srv1-lifetime.test.mjs:111:104)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# 024 request completed; SIGTERM npm wrapper
+# 024 npm close observed; driver finished
+# Subtest: 024: request driver awaits npm close through tail after terminating only the wrapper
+ok 18 - 024: request driver awaits npm close through tail after terminating only the wrapper
+  ---
+  duration_ms: 1342.071541
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+ok 19 - 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+  ---
+  duration_ms: 1513.231333
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+ok 20 - 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+  ---
+  duration_ms: 1461.058834
+  type: 'test'
+  ...
+# Subtest: missing process table retains a living direct parent and detects reparenting
+not ok 21 - missing process table retains a living direct parent and detects reparenting
+  ---
+  duration_ms: 26.979834
+  type: 'test'
+  location: '/Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/srv1-lifetime.test.mjs:129:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    file:///Users/ccheever/sb4-pub-0444-wt/snapback4/[eval1]:1
+    import fs from 'node:fs';import assert from 'node:assert/strict';import{syncBuiltinESMExports}from'node:module';Object.defineProperty(process,'platform',{value:'linux'});let parent=12345;Object.defineProperty(process,'ppid',{get:()=>parent});fs.readFileSync=()=>{throw Object.assign(Error('no proc'),{code:'ENOENT'});};process.kill=()=>true;syncBuiltinESMExports();const {watchParent}=await import("file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/dist/parent-lifetime.js");let lost=false;const stop=watchParent(()=>lost=true);await new Promise(r=>setTimeout(r,300));assert.equal(lost,false);parent=1;await new Promise(r=>setTimeout(r,300));stop();assert.equal(lost,true);
+                                                                                                                                                                                                                                                                                               ^
+    
+    Error: no proc
+        at fs.readFileSync (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/[eval1]:1:284)
+        at getSourceSync (node:internal/modules/esm/load:41:17)
+        at defaultLoadSync (node:internal/modules/esm/load:156:34)
+        at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:802:12)
+        at #loadSync (node:internal/modules/esm/loader:834:53)
+        at ModuleLoader.load (node:internal/modules/esm/loader:783:26)
+        at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:494:31)
+        at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+        at afterResolve (node:internal/modules/esm/loader:607:52)
+        at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12) {
+      code: 'ENOENT'
+    }
+    
+    Node.js v24.18.0
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    fs.readFileSync (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/[eval1]:1:284)
+    getSourceSync (node:internal/modules/esm/load:41:17)
+    defaultLoadSync (node:internal/modules/esm/load:156:34)
+    #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:802:12)
+    #loadSync (node:internal/modules/esm/loader:834:53)
+    ModuleLoader.load (node:internal/modules/esm/loader:783:26)
+    ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:494:31)
+    #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+    afterResolve (node:internal/modules/esm/loader:607:52)
+    ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12) {
+    TestContext.<anonymous> (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/srv1-lifetime.test.mjs:131:141)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: an initially PID-1 npm/service parent is not presumed dead
+ok 22 - an initially PID-1 npm/service parent is not presumed dead
+  ---
+  duration_ms: 332.301417
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 19
+# fail 2
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 68809.474167
+-- process inspection: {"snapshots":4,"unrelatedRows":13491}
+-- client file FAIL: packages/snapback4/test/srv1-lifetime.test.mjs (69279 ms)
+-- client files: 1/1; failed 1; tests {"tests":22,"pass":19,"fail":2,"cancelled":0,"skipped":1,"todo":0}

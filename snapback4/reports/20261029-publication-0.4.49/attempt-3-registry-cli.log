@@ -1,0 +1,266 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:07:52Z registry verification cli not yet passing (try 1); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:08:23Z registry verification cli not yet passing (try 2); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:08:55Z registry verification cli not yet passing (try 3); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:09:29Z registry verification cli not yet passing (try 4); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:10:01Z registry verification cli not yet passing (try 5); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:10:33Z registry verification cli not yet passing (try 6); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:11:05Z registry verification cli not yet passing (try 7); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:11:37Z registry verification cli not yet passing (try 8); retrying in 30 s
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-verify.py", line 17, in <module>
+    data=urllib.request.urlopen(dist['tarball']).read();sri='sha512-'+base64.b64encode(hashlib.sha512(data).digest()).decode()
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2026-10-29T23:12:09Z registry verification cli not yet passing (try 9); retrying in 30 s
+{
+  "at": "2026-10-29T23:12:41.668272+00:00",
+  "artifacts": [
+    {
+      "package": "snapback4-darwin-arm64@0.4.49",
+      "bytes": 16394288,
+      "integrity": "sha512-4RL0YVyeMqlYInnK8oLRDYKdZ4rh/9x9JttzTsUEswGnFaansSo81QQh8MAkeh1aqI/GSj60kIrdBxm6uGC5Ww==",
+      "registryDist": {
+        "shasum": "d2963ed253b0dbb78f8ba1cf489cdc2f4c935560",
+        "tarball": "https://registry.npmjs.org/snapback4-darwin-arm64/-/snapback4-darwin-arm64-0.4.49.tgz",
+        "fileCount": 3,
+        "integrity": "sha512-4RL0YVyeMqlYInnK8oLRDYKdZ4rh/9x9JttzTsUEswGnFaansSo81QQh8MAkeh1aqI/GSj60kIrdBxm6uGC5Ww==",
+        "signatures": [
+          {
+            "sig": "MEUCIQDe5dCEKNynEWjBGq+N6xi24judYuz6NZWq6IZmetGCywIgG7kGVUG17qLCze3RlX+t5TBN1alWgZkuss2jkHnF4Bo=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEQCIHb9BC0baVxMbEAv1BN+l6EJX9GY1vDPGHqTMbc4hDtpAiBwN+EeDNUF8AgoT/NxFqd7B/hIS5Co66NvhZPsntKxqQ=="
+          }
+        ],
+        "unpackedSize": 34376907
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    },
+    {
+      "package": "snapback4-linux-x64@0.4.49",
+      "bytes": 18779818,
+      "integrity": "sha512-Ft5qTGwxypVdXjGa8MchPOPOsHJKFXj3mX+0JNYk0XOkclMwoUQeVQzNpYoilnFkp3IXOx0dFYxw9hJMYh68xg==",
+      "registryDist": {
+        "shasum": "b70c4005a94af27493f1e168463fa8521be35928",
+        "tarball": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.49.tgz",
+        "fileCount": 3,
+        "integrity": "sha512-Ft5qTGwxypVdXjGa8MchPOPOsHJKFXj3mX+0JNYk0XOkclMwoUQeVQzNpYoilnFkp3IXOx0dFYxw9hJMYh68xg==",
+        "signatures": [
+          {
+            "sig": "MEUCIC3gi3GWpSZlyCxeHvqfFZVDj0RyYNWUxYrSxDXD4YHGAiEAxmf4jf9aoo13rjVF5cY9Asfhj201T8MDafttZw2WUkU=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIGb+LNoEZuWx4B10mu6UWUYF9vUVVhTKOQsh6kYnMVcTAiEAwLwn7U7fVn7lZIJ0iUuniIwej0RntjH93xbFYUqaTxc="
+          }
+        ],
+        "unpackedSize": 45827398
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    },
+    {
+      "package": "snapback4@0.4.49",
+      "bytes": 1411214,
+      "integrity": "sha512-qEh5P0s9yrhKOaoRV3L4JY15DLhGpKQjYF5INYjC1zASuk2Qhh/d69mh/HPlw+ETSAt7Bi2MiXKw8x0X7js49g==",
+      "registryDist": {
+        "shasum": "bfc3ce21d060f9964305b23416f5ea6835a3f40e",
+        "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.49.tgz",
+        "fileCount": 381,
+        "integrity": "sha512-qEh5P0s9yrhKOaoRV3L4JY15DLhGpKQjYF5INYjC1zASuk2Qhh/d69mh/HPlw+ETSAt7Bi2MiXKw8x0X7js49g==",
+        "signatures": [
+          {
+            "sig": "MEQCICJ+ZY5E/td0kLo0U8cO90WiqiU5n2QvdeoJ/w038iuZAiBJO50sfzIseWJe8bOMbKt9VzDNmMdqnMK0o5EqUVL5zQ==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCID65iRZczF6P+UNX+2vnvS6GO5BY3JdQqORmGkhzOtrMAiEA/J4jcvJFHsd4a61aX3WTlTLfcYXO/53k5AMs8jXmV64="
+          }
+        ],
+        "unpackedSize": 4861427
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    }
+  ]
+}

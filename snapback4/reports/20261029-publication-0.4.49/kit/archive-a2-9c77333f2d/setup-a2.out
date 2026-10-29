@@ -1,0 +1,31 @@
+commit
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+HEAD=9c77333f2da4fb6eec5c9b3fb976ecdbc03e5265
+post-native.sh:3
+chain-a2.sh:1
+chain-gate-a2.sh:1
+chain-pre-a2.sh:2
+pre-darwin.sh:1
+no stale commit
+12:for f in native-2 prepare-2 lean-2 warm-2; do [ "$(cat $f.exit 2>/dev/null)" = done ] || { log "STOP: $f.exit=$(cat $f.exit 2>/dev/null)"; exit 1; }; done
+21:REFRESH_TAG=a2 bash ./refresh-npm-cache-a1.sh > refresh-npm-cache-a2.out 2>&1
+27:log "starting gate-tolerant ATT=1 RUSTPROCS=2"
+28:ATT=1 RUSTPROCS=2 COMMIT=9c77333f2da4fb6eec5c9b3fb976ecdbc03e5265 nohup bash ./gate-tolerant.sh > gate-runner-a2.log 2>&1 < /dev/null &
+#!/bin/bash
+# 0.4.49 attempt 2 Mac chain (9c77333f2d): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
+K=$HOME/sb4-pub-0449; cd $K
+log() { echo "$(date -u +%FT%TZ) $*" >> $K/chain-a2.log; }
+log "native-2 start"; ATTEMPT=2 bash ./native.sh > native-a2.log 2>&1; log "native-2: $(cat native-2.exit)"
+[ "$(cat native-2.exit)" = done ] || exit 1
+bash ./post-native.sh > post-native-a2.log 2>&1 || { log "post-native FAILED"; exit 1; }; log "post-native ok"
+ATTEMPT=2 bash ./publish.sh prepare > prepare-a2.log 2>&1; log "prepare-2: $(cat prepare-2.exit)"
+[ "$(cat prepare-2.exit)" = done ] || exit 1
+python3 expo-prep-check.py > expo-prep-check-a2.log 2>&1; log "expo-prep-check: $(head -1 expo-prep-check-a2.log)"
+ATTEMPT=2 bash ./publish.sh lean > lean-a2.log 2>&1; log "lean-2: $(cat lean-2.exit)"
+ATTEMPT=2 bash ./publish.sh warm > warm-a2.log 2>&1; log "warm-2: $(cat warm-2.exit)"
+log "chain done"
+client-0.4.44 client-0.4.49-a1-55a4d4e39c snapback4-darwin-arm64-0.4.44 
+linux-0.4.44 linux-0.4.49 linux-0.4.49-a1-55a4d4e39c 
+/dev/disk3s5   3.6Ti   3.5Ti   134Gi    97%     43M  1.4G    3%   /System/Volumes/Data
+ 2:40  up 16 days,  4:06, 69 users, load averages: 7.84 11.39 19.02
+ -InternalBattery-0 (id=23134307)	100%; finishing charge; 0:02 remaining present: true

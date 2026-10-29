@@ -1,0 +1,10 @@
+2026-10-29T07:58:11Z gate ok: ac=1 lid_open=1 load=16 batt=100%; charged;
+2026-10-29T07:58:11Z native-1 start
+2026-10-29T08:07:17Z native-1: done
+2026-10-29T08:07:20Z post-native ok
+2026-10-29T08:08:22Z prepare-1: done
+2026-10-29T08:08:22Z expo-prep-check: prepared expo files 28 qualified 28 equal True
+2026-10-29T08:08:22Z lean-1: done
+2026-10-29T08:29:52Z warm-1: done
+2026-10-29T08:29:52Z chain done
+2026-10-29T08:30:23Z gate: chain exit 0 (env-ok)

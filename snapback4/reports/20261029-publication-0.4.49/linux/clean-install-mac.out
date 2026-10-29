@@ -1,0 +1,12 @@
+
+added 6 packages in 3m
+snapback4 0.4.49
+⠙[1G[0Kinit: wrote 2 files in . — local-first — next: `snapback4 check`, then `snapback4 dev`
+init: files: snapback/{schema.q, generated/package.json}
+init rc=0
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 2 notes; 165.8 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check rc=0
+binary /Users/ccheever/sb4-pub-0449/clean-install/node_modules/snapback4-darwin-arm64/snapback4 7bd06e7949787034bedeb9be3569381613307c93f6f594e1fa6ef2eda44d1d17
+TeamIdentifier=UD2ZVW5WU5
+Connection to charlies-macbook-pro-m5max-black closed.

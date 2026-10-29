@@ -1,0 +1,5 @@
+free 40G load 7.20 9.89 12.30
+  sb4-pub49-disklog-3.service   loaded active running /bin/bash -c "bash ./disklog.sh 3"
+  sb4-pub49-linux-2-red.service loaded active running /bin/bash -c "./linux-2-red.sh > linux-2-red.out 2>&1"
+  sb4-pub49-linux-3.service     loaded active running /bin/bash -c "ATTEMPT=3 bash ./linux.sh > linux-3.out 2>&1"
+  sb4-pub49-onpass-3.service    loaded active running /bin/bash -c "./on-linux-pass.sh 3 > on-linux-pass-3.out 2>&1"

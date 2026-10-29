@@ -1,0 +1,21 @@
+commit
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+HEAD=55a4d4e39c75a6aa5f661222b4161d0c2a623f79
+-- ancestors of /Users/ccheever/sb4-pub-0444-wt/snapback4:
+   /Users/ccheever/sb4-pub-0444-wt/snapback4: snapback/=no package.json=no-dep
+   /Users/ccheever/sb4-pub-0444-wt: snapback/=no package.json=no-dep
+   /Users/ccheever: snapback/=no package.json=none
+   /Users: snapback/=no package.json=none
+   /: snapback/=no package.json=none
+   4   "version": "0.4.49",
+client-0.4.44 snapback4-darwin-arm64-0.4.44 
+1
+no stale names
+18:assert q['source'].startswith('55a4d4e39c'), q['source']
+20:q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 1 at 55a4d4e39c",
+21: 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attem
+pre-darwin files 40 -> 40 dropped []
+# Coordinator-requested early Mac check at 55a4d4e39c (after chain-a1; plus the Integration 28 new/changed client files 
+/dev/disk3s5   3.6Ti   3.3Ti   246Gi    94%     43M  2.6G    2%   /System/Volumes/Data
+ 0:57  up 16 days,  2:23, 63 users, load averages: 14.45 24.59 24.24
+Now drawing from 'AC Power'

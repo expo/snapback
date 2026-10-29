@@ -1,0 +1,68 @@
+-- client file start: packages/snapback4/test/server-e2e.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: check validates generated handler returns, arguments and declared secrets without executing the entry
+ok 1 - check validates generated handler returns, arguments and declared secrets without executing the entry
+  ---
+  duration_ms: 3109.245458
+  type: 'test'
+  ...
+# Subtest: dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+ok 2 - dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+  ---
+  duration_ms: 14893.176833
+  type: 'test'
+  ...
+# Subtest: dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+ok 3 - dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+  ---
+  duration_ms: 1036.852375
+  type: 'test'
+  ...
+# Subtest: scheduled generated action runs under its declared service seat
+ok 4 - scheduled generated action runs under its declared service seat
+  ---
+  duration_ms: 775.481791
+  type: 'test'
+  ...
+# Subtest: raw HTTP settlement validates declared results terminally and never reclaims them
+ok 5 - raw HTTP settlement validates declared results terminally and never reclaims them
+  ---
+  duration_ms: 220.10375
+  type: 'test'
+  ...
+# Subtest: cancellation and admitting-session revocation abort an in-flight context before later writes
+ok 6 - cancellation and admitting-session revocation abort an in-flight context before later writes
+  ---
+  duration_ms: 1045.723708
+  type: 'test'
+  ...
+# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+  ---
+  duration_ms: 26302.155625
+  type: 'test'
+  ...
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+  ---
+  duration_ms: 1446.067042
+  type: 'test'
+  ...
+# Subtest: serve uses the same generated contract and declared environment across a supervised restart
+ok 9 - serve uses the same generated contract and declared environment across a supervised restart
+  ---
+  duration_ms: 2964.006083
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51845.341209
+-- process inspection: {"snapshots":4,"unrelatedRows":13396}
+-- client file ok: packages/snapback4/test/server-e2e.test.mjs (52232 ms)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}

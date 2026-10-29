@@ -1,0 +1,7 @@
+2026-10-29T09:05:09Z export-native run 1 rc=0 7 s load=31.87 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:05:17Z export-native run 2 rc=0 8 s load=38.68 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:05:26Z export-native run 3 rc=0 9 s load=37.42 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:05:32Z export-native run 4 rc=0 6 s load=34.68 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:05:39Z export-native run 5 rc=0 7 s load=33.10 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:05:46Z export-native run 6 rc=0 7 s load=31.01 -- client files: 1/1; failed 0; tests {"tests":10,"pass":10,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+export-native alone: 6/6 passed

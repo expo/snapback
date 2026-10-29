@@ -1,0 +1,10 @@
+snapback4 view=npm notice latest=0.4.49 tgz=snapback4-0.4.49.tgz sha256=417c3b4a6410d6db... want=417c3b4a6410d6db... EQUAL
+snapback4-darwin-arm64 view=0.4.49 latest=0.4.49 tgz=snapback4-darwin-arm64-0.4.49.tgz sha256=84306b8b7170d649... want=84306b8b7170d649... EQUAL
+snapback4-linux-x64 view=0.4.49 latest=0.4.49 tgz=snapback4-linux-x64-0.4.49.tgz sha256=95518883d8b61acf... want=95518883d8b61acf... EQUAL
+snapback4-expo view=0.4.49 latest=0.4.49 tgz=snapback4-expo-0.4.49.tgz sha256=82537effa6dfb946... want=82537effa6dfb946... EQUAL
+verify ok=0
+snapback4 version=0.4.49 latest=0.4.49 integrity=sha512-qEh5P0s9yrhKOaoRV3L4JY1
+snapback4-darwin-arm64 version=0.4.49 latest=0.4.49 integrity=sha512-4RL0YVyeMqlYInnK8oLRDYK
+snapback4-linux-x64 version=0.4.49 latest=0.4.49 integrity=sha512-Ft5qTGwxypVdXjGa8MchPOP
+snapback4-expo version=0.4.49 latest=0.4.49 integrity=sha512-+S0g04BfzEPkLNTxUa/MnAC
+(note: the 'verify ok=0' line above is a display artifact: npm printed an 'npm notice' line last for snapback4's version query; the notice-filtered re-check below shows version 0.4.49 and latest 0.4.49 for all four, and all four re-downloaded tarballs are sha256-EQUAL to the qualified/staged bytes)

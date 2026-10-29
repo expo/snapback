@@ -1,0 +1,12 @@
+executable target/debug/deps/clock-0a81580e314d3dd5 Oct 29 10:30:55 2026
+2026-10-29T18:30:00Z single run 1 rc=0 1 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.16s 
+2026-10-29T18:30:00Z single run 2 rc=0 0 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.07s 
+2026-10-29T18:30:00Z single run 3 rc=0 0 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.07s 
+2026-10-29T18:30:00Z single run 4 rc=0 0 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.07s 
+2026-10-29T18:30:00Z single run 5 rc=0 0 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.08s 
+2026-10-29T18:30:00Z single run 6 rc=0 0 s load=13.06 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.07s 
+clock_advance_preserves_a_live_effect_claim_and_settlement alone: 6/6 passed
+2026-10-29T18:30:15Z clock target run 1 rc=0 15 s test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.08s
+2026-10-29T18:30:30Z clock target run 2 rc=0 15 s test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.16s
+2026-10-29T18:30:46Z clock target run 3 rc=0 16 s test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.19s
+clock target: 3/3 passed

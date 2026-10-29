@@ -1,0 +1,27 @@
+web init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+web-online init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+expo init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+web-chat init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+expo-chat init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+expo-social init FAILED
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 1)
+1.4.2
+8.3.5
+refresh-done

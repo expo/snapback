@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "installedSDK": true,
+  "operator": {
+    "status": "passed",
+    "installedSDK": true,
+    "developmentClock": "operator authenticated; full/read sessions preserved or expired by policy; restart returns to wall",
+    "productionAccounts": "ordinary signup plus service-authorized provisioning",
+    "stop": "same-owner release control and lock release",
+    "processes": "npm descendants and caller-death cleanup"
+  },
+  "inspection": {
+    "status": "passed",
+    "installedSDK": true,
+    "artifacts": {
+      "client": "/home/ccheever/sb4-pub-0441/snapback4/target/publication/client-0.4.49/snapback4-0.4.49.tgz",
+      "platform": "/tmp/snapback4-linux-oUPNI5/snapback4-linux-x64-0.4.49.tgz"
+    },
+    "savedVersion": "identical-source refresh and importable exact-source client",
+    "sql": "wire media object decoding plus explicit JSON truncation",
+    "dormant": "counts on sql/data/releases and retained-table guidance",
+    "compatibility": "renamed Ref inputs accepted; additive results are notes"
+  },
+  "ergonomics": {
+    "status": "passed",
+    "installedSDK": true,
+    "dayTwo": "stable ids with v1-write exclusion and optional rollback-only v2-native rows",
+    "text": "null defaults and lane-031 full line in a scrollable RN-style root",
+    "paging": "opaque cursor exhaustion and terminal completeness",
+    "starters": "newest-first board lists",
+    "rules": "independent mutation intent and table authority"
+  },
+  "migrations": "verbatim installed fan-out and pre-patch language recipes"
+}

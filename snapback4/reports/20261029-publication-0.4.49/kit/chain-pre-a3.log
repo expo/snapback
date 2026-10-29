@@ -1,0 +1,12 @@
+2026-10-29T16:31:59Z waiting load=180
+2026-10-29T16:32:59Z waiting load=76
+2026-10-29T16:33:59Z pre-darwin start load={ 41.06 141.62 134.71 }
+2026-10-29T17:09:04Z pre-darwin rc=0: -- client files: 40/40; failed 0; tests {"tests":843,"pass":833,"fail":0,"cancelled":0,"skipped":10,"todo":0}
+2026-10-29T17:09:04Z refresh start load={ 26.80 19.90 28.21 }
+2026-10-29T17:10:39Z refresh: 6/6 ok; 
+2026-10-29T17:10:42Z starting gate-tolerant ATT=2 RUSTPROCS=2
+2026-10-29T17:10:42Z gate pid 65827
+2026-10-29T18:31:31Z refresh start (after triage) load={ 28.55 19.00 20.34 }
+2026-10-29T18:32:40Z refresh: 6/6 ok; 
+2026-10-29T18:32:42Z starting gate-tolerant ATT=3 RUSTPROCS=2 (after triage)
+2026-10-29T18:32:42Z gate pid 19376

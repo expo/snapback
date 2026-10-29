@@ -1,0 +1,120 @@
+-- client file start: packages/snapback4/test/dx10-process-accounts.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: serve-check clean
+ok 1 - serve-check clean
+  ---
+  duration_ms: 1048.420292
+  type: 'test'
+  ...
+# Subtest: serve-check npm-banner
+ok 2 - serve-check npm-banner
+  ---
+  duration_ms: 1757.683375
+  type: 'test'
+  ...
+# Subtest: serve-check no-json
+ok 3 - serve-check no-json
+  ---
+  duration_ms: 1755.409708
+  type: 'test'
+  ...
+# Subtest: serve-check early-exit
+ok 4 - serve-check early-exit
+  ---
+  duration_ms: 964.324208
+  type: 'test'
+  ...
+# Subtest: serve-check ignored-term
+ok 5 - serve-check ignored-term
+  ---
+  duration_ms: 1094.404542
+  type: 'test'
+  ...
+# Subtest: serve-check driver-death
+ok 6 - serve-check driver-death
+  ---
+  duration_ms: 883.086708
+  type: 'test'
+  ...
+# Subtest: serve-check trailing-output
+ok 7 - serve-check trailing-output
+  ---
+  duration_ms: 951.058625
+  type: 'test'
+  ...
+# Subtest: native store releases on npm death even when its proof driver ignores TERM
+not ok 8 - native store releases on npm death even when its proof driver ignores TERM
+  ---
+  duration_ms: 6260.577625
+  type: 'test'
+  location: '/Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs:36:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"ok":false,"script":"prod:serve","failures":[{"code":"E_SERVE_CHILD_RUNNING","message":"child left running after group SIGTERM"},{"code":"E_SERVE_LOCK_HELD","message":"store /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/dx10-1oeYsP/production/store.sqlite: lock held after group SIGTERM; actual holder http://127.0.0.1:50588 (pid 2791)"}],"ready":true,"upMs":60,"lockReleased":false}
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs:41:9)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: serve-check reports a stubborn real external store lock before forced cleanup
+ok 9 - serve-check reports a stubborn real external store lock before forced cleanup
+  ---
+  duration_ms: 6219.201458
+  type: 'test'
+  ...
+# Subtest: production roster survives restarts with stable principals and 0600 credentials
+ok 10 - production roster survives restarts with stable principals and 0600 credentials
+  ---
+  duration_ms: 2201.011
+  type: 'test'
+  ...
+# Subtest: roster resumes an ambiguous signup reply without another account
+ok 11 - roster resumes an ambiguous signup reply without another account
+  ---
+  duration_ms: 118.58
+  type: 'test'
+  ...
+# Subtest: roster resumes an ambiguous provision reply without another account
+ok 12 - roster resumes an ambiguous provision reply without another account
+  ---
+  duration_ms: 102.681875
+  type: 'test'
+  ...
+# Subtest: packed package executes both stage recipes and the serve-check recipe literally
+ok 13 - packed package executes both stage recipes and the serve-check recipe literally
+  ---
+  duration_ms: 34819.28975
+  type: 'test'
+  ...
+# Subtest: resuming a provision canonicalizes reordered nested arguments
+ok 14 - resuming a provision canonicalizes reordered nested arguments
+  ---
+  duration_ms: 81.081542
+  type: 'test'
+  ...
+# Subtest: production roster refuses concurrent setup and never replaces a known failed login
+ok 15 - production roster refuses concurrent setup and never replaces a known failed login
+  ---
+  duration_ms: 63.205041
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 14
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 58394.2335
+-- process inspection: {"snapshots":3,"unrelatedRows":10030}
+-- client file FAIL: packages/snapback4/test/dx10-process-accounts.test.mjs (58740 ms)
+-- client files: 1/1; failed 1; tests {"tests":15,"pass":14,"fail":1,"cancelled":0,"skipped":0,"todo":0}

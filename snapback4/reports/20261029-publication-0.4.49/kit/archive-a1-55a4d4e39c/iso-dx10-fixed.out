@@ -1,0 +1,7 @@
+2026-10-29T09:36:44Z dx10-process-accounts run 1 rc=0 53 s load=24.73 -- client files: 1/1; failed 0; tests {"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:37:38Z dx10-process-accounts run 2 rc=0 54 s load=15.19 -- client files: 1/1; failed 0; tests {"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+2026-10-29T09:38:30Z dx10-process-accounts run 3 rc=0 52 s load=11.93 -- client files: 1/1; failed 0; tests {"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+dx10-process-accounts alone: 3/3 passed
+ M snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs
+iso-done
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).

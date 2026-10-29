@@ -1,0 +1,13 @@
+{
+  "step": "registry-expo",
+  "command": [
+    "bash",
+    "/Users/ccheever/sb4-pub-0449/helpers-0.4.49/registry-retry.sh",
+    "expo"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0444-wt/snapback4",
+  "start": 1793315844.40192,
+  "end": 1793315845.8733099,
+  "seconds": 1.471,
+  "exit": 0
+}

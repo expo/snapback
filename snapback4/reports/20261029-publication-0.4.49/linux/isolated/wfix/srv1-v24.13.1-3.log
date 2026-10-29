@@ -1,0 +1,153 @@
+-- client file start: packages/snapback4/test/srv1-lifetime.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGTERM","pipeEOFms":505,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+ok 1 - 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 1372.945935
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGTERM","pipeEOFms":306,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+ok 2 - 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 1301.260575
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGKILL","pipeEOFms":482,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+ok 3 - 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 1391.194499
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGKILL","pipeEOFms":306,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+ok 4 - 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 1337.866445
+  type: 'test'
+  ...
+# 024 transcript: node driver.mjs | tail -n 2 -> requests complete, EOF, exit 0; next serve/deploy succeeds
+# Subtest: 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+ok 5 - 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+  ---
+  duration_ms: 1241.816996
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGTERM and closes inherited pipes
+ok 6 - serveUntilSignal handles SIGTERM and closes inherited pipes
+  ---
+  duration_ms: 992.80722
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGINT and closes inherited pipes
+ok 7 - serveUntilSignal handles SIGINT and closes inherited pipes
+  ---
+  duration_ms: 1003.696122
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGHUP and closes inherited pipes
+ok 8 - serveUntilSignal handles SIGHUP and closes inherited pipes
+  ---
+  duration_ms: 1006.548098
+  type: 'test'
+  ...
+# Subtest: direct native serve observes launching parent death without wrapper environment
+ok 9 - direct native serve observes launching parent death without wrapper environment
+  ---
+  duration_ms: 820.570923
+  type: 'test'
+  ...
+# Subtest: harness: detached npm --hold child survives idle and group TERM releases hosts
+ok 10 - harness: detached npm --hold child survives idle and group TERM releases hosts
+  ---
+  duration_ms: 2386.872869
+  type: 'test'
+  ...
+# Subtest: E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+ok 11 - E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+  ---
+  duration_ms: 5690.27113
+  type: 'test'
+  ...
+# Subtest: SIGKILL holder stale record is reclaimed once, with a notice
+ok 12 - SIGKILL holder stale record is reclaimed once, with a notice
+  ---
+  duration_ms: 409.332009
+  type: 'test'
+  ...
+# Subtest: Linux PDEATHSIG spawning-thread exit does not kill a live-parent host
+ok 13 - Linux PDEATHSIG spawning-thread exit does not kill a live-parent host
+  ---
+  duration_ms: 1295.468642
+  type: 'test'
+  ...
+# Subtest: password starter ships exec serve scripts and bounded prod:check against its real deployment
+ok 14 - password starter ships exec serve scripts and bounded prod:check against its real deployment
+  ---
+  duration_ms: 33636.961583
+  type: 'test'
+  ...
+# Subtest: busy persistent dev has exact stop recovery without signalling a PID hint
+ok 15 - busy persistent dev has exact stop recovery without signalling a PID hint
+  ---
+  duration_ms: 522.366867
+  type: 'test'
+  ...
+# Subtest: Darwin design witness: C-locale ps captures npm argv and parent birth changes
+ok 16 - Darwin design witness: C-locale ps captures npm argv and parent birth changes
+  ---
+  duration_ms: 581.456929
+  type: 'test'
+  ...
+# Subtest: aliased database recovery names its actual deployment control directory
+ok 17 - aliased database recovery names its actual deployment control directory
+  ---
+  duration_ms: 5842.307719
+  type: 'test'
+  ...
+# 024 request completed; SIGTERM npm wrapper
+# 024 npm close observed; driver finished
+# Subtest: 024: request driver awaits npm close through tail after terminating only the wrapper
+ok 18 - 024: request driver awaits npm close through tail after terminating only the wrapper
+  ---
+  duration_ms: 1243.427386
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+ok 19 - 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+  ---
+  duration_ms: 1266.402336
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+ok 20 - 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+  ---
+  duration_ms: 1116.642454
+  type: 'test'
+  ...
+# Subtest: missing process table retains a living direct parent and detects reparenting
+ok 21 - missing process table retains a living direct parent and detects reparenting
+  ---
+  duration_ms: 632.83157
+  type: 'test'
+  ...
+# Subtest: an initially PID-1 npm/service parent is not presumed dead
+ok 22 - an initially PID-1 npm/service parent is not presumed dead
+  ---
+  duration_ms: 332.035773
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 65508.872752
+-- process inspection: {"snapshots":3,"unrelatedRows":4016}
+-- client file ok: packages/snapback4/test/srv1-lifetime.test.mjs (65829 ms)
+-- client files: 1/1; failed 0; tests {"tests":22,"pass":22,"fail":0,"cancelled":0,"skipped":0,"todo":0}

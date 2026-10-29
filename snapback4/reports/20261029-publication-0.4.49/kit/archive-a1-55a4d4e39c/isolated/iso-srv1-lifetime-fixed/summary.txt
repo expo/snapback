@@ -1,0 +1,4 @@
+2026-10-29T09:22:30Z srv1-lifetime run 1 rc=0 70 s load=11.50 -- client files: 1/1; failed 0; tests {"tests":22,"pass":21,"fail":0,"cancelled":0,"skipped":1,"todo":0} 
+2026-10-29T09:23:39Z srv1-lifetime run 2 rc=0 69 s load=8.75 -- client files: 1/1; failed 0; tests {"tests":22,"pass":21,"fail":0,"cancelled":0,"skipped":1,"todo":0} 
+2026-10-29T09:24:47Z srv1-lifetime run 3 rc=0 68 s load=8.77 -- client files: 1/1; failed 0; tests {"tests":22,"pass":21,"fail":0,"cancelled":0,"skipped":1,"todo":0} 
+srv1-lifetime alone: 3/3 passed

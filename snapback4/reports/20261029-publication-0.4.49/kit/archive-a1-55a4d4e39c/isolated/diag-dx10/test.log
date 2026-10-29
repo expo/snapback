@@ -1,0 +1,22 @@
+✖ native store releases on npm death even when its proof driver ignores TERM (86.110917ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 193.045584
+
+✖ failing tests:
+
+test at packages/snapback4/test/dx10-process-accounts.test.mjs:36:1
+✖ native store releases on npm death even when its proof driver ignores TERM (86.110917ms)
+  Error: proof CLI failed (null): ; stdout tail: (empty); logs: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/dx10-xo3wVz/logs/aa07d6e5-ef89-4851-920b-f09139332cbc.stderr.log
+      at successful (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/dist/proof.js:317:15)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async project (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs:17:118)
+      at async TestContext.<anonymous> (file:///Users/ccheever/sb4-pub-0444-wt/snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs:37:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+test rc=1

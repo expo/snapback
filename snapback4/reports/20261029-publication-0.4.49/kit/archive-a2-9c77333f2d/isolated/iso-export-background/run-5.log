@@ -1,0 +1,694 @@
+-- isolated timer files: 1; concurrency: 1
+-- client file start: packages/snapback4/test/export-background.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: Darwin export launch policy: production background
+ok 1 - Darwin export launch policy: production background
+  ---
+  duration_ms: 5413.193834
+  type: 'test'
+  ...
+# Subtest: Darwin export launch policy: normal fixture
+ok 2 - Darwin export launch policy: normal fixture
+  ---
+  duration_ms: 1747.506792
+  type: 'test'
+  ...
+# Subtest: export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export
+ok 3 - export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export
+  ---
+  duration_ms: 3045.274833
+  type: 'test'
+  ...
+# Subtest: new publication supersedes blocked smoke; only one driver enters the tool at a time
+ok 4 - new publication supersedes blocked smoke; only one driver enters the tool at a time
+  ---
+  duration_ms: 3196.629209
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background driver cleans its peer/tools without another export
+ok 5 - SIGKILL of background driver cleans its peer/tools without another export
+  ---
+  duration_ms: 2724.864084
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background worker cleans its peer/tools without another export
+ok 6 - SIGKILL of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 2783.496834
+  type: 'test'
+  ...
+# Subtest: SIGTERM of background worker cleans its peer/tools without another export
+ok 7 - SIGTERM of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 3015.728584
+  type: 'test'
+  ...
+# Subtest: SIGHUP of background worker cleans its peer/tools without another export
+ok 8 - SIGHUP of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 3203.275625
+  type: 'test'
+  ...
+# Subtest: interrupting a status observer leaves the detached proof running
+ok 9 - interrupting a status observer leaves the detached proof running
+  ---
+  duration_ms: 2061.896416
+  type: 'test'
+  ...
+# Subtest: background product failure stays loud without changing export success
+ok 10 - background product failure stays loud without changing export success
+  ---
+  duration_ms: 1896.725666
+  type: 'test'
+  ...
+# Subtest: failed evidence pruning does not rewrite a completed native outcome
+ok 11 - failed evidence pruning does not rewrite a completed native outcome
+  ---
+  duration_ms: 2313.194167
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-buffered-timeout deletes only its recorded simulator
+ok 12 - driver death during auto-create-buffered-timeout deletes only its recorded simulator
+  ---
+  duration_ms: 2808.152834
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-race deletes only its recorded simulator
+ok 13 - driver death during auto-create-race deletes only its recorded simulator
+  ---
+  duration_ms: 3170.264916
+  type: 'test'
+  ...
+# Subtest: worker death during auto-create-race deletes only its recorded simulator
+ok 14 - worker death during auto-create-race deletes only its recorded simulator
+  ---
+  duration_ms: 2393.567833
+  type: 'test'
+  ...
+# Subtest: an explicit opt-out supersedes an in-flight proof and reports the new export as skipped
+ok 15 - an explicit opt-out supersedes an in-flight proof and reports the new export as skipped
+  ---
+  duration_ms: 2164.47775
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (export one)
+ok 16 - failed latest handoff cannot report an older pass (export one)
+  ---
+  duration_ms: 1076.252834
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (changed export)
+ok 17 - failed latest handoff cannot report an older pass (changed export)
+  ---
+  duration_ms: 1014.3625
+  type: 'test'
+  ...
+# Subtest: failed export-skipped handoff cannot report an older pass (off, equal bytes)
+ok 18 - failed export-skipped handoff cannot report an older pass (off, equal bytes)
+  ---
+  duration_ms: 983.912166
+  type: 'test'
+  ...
+# Subtest: failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+ok 19 - failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+  ---
+  duration_ms: 1044.088792
+  type: 'test'
+  ...
+# retention before SIGTERM: complete custody drained in 98 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before SIGTERM
+ok 20 - blocked retention has bounded custody: before SIGTERM
+  ---
+  duration_ms: 3142.048375
+  type: 'test'
+  ...
+# retention before SIGKILL: complete custody drained in 80 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before SIGKILL
+ok 21 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 3013.211875
+  type: 'test'
+  ...
+# retention before supersede: complete custody drained in 515 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before supersede
+ok 22 - blocked retention has bounded custody: before supersede
+  ---
+  duration_ms: 3902.022375
+  type: 'test'
+  ...
+# retention before deadline: complete custody drained in 29615 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before deadline
+ok 23 - blocked retention has bounded custody: before deadline
+  ---
+  duration_ms: 33545.97625
+  type: 'test'
+  ...
+# retention after SIGTERM: complete custody drained in 82 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after SIGTERM
+ok 24 - blocked retention has bounded custody: after SIGTERM
+  ---
+  duration_ms: 3879.305708
+  type: 'test'
+  ...
+# retention after SIGKILL: complete custody drained in 311 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after SIGKILL
+ok 25 - blocked retention has bounded custody: after SIGKILL
+  ---
+  duration_ms: 4252.544583
+  type: 'test'
+  ...
+# retention after supersede: complete custody drained in 499 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after supersede
+ok 26 - blocked retention has bounded custody: after supersede
+  ---
+  duration_ms: 3751.673458
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)
+ok 27 - overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)
+  ---
+  duration_ms: 2616.1565
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)
+ok 28 - overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)
+  ---
+  duration_ms: 2574.055416
+  type: 'test'
+  ...
+# {"writer":"observer","removalProbeFiles":[],"code":1,"output":"export:ios failed: injected skipped marker write failure\\n"}
+# Subtest: failed export removal cannot race a maintenance writer (observer)
+ok 29 - failed export removal cannot race a maintenance writer (observer)
+  ---
+  duration_ms: 1046.197542
+  type: 'test'
+  ...
+# {"writer":"repair","removalProbeFiles":[],"code":1,"output":"export:ios failed: injected skipped marker write failure\\n"}
+# Subtest: failed export removal cannot race a maintenance writer (repair)
+ok 30 - failed export removal cannot race a maintenance writer (repair)
+  ---
+  duration_ms: 1278.00675
+  type: 'test'
+  ...
+# Subtest: shell repair cannot recreate a run removed after its directory discovery
+ok 31 - shell repair cannot recreate a run removed after its directory discovery
+  ---
+  duration_ms: 328.987041
+  type: 'test'
+  ...
+# Subtest: first opt-out publishes a complete skipped handoff
+ok 32 - first opt-out publishes a complete skipped handoff
+  ---
+  duration_ms: 1036.052125
+  type: 'test'
+  ...
+# Subtest: request timestamp begins at publication commit, not private marker creation
+ok 33 - request timestamp begins at publication commit, not private marker creation
+  ---
+  duration_ms: 1751.109083
+  type: 'test'
+  ...
+# Subtest: direct export-retain has bounded custody and the inner worker rejects manual use
+ok 34 - direct export-retain has bounded custody and the inner worker rejects manual use
+  ---
+  duration_ms: 551.664375
+  type: 'test'
+  ...
+# Subtest: SIGKILL overlap defers a still-held retention lock and starts the next proof
+ok 35 - SIGKILL overlap defers a still-held retention lock and starts the next proof
+  ---
+  duration_ms: 4830.448084
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"full":5,"compressed":20,"returnMs":[439,397,436,409,426,443,436,430,416,432,417,420,435,421,428,405,421,440,443,462,420,443,428,520,497,527,478,443]}
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (off)
+ok 36 - repeated skipped exports retain five full plus twenty compressed runs (off)
+  ---
+  duration_ms: 12957.962125
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"full":5,"compressed":20,"returnMs":[366,321,318,324,315,313,328,316,315,309,340,322,317,309,322,347,381,326,326,321,326,369,317,322,318,329,319,324]}
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+ok 37 - repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+  ---
+  duration_ms: 9757.839792
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 38 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 2263.41575
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+ok 39 - skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+  ---
+  duration_ms: 2122.981458
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under deadline (off)
+ok 40 - skipped maintenance never blocks publication and drains under deadline (off)
+  ---
+  duration_ms: 31661.995917
+  type: 'test'
+  ...
+# Subtest: retention process listing reads a large complete table and refuses partial output
+ok 41 - retention process listing reads a large complete table and refuses partial output
+  ---
+  duration_ms: 297.426542
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[516,451,423,447,445,491,412,432,406,425,409,436,402,431,408,433,434,420,404,440,405,440,429,435,412,430,420,436]}
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (off)
+ok 42 - held retention lock coalesces 28 skipped exports into one pending observer (off)
+  ---
+  duration_ms: 14992.656833
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[346,311,319,311,318,314,307,318,300,313,355,304,311,320,319,321,313,305,322,309,324,317,306,336,315,315,318,307]}
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+ok 43 - held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+  ---
+  duration_ms: 11772.798459
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (off)
+ok 44 - first-started last-published generation remains full evidence (off)
+  ---
+  duration_ms: 4838.510083
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (non-macOS)
+ok 45 - first-started last-published generation remains full evidence (non-macOS)
+  ---
+  duration_ms: 3856.886083
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (background)
+ok 46 - first-started last-published generation remains full evidence (background)
+  ---
+  duration_ms: 6307.969959
+  type: 'test'
+  ...
+# {"mode":"off","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (off)
+ok 47 - failed handoffs with held wrapper leases retain deferred maintenance (off)
+  ---
+  duration_ms: 9131.6075
+  type: 'test'
+  ...
+# {"mode":"non-macOS","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)
+ok 48 - failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)
+  ---
+  duration_ms: 7668.683833
+  type: 'test'
+  ...
+# {"mode":"background","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (background)
+ok 49 - failed handoffs with held wrapper leases retain deferred maintenance (background)
+  ---
+  duration_ms: 8850.345417
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# Subtest: a held exclusive publication lock pauses one observer without starting retention workers
+ok 50 - a held exclusive publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 9339.089583
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# Subtest: a held shared publication lock pauses one observer without starting retention workers
+ok 51 - a held shared publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 9488.704834
+  type: 'test'
+  ...
+# Subtest: failed maintenance retains a parked request and a later export retries it
+ok 52 - failed maintenance retains a parked request and a later export retries it
+  ---
+  duration_ms: 4804.560167
+  type: 'test'
+  ...
+# {"interruptedPublication":"before","workerStarts":1,"repairMs":1335,"full":5,"compressed":20}
+# Subtest: retention repairs an ownerless publication before exchange without worker respawn
+ok 53 - retention repairs an ownerless publication before exchange without worker respawn
+  ---
+  duration_ms: 16965.440542
+  type: 'test'
+  ...
+# {"interruptedPublication":"after","workerStarts":1,"repairMs":1281,"full":5,"compressed":20}
+# Subtest: retention repairs an ownerless publication after exchange without worker respawn
+ok 54 - retention repairs an ownerless publication after exchange without worker respawn
+  ---
+  duration_ms: 16640.381584
+  type: 'test'
+  ...
+# {"ownerlessRepair":"off","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (off)
+ok 55 - failed export lease removes its shell and retention repairs legacy ownerless runs (off)
+  ---
+  duration_ms: 13406.594167
+  type: 'test'
+  ...
+# {"ownerlessRepair":"non-macOS","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)
+ok 56 - failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)
+  ---
+  duration_ms: 10320.06925
+  type: 'test'
+  ...
+# {"ownerlessRepair":"background","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (background)
+ok 57 - failed export lease removes its shell and retention repairs legacy ownerless runs (background)
+  ---
+  duration_ms: 14103.490125
+  type: 'test'
+  ...
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+ok 58 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+  ---
+  duration_ms: 14889.97675
+  type: 'test'
+  ...
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+ok 59 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+  ---
+  duration_ms: 14966.241833
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 60 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 15661.070125
+  type: 'test'
+  ...
+# Subtest: export initialization refuses a live stuck initializer within five seconds
+ok 61 - export initialization refuses a live stuck initializer within five seconds
+  ---
+  duration_ms: 6317.273333
+  type: 'test'
+  ...
+# Subtest: SIGKILL of the sole maintenance custodian restores retention without another export
+ok 62 - SIGKILL of the sole maintenance custodian restores retention without another export
+  ---
+  duration_ms: 2235.908792
+  type: 'test'
+  ...
+# Subtest: SIGKILL of the sole maintenance observer restores retention without another export
+ok 63 - SIGKILL of the sole maintenance observer restores retention without another export
+  ---
+  duration_ms: 2105.068417
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (off)
+ok 64 - failed Expo exports and dead wrapper journals never occupy keep slots (off)
+  ---
+  duration_ms: 17646.541875
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+ok 65 - failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+  ---
+  duration_ms: 15920.207167
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (background)
+ok 66 - failed Expo exports and dead wrapper journals never occupy keep slots (background)
+  ---
+  duration_ms: 18268.945541
+  type: 'test'
+  ...
+# Subtest: repeated raced retention-lock deferrals stay pending and restore the bound after release
+ok 67 - repeated raced retention-lock deferrals stay pending and restore the bound after release
+  ---
+  duration_ms: 14759.40375
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":1035,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+ok 68 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 14226.288
+  type: 'test'
+  ...
+# Subtest: expired checkpoint refuses signal after 22-second dispatch delay
+ok 69 - expired checkpoint refuses signal after 22-second dispatch delay
+  ---
+  duration_ms: 35190.116959
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":1072,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo fails)
+ok 70 - maintenance crash matrix: publication-committed (off, next Expo fails)
+  ---
+  duration_ms: 15000.232959
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1108,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 71 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 14260.285708
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1009,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 72 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 14135.355625
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1814,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 73 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 15475.342708
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1053,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 74 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 14860.300667
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":1065,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+ok 75 - maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+  ---
+  duration_ms: 14477.742542
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":1027,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo fails)
+ok 76 - maintenance crash matrix: publication-handoff (off, next Expo fails)
+  ---
+  duration_ms: 14290.453125
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1124,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+ok 77 - maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 14562.30675
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1021,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+ok 78 - maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+  ---
+  duration_ms: 14634.801416
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":2103,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+ok 79 - maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+  ---
+  duration_ms: 15433.732291
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1095,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo fails)
+ok 80 - maintenance crash matrix: publication-handoff (background, next Expo fails)
+  ---
+  duration_ms: 14423.445458
+  type: 'test'
+  ...
+# {"holder":"ready-pending-export","stalled":false,"wrapperExited":88359,"holderIdentity":{"pid":88881,"start":[1793273654,807603]},"publisherIdentity":{"pid":89373,"start":[1793273655,180312]}}
+# Subtest: interrupted publication recovers through ready-pending-export custody
+ok 81 - interrupted publication recovers through ready-pending-export custody
+  ---
+  duration_ms: 1815.091917
+  type: 'test'
+  ...
+# {"holder":"ready-pending-export","stalled":true,"wrapperExited":89660,"holderIdentity":{"pid":90306,"start":[1793273656,672514]},"publisherIdentity":{"pid":90801,"start":[1793273657,53385]}}
+# Subtest: interrupted publication preserves a persistently held export lease
+ok 82 - interrupted publication preserves a persistently held export lease
+  ---
+  duration_ms: 7441.927291
+  type: 'test'
+  ...
+# {"holder":"reconcile-pending-export","stalled":false,"wrapperExited":92886,"holderIdentity":{"pid":93399,"start":[1793273664,139070]},"publisherIdentity":{"pid":93990,"start":[1793273664,519509]}}
+# Subtest: interrupted publication recovers through reconcile-pending-export custody
+ok 83 - interrupted publication recovers through reconcile-pending-export custody
+  ---
+  duration_ms: 1675.885833
+  type: 'test'
+  ...
+# {"point":"request-created","recovery":"next export","restoredMs":1179,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: request-created (next export)
+ok 84 - maintenance crash matrix: request-created (next export)
+  ---
+  duration_ms: 1783.970959
+  type: 'test'
+  ...
+# {"point":"request-prepared","recovery":"next export","restoredMs":1176,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: request-prepared (next export)
+ok 85 - maintenance crash matrix: request-prepared (next export)
+  ---
+  duration_ms: 1789.820541
+  type: 'test'
+  ...
+# {"point":"request-committed","recovery":"next export","restoredMs":1263,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: request-committed (next export)
+ok 86 - maintenance crash matrix: request-committed (next export)
+  ---
+  duration_ms: 1889.547125
+  type: 'test'
+  ...
+# {"point":"claim-renamed","recovery":"peer","restoredMs":752,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: claim-renamed (peer)
+ok 87 - maintenance crash matrix: claim-renamed (peer)
+  ---
+  duration_ms: 1467.138292
+  type: 'test'
+  ...
+# {"point":"claim-recorded","recovery":"peer","restoredMs":856,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: claim-recorded (peer)
+ok 88 - maintenance crash matrix: claim-recorded (peer)
+  ---
+  duration_ms: 1634.836042
+  type: 'test'
+  ...
+# {"point":"scan-starting","recovery":"peer","restoredMs":751,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: scan-starting (peer)
+ok 89 - maintenance crash matrix: scan-starting (peer)
+  ---
+  duration_ms: 1509.016375
+  type: 'test'
+  ...
+# {"point":"compress-before","recovery":"next export","restoredMs":1583,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: compress-before (next export)
+ok 90 - maintenance crash matrix: compress-before (next export)
+  ---
+  duration_ms: 2410.106542
+  type: 'test'
+  ...
+# {"point":"compress-committed","recovery":"next export","restoredMs":1795,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: compress-committed (next export)
+ok 91 - maintenance crash matrix: compress-committed (next export)
+  ---
+  duration_ms: 2624.667542
+  type: 'test'
+  ...
+# {"point":"delete-before","recovery":"next export","restoredMs":1391,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: delete-before (next export)
+ok 92 - maintenance crash matrix: delete-before (next export)
+  ---
+  duration_ms: 2660.498042
+  type: 'test'
+  ...
+# {"point":"delete-after","recovery":"next export","restoredMs":1441,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: delete-after (next export)
+ok 93 - maintenance crash matrix: delete-after (next export)
+  ---
+  duration_ms: 2428.292208
+  type: 'test'
+  ...
+# {"point":"scan-complete","recovery":"peer","restoredMs":650,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: scan-complete (peer)
+ok 94 - maintenance crash matrix: scan-complete (peer)
+  ---
+  duration_ms: 1833.129667
+  type: 'test'
+  ...
+# {"point":"done-before","recovery":"peer","restoredMs":595,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: done-before (peer)
+ok 95 - maintenance crash matrix: done-before (peer)
+  ---
+  duration_ms: 1687.439125
+  type: 'test'
+  ...
+# {"point":"done-after","recovery":"already complete","restoredMs":244,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: done-after (already complete)
+ok 96 - maintenance crash matrix: done-after (already complete)
+  ---
+  duration_ms: 1399.010625
+  type: 'test'
+  ...
+# Subtest: a custodian killed after claiming an empty legacy request resumes without a later export
+ok 97 - a custodian killed after claiming an empty legacy request resumes without a later export
+  ---
+  duration_ms: 1529.271667
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-pending kills observer
+ok 98 - maintenance handoff crash matrix: handoff-pending kills observer
+  ---
+  duration_ms: 1507.68575
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-pending kills custodian
+ok 99 - maintenance handoff crash matrix: handoff-pending kills custodian
+  ---
+  duration_ms: 1513.817625
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-busy kills observer
+ok 100 - maintenance handoff crash matrix: handoff-busy kills observer
+  ---
+  duration_ms: 1618.803291
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-busy kills custodian
+ok 101 - maintenance handoff crash matrix: handoff-busy kills custodian
+  ---
+  duration_ms: 1635.059209
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (off)
+ok 102 - next export repairs parked maintenance even when Expo fails (off)
+  ---
+  duration_ms: 1687.428791
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (non-macOS)
+ok 103 - next export repairs parked maintenance even when Expo fails (non-macOS)
+  ---
+  duration_ms: 1666.765625
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (background)
+ok 104 - next export repairs parked maintenance even when Expo fails (background)
+  ---
+  duration_ms: 1718.021125
+  type: 'test'
+  ...
+1..104
+# tests 104
+# suites 0
+# pass 104
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 722023.969667
+-- process inspection: {"snapshots":4,"unrelatedRows":13403}
+-- client file ok: packages/snapback4/test/export-background.test.mjs (722432 ms)
+-- client files: 1/1; failed 0; tests {"tests":104,"pass":104,"fail":0,"cancelled":0,"skipped":0,"todo":0}

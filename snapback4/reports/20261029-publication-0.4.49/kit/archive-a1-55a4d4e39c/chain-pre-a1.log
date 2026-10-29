@@ -1,0 +1,6 @@
+2026-10-29T08:30:48Z waiting load=115
+2026-10-29T08:31:48Z waiting load=79
+2026-10-29T08:32:48Z waiting load=71
+2026-10-29T08:33:48Z pre-darwin start load={ 35.09 108.99 113.06 }
+2026-10-29T09:16:14Z pre-darwin rc=1: -- client files: 40/40; failed 3; tests {"tests":841,"pass":827,"fail":4,"cancelled":0,"skipped":10,"todo":0}
+2026-10-29T09:16:14Z STOP: pre-darwin red; no dry run until triaged: -- client file FAIL: packages/snapback4/test/export-native.test.mjs (8910 ms) -- client file FAIL: packages/snapback4/test/dx10-process-accounts.test.mjs (72176 ms) -- client file FAIL: packages/snapback4/test/srv1-lifetime.test.mjs (90370 ms) 
