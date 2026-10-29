@@ -59,7 +59,8 @@ exit0/write REPORT.md; primary provider and independent parser totals reconcile.
 - `f6f7a78409`: successful-check handoff and failure-order regressions.
 - `38eef3a388`: adverse initial dollar results and independent handoff reviews.
 - `cc932f8103`: merge latest origin/main; no product semantic change.
-- Final result commit: this committed evidence/report snapshot.
+- `bd2eefd830`: final priced results, integrity and consumer summaries.
+- Final repair commit: exact generated-path guard inventory (this snapshot).
 
 Governing amendment LLP 3000.037.000 §18; affected document audit in
 `snapback4/reports/20261029-starter2/CONTEXT.md`. Next Guide changes under
@@ -88,7 +89,14 @@ performance evidence or a complete-publication qualification.
 - Initial consumer attempt failed on existing strace6.8 nested undecoded trace;
   retained as red. Owned upstream strace6.17 workaround, strict listener decoder
   unchanged. Existing 20261021 ticket updated, not closed.
-- Final committed affected run: PENDING. The conservative selector expands
+- Initial affected attempt at `bd2eefd830` passed builds, SDK typecheck, CLI
+  targets and all105 client tests. Guide validation found the newly emitted
+  `src/on-write.ts` missing from its exact APP_FILES list (134pass/1fail).
+  Stopped before remaining root checks; incomplete receipt/red logs retained
+  at `/tmp/starter2-evidence/affected-initial-{incomplete,stop}.json`. Added
+  only that exact generated path; arbitrary unpublished paths still refuse.
+  No product byte/behavior change, so packed/replay evidence remains applicable.
+- Final repaired committed affected run: PENDING. The conservative selector expands
   shared proof/CLI/report inputs to the explicitly prohibited complete battery.
   `run-affected.mjs` retains that full plan and uses its executor for affected
   CLI/lang guide/proof tests and all mandatory root checks. No full suite,

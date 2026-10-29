@@ -110465,3 +110465,8 @@ Final Muse pairs both improve ($0.074458236 → $0.066588872 and
 $0.064478738 → $0.050230194): strict two-pair dollar non-regression passes.
 All 18 draws exit successfully and primary calls/tokens reconcile with the
 independent parser; stdout-recovery and provider/cache limits remain explicit.
+The final affected pass caught the new generated src/on-write.ts absent from
+the documentation guard's exact application-file list. Add that one emitted
+path; do not widen src/ acceptance. The failed/incomplete attempt stays in
+local evidence; repeat affected checks on the repaired committed snapshot.
+Product bytes and packed proof semantics are unchanged by this test inventory.
