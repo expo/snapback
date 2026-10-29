@@ -1,0 +1,10 @@
+import{execFileSync}from'node:child_process';import{readFileSync,writeFileSync,mkdirSync,copyFileSync,chmodSync,readdirSync}from'node:fs';import{createHash}from'node:crypto';
+const root='/home/ccheever/projects/sb4-b32-dx15',dir='/tmp/dx17/packs-route';
+const run=(cmd,args,cwd=root+'/snapback4')=>execFileSync(cmd,args,{cwd,stdio:'inherit',env:{...process.env,PATH:'/home/ccheever/.bun-1.4.2/bin:'+process.env.PATH,CARGO_BUILD_JOBS:'4',CARGO_INCREMENTAL:'0',CARGO_PROFILE_DEV_DEBUG:'0',CARGO_PROFILE_TEST_DEBUG:'0'}});
+run('bash',['scripts/build-wasm.sh']);run('bun',['run','--cwd','packages/snapback4','build']);
+run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],root+'/snapback4/packages/snapback4');
+mkdirSync(dir+'/platform',{recursive:true});for(const n of['package.json','THIRD-PARTY-NOTICES'])copyFileSync(root+'/snapback4/packages/snapback4-linux-x64/'+n,dir+'/platform/'+n);
+copyFileSync(root+'/snapback4/target/x86_64-unknown-linux-musl/production/snapback4',dir+'/platform/snapback4');chmodSync(dir+'/platform/snapback4',0o755);
+run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],dir+'/platform');
+const hash=b=>createHash('sha256').update(b).digest('hex');const artifacts=readdirSync(dir).filter(n=>n.endsWith('.tgz')).map(n=>{const b=readFileSync(dir+'/'+n);return{filename:n,bytes:b.length,sha256:hash(b),integrity:'sha512-'+createHash('sha512').update(b).digest('base64')};});
+writeFileSync('/tmp/dx17/evidence/route-artifacts.json',JSON.stringify({source:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),nativeProfile:'production',target:'x86_64-unknown-linux-musl',guideBytes:readFileSync(root+'/snapback4/crates/snapback4-lang/src/guide/day2.md').length,binarySha256:hash(readFileSync(dir+'/platform/snapback4')),artifacts,expo:'Unchanged published 0.4.48 Expo payload repacked with Integration 33 0.4.49 manifest only; no Mac compilation or qualification.'},null,2));

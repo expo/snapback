@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "250f8b2ac1878b35e503868ba0a31be160ac79c7",
+  "version": "0.4.48",
+  "route": "proot",
+  "clientIntegrity": "sha512-BxSw5YRSpHAZv5fT+fqZ4fznQXu39Yi6DRZ5ePE47VFnxY2euxfkvheFXOJaOyDhnG3s54ixNvZoOWMje06yzA==",
+  "expoIntegrity": "sha512-8Fwxogk+TiN3btqwkYUjE9Ro9bqQCZ+SkxPXMJJwg8Qc524LhI0GUvad/r1BN6AUqya6ULLR5t58bnOl4mp6Pg==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.48",
+    "filename": "snapback4-linux-x64-0.4.48.tgz",
+    "integrity": "sha512-lxom7kTS3+wEyWsMuMfVCv7xS1BjzoS64ISgItQPCatxzznEFVAbZnXwWvr55uG0J8aeOV0SR7sFctipg3EFbw==",
+    "bytes": 18782667
+  },
+  "binarySha256": "feff5dbc0885b3b6fa8a8f34f129454b41deada4d18fe965d515f12d3a6a11f2",
+  "publicationQualified": false,
+  "evidenceSha256": "6cdd69422800db7b6e4ee6c0f418385564634f441bce2df583fd62cf272c05cb",
+  "proofs": {
+    "status": "passed",
+    "runs": 2,
+    "phasesPerRun": 16,
+    "literalStageScripts": true,
+    "realAccounts": true,
+    "frozenV1ReturnsV2Rows": true
+  },
+  "exitCode": 0
+}

@@ -10,7 +10,8 @@ const excludes=['node_modules','./.agent.ndjson','./.agent-final.md','./.lane-st
 async function run(a){
  const dir=`/tmp/dx17/${phase}/apps/${a.id}`,tmp=`/tmp/dx17/t/${phase}-${a.n}`;
  mkdirSync(dir,{recursive:true});mkdirSync(tmp,{recursive:true});
- const lo=(phase==='before'?51000:52000)+a.n*10;
+ const targetVersion=phase==='after-route'?'0.4.49':'0.4.48';
+ const lo=(phase==='before'?51000:phase==='after-route'?53000:52000)+a.n*10;
  execFileSync('bash',['-c','tar "$@" -cf - . | tar -xf - -C "$DX17_DEST"','copy',...excludes.map(e=>'--exclude='+e)],{cwd:a.sourceLane,env:{...process.env,DX17_DEST:dir},timeout:600_000});
  const restored=[];
  const status=JSON.parse(readFileSync(a.sourceLane+'/.lane-status.json'));
@@ -25,7 +26,7 @@ async function run(a){
  }
  const rebased=rebaseCopy(dir,{from:a.sourceLane,to:dir,oldPort:a.portLo,newPort:lo});
  writeFileSync(dir+'/.day2-from.json',JSON.stringify({from:a.sourceLane,wave:'34',restored,rebased,sourcePortLo:a.portLo,portLo:lo}));
- let brief=readFileSync(join(wave,'apps',a.id,'BRIEF.md'),'utf8').replaceAll(join(wave,'apps',a.id),dir).replaceAll('snapback4@0.4.46','snapback4@0.4.48').replaceAll(String(a.portLo+9),String(lo+9)).replaceAll(String(a.portLo),String(lo));
+ let brief=readFileSync(join(wave,'apps',a.id,'BRIEF.md'),'utf8').replaceAll(join(wave,'apps',a.id),dir).replaceAll('snapback4@0.4.46','snapback4@'+targetVersion).replaceAll(String(a.portLo+9),String(lo+9)).replaceAll(String(a.portLo),String(lo));
  writeFileSync(dir+'/BRIEF.md',brief);
  const env=builderEnvironment({...process.env,PORT_LO:String(lo),PORT_HI:String(lo+9),TMPDIR:tmp,PATH:`/home/ccheever/sb4-loop/bakeoff/proc-shims:/home/ccheever/.bun-1.4.2/bin:${process.env.PATH}`,SB4_LANE:`dx17-${phase}-${a.n}`,SB4_LANE_DIRS:dir+':'+tmp,SB4_GUARD_LOG:'/tmp/dx17/evidence/guard.jsonl',CHROME:'/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome',CI:'1',EXPO_NO_TELEMETRY:'1',npm_config_registry:registry});
  for(const k of Object.keys(env))if(/^(CONVEX_|SUPABASE_|DATABASE_URL$|POSTGRES_URL$|HARNESS_BACKEND_)/.test(k))delete env[k];

@@ -1,5 +1,5 @@
 import{readFileSync,writeFileSync,existsSync}from'node:fs';import{createHash}from'node:crypto';import{join}from'node:path';
-const evidence=process.argv[2]??'/tmp/dx17/evidence',phases=['before','after-final'],ns=[2,5,9,11,18],rows=[];
+const evidence=process.argv[2]??'/tmp/dx17/evidence',phases=['before','after-final','after-route'],ns=[2,5,9,11,18],rows=[];
 const read=p=>JSON.parse(readFileSync(p));
 for(const phase of phases)for(const n of ns){
  const lp=join(evidence,`${phase}-${n}-launch.json`),rp=join(evidence,`${phase}-${n}-result.json`),vp=join(evidence,`${phase}-${n}-verification.json`);

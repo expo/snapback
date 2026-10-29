@@ -1,0 +1,37 @@
+{
+  "source": "6d2613c4ee",
+  "nativeProfile": "production",
+  "target": "x86_64-unknown-linux-musl",
+  "incremental": 0,
+  "devDebug": 0,
+  "testDebug": 0,
+  "artifacts": [
+    {
+      "name": "snapback4",
+      "version": "0.4.48",
+      "path": "/tmp/dx17/packs/snapback4-0.4.48.tgz",
+      "bytes": 1414639,
+      "integrity": "sha512-BxSw5YRSpHAZv5fT+fqZ4fznQXu39Yi6DRZ5ePE47VFnxY2euxfkvheFXOJaOyDhnG3s54ixNvZoOWMje06yzA==",
+      "sha256": "9d6ce3f51e739025d7eece2905e81b0fda846667778a0fae038b0d0712ff86b6"
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.48",
+      "path": "/tmp/dx17/packs/snapback4-linux-x64-0.4.48.tgz",
+      "bytes": 18781807,
+      "integrity": "sha512-eE3RXcNfefNjvHhdYBCMzgEEUy1M8bvugbAArelWi9l+GdQ8OviagwCUtvKRu18ey0J4yBPbvtkbjqtklsVU+Q==",
+      "sha256": "ce04b9751958aeea787eeb6b7d92492e89de0ef7cec6af2a2944eeaf8316a40b"
+    },
+    {
+      "name": "snapback4-expo",
+      "version": "0.4.48",
+      "path": "/tmp/dx17/packs/snapback4-expo-0.4.48.tgz",
+      "bytes": 5789774,
+      "integrity": "sha512-8Fwxogk+TiN3btqwkYUjE9Ro9bqQCZ+SkxPXMJJwg8Qc524LhI0GUvad/r1BN6AUqya6ULLR5t58bnOl4mp6Pg==",
+      "sha256": "df6716110abd6a557bd1df2244c8e208615c0c536cd591f48a04a2f103d2fddd"
+    }
+  ],
+  "binarySha256": "41c750e04f6edf46d48fecf23362ebf618bbea731d568ad8150c2f51c8e47a1b",
+  "guideBytes": 7972,
+  "expo": "Unchanged registry tarball at the same exact version; no Mac build."
+}
