@@ -110499,3 +110499,12 @@ small-sample/MUSE1 confounding, and the baseline018 exit-delay sensitivity. One
 missing baseline011 probe was supplemented later with identical native bytes,
 without changing its model price/wall or overwriting a red. The guide-gap cost
 follow-up is filed; this is not a claimed Muse optimization success.
+
+### 2026-10-29 — Integration 34, 0.4.50 candidate
+
+Merged TOK6, STARTER2, VER2 and DX17. App-specific API routing and bounded
+references remain TOK6-owned; day-two orchestration stays on the day2 card.
+Verify uses one stderr heartbeat across phases, conservative passing-phase reuse,
+and fresh check/shutdown. Both historical starter README suffixes remain recognized.
+The combined release requires affected, consumer and complete Linux red-check
+evidence; lane costs are directional, with same-window combined gating pending.
