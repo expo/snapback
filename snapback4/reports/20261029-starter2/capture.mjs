@@ -2,9 +2,10 @@ import {readFileSync,writeFileSync,readdirSync,existsSync,rmSync,mkdirSync} from
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const phase=process.argv[2],n=Number(process.argv[3]);
-if(!['before','after'].includes(phase)||![5,23,36,39,19,32].includes(n))throw Error('unknown replay');
+if(!['before','after','after2'].includes(phase)||![5,23,36,39,19,32].includes(n))throw Error('unknown replay');
 const base='/tmp/starter2-evidence',launch=JSON.parse(readFileSync(`${base}/${phase}-${n}-launch.json`)),result=JSON.parse(readFileSync(`${base}/${phase}-${n}-result.json`)),dir=launch.dir;
-if(result.status!==0||!result.report||!result.archive)throw Error('capture refuses incomplete replay');
+const archived=JSON.parse(readFileSync(`${dir}/.harness/sessions/manifest.json`));
+if(result.status!==0||!result.report||!archived.matched||archived.missing.length)throw Error('capture refuses incomplete replay');
 const packs=`${base}/${phase}-packs`,manifest=JSON.parse(readFileSync(`${packs}/manifest.json`));
 const integrity=JSON.parse(execFileSync('python3',[new URL('./verify-installed.py',import.meta.url).pathname,dir,`${packs}/snapback4-0.4.49.tgz`],{encoding:'utf8'}));
 const native=`${dir}/node_modules/snapback4-linux-x64/snapback4`,nativeSha256=createHash('sha256').update(readFileSync(native)).digest('hex');

@@ -110446,3 +110446,11 @@ security binder, default proof scaffolding or version changes. See LLP
 3000.037.000 §18 and reports/20261029-starter2/METHOD.md. Whole-session dollar
 results and packed qualification remain pending; source correctness is not a
 performance claim.
+
+STARTER2's first packed consumer-only qualification passed at 4a550a5b4c with
+owned strace 6.17 after retaining a failed 6.8 undecoded-fragment attempt (the
+existing 20261021 strace ticket). No audit rule was relaxed. Its first complete
+Codex set missed the target: $0.6301014 → $0.6389919/lane; zero of four used
+verify, all four kept generated check. A bounded follow-up adds a successful-
+check handoff, starts no implicit proof and preserves either failure's status.
+The same fixed draws will measure that changed candidate; all first results stay.

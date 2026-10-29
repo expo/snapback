@@ -7,13 +7,14 @@ os.environ['OUT']='/tmp/starter2-evidence/parsed'
 import parse,calls
 out=pathlib.Path(os.environ['OUT']);out.mkdir(exist_ok=True)
 rows=[]
-for phase in ['before','after']:
+for phase in ['before','after','after2']:
  parse.APPS='/tmp/starter2-replay/'+phase
+ phase_out=out/phase;phase_out.mkdir(exist_ok=True);parse.OUT=str(phase_out)
  for n in [5,23,36,39,19,32]:
   result=pathlib.Path(f'/tmp/starter2-evidence/{phase}-{n}-result.json')
   if not result.exists():continue
   lane=next(pathlib.Path(parse.APPS).glob(f'{n:03d}-*')).name
-  parse.one(lane);d=json.load(open(out/f'{lane}.json'))
+  parse.one(lane);d=json.load(open(phase_out/f'{lane}.json'))
   purposes,cycles=calls.lane_calls(d,phase)
   tools=[t for s in d['sessions'] for t in s['tools']]
   rows.append(dict(phase=phase,n=n,calls=sum(s['N'] for s in d['sessions']),input=sum(s['sumC'] for s in d['sessions']),cached=sum(s['cached'] for s in d['sessions']),output=sum(s['out_tok'] for s in d['sessions']),
