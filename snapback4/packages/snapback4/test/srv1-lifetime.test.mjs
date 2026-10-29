@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,realpathSync,rmSync,symlinkSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawn} from 'node:child_process';
@@ -108,7 +108,8 @@ test('Darwin design witness: C-locale ps captures npm argv and parent birth chan
 test('aliased database recovery names its actual deployment control directory',{skip:process.platform==='win32',timeout:60000},async t=>{
  const cwd=await project(t);mkdirSync(join(cwd,'external'),{mode:0o700});writeFileSync(join(cwd,'external/store.sqlite'),'',{mode:0o600});const deployed=await cli(['deploy','aliased','--store','external/store.sqlite'],{cwd,env});assert.equal(deployed.code,0,deployed.stderr);
  const host=await startServe('aliased',{cwd,env});try{
-  const busy=await cli(['serve','aliased','--port','0'],{cwd,env});assert.notEqual(busy.code,0);assert.ok(busy.stderr.includes(`snapback4 stop '${cwd}/aliased'`),busy.stderr);
+  // The recovery names the canonical control directory: macOS tmpdir() is /var/folders, which resolves to /private/var/folders.
+  const busy=await cli(['serve','aliased','--port','0'],{cwd,env});assert.notEqual(busy.code,0);assert.ok(busy.stderr.includes(`snapback4 stop '${realpathSync(cwd)}/aliased'`),busy.stderr);
   const stopped=await cli(['stop','aliased'],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);
  }finally{await host.stop();}
 });
@@ -127,7 +128,9 @@ for(const direct of [false,true])test(`036/017/008: deploy immediately after npm
 });
 
 test('missing process table retains a living direct parent and detects reparenting',async()=>{
- const source=`import fs from 'node:fs';import assert from 'node:assert/strict';import{syncBuiltinESMExports}from'node:module';Object.defineProperty(process,'platform',{value:'linux'});let parent=12345;Object.defineProperty(process,'ppid',{get:()=>parent});fs.readFileSync=()=>{throw Object.assign(Error('no proc'),{code:'ENOENT'});};process.kill=()=>true;syncBuiltinESMExports();const {watchParent}=await import(${JSON.stringify(pathToFileURL(join(root,'packages/snapback4/dist/parent-lifetime.js')).href)});let lost=false;const stop=watchParent(()=>lost=true);await new Promise(r=>setTimeout(r,300));assert.equal(lost,false);parent=1;await new Promise(r=>setTimeout(r,300));stop();assert.equal(lost,true);`;
+ // Only /proc reads fail: Node 24.18's ESM loader reads module sources through the public fs.readFileSync
+ // (getSourceSync), so a stub that throws for every path broke the import of parent-lifetime.js itself on the Mac.
+ const source=`import fs from 'node:fs';import assert from 'node:assert/strict';import{syncBuiltinESMExports}from'node:module';Object.defineProperty(process,'platform',{value:'linux'});let parent=12345;Object.defineProperty(process,'ppid',{get:()=>parent});const readFile=fs.readFileSync;fs.readFileSync=(file,...rest)=>{if(String(file).startsWith('/proc/'))throw Object.assign(Error('no proc'),{code:'ENOENT'});return readFile.call(fs,file,...rest);};process.kill=()=>true;syncBuiltinESMExports();const {watchParent}=await import(${JSON.stringify(pathToFileURL(join(root,'packages/snapback4/dist/parent-lifetime.js')).href)});let lost=false;const stop=watchParent(()=>lost=true);await new Promise(r=>setTimeout(r,300));assert.equal(lost,false);parent=1;await new Promise(r=>setTimeout(r,300));stop();assert.equal(lost,true);`;
  const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:'pipe'});let err='';child.stderr.on('data',d=>err+=d);assert.equal(await new Promise(r=>child.once('close',r)),0,err);
 });
 
