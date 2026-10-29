@@ -1,7 +1,7 @@
 // Runs unchanged from a packed client/platform installation in the cwd.
 import assert from "node:assert/strict";
-import {mkdirSync,writeFileSync,readFileSync,existsSync} from "node:fs";
-import {spawn} from "node:child_process";
+import {mkdirSync,writeFileSync,readFileSync,existsSync,unlinkSync} from "node:fs";
+import {spawn,execFileSync} from "node:child_process";
 import {createClient} from "snapback4/client";
 import {narrowSession,signup} from "snapback4/auth";
 import {cli,command,deploy,startDev,startServe,cleanup} from "snapback4/proof";
@@ -67,15 +67,30 @@ try{
 }finally{await host.stop();}
 host=await startServe("production");await host.stop();
 
-// npm's shell and every descendant share keeper custody. Timeout and abrupt
-// caller death both remove the complete tree rather than just the direct child.
-writeFileSync("hold.mjs",`import{spawn}from'node:child_process';import{writeFileSync}from'node:fs';const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)']);writeFileSync(process.argv[2],JSON.stringify([process.pid,c.pid]));setInterval(()=>{},1000);`);
+// npm's shell and descendants share keeper custody. Establish a real child
+// tree before testing exit cleanup; a separate command retains timeout coverage.
+// @ref LLP 3000.037.000#18-bounded-package-reference-and-wiring-lookups-tok6 — packed verification retains positive readiness rather than racing npm startup.
+writeFileSync("hold.mjs",`import{spawn}from'node:child_process';import{writeFileSync,existsSync,renameSync}from'node:fs';const c=spawn(process.execPath,['-e','setInterval(()=>{},1000)']);writeFileSync(process.argv[2]+'.tmp',JSON.stringify([process.pid,c.pid]));renameSync(process.argv[2]+'.tmp',process.argv[2]);setInterval(()=>{if(existsSync('finish'))process.exit(7)},25);`);
 const manifest=JSON.parse(readFileSync("package.json","utf8"));manifest.scripts={...(manifest.scripts??{}),hold:"node hold.mjs npm-pids.json"};writeFileSync("package.json",JSON.stringify(manifest));
-await assert.rejects(command("npm",["run","--silent","hold"],{timeoutMs:300,stopTimeoutMs:300}),/timed out/);
-const gone=async file=>{for(let n=0;n<100;n++){if(readFileSync(file,"utf8").length){const pids=JSON.parse(readFileSync(file,"utf8"));if(pids.every(pid=>{try{process.kill(pid,0);return false}catch(e){return e.code==="ESRCH"}}))return;}await new Promise(r=>setTimeout(r,20));}assert.fail(`proof process tree survived: ${file}`);};
-await gone("npm-pids.json");
+const marker=file=>{try{return JSON.parse(readFileSync(file,"utf8"));}catch(error){if(error.code!=="ENOENT")throw error;}};
+const waitFor=async(accepts,label)=>{const end=performance.now()+30000;while(performance.now()<end){if(accepts())return;await new Promise(r=>setTimeout(r,20));}assert.fail(label);};
+const live=pid=>{
+ try{return !execFileSync("ps",["-p",String(pid),"-o","stat="],{encoding:"utf8",timeout:30000,stdio:["ignore","pipe","pipe"]}).trim().startsWith("Z");}
+ catch(error){if(error.status===1&&!String(error.stdout).trim())return false;throw error;}
+};
+const started=file=>waitFor(()=>{const pids=marker(file);return Array.isArray(pids)&&pids.length===2&&pids.every(pid=>Number.isSafeInteger(pid)&&pid>0)&&pids[0]!==pids[1]&&pids.every(live);},`proof descendants never started: ${file}`);
+const gone=file=>waitFor(()=>marker(file)?.every(pid=>!live(pid)),`proof process tree survived: ${file}`);
+const running=command("npm",["run","--silent","hold"],{timeoutMs:120000,stopTimeoutMs:30000});
+void running.catch(()=>{});
+try{await started("npm-pids.json");}
+finally{writeFileSync("finish","yes");}
+assert.equal((await running).code,7);await gone("npm-pids.json");
+await assert.rejects(command(process.execPath,["-e","setInterval(()=>{},1000)"],{timeoutMs:300,stopTimeoutMs:30000}),/timed out/);
+unlinkSync("finish");
 writeFileSync("caller.mjs",`import{command}from'snapback4/proof';command(process.execPath,['hold.mjs','caller-pids.json'],{timeoutMs:60000});setInterval(()=>{},1000);`);
 const caller=spawn(process.execPath,["caller.mjs"],{stdio:"ignore"});
-for(let n=0;n<100&&(!existsSync("caller-pids.json")||!readFileSync("caller-pids.json","utf8").length);n++)await new Promise(r=>setTimeout(r,20));
-caller.kill("SIGKILL");await new Promise(resolve=>caller.once("exit",resolve));await gone("caller-pids.json");
+const closed=new Promise(resolve=>caller.once("close",resolve));
+try{await started("caller-pids.json");}
+finally{caller.kill("SIGKILL");await closed;}
+await gone("caller-pids.json");
 console.log("DX8 operator consumer passed: dev auth clock/session families, production accounts, retained stop, npm/caller-death group cleanup");

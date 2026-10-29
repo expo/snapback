@@ -1,0 +1,40 @@
+[
+  {
+    "phase": "before",
+    "source": "55a4d4e39c75a6aa5f661222b4161d0c2a623f79",
+    "profile": "development; incremental=0; debug=0; same before/after",
+    "artifacts": [
+      {
+        "path": "target/tok6/before/snapback4-0.4.49.tgz",
+        "sha256": "55ceb122ebcfe409e48b90e7c02ab2edc79c05290c8ad76406fb6f0251e2b457"
+      },
+      {
+        "path": "target/tok6/before/snapback4-linux-x64-0.4.49.tgz",
+        "sha256": "d253268a41f2a0755f1a5fd30e4c284e2f64cda33a668ecd01cd4edd4bc949c4"
+      },
+      {
+        "path": "target/tok6/before/snapback4-expo-0.4.49.tgz",
+        "sha256": "8899a4abdf7344cff2d16a20232ba50ea1fc69c1f2371c29425e98141518352b"
+      }
+    ]
+  },
+  {
+    "phase": "after",
+    "source": "eafcd61d8725994f45018c256f76c59f9783c1d6",
+    "profile": "development; incremental=0; debug=0; same before/after",
+    "artifacts": [
+      {
+        "path": "target/tok6/after/snapback4-0.4.49.tgz",
+        "sha256": "c0ffbeac72f2e0f572de47cdd21726477bb760377b4c7acd37fd80e9a37e5f89"
+      },
+      {
+        "path": "target/tok6/after/snapback4-linux-x64-0.4.49.tgz",
+        "sha256": "4a7036b2434aed99b65cc0b1ab9d177ee7fccece4ad79ab95f1cd06c3e17fa52"
+      },
+      {
+        "path": "target/tok6/after/snapback4-expo-0.4.49.tgz",
+        "sha256": "1505559507d1579c6e2c4e69365958fa46990882e84674406559b8ab02819a08"
+      }
+    ]
+  }
+]

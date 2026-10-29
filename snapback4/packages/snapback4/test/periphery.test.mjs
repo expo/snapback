@@ -736,7 +736,7 @@ test("Expo starter selects web, native and online app devices with explicit sess
 
 for (const pkg of ["snapback4", "snapback4-expo"]) test(`${pkg} README teaches background proof and reading its result`, () => {
   const orientation=read(join(root,"packages",pkg,"README.md"));
-  if(pkg==="snapback4")assert.ok(orientation.includes("reference/CLIENT-AND-OPERATIONS.md"));
+  if(pkg==="snapback4")assert.ok(orientation.includes("guide package-reference"));
   const readme = pkg==="snapback4"?read(join(root,"packages",pkg,"reference/CLIENT-AND-OPERATIONS.md")):orientation;
   for (const fact of ["npm run export:ios", "background QoS", "npx snapback4 witness status --wait", "npx snapback4 doctor", "npm run native:smoke", "supersedes pending proof", "without failing a successful export"])
     assert.ok(readme.includes(fact), `${pkg}: missing ${fact}`);

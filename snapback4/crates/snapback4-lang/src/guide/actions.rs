@@ -327,7 +327,7 @@ different mutation; do not put a timestamp or random value in the label.
 ## Actions
 
 Declare typed I/O operations in Quarry and implement them with generated
-TypeScript handlers. Read [actions and the server context](./reference/SERVER.md) for
+TypeScript handlers. Read `guide package-reference server` for
 the declaration, admission authority, durable steps, secrets and supervision,
 or run `snapback4 guide actions`.
 
@@ -336,4 +336,4 @@ or run `snapback4 guide actions`.
 E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
 E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE,
 E_OIDC_REPLAY and E_OIDC_TRANSACTION
-are explained in the package’s reference/SERVER.md, under Identity refusal reference."##;
+are explained in the package’s guide package-reference server, under Identity refusal reference."##;

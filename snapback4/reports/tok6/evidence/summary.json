@@ -1,0 +1,110 @@
+{
+  "codex": {
+    "before": {
+      "lanes": 4,
+      "usd": 0.6386134,
+      "calls": 41.5,
+      "input": 2309408.25,
+      "uncachedInput": 71584.25,
+      "cachedInput": 2237824.0,
+      "output": 27166.25,
+      "usdParts": {
+        "uncached": 0.14316849999999998,
+        "cached": 0.22378240000000002,
+        "output": 0.27166250000000003
+      },
+      "reads": {
+        "referenceFile": 0.25,
+        "serverReferenceFile": 0.25,
+        "fullReferenceCats": 0.25,
+        "referenceGuide": 0.75,
+        "wiringLookups": 4.0,
+        "wiringCalls": 2.25,
+        "generatedApiReads": 0.75,
+        "guideTotal": 14.25
+      }
+    },
+    "after": {
+      "lanes": 4,
+      "usd": 0.6600849,
+      "calls": 38.25,
+      "input": 2235163.5,
+      "uncachedInput": 72379.5,
+      "cachedInput": 2162784.0,
+      "output": 29904.75,
+      "usdParts": {
+        "uncached": 0.144759,
+        "cached": 0.21627839999999998,
+        "output": 0.2990475
+      },
+      "reads": {
+        "referenceFile": 0.0,
+        "serverReferenceFile": 0.0,
+        "fullReferenceCats": 0.0,
+        "referenceGuide": 0.0,
+        "wiringLookups": 4.0,
+        "wiringCalls": 3.0,
+        "generatedApiReads": 0.25,
+        "guideTotal": 14.0
+      }
+    },
+    "deltaUsd": 0.021471499999999977
+  },
+  "muse": {
+    "before": {
+      "lanes": 2,
+      "usd": 0.053497664,
+      "calls": 110.5,
+      "input": 10675670.5,
+      "uncachedInput": 200313.5,
+      "cachedInput": 10475357.0,
+      "output": 62578.0,
+      "usdParts": {
+        "uncached": 0.020031350000000003,
+        "cached": 0.020950714,
+        "output": 0.012515599999999998
+      },
+      "reads": {
+        "referenceFile": 2.0,
+        "serverReferenceFile": 1.5,
+        "fullReferenceCats": 0.0,
+        "referenceGuide": 0.0,
+        "wiringLookups": 3.5,
+        "wiringCalls": 2.5,
+        "generatedApiReads": 1.5,
+        "guideTotal": 23.5
+      }
+    },
+    "after": {
+      "lanes": 2,
+      "usd": 0.071272828,
+      "calls": 137.5,
+      "input": 16002957.0,
+      "uncachedInput": 237893.0,
+      "cachedInput": 15765064.0,
+      "output": 79767.0,
+      "usdParts": {
+        "uncached": 0.023789299999999992,
+        "cached": 0.031530128000000004,
+        "output": 0.0159534
+      },
+      "reads": {
+        "referenceFile": 0.0,
+        "serverReferenceFile": 0.0,
+        "fullReferenceCats": 0.0,
+        "referenceGuide": 0.0,
+        "wiringLookups": 2.5,
+        "wiringCalls": 2.0,
+        "generatedApiReads": 0.5,
+        "guideTotal": 16.0
+      }
+    },
+    "deltaUsd": 0.017775163999999996
+  },
+  "targets": {
+    "packageReadingBudget": true,
+    "codexMinus003PerLane": false,
+    "museNoMeanRegression": false,
+    "museNoPairRegression": false
+  }
+}

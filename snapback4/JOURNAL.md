@@ -110519,3 +110519,10 @@ install, native build, WASM build, client build and typecheck pass; backend
 suites are still running. Ordinary landing uses the scoped app/browser proof
 under the fast/affected cadence; that broad follow-up remains outstanding and
 is not represented as passing. This is not an npm release qualification.
+2026-10-29 — TOK6: stop offering full manuals to package-listing readers. Long
+references are embedded behind bounded package-reference topics/sections; SDK
+builds no longer duplicate Markdown digests under dist. Wiring API lookups bind
+current app sources and open with GEN1 calls/guards/shapes, then complementary
+signatures. Generic SDK-only access remains explicit. See LLP 3000.037.000 §18
+and reports/tok6 for paired native-session costs, packed consumer evidence and
+limits. No version bump or publication; no runtime/authorization change.

@@ -146,7 +146,7 @@ native-only module changes. A failed hot adoption leaves the old release serving
 For a truthful scalar old view, declare `down table name(typedInputs): {oldField: expression}` in newer source. Saved old preimages win; receipts name their rows. Computed down cannot manufacture files/images, collections, references or missing tables. For required → optional media/money and empty albums, `rollback DIR --to N --check --bridge NEW_DIR` generates a current-workflow repair source and checklist with loosened domains and retained new tables. Review nullable UI reads, current safety guards and the checklist, then preview/deploy that NEW release with `deploy DIR --schema NEW_DIR --restore-dormant --check`. New tables may still have no old read path. `table newName renamed from oldName:` preserves table/row/reference identity across both directions; asset-column renames preserve the single asset home. Cross-table indexed existence/unique lookups and migration-only `fileText` are declarative inputs; see the packed-tested language example and `guide deploy`.
 
 Full lifecycle, concurrency, failure and recovery semantics:
-[reference/SERVER.md — Release lifecycle](reference/SERVER.md#release-lifecycle).
+guide package-reference server — Release lifecycle (`guide package-reference server --section release lifecycle`).
 
 ### Move media into a child table
 
@@ -231,7 +231,7 @@ a loosened child-domain bridge first; migration-owned null removals stay dormant
 A temporarily retired child table resumes its validated current homes under the
 same extraction; it never replays consumed lists or recaptures independent children.
 
-This is `guide evolution`; client development commands are in reference/CLIENT-AND-OPERATIONS.md §5."##;
+This is `guide evolution`; client development commands are in guide package-reference client §5."##;
 
 /// A card's `##`/`###` headings outside code fences: (level, heading, first line, end line).
 pub fn sections(card: &str) -> Vec<(usize, String, usize, usize)> {

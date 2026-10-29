@@ -162,12 +162,35 @@ fn main() -> ExitCode {
                 None => if let Some(words) = options.flags.get("find") {
                     match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{}", guide::bounded_default("search", &problem)); return ExitCode::from(1); } }
                 } else { println!("{}", guide::listing()); },
+                Some("package-reference") if !rest.is_empty() => {
+                    let mut words = rest.split_whitespace();
+                    let topic = words.next().unwrap();
+                    let name = format!("package-reference {topic}");
+                    let Some(card) = guide::package_reference::card(topic) else {
+                        eprintln!("Unknown package reference {topic}. Run snapback4 guide package-reference.");
+                        return ExitCode::from(1);
+                    };
+                    let remainder = words.collect::<Vec<_>>().join(" ");
+                    let selected = options.flags.get("section").map(|section| if remainder.is_empty() { section.clone() } else { format!("{section} {remainder}") });
+                    let chosen = if let Some(section) = &selected { guide::section(&name, &card, section) }
+                        else if let Some(find) = options.flags.get("find") { guide::find(&name, &card, &if remainder.is_empty() { find.clone() } else { format!("{find} {remainder}") }) }
+                        else { Ok(guide::section_index(&name, &card)) };
+                    match chosen {
+                        Ok(text) => {
+                            let text = verbs::without_design_references(&text);
+                            let text = if selected.is_none() || options.flags.contains_key("find") { text }
+                                else { guide_seen::render(&name, &text, options.flags.contains_key("repeat")) };
+                            println!("{}", guide::bounded_default(&name, &text));
+                        },
+                        Err(problem) => { eprintln!("{}", guide::bounded_default(&name, &problem)); return ExitCode::from(1); }
+                    }
+                },
                 Some("api") if !rest.is_empty() => {
                     let module = rest.split_whitespace().next().unwrap();
                     let reference = options.flags.contains_key("full") || options.flags.contains_key("section") || options.flags.contains_key("sections");
-                    match guide_api::render(module, reference) {
+                    match if options.flags.contains_key("generic") { guide_api::generic(module, reference) } else { guide_api::render(module, reference) } {
                         Ok(raw) => {
-                            let name = format!("api {module}");
+                            let name = format!("api {module}{}", if options.flags.contains_key("generic") { " --generic" } else { "" });
                             let card = guide::reader_card(&name, &raw);
                             let chosen = if module == "proof" && options.flags.contains_key("sections") {
                                 Ok(format!("{}\nReference sections below are only for declarations missing from this digest.\n{}", guide_api::render(module,false).unwrap(), guide::section_index(&name,&card)))

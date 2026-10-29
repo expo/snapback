@@ -199,7 +199,7 @@ function createAppInner(options: AppOptions): App {
   // I10: retirement receipts cover their dispatch snapshot, never later tokens.
   // I11: global selection may adopt a peer rotation only in the caller's epoch.
   // I12: fencing stops new dispatches, never rewrites a dispatched outcome.
-  // See reference/CLIENT-AND-OPERATIONS.md, session state-machine invariants.
+  // See guide package-reference client, session state-machine invariants.
   const epochKey = custodyKey + ".epoch";
   const readEpoch = async () => {
     const marker = (await storage.get(epochKey)) ?? "0";

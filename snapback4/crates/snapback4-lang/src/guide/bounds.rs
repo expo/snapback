@@ -64,7 +64,7 @@ map clones share their immutable image. A heap cut stops a query immediately
 with no available value or continuation, since an interrupted scalar or shape
 has no valid partial answer. The client observation is `loading`; narrow the query or
 use a maintained view for a total. Its cut site remains internal;
-the meter is available only through dev's default read inspection (reference/CLIENT-AND-OPERATIONS.md §4).
+the meter is available only through dev's default read inspection (guide package-reference client §4).
 An unfinished maintained lookup or live aggregate uses the same unavailable
 query result, preserving zero only for a completed missing-group lookup.
 A mutation rolls back; Operations below describes the refusal.

@@ -100,7 +100,6 @@
     "dist",
     "bin",
     "README.md",
-    "reference",
     "THIRD-PARTY-NOTICES"
   ],
   "optionalDependencies": {

@@ -114,7 +114,7 @@ recorded simulator, with project and device leases held through cleanup.
 
 For durable offline media, use the local client's `uploadAndPlace` or `useUpload`
 (re-exported here). `saveAsset(client, id, name?)` presents the iOS save/share sheet
-from authorized or retained bytes. See [the shared upload contract](../snapback4/reference/OFFLINE-UPLOADS.md).
+from authorized or retained bytes. See `snapback4 guide package-reference offline-uploads` for the shared upload contract.
 
 ### Persist account sessions
 

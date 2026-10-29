@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // @ref LLP 3000.013.002#2 — one snapshot, no extra authority or hidden loading refusals.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { hangBudget } from "./helpers/wait.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const dist = process.env.SNAPBACK4_CLIENT_DIST ?? join(root, "packages/snapback4/dist");
-const guide = () => readFileSync(process.env.SNAPBACK4_CLIENT_DIST ? join(dist, "../reference/CLIENT-AND-OPERATIONS.md") : join(root, "packages/snapback4/reference/CLIENT-AND-OPERATIONS.md"), "utf8");
+const guide = () => guideReference(process.env.SNAPBACK4_CLIENT_DIST ? join(dist, '../bin/snapback4.js') : (process.env.SNAPBACK4_BIN ?? join(root,'target/debug/snapback4')), 'package-reference client', {cwd:root});
 const recipe = () => [...guide().matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m => m[1]).find(s => s.includes("function ShortScreen"));
 
 test("short query types preserve generated arguments, null and typed refusal", () => {

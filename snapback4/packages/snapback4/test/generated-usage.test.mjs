@@ -68,7 +68,7 @@ for (const name of ['cpap','trailer','talent']) test(`wave34 ${name}: all operat
   const tokens=encoding.encode(text).length;
   assert.ok(tokens<=2400,`${name}: ${tokens}/2400 tokens`);
   console.log(`${name}: ${expected.length} operations; ${tokens}/2400 tokens; max operation ${Math.max(...blocks.map(b=>encoding.encode(b).length))}/480`);
-  for(const route of ['client','react','generated']) assert.match(run(dir,['guide','api',route,'--repeat']),/^This app's operations: snapback\/generated\/api.ts/);
+  for(const route of ['client','react','auth','generated']) assert.match(run(dir,['guide','api',route,'--repeat']),/^# This app's client usage/);
   assert.match(run(dir,['guide','api','generated','--repeat']),/Client usage packet/);
   if(name==='cpap') {
    assert.match(text,/scan\?: \{ id: string \}/);assert.match(text,/approvedBy: string \| null/);

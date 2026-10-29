@@ -40,7 +40,7 @@ fn w10r1_no_horizon_card_matches_reader_suppression() {
     assert!(snapback4_lang::guide::card("sync").unwrap().split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
     assert!(snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_NO_HORIZON").unwrap().1.contains(sentence));
     assert!(include_str!("../../../packages/snapback4/README.md").contains("guide package-reference"));
-    assert!(snapback4_lang::guide::card("package-reference").unwrap().contains("reference/CLIENT-AND-OPERATIONS.md"));
+    assert!(snapback4_lang::guide::card("package-reference").unwrap().contains("guide package-reference client"));
     assert!(include_str!("../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").contains("guide sync"), "the linked reference reaches the complete advice checked above");
 }
 

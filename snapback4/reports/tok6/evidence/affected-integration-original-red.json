@@ -1,0 +1,125 @@
+{
+  "head": "1031aa1522fa66a477842565f660a4c82769b895",
+  "ok": false,
+  "complete": true,
+  "unchanged": true,
+  "fullSelectorPlanExecuted": false,
+  "qualification": false,
+  "receiptPath": "/home/ccheever/projects/sb4-b34-lat1/target/affected/1031aa1522fa-1793268698630.json",
+  "results": [
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 15821
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 7178
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2879
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 195507
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 21853
+    },
+    {
+      "id": "generated",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 240150
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 213468
+    },
+    {
+      "id": "inventories",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 199856
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 41
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5294
+    },
+    {
+      "id": "selector-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 17443
+    },
+    {
+      "id": "rust:guide-reference",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 12608
+    },
+    {
+      "id": "rust:guide-history",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 66058
+    },
+    {
+      "id": "rust:cli-flags",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 250
+    },
+    {
+      "id": "rust:guide-command",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 40555
+    },
+    {
+      "id": "rust:scale-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3345
+    },
+    {
+      "id": "rust:tok3-command",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 2254
+    },
+    {
+      "id": "client:reading-contracts",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 29391
+    },
+    {
+      "id": "client:api-digests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3685
+    }
+  ]
+}

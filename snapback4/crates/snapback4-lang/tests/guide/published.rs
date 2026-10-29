@@ -200,17 +200,21 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
         "Read [details](./MISSING).",
         "Read `private/unknown.xyz`.",
         "Read [escape](../README.md).",
+        "Read [client](./reference/CLIENT-AND-OPERATIONS.md#react).",
+        "Read [adoption](./reference/FOLLOWING-ADOPTION.md).",
+        "[client]: ./reference/CLIENT-AND-OPERATIONS.md",
+        "Read **reference/FOLLOWING-ADOPTION.md**.",
         "Read [details](https://example.com/private/new.md).",
     ] { assert!(!unshipped(text, &shipped).is_empty(), "accepted {text}"); }
-    for text in ["Run `node scripts/install.mjs`.", "Barrier: `<deployment>/store.sqlite`.", "Read [client](./reference/CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./reference/FOLLOWING-ADOPTION.md).", "[client]: ./reference/CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
+    for text in ["Run `node scripts/install.mjs`.", "Barrier: `<deployment>/store.sqlite`.",  "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
         assert!(unshipped(text, &shipped).is_empty(), "refused {text}");
     }
     for text in [
-        "Read **reference/FOLLOWING-ADOPTION.md**.",
+        "Run snapback4 guide package-reference following.",
         "Read [client](https://github.com/expo/snapback/blob/main/snapback4/packages/snapback4/README.md).",
         "Read https://raw.githubusercontent.com/expo/snapback/main/snapback4/packages/snapback4/README.md.",
     ] { assert!(unshipped(text, &shipped).is_empty(), "refused {text}"); }
-    assert!(unshipped_at("Read [entry](../README.md) and [server](./SERVER.md).", &shipped, Path::new("reference")).is_empty());
+    assert!(!unshipped_at("Read [entry](../README.md) and [server](./SERVER.md).", &shipped, Path::new("reference")).is_empty());
     assert!(!unshipped_at("Read [escape](../../README.md).", &shipped, Path::new("reference")).is_empty());
     let without_adoption = shipped.into_iter().filter(|p| p != "reference/FOLLOWING-ADOPTION.md").collect();
     assert!(!unshipped("[adoption](./reference/FOLLOWING-ADOPTION.md)", &without_adoption).is_empty());
@@ -219,7 +223,7 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
 #[test]
 fn client_teaches_sdk_delivery_and_screen_seen() {
     let client = card("client").unwrap();
-    assert!(client.contains("reference/CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details"));
+    assert!(client.contains("guide package-reference client --section \"Client tier\""));
     let client = include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
     assert!(client.contains("SDK owns delivery reporting"));
     assert!(client.contains("screen owns visible `seen` reporting"));
@@ -234,11 +238,12 @@ fn client_teaches_sdk_delivery_and_screen_seen() {
 }
 
 #[test]
-fn package_root_has_one_markdown_entry() {
+fn package_has_one_markdown_entry_and_embeds_every_manual() {
     let shipped = shipped_files();
-    let root_docs: Vec<_> = shipped.iter().filter(|p| !p.contains('/') && p.ends_with(".md")).map(String::as_str).collect();
-    assert_eq!(root_docs, ["README.md"]);
-    for name in ["SERVER", "CLIENT-AND-OPERATIONS", "FOLLOWING-ADOPTION", "OFFLINE-UPLOADS", "CHANGELOG"] {
-        assert!(shipped.contains(&format!("reference/{name}.md")));
+    let markdown: Vec<_> = shipped.iter().filter(|p| p.ends_with(".md")).map(String::as_str).collect();
+    assert_eq!(markdown, ["README.md"]);
+    for (topic, raw) in snapback4_lang::guide::package_reference::TOPICS {
+        assert!(!raw.is_empty());
+        assert!(snapback4_lang::guide::package_reference::card(topic).is_some());
     }
 }

@@ -3,7 +3,7 @@
 Reference for client lifecycle, offline behavior or the account/avatar walkthrough. Building an app: run `snapback4 guide start`
 then `snapback4 guide workflow`; this file is outside that reading path.
 
-[Back to the package guide](../README.md).
+Start here: `guide start`.
 
 `usePage(op, args)` returns `items`, `hasMore`, `loadMore`, `read`, `loading`
 and `why`. `loading` is true only while the combined read loads; `why` is its
@@ -18,7 +18,7 @@ diagnostics explain the refusing rule and known filtering without changing
 public refusal disclosure.
 
 For TypeScript actions use the generated `server()` wrapper described in
-[server handlers](./SERVER.md); it enforces the application's precise handler
+`guide package-reference server`; it enforces the application's precise handler
 signatures. A custom runtime host can use the lower-level registry entry below
 with that generated manifest and already checked handlers. It does not infer
 application-specific argument/result types itself:
@@ -1645,7 +1645,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`, a file's `name`), `denied` or `error` (`why`) |
-| `useUpload(op, argument, id?)` | durable capture, typed upload progress, retry and cancellation; see OFFLINE-UPLOADS.md |
+| `useUpload(op, argument, id?)` | durable capture, typed upload progress, retry and cancellation; see guide package-reference offline-uploads |
 | `useSaveAsset()` | `{ save(id, name?), saving, why }`: a file saved on demand, through the browser's download |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
@@ -3182,7 +3182,7 @@ try {
   --fresh`/`--memory` host owns no file, so a plain `run` beside it reads `.snapback4/store.sqlite`, not that
   host's temporary store; `run --port N` forwards to the dev on `127.0.0.1:N` whichever store it serves.
   `data`, `sql` and `test` always read the on-disk store; inspect a fresh dev over HTTP.
-  `token` asks a live host to mint; `test` without a fixture refuses while it runs; deployed release activation uses the serving owner (see SERVER.md “Release lifecycle”);
+  `token` asks a live host to mint; `test` without a fixture refuses while it runs; deployed release activation uses the serving owner (see guide package-reference server “Release lifecycle”);
   HTTP `/seed` already runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
   ownership with each other, but refuse a backend owner before initialization and exclude backend writers
   until their SQLite stores close. Exclusion holds while `<database>-owner` is left in place: deleting or
@@ -3505,9 +3505,9 @@ to confirm the current release and generation.
   stages immutable source and atomically activates it through the live serving
   owner or an offline writer. Removed storage becomes dormant; fresh source
   reusing those names requires explicit restoration. See
-  [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
+  `guide package-reference server --section release lifecycle`.
 - **`snapback4 rollback <dir> [--to N]`** selects immutable source with retained
-  storage and owner-mediated hot activation. See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle)
+  storage and owner-mediated hot activation. See `guide package-reference server --section release lifecycle`
   for dormant values, explicit prune, roll forward and refusal repairs.
 - **`snapback4 serve <dir> [--port N|A-B] [--bind H]`** runs the current
   release on the shared store on `127.0.0.1:4400`, tokens only (a persona
@@ -3523,7 +3523,7 @@ to confirm the current release and generation.
   `--long-waits N`, `--long-waits-per-principal N` and `--claim-waits N`
   size the held-wait pools (defaults 1,024, 16 and 32); a full bound refuses
   retryable `E_STREAMS`. Bounds, refusals and the measured cost are in
-  SERVER.md, "Long-wait capacity". Set the proxy's idle timeout above the
+  guide package-reference server, "Long-wait capacity". Set the proxy's idle timeout above the
   2-second poll heartbeat and its connection limit above the derived cap.
 
 ### Stopped backup and isolated restore
@@ -4065,7 +4065,7 @@ is inspected. Restarting resets time, not written rows.
 ### Durable media capture
 
 A local device owns captured bytes and the placing mutation across offline/reload.
-`useUpload` exposes that same custody in React. See [OFFLINE-UPLOADS.md](./OFFLINE-UPLOADS.md) for states and limits.
+`useUpload` exposes that same custody in React. See `guide package-reference offline-uploads` for states and limits.
 
 ```tsx
 import { useUpload } from "snapback4/react";
@@ -4578,7 +4578,7 @@ await client.mutate(api.saveProfile, intent.args, { id: intent.id }); // a fixtu
 ```
 
 A fresh ID on every retry does not identify that same intent. `usePendingItems` renders scoped text/media intents beside explicitly keyed rows, including “Sent; updating view”.
-`usePendingState` selects the last admitted toggle intent. Both preserve custody and scope fences; see the intent-card recipe in CLIENT-AND-OPERATIONS.md.
+`usePendingState` selects the last admitted toggle intent. Both preserve custody and scope fences; see the intent-card recipe in guide package-reference client.
 
 ### 5. Export an offline shell, then verify
 

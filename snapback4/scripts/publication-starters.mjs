@@ -268,8 +268,8 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   } finally {writeFileSync(schema,original);}
   if(testPersistent){
     assert.equal(hash(),durableHash,'verbatim fixture guide preserved developer store');
-    const reference=readFileSync('node_modules/snapback4/reference/CLIENT-AND-OPERATIONS.md','utf8');
-    const block=guideTypeScriptExport(reference,'### Application proofs in Node','developmentHosts');
+    const reference=execFileSync(cli,['guide','package-reference','client','--section','Application proofs in Node','--repeat'],{encoding:'utf8',timeout:10000});
+    const block=guideTypeScriptExport(reference,'## Application proofs in Node','developmentHosts');
     writeFileSync('guide-development-hosts.ts',block);
     const {developmentHosts}=await import(pathToFileURL(process.cwd()+'/guide-development-hosts.ts').href);
     await developmentHosts(process.cwd());
