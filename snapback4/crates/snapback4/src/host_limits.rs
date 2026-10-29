@@ -349,7 +349,7 @@ impl Capacity {
                 (None, None) => return Ok(()),
             };
             let value = text.trim().parse::<usize>().ok().filter(|n| (min..=max).contains(n))
-                .ok_or_else(|| format!("E_INPUT: {source} takes an integer from {min} to {max}, not {text:?}; see reference/SERVER.md \"Long-wait capacity\""))?;
+                .ok_or_else(|| format!("E_INPUT: {source} takes an integer from {min} to {max}, not {text:?}; see guide package-reference server --section \"Long-wait capacity\""))?;
             *slot = value;
             capacity.explicit = true;
             Ok(())

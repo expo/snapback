@@ -223,7 +223,7 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
 #[test]
 fn client_teaches_sdk_delivery_and_screen_seen() {
     let client = card("client").unwrap();
-    assert!(client.contains("guide package-reference client --section client tier and proof details"));
+    assert!(client.contains("guide package-reference client --section \"Client tier\""));
     let client = include_str!("../../../../packages/snapback4/reference/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
     assert!(client.contains("SDK owns delivery reporting"));
     assert!(client.contains("screen owns visible `seen` reporting"));
@@ -238,11 +238,12 @@ fn client_teaches_sdk_delivery_and_screen_seen() {
 }
 
 #[test]
-fn package_root_has_one_markdown_entry() {
+fn package_has_one_markdown_entry_and_embeds_every_manual() {
     let shipped = shipped_files();
-    let root_docs: Vec<_> = shipped.iter().filter(|p| !p.contains('/') && p.ends_with(".md")).map(String::as_str).collect();
-    assert_eq!(root_docs, ["README.md"]);
-    for name in ["SERVER", "CLIENT-AND-OPERATIONS", "FOLLOWING-ADOPTION", "OFFLINE-UPLOADS", "CHANGELOG"] {
-        assert!(shipped.contains(&format!("reference/{name}.md")));
+    let markdown: Vec<_> = shipped.iter().filter(|p| p.ends_with(".md")).map(String::as_str).collect();
+    assert_eq!(markdown, ["README.md"]);
+    for (topic, raw) in snapback4_lang::guide::package_reference::TOPICS {
+        assert!(!raw.is_empty());
+        assert!(snapback4_lang::guide::package_reference::card(topic).is_some());
     }
 }

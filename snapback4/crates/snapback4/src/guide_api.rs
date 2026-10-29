@@ -11,7 +11,7 @@ pub fn render(module: &str, full: bool) -> Result<String, String> {
                 } else {
                     generic(module, false)?
                 };
-                return Ok(usage(&bound, module, &digest));
+                return usage(&bound, module, &digest);
             }
             if module == "generated" {
                 return Err(
@@ -83,7 +83,12 @@ pub fn generic(module: &str, full: bool) -> Result<String, String> {
 }
 
 // @ref LLP 3000.037.000#18-bounded-package-reference-and-wiring-lookups-tok6 — the first wiring lookup is the app packet, not a pointer to another read.
-fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> String {
+fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<String, String> {
+    let malformed = || {
+        format!(
+            "guide api {module}: client usage format changed; use --generic or run check and read snapback/generated/api.ts"
+        )
+    };
     let packet = snapback4_lang::emit::usage::markdown(bound, false);
     let mut out = String::from(
         "# This app's client usage\n\nFrom the current bound snapback/*.q schema (Client usage packet); generated types: snapback/generated/api.ts. Edit the schema, never generated files.\n\n",
@@ -103,13 +108,13 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> String {
         }
     }
     for operation in packet.split("\n## ").skip(1) {
-        let (heading, body) = operation.split_once('\n').unwrap();
+        let (heading, body) = operation.split_once('\n').ok_or_else(malformed)?;
         out.push_str(&format!("\n## {heading}\n\n"));
-        let calls = body.split_once("```ts\n").unwrap().1;
+        let calls = body.split_once("```ts\n").ok_or_else(malformed)?.1;
         let path = calls
             .split("const operation = ")
             .nth(1)
-            .unwrap()
+            .ok_or_else(malformed)?
             .split(";\n")
             .next()
             .unwrap();
@@ -146,11 +151,11 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> String {
                         .nth(1)
                         .map(|s| s.split('(').next().unwrap().to_owned())
                 })
-                .unwrap();
+                .ok_or_else(malformed)?;
             let method = calls
                 .split("return client.")
                 .nth(1)
-                .unwrap()
+                .ok_or_else(malformed)?
                 .split('(')
                 .next()
                 .unwrap();
@@ -243,5 +248,5 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> String {
             ));
         }
     }
-    out
+    Ok(out)
 }

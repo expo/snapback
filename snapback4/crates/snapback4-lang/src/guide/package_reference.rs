@@ -25,6 +25,19 @@ pub const TOPICS: &[(&str, &str)] = &[
 
 pub fn card(topic: &str) -> Option<String> {
     let (_, raw) = TOPICS.iter().find(|(name, _)| *name == topic)?;
+    // History's empty parent headings hold the version. Keep each version's
+    // bullets together rather than flattening its repeated Guide changes child.
+    let history;
+    let raw = if topic == "changes" {
+        history = raw
+            .lines()
+            .filter(|line| !line.starts_with("### "))
+            .collect::<Vec<_>>()
+            .join("\n");
+        history.as_str()
+    } else {
+        raw
+    };
     Some(super::reader_card(
         &format!("package-reference {topic}"),
         raw,

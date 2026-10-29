@@ -68,10 +68,31 @@ export function runtimeChanges(history, previous, installed) {
   return out ? `runtime changes: ${previous} → ${installed}\n${out}History begins at 0.4.26; earlier changes are not recorded.\n` : '';
 }
 export function installedHistory(root) {
-  // The parent process resolved the old package already. Resolve the new
-  // symlink in a fresh process, just like upgrade's post-install check.
-  const script = `import {createRequire} from 'node:module';import {join,dirname} from 'node:path';const require=createRequire(join(process.argv[1],'package.json'));console.log(join(dirname(dirname(require.resolve('snapback4/bin-path'))),'reference/CHANGELOG.md'));`;
-  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script, root], { encoding: 'utf8' });
-  if (result.error || result.status !== 0) throw Error('installed release history unavailable');
-  return readFileSync(result.stdout.trim(), 'utf8');
+  // Resolve the replaced package in a fresh process. Older packages still have
+  // their reference file; current packages expose history through bounded CLI pages.
+  const script = `import {createRequire} from 'node:module';import {join,dirname} from 'node:path';import {existsSync,readFileSync} from 'node:fs';import {pathToFileURL} from 'node:url';const require=createRequire(join(process.argv[1],'package.json'));const entry=require.resolve('snapback4/bin-path');const history=join(dirname(dirname(entry)),'reference/CHANGELOG.md');if(existsSync(history)){console.log(JSON.stringify({history:readFileSync(history,'utf8')}));}else{delete process.env.SNAPBACK4_BIN;const {resolveBinary}=await import(pathToFileURL(entry));console.log(JSON.stringify({binary:resolveBinary()}));}`;
+  const resolved = spawnSync(process.execPath, ['--input-type=module', '-e', script, root], { encoding: 'utf8', timeout: 30_000 });
+  if (resolved.error || resolved.status !== 0) throw Error('installed release history unavailable');
+  const located = JSON.parse(resolved.stdout);
+  if (typeof located.history === 'string') return located.history;
+  if (typeof located.binary !== 'string') throw Error('installed release history has no CLI');
+  const read = args => {
+    const result = spawnSync(located.binary, ['guide','package-reference','changes',...args,'--repeat'], {encoding:'utf8',timeout:30_000,maxBuffer:64*1024});
+    if(result.error || result.status !== 0) throw Error('installed release history unavailable');
+    return result.stdout;
+  };
+  const index=read(['--sections']);
+  const numbers=[...index.matchAll(/^\s*(\d+)\. /gm)].map(m=>m[1]);
+  if(!numbers.length) throw Error('installed release history has no sections');
+  let out='', previous;
+  for(const number of numbers){
+    const page=read(['--section',number]);
+    for(const line of page.split('\n')){
+      const heading=/^## (\S+?)(?: \(continued \d+\))?$/.exec(line);
+      if(heading && version(heading[1])){
+        if(previous!==heading[1]){out+=`\n## ${heading[1]}\n`;previous=heading[1];}
+      } else if(!line.startsWith('# ')) out+=line+'\n';
+    }
+  }
+  return out;
 }

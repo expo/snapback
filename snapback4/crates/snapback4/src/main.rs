@@ -171,7 +171,7 @@ fn main() -> ExitCode {
                     let remainder = words.collect::<Vec<_>>().join(" ");
                     let selected = options.flags.get("section").map(|section| if remainder.is_empty() { section.clone() } else { format!("{section} {remainder}") });
                     let chosen = if let Some(section) = &selected { guide::section(&name, &card, section) }
-                        else if let Some(find) = options.flags.get("find") { guide::find(&name, &card, find) }
+                        else if let Some(find) = options.flags.get("find") { guide::find(&name, &card, &if remainder.is_empty() { find.clone() } else { format!("{find} {remainder}") }) }
                         else { Ok(guide::section_index(&name, &card)) };
                     match chosen {
                         Ok(text) => {

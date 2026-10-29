@@ -397,8 +397,8 @@ curl -s -OJ "$U/assets/<id>" -H 'x-snapback-persona: alice'   # Content-Disposit
 arrives as an attachment, and `Range` works on ordinary assets.
 
 The full reference, including the rest of `/auth`, worker and action
-doors, and clock headers, is "The wire" in guide package-reference client §5, which
-ships in the package beside README.md.
+doors, and clock headers, is embedded in the CLI: `guide package-reference client
+--section "The wire"`.
 
 
 ## Device engine compatibility

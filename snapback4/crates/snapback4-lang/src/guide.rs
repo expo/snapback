@@ -1055,12 +1055,12 @@ if (hasUploads(client)) {
   // Keep the draft until sent; queued/uploading/placing are not success.
 }
 ```
-The placement mutation takes the named asset argument; online-only clients use client.upload then placement. Full recipe: reference/OFFLINE-UPLOADS.md.
+The placement mutation takes the named asset argument; online-only clients use client.upload then placement. Full recipe: guide package-reference offline-uploads.
 
 `useUpload` and `uploadAndPlace` commit a byte copy and its placing mutation
 together to the device outbox. For the API, Exact adapter contract, typed
 states, native save and WAV/MP3/FLAC file types, read the package's
-`reference/OFFLINE-UPLOADS.md`.
+`guide package-reference offline-uploads`.
 
 `E_CANCELLED`: the save/share sheet was cancelled. Call `saveAsset` again
 when the user wants to retry.

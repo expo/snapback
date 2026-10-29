@@ -161,7 +161,7 @@ session, state and generated transition operations without exposing private
 transaction contents. Do not force a successful state or issue an unbound
 session to bypass failed settlement.
 
-Action-bound session minting and OIDC: see the package’s [guide package-reference server](./guide package-reference server).
+Action-bound session minting and OIDC: see `guide package-reference server`.
 For E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
 E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE, E_OIDC_REPLAY
 and E_OIDC_TRANSACTION, see its Identity refusal reference."##;

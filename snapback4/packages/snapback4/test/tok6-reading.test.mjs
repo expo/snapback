@@ -6,6 +6,9 @@ import {join,resolve} from 'node:path';
 import {spawnSync,execFileSync} from 'node:child_process';
 import {getEncoding} from 'js-tiktoken';
 import ts from 'typescript';
+import {guideReference} from '../../../scripts/publication-guide.mjs';
+import {guideTypeScriptExport} from '../../../scripts/publication-starters.mjs';
+import {installedHistory,runtimeChanges} from '../bin/release-changes.js';
 const root=resolve(import.meta.dirname,'../../..'),bin=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
 const encoding=getEncoding('o200k_base');
 const run=(cwd,args)=>{const p=spawnSync(bin,args,{cwd,encoding:'utf8',timeout:60000});assert.equal(p.status,0,p.stdout+p.stderr);assert.ok(Buffer.byteLength(p.stdout)<=8000,`${args}: byte budget`);return p.stdout;};
@@ -93,4 +96,42 @@ test('large app packets page to late operations; invalid/no project never return
   assert.match(run(cwd,['guide','api','client','--repeat']),/App schema does not bind/);
   const bad=spawnSync(bin,['guide','api','generated'],{cwd,encoding:'utf8'});assert.equal(bad.status,1);assert.match(bad.stderr,/repair the schema/);
  }finally{rmSync(cwd,{recursive:true,force:true});}
+});
+
+
+test('bounded CLI reference collection retains every literal manual fence and the starter fixture recipe',()=>{
+ const names={server:'SERVER',client:'CLIENT-AND-OPERATIONS',following:'FOLLOWING-ADOPTION','offline-uploads':'OFFLINE-UPLOADS'};
+ const fences=text=>[...text.matchAll(/^```[^\n]*\n([\s\S]*?)^```\s*$/gm)].map(m=>m[1].trim());
+ for(const [topic,name] of Object.entries(names)){
+  const source=readFileSync(join(root,`packages/snapback4/reference/${name}.md`),'utf8');
+  const collected=guideReference(bin,`package-reference ${topic}`,{cwd:root});
+  assert.deepEqual(fences(collected),fences(source),topic);
+  if(topic==='client'){
+   const page=run(root,['guide','package-reference','client','--section','Application proofs in Node','--repeat']);
+   const recipe=guideTypeScriptExport(page,'## Application proofs in Node','developmentHosts');
+   assert.match(recipe,/export async function developmentHosts/);
+  }
+ }
+});
+
+
+test('schema-less replaced packages recover exact runtime changes through versioned CLI pages',()=>{
+ const cwd=mkdtempSync(join(root,'target/tok6-history-'));
+ try{
+  const pkg=join(cwd,'node_modules/snapback4');mkdirSync(join(pkg,'dist'),{recursive:true});
+  writeFileSync(join(cwd,'package.json'),'{}');
+  writeFileSync(join(pkg,'package.json'),JSON.stringify({name:'snapback4',type:'module',exports:{'./bin-path':'./dist/bin-path.js'}}));
+  writeFileSync(join(pkg,'dist/bin-path.js'),`export function resolveBinary(){return ${JSON.stringify(bin)}}`);
+  const history=installedHistory(cwd),raw=readFileSync(join(root,'packages/snapback4/reference/CHANGELOG.md'),'utf8');
+  const version=JSON.parse(readFileSync(join(root,'packages/snapback4/package.json'))).version;
+  for(const previous of ['0.4.25','0.4.43','0.4.48'])assert.equal(runtimeChanges(history,previous,version),runtimeChanges(raw,previous,version));
+  assert.match(run(cwd,['guide','package-reference','changes','--section','0.4.48','--repeat']),/Client usage|client usage/);
+ }finally{rmSync(cwd,{recursive:true,force:true});}
+});
+
+test('package-reference unquoted search words and repeated indexes retain navigation',()=>{
+ const a=run(root,['guide','package-reference','client','--find','short','screens']);
+ const b=run(root,['guide','package-reference','client','--find','short screens']);assert.equal(a,b);
+ const index=run(root,['guide','package-reference','server','--sections']);
+ assert.equal(run(root,['guide','package-reference','server','--sections']),index);
 });
