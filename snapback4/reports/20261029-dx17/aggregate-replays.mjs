@@ -14,7 +14,7 @@ for(const phase of phases)for(const n of ns){
   ...p.costPricing.usageTotals,toolMinutes:measured.toolMinutes,modelMinutes:measured.modelMinutes,releaseCommandMinutes:measured.builderReleaseCommandMinutes,
   sourceArchiveComplete:!v.archive.missing.length,perCall:p.costPricing.units.map(({call,model,inputTokens,cachedInputTokens,outputTokens,reasoningTokens,costUsd,kind,basis,longContext})=>({call,model,inputTokens,cachedInputTokens,outputTokens,reasoningTokens,costUsd,kind,basis,longContext})),
   proofRuns:v.results.map(r=>({command:r.cmd,exit:r.code,seconds:r.ms/1000,proof:r.result})),proofsGreen:v.results.every(r=>r.code===0),lastProof,
-  probeServe:v.probeServe,drill:{status:d.status,stagesOk:d.stagesOk,dataPreserved:d.dataPreserved,v2ClientExit:d.v2Client?.status,
+  probeServe:v.probeServe,supplementalProbe:v.supplementalProbe??null,drill:{status:d.status,stagesOk:d.stagesOk,dataPreserved:d.dataPreserved,v2ClientExit:d.v2Client?.status,
    v1AfterV2:d.v1?.afterV2?.corrected,v1AfterRollback:d.v1?.afterRollback?.corrected,
    dayOneBaselineFailed:d.v1?.dayOneBaselineFailed,productionBaselineFailed:d.v1?.productionBaselineFailed,baselineStatus:d.v1?.baselineStatus,replayExit:Object.fromEntries(Object.entries(d.replays??{}).map(([k,r])=>[k,r.status])),
    v2WrittenReturns:rowsUnderV1?.byV2Client,allReturns:rowsUnderV1?.all,missingV1Fields:d.rowShapeAfterRollback?.rowsMissingV1Fields},

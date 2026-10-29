@@ -38,7 +38,7 @@ The first candidate passed repeated proof processes, release stages and row
 conservation, but raw frozen-call scores and all-row returns are mixed (preserve
 them separately; judge:false does not calibrate new intended denials). It failed
 cost/call bars:
-Muse $0.066543→$0.075247; 118.33→140 calls. Codex $0.772266→$0.792532;
+Muse $0.066543→ $0.075247; 118.33→140 calls. Codex $0.772266→ $0.792532;
 36.5→39 calls. The final revised cohort is separately recorded. The fixed-seed
 threshold is wave35 Supabase all-15-lane means ($0.0561, 99.47 calls), not a
 matched causal control. Five seeds are directional evidence, not significance.
@@ -71,3 +71,13 @@ ports54000+n*10, on a canonical production build shared with consumer qualificat
 Final source packet is7998bytes (7999served). Final observation round3 both
 families READY; source controls4/4 and guide135/135 passed. Performance remains
 unestablished until that separate complete cohort; never select best trials.
+
+Final after-observe complete: Muse mean $0.080256/136.67 calls misses both bars;
+Codex $0.605831/36 improves versus baseline. All 20 comparable sessions retain
+complete priced archives; both rejected cohorts stay visible. Final canonical
+source/native/platform/client hashes all match. One missing original baseline011
+probe observation was supplemented after restoring removed dependencies/frontend
+with the identical .48 binary; supplementalProbe records provenance, no existing
+red was overwritten, and builder dollars/wall are unchanged. Raw frozen scores
+are not denial-calibrated; all-row returns are not conservation. See the guide-gap
+cost ticket for remaining work; no empirical Muse-success or publication claim.

@@ -110487,3 +110487,14 @@ path and corrected 15-step affected set passed with unchanged-source receipts;
 neither is publication qualification. Prior snapshot differences apply only to
 retained rejected trials. Completed multi-GB consumer/old-cohort dependencies
 are deleted after hashes, sources, stores, archives and receipts are retained.
+
+DX17 complete measured verdict: final fixed 3 Muse/2 Codex sessions are all
+archived and priced with matching native traces. Muse misses cost/call targets:
+$0.066543→ $0.080256,118.33→136.67. Codex improves $0.772266→ $0.605831,
+36.5→36 calls and13.35→11.20 raw minutes. Corrected repeated proof processes,
+release stages, conservation and probes pass; raw frozen compatibility and
+row reachability are mixed and remain explicit. Preserve both rejected cohorts,
+small-sample/MUSE1 confounding, and the baseline018 exit-delay sensitivity. One
+missing baseline011 probe was supplemented later with identical native bytes,
+without changing its model price/wall or overwriting a red. The guide-gap cost
+follow-up is filed; this is not a claimed Muse optimization success.
