@@ -1,177 +1,157 @@
-# Integration 33 — Snapback 4 0.4.49
+# Integration 34 — Snapback 4 0.4.50
 
-Qualified release on main: `55a4d4e39c75a6aa5f661222b4161d0c2a623f79`.
-Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Records: `/home/ccheever/sb4-loop/integration33/`.
-Complete Linux qualification: PASS. Normal main push: PASS. Exact commit to publish: `55a4d4e39c75a6aa5f661222b4161d0c2a623f79`.
+Worktree: `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
+This report is committed before the final landing gates so they can bind an
+unchanging commit. Actual final verdicts, receipt paths and the pushed commit are
+recorded in `/tmp/integration34/final-evidence.json`. Delivery requires those
+gates to pass; an earlier red is never relabelled as a pass.
 
-## Changes
+## Merges and version
 
-| Item | Commit | Result |
-|---|---|---|
-| Main integration | `53eeed0208` | No-ff merge of pre-merge main `47ff676a47fc9a83dcf10814e7c19f52389bafcb`, including publication fixtures and version-pin ticket. |
-| MUSE1 | `da4a1a66bc` | No-ff merge of `5146b896cd`. Ordinary check creates neither proof helper. Exhaustive matrix and compact <=8KB draft are explicit opt-ins; existing matrix facts refresh without code expansion. Verify remains unchanged. Received Muse/Codex source reviews and measured negative outcomes are preserved. |
-| Early 0.4.49 bump | `2a58bf4b1c` | Four npm manifests/platform dependency pins, Rust workspace and both Cargo locks, both explicit fixture tripwires, and a 0.4.49 guide-changes entry. |
-| R1 review/seal | `25180bc742` | Source-reviewed nonrejecting observation setup; regenerated awaitBoundary(), preserving both assertions and all 215 delivery fault-site IDs/recipes. |
-| Wasm/review record | `85f6e3b97d` | Append-only journal and exactly measured+500 artifact allowance. |
-| Lifetime fixture | `f64de25232` | Arm serveUntilSignal before announcing readiness. Keep strict zero exit, EOF, group signals and store release/restart assertions. |
-| Generated production lifetime | `55a4d4e39c` | Same ordering repair in the shipped production script; real generated-script regression forces a scheduling gap at readiness. Guide changes explain the equivalent edit for existing scripts. |
+Started clean on the existing Integration 33/report history. Initial main merge
+`7c60e07cf7` includes `5913715c25`, the requested publication/supervisor fixes and
+the additional web-startup landing. Merged the four commissioned tips with
+`--no-ff`, in order:
 
-Existing apps keep their source, assertions and scripts. The formerly automatic
-exhaustive proof scaffold is now opt-in. Both helper choices remain available;
-`npm run verify` retains its ordered, bounded first-red behavior. No engine,
-authority, delivery format or runtime ceiling changed in this integration.
+| Lane | Tip | Merge |
+| --- | --- | --- |
+| TOK6 | `3190405978` | `05144a6fa7` |
+| STARTER2 | `bf4c889fda` | `dcdb79d06f` |
+| VER2 | `36d7802605` | `cdfed56f45` |
+| DX17 | `ec20e324c7` | `9bedffb894` |
 
-### R1 source review
+Early version bump: `ca4be0ad4a`, **snapback4 0.4.50: integrate bounded guides,
+starter repairs and one verify loop**. Cargo/workspace lock and all four published
+package manifests agree. The consolidated 0.4.50 Guide changes entry and complete
+24-version historical changelog are retained by `1590117dfa`.
 
-`proofResponse` returns immediately when observation is disabled. All enabled
-setup operations, including URL/header/custom-response accesses and installing
-the wrapper, are inside try/catch. It cannot add a rejection at its three new
-transport awaits. The deferred response.json wrapper preserves the original
-decode's rejection at the caller's existing await; observation errors are caught.
-It adds no eager body read, I/O or write custody. Proof-account diagnostics and
-proof/browser/host waits are Node harness orchestration outside SDK delivery.
-New zero-await helpers add no fault sites. Generated the seal via awaitBoundary()
-and retained all 215 classifications/recipes without exceptions. Final full
-matrix: **445/445 passed, no skips**, in `r1-final-matrix-summary.txt`.
+Fetched again and merged main `63af15cff1` as `3725cea692`: incoming research,
+benchmark evidence, tickets and journal entries only; no crates or client runtime
+changed. Both append-only journal tails were preserved. A final fetch and any
+required integration still precede the non-force push to `main`.
 
-### Version tripwires
+## Overlap resolution
 
-`snapback4/scripts/bump-version.mjs` validates every input before writing the nine
-release files: four manifests/platform pins, workspace version, both release
-locks, device-version and sync-generation pins. Used for 0.4.49. A disposable-copy
-control advanced all pins, then proved a stale final tripwire causes no writes.
-`issues/20261028-snapback4-version-bumps-miss-release-fixture-pins.md` is resolved
-under `issues/closed/`. Both tripwire files pass in the final full client pool.
+STARTER2/VER2 share one ordered verify path and one visible stderr heartbeat,
+initially and every five seconds across phase boundaries. Check and shutdown
+always execute. Acceptance/frontend successes can be reused only under VER2's
+conservative source/environment/live-session rules; direct phases always run.
+The bounded stdout verdict retains original refusals and targeted reruns.
+STARTER2's browser helpers, typed write helper, successful-check handoff and safe
+diagnostic repairs remain. Both previous generated README suffixes remain owned;
+application edits remain owned by the application.
 
-### Additional red found and repaired
+TOK6's app-specific API routing, explicit generic digests and bounded embedded
+references remain. DX17's consolidated recipe and checker occupy the day-two
+surface. Frozen caller outcomes remain observations; current-client failures and
+cleanup remain strict. The workflow stays at 7,996 source bytes, day2 at 7,998.
 
-The first complete publication source suite passed Rust and models but failed
-one srv1-lifetime SIGTERM assertion: fixture readiness appeared before handlers
-were installed, permitting signal termination (`exitCode:null`) instead of zero.
-A controlled gap reproduces old ordering as -15; armed ordering exits zero in
-three trials (`srv1-readiness-control.json`). The generated production script
-had the same ordering, so it was repaired too. The existing starter test now
-pauses inside its actual readiness console.log, signals immediately and demands
-zero exit plus release/restart. An old-ordering copy fails that new assertion
-(`srv1-negative.log`). Rebuilt actual positive file: **22/22**, no skips;
-`srv1-positive.log`. All corresponding final full-pool cases pass. No timeout or
-exit/ownership assertion was weakened.
+A faulty conflict helper initially truncated starter/docs content. `e3446143e6`
+restored the starter module, all four LLP subsections and the complete journal;
+`1590117dfa` restored the entire historical changelog from main and consolidated
+all four 0.4.50 notes. Original build/test reds are retained. The final source has
+no conflict markers or lost historical version entries.
 
-## Verification
+## npm cache and fresh-store leaks
 
-### Affected selection and root checks
+`ad91d3b34c` introduces a creator-owned disposable npm cache for maintained packed
+proof/test entry points, inherited by nested commands. Both cache-variable cases
+are set identically. Client-file runners own each file's cache and TMPDIR and
+remove them after process-group cleanup, including forced child exits. The suite
+shell owns its cache via its existing cleanup trap. Clean userspaces keep caches
+inside disposable userspaces; tests never clear the shared home cache.
 
-The requested broad run against pre-merge main executed all **31** commands.
-Raw receipt: `target/affected/85f6e3b97de4-1793244662417.json`; its literal FAIL
-is preserved. After the discovered red was repaired during the run, its source
-stability guard correctly refused a qualification. The client batch saw the old
-compiled CLI against repaired source (srv1 and exact upgrade-history comparison).
-Root generated/guide checks also found missing root node_modules. Restored the
-frozen root install and hoist without changing source or locks; recorded retries.
-The separate Lean oracle exit1 is unchanged inherited evidence, detailed below.
+`1606aaa40c` transports the helper into relocated test fixtures;
+`ac3b955f1c` transports it with the DX8 installed consumer and removes the remaining
+shared/single-case overrides; `ac9cafb694` and `45fe3eb97f` cover loopbar drivers
+and standalone ceremony commands. No global cache fallback remains there.
 
-Final affected repair ran on frozen **55a4d4e39c**, base **85f6e3b97d**:
-**15/15 PASS**, complete and unchanged=true. It reruns the CLI crate, full language
-guide target, fixtures, all client files and models, diagnostics, docs budget,
-root guide/inventories, packaged docs and references. All affected unchanged
-engine-crate passes are retained from the broad run; the final full publication
-suite independently reruns the entire source battery.
+`npm-cache.test.mjs` runs real npm twice on distinct pack bytes through the real
+publication command owner. Under an isolated HOME, default `~/.npm` growth is
+exactly zero and the private cache is removed on both exit 0 and exit 7. This is
+an executed packed-install guard, not a fake npm or reproducible-pack assumption.
 
-Receipt: `/home/ccheever/projects/snapback-sb4loop/target/affected/55a4d4e39c75-1793253615017.json`.
-Summary: `affected-final-summary.json`. Root generated-artifact retry also passes
-(`root-generated-final.log`, wrapper exit0). Root guide **22/22**, no skips or
-preconditions; inventories PASS; reference check **579 LLPs / 12,884 refs / zero
-errors or unchecked refs**; docs budget PASS. Earlier wrong-directory docs-budget
-invocation and missing-cache attempts remain in logs, not relabelled as passes.
+Fresh-host Rust fixtures confine child TMPDIR to fixture-owned roots. The real
+`dev_reset` regression observes a fresh store there, kills the host, then proves
+fixture cleanup removes it. Client-file confinement covers JS timeout/group-kill
+paths. Closed `issues/closed/20261028-snapback4-test-runs-leak-fresh-store-dirs.md`.
+No product startup sweep or foreign/wave store access was introduced.
 
-### Differential evidence
+## Reviews and verification evidence
 
-Ordinary short campaign: **2,000 cases / 120,026 executions / 9 oracles / zero
-disagreements**, exit0. Lean short campaign retains literal exit1: **18** existing
-next/continuation and E_RULE-vs-NOT_FOUND observations. All **16** saved finding
-files and every oracle counter exactly match the Integration31/30 baseline.
-No oracle/model/assertion was changed or weakened. `difftest-summary.json`.
-Core/device/difftest/simulator/native/Lean Git trees exactly match pre-merge main
-(`engine-tree-comparison.json`); only workspace version metadata differs there.
-These known model observations are separate from the complete Linux publication
-suite, which compiles the oracle and runs the full client models.
+Both fresh Codex/high and Muse/high delta reviews returned READY on
+`1606aaa40c..ac3b955f1c`. Actual outputs and provenance are committed under
+`llp/reviews/3000.037.000-integration34-*-round{1,2}.*`. Round 1's material DX8 and
+DX9 findings were fixed, and Muse's optional ceremony advisory was also applied.
+Reviews do not confer publication qualification or measured dollar savings.
 
-### Packed consumers and complete Linux red check
+Completed preflight and conflict evidence under `/tmp/integration34/`:
 
-The initial full consumer-only chain passed at **85f6e3b97d**, including all host
-starters, positive/negative proof kit/frontend controls, upgrades, production,
-migrations, staging, recipes and clean Ubuntu24.04/Alpine consumers.
-`consumer/qualification/consumer.json` truthfully says suite:not-run and
-publicationQualified:false. It is earlier-candidate evidence, not final Linux
-suite qualification.
+- Native, locked WASM and client builds/typechecks passed.
+- Conflict Node regressions: 23 passed; final cache/progress/relocation checks:
+  8 passed. The real fresh-store kill regression passed.
+- Root generated-artifact bootstrap/check, inventories, docs budget and ref-check
+  passed. Root guide: 22 passed, zero failures/skips/preconditions. Final gates
+  repeat affected root checks after the incoming documentation merge.
+- A direct actual-CLI TOK1 probe passed: 4,845-byte app packet, named openRequest
+  navigation with evidence args, explicit generic client/proof/auth fingerprints.
+- The literal broad affected run is retained at
+  `target/affected/ad91d3b34c85-1793301861165.json` and
+  `/tmp/integration34/affected.log`. It spans source changes and is not a final
+  pass. Its two obsolete CLI assertions were corrected in `ac3b955f1c` and
+  `d97f98fd4e`; its other completed crate results remain evidence, not relabelled
+  qualification. The full initial plan remains recoverable.
+- Complete `qualify-linux.mjs --consumer-only` chain passed at `d97f98fd4e`:
+  `/tmp/integration34/consumer-r3/consumer.json`. Twelve generated frontend
+  witnesses, six host starter/toolchain cases, and Ubuntu 24.04/Alpine clean
+  userspaces passed. This receipt correctly states `publicationQualified:false`.
+  The subsequent history restoration and incoming documentation are requalified
+  by the complete final red check, rather than attributed to this earlier HEAD.
+  Earlier DX8/helper and DAY5/assertion reds remain in `consumer.log` and
+  `consumer-final.log`; neither has a passing receipt.
 
-First complete red attempt: `redcheck/qualification/suite.log` records exactly
-**1 failure in 3440 seconds**, the lifetime race above. Consumer checkpoints are
-retained in that attempt's proofs.json, with **no qualification receipt**.
-Source moved for repair; never use that run as a release qualification.
+The final lean affected pass uses the selector's own `planAffected`/`runPlan`
+source binding. Both complete and scoped plans are retained under
+`/tmp/integration34/affected-final/`. The version/corpus changes conservatively
+select unrelated full crate suites, models and semantic difftests. The scoped
+pass retains CLI units and changed/relevant integrations, the language suite,
+changed client tests plus runner regressions, builds, fixtures and root checks;
+only the unrelated W8B calibration is excluded from its CLI targets. The full
+publication red check retains all omitted work, including W8B and the full client
+pool. Scope overrides are explicit; a scoped affected receipt is not a full-suite
+or publication claim. No language/planner/store semantics changed.
 
-Fresh complete final run on **55a4d4e39c**:
-- Rust **8,547 tests**, 1,206 invocations plus doctests: PASS in 1,225 seconds.
-- Full client pool **453/453 files**, **8,042 pass / 57 existing platform skips /
-  zero failures** of 8,099 tests: PASS in 1,707 seconds.
-- Both full-count app-session and online-client models: PASS in 326 seconds.
-- Complete source suite: **0 failures in 3,379 seconds**.
-- All final packed consumers, six host starters and clean Ubuntu24.04/Alpine proofs: PASS.
-- Complete Linux qualification: PASS, exit0; receipt source exactly matches the qualified main release.
+Final affected receipt pointer:
+`/tmp/integration34/affected-final/receipt-path.txt`.
 
-Receipt: `/home/ccheever/sb4-loop/integration33/redcheck-final/qualification/receipt.json`.
-Receipt SHA256: `124c0f41e0e3482f6b902086ec70ce2c96262bee93839d2015a860334ca72e76`.
-Native SHA256: `83b36258fe31128f661b714810fd12e5a5a2d858c774e7dfd2e2256053b2724b`.
-Prepared client/Expo and qualified Linux tarball SRIs independently rechecked against the receipt.
+Final complete Linux publication red-check receipt:
+`/tmp/integration34/redcheck-final/qualification/receipt.json`.
 
-Final records: `/home/ccheever/sb4-loop/integration33/redcheck-final/`.
-Source/client/Rust summaries are retained there. The full qualifier produced
-`qualification/receipt.json` and exit0 before landing; it is the authority
-for source, artifact integrities, ELF/flags and complete consumer results.
+The supplied `~/sb4-pub-0447-kit/redcheck-at.sh` actually takes a records directory
+and hardcodes a forbidden publication worktree. Its equivalent complete
+prepare/full-qualifier sequence is adapted at
+`/tmp/integration34/redcheck-at-safe.sh` for this worktree and an explicit commit;
+the run retains the original driver's digest and its own exact driver. It never
+accesses the active 0.4.49 publication worktree or `target/publication/`.
+Qualification uses private strace 6.17 after the lane-documented 6.8 decoder issue;
+no listener-audit rule is relaxed. The complete red check must produce exit 0,
+a green suite and an exact-source receipt before push.
 
-The supplied kit's `redcheck-at.sh` actually takes a records directory and
-hardcodes a forbidden publication worktree. It was read and copied, never run.
-`redcheck-final-driver.sh` preserves its prepare + complete qualify-linux sequence
-in this worktree with explicit external output paths, source/clean checks,
-timeouts and memory limits. Original/driver provenance and failed runs remain.
-No direct invocation of the full test.sh outside the commissioned qualifier.
+## WASM, resources and limits
 
-### Wasm
+Strict measurement (`wasm-measure.log`) passed family and server-only absence
+checks: **2,416,593 raw / 738,504 gzip / 556,149 Brotli bytes**. Budget:
+**739,004 gzip bytes**, exactly measurement + 500 B. Whole-artifact gzip is 46 B
+below 0.4.49, with unchanged raw length; no independent feature attribution or
+runtime-ceiling increase is claimed.
 
-Locked Linux artifact: **2,416,593 raw / 738,550 gzip / 556,076 Brotli bytes**.
-Budget **739,050 = measurement + exactly 500**. Final packed raw wasm SHA256:
-`8d58e71e98d26c9730b74fcb844f58d375e68f94d6095ac0d6da9b38aa05f407`.
-It is byte-identical to the artifact whose strict family/server-only absence
-audits passed. `wasm-final-binding.json` binds final packing and measurement.
-Whole-artifact version/layout attribution only; no runtime ceiling increase or
-independent feature-cost claim.
+Final long jobs use 60G user scopes, incremental/debug payloads disabled and Cargo
+jobs capped at 16, with at most two heavy jobs. No full test.sh was invoked as an
+ordinary landing check; the commissioned full qualifier owns the complete suite.
+All commits use Charlie Cheever's requested identity. Other worktrees, active
+publication paths and wave stores remain untouched.
 
-## Retention, landing and remaining work
-
-All heavy jobs use user systemd scopes with MemoryMax60G/OOMPolicycontinue,
-Cargo16, no incremental/debug payloads, at most two heavy jobs and command
-timeouts. Removed 24 completed host workspaces from each of the three consumer runs,
-retaining top-level checkpoints, logs and packs. After source tests finished,
-removed 1,011 completed hashed Rust test executables (35.72GiB logical), retaining
-the top-level CLI, shared libraries and dependency caches. Cleanup manifests are
-retained. No protected publication targets/worktrees or wave stores were touched.
-
-Landing: final receipt validated, then fetched origin. Main had not advanced beyond
-47ff676a47, so no further merge or requalification was needed. Normal
-`git push origin sb4-loop:main` succeeded, advancing main to **55a4d4e39c75a6aa5f661222b4161d0c2a623f79**.
-Visibility governance allowed it; two selected frozen-record drift gates deferred
-to the scheduled backstop under repository policy. The pre-push hook warned that
-its Node24.18.0 pin was absent and used ambient24.13.1; the publication qualifier
-itself used its pinned24.13.1 successfully. No force push.
-
-Root WORKSTREAM-REPORT.md is lane-local. This final report is committed locally
-after the qualified main push; its report-only child is intentionally not pushed.
-The source to publish is the qualified main commit above, not that local metadata
-child. Worktree clean after the report commit; all product commits are on main.
-
-MUSE1's small-sample Muse input/call bars pass; Codex input/call bars miss. The
-existing Codex fixture/security-note follow-up remains open. No general dollar,
-wall-clock or overall bakeoff win is claimed. The inherited Lean model gaps stay
-explicit. Mac/signing/native publication and npm release remain with the publish
-agent; **0.4.49** is the version to publish from the final qualified source.
+No npm publication or Mac qualification is claimed. The coordinator's same-window
+combined cost gate remains separate. Lane samples are not individually
+significant; dollar savings are not inferred from correctness, mechanical proof
+reuse or these integration checks.
