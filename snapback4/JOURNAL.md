@@ -110327,6 +110327,111 @@ Main's census refresh is byte-identical; reconciliation changes ancestry only.
 Reports/integration32 retains compact bindings. Full platform qualification and
 whole-session token/wall measurement remain with publication and the rerun.
 
+### 2026-10-28 — MUSE1 optional exhaustive proof drafts
+
+The wave34r1/r2 per-call decomposition finds the default expanded matrix driving
+Muse scaffold reading and construction: ~52KB scaffold reads and ~1.35M repeated
+input tokens per lane, with extra authoring and verification calls. Check now
+requires --proof-scaffold to emit/refresh code drafts; ordinary checks keep
+existing packets' bound coverage facts current. Start/workflow keep verify as
+the default loop and describe the matrix as optional. Coverage, stale-fact
+refusals, first-red output and cleanup remain. See LLP 3000.037.000 §17 and the
+MUSE1 report for measured controls; no performance or publication claim follows
+from these source changes alone.
+
+### 2026-10-28 — MUSE1 complete controls reject opt-in-only; compact default
+
+All 18 sessions completed. Muse candidate medians 118.5 calls / 13.176M input
+miss .46's 96 / 8.993M; Codex 40.5 / 2.719M miss .47's 34.5 / 2.227M.
+Keep these negative measurements. Revised default emits a <=8KB, three-file,
+one-scenario business draft once, preserving the real-account/lifecycle helpers
+without an exhaustive matrix or automatic code rewrites. Matrix remains opt-in;
+empty/unfilled/refusal-only drafts refuse; coverage stays application-owned.
+Six new after sessions reuse the fixed draws and twelve completed controls.
+Source reviews and packed controls must be repeated for this amendment.
+
+### 2026-10-29 — MUSE1 fallback: both helpers opt-in
+
+The compact default still attracts expansion: gown Muse authored 16KB of cases
+and finished at 118 calls / 12.883M input versus .46's 83 / 8.015M. Completed
+Codex draws improve median input 8.3% but miss calls 36 versus .47's 34.5.
+The compact default is withdrawn. Ordinary check creates neither helper;
+--proof-draft explicitly creates the bounded single-scenario draft once, and
+--proof-scaffold retains the exhaustive matrix. Verify is unchanged. Preserve
+all six default-compact after sessions (remaining Muse results still running),
+then measure six opt-in fallback sessions against the same completed controls.
+
+### 2026-10-29 — MUSE1 final measured opt-in fallback
+
+All 30 complete sessions retained, exact parser/provider totals match, all replay
+copies removed. Final Muse medians 83 calls / 8.114M input versus .46 96 / 8.993M:
+both bars pass; wall 16.69 versus 16.31min is not a wall win. Codex 46 / 2.879M
+versus .47 34.5 / 2.227M misses both bars; do not claim overall non-regression.
+Fixture/security-note retries are recorded as a follow-up, without changing
+bind/security. Both helper choices remain explicit; verify is unchanged.
+Packed Linux consumer-only qualification passes at fc71b6edcc with unchanged
+source and byte-identical replay/qualification platform tarball (native 4b4767de).
+Suite not run, publicationQualified false; final affected run follows the report
+commit. See WORKSTREAM-REPORT.md and reports/20261028-muse1/RESULTS.md.
+
+
+### 2026-10-29 — Integration 33 / 0.4.49
+
+Merge MUSE1's reviewed opt-in fallback. Ordinary check creates neither proof
+packet; existing exhaustive packets retain code custody and refresh bound facts.
+The compact one-scenario helper and exhaustive matrix require explicit requests.
+Application assertions and npm run verify remain the default. The small retained
+replays improve Muse input/calls; Codex input/call bars miss, with the existing
+follow-up ticket retained. No universal cost or wall-clock win is claimed.
+
+R1 source review confirms proofResponse adds no rejection: disabled observation
+returns immediately and enabled setup is caught. Its deferred JSON wrapper keeps
+the original decoder rejection at the existing caller await; diagnostic errors
+are caught. Harness-only account/browser waits are outside SDK delivery custody.
+Regenerate awaitBoundary(), preserving all 215 fault sites and both assertions.
+
+The 0.4.49 bump advances the device-version and sync-generation tripwires and
+native Following lock. scripts/bump-version.mjs now validates every release pin
+before updating manifests, workspace/fixture locks and both tripwires together.
+A disposable-copy check proves full advancement and no writes on a stale pin.
+Locked Linux web device: 2,416,593 raw / 738,550 gzip / 556,076 Brotli bytes;
+739,050 budget is measurement plus 500. Strict family/absence audits pass.
+Whole-artifact version/layout attribution only; runtime ceilings are unchanged.
+Integration verification and the complete Linux red-check receipt are retained
+in the workstream report. The supplied redcheck-at.sh hardcodes a publication
+worktree, so a local driver preserves its full prepare/qualify sequence in this
+worktree with explicit external records and memory/timeout bounds.
+
+
+### 2026-10-29 — Integration 33 publication fixture readiness
+
+The complete Linux red check passed Rust but exposed a srv1-lifetime SIGTERM
+fixture race: the driver printed readiness before invoking serveUntilSignal,
+so its controller could signal before handlers existed. Arm the lifetime promise
+before announcing readiness; preserve every exit-code, pipe, stop/restart and
+store-release assertion, including SIGTERM, SIGINT and SIGHUP. The held-clock
+variant keeps its original clock jump before lifetime setup and closes its guard.
+A controlled scheduling gap reproduces old ordering as signal exit -15 and the
+armed ordering as exit 0 in three trials. The original failed full run is retained.
+Only test orchestration changes; runtime/client/package bytes remain unchanged.
+Final affected repair and complete publication red-check evidence belong to the
+workstream report; earlier results are never relabelled as a qualified release.
+
+
+### 2026-10-29 — Integration 33 generated production readiness
+
+Following the srv1 fixture's race to the paved form found the same ordering in
+password-prod-serve.mjs; probe-serve.mjs already arms its lifetime first. Align
+the generated production script: save the serveUntilSignal promise, announce
+readiness, then await cleanup. Existing adapted scripts remain author-owned;
+0.4.49 guide changes explain the equivalent edit. Extend the existing starter
+witness to pause inside the generated script's readiness console.log, signal the
+process immediately, and require exit 0 plus store release/restart. The former
+ordering has a real signal-before-handler window; the assertion stays strict.
+This follow-up changes the emitted production script and release note, not the
+engine, delivery paths, authority or runtime ceilings. The full Linux red check
+must be repeated for the repaired release; the initial failed run stays intact.
+
 ### 2026-10-29 — DX17: one day-two release packet
 
 The existing day2 card folds upgrade, real v1 capture/production, change-kind

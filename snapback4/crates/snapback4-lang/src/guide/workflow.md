@@ -113,8 +113,8 @@ getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
 
 seedUsers in scripts/staging.mjs is
 `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
-Fill scripts/proof-scaffold/cases.mjs; wire its acceptance/frontend/probe runners
-into package.json, then `npm run verify`. Example assertions:
+Adapt these assertions; run `npm run verify`. Optional account/lifecycle drafts:
+`check --proof-draft` (one scenario) or `check --proof-scaffold` (exhaustive).
 
 ```js
 import assert from 'node:assert/strict';
@@ -170,7 +170,7 @@ try {
 } finally { for (const c of clients) await c.close(); await host.stop(); }
 ```
 
-Add boundaries/job catch-up; use valid args in refusal tests. Run twice.
-Edit scaffold frontend assertions; keep build/cleanup. Run `npm run verify`.
+Test boundaries and refusals twice.
+Edit frontend proof assertions; keep build/cleanup. Run `npm run verify`.
 Keep credentials private.
 Args/hooks: `guide api generated`.

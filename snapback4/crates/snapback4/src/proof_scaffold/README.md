@@ -1,4 +1,4 @@
-# Schema proof scaffold
+# Optional exhaustive schema proof scaffold
 
 Edit cases.mjs. Run `node scripts/proof-scaffold/acceptance.mjs` or
 `node scripts/proof-scaffold/frontend-proof.mjs`; the standalone preview is
@@ -13,12 +13,13 @@ npm run verify
 Fill the business assertions first; verify stops at the first red. These files
 do not change npm scripts automatically; existing app scripts stay yours.
 
-check writes this packet only after success and updates only untouched files
-by SHA-256. Edited files and existing collisions stay yours. To regenerate one
-file deliberately, save your work and delete that file, then check again.
+check --proof-scaffold writes this packet only after success and updates only
+untouched code files by SHA-256. Ordinary checks refresh bound facts only.
+Edited files and existing collisions stay yours. To regenerate one file
+deliberately, save your work and delete it, then check --proof-scaffold again.
 New operation/role/guard coverage is checked against schema.json at execution.
 The check manifest binds those facts to the current schema; edited/stale facts
-refuse explicitly. Save and delete schema.json, then check to refresh them.
+refuse explicitly. Save and delete schema.json, then check --proof-scaffold to refresh them.
 
 Fill each null args/expected/assert. Success cases require a business assertion;
 refusal cases already assert exact codes. Set query expectations to

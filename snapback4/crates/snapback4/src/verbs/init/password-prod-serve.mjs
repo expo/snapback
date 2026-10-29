@@ -9,6 +9,8 @@ try {
   // backend even when PORT_LO..PORT_HI selected a different free port.
   const frontendUrl = new URL(frontend.url);
   frontendUrl.searchParams.set("api", backend.url);
+  // Readiness authorizes the controller to signal this process immediately.
+  const held = serveUntilSignal([backend, frontend]);
   console.log(JSON.stringify({ backendUrl: backend.url, frontendUrl: frontendUrl.href, sessions: backend.sessions }));
-  await serveUntilSignal([backend, frontend]);
+  await held;
 } finally { await cleanup(() => frontend?.stop(), () => backend.stop()); }

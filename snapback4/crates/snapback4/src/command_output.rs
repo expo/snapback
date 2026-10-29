@@ -187,7 +187,7 @@ pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
         // rewrites, intact apart from whitespace. No first-N truncation.
         parts.insert("refusal".into(), single(&t.text));
     }
-    // @ref LLP 3000.037.000#17-one-day-two-release-recipe-dx17 — rollback previews use the same disposable deltas as deploy previews.
+    // @ref LLP 3000.037.000#18-one-day-two-release-recipe-dx17 — rollback previews use the same disposable deltas as deploy previews.
     let repeat = code == 0 && (verb == "releases" || verb == "data" || matches!(verb,"deploy"|"rollback") && options.flags.contains_key("check"));
     let scope = hash(serde_json::to_vec(&(verb, std::env::current_dir().ok(), &options.positionals, &options.flags)).unwrap());
     let cache = directory.join(format!("{verb}-{scope}.json"));

@@ -1,11 +1,12 @@
 //! Schema-bound, editable proof recipes. No new runtime or authorization analysis.
 // @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — preserve edits by content hash; incomplete scenarios refuse.
 mod infer;
+mod compact;
 use crate::project::Project;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use snapback4_core::{
-    ir::{ArgType, Expr, Input, ProgramKind, Stmt},
+    ir::{ArgType, Expr, Input, Program, ProgramKind, Stmt},
     schema::ColumnType,
 };
 use snapback4_lang::Bound;
@@ -164,7 +165,8 @@ fn clock_bindings(value: &Value, names: &mut std::collections::BTreeSet<String>)
     }
 }
 
-fn files(bound: &Bound) -> Vec<(&'static str, String)> {
+type Provision<'a> = (&'a Program, &'a String, &'a String, &'a Vec<String>);
+fn account_plan(bound: &Bound) -> (Vec<String>, String, Option<Provision<'_>>) {
     let candidates = bound
         .programs
         .iter()
@@ -208,7 +210,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
     let provision = candidates
         .iter()
         .find(|(p, _, _, _)| p.name == "provision")
-        .or_else(|| (candidates.len() == 1).then(|| &candidates[0]));
+        .or_else(|| (candidates.len() == 1).then(|| &candidates[0])).copied();
     let mut roles = provision
         .map(|(_, _, _, v)| (*v).clone())
         .unwrap_or_else(|| {
@@ -254,7 +256,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
         let extra = p
             .args
             .iter()
-            .filter(|(n, _)| *n != *principal && *n != *role)
+            .filter(|(n, _)| n.as_str() != principal.as_str() && n.as_str() != role.as_str())
             .map(|(n, k)| {
                 format!("{}: {}", quoted(n), {
                     let v = sample(k, n);
@@ -313,6 +315,17 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             )
         }
     };
+    (roles, plan, provision)
+}
+
+fn host_template(facts: &str, full: bool) -> String {
+    include_str!("proof_scaffold/host.mjs")
+        .replacen("SCHEMA_IMPORTS", if full { "import {createHash} from 'node:crypto';\nimport {readFileSync} from 'node:fs';" } else { "" }, 1)
+        .replacen("SCHEMA_FACTS", facts, 1)
+}
+
+fn files(bound: &Bound) -> Vec<(&'static str, String)> {
+    let (roles, plan, provision) = account_plan(bound);
     let mut facts = Vec::new();
     let mut cases = String::new();
     for p in &bound.programs {
@@ -373,7 +386,7 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
             format!("{}\n", serde_json::to_string_pretty(&schema).unwrap()),
         ),
         ("cases.mjs", cases),
-        ("host.mjs", include_str!("proof_scaffold/host.mjs").into()),
+        ("host.mjs", host_template(include_str!("proof_scaffold/schema-facts.mjs.inc"), true)),
         (
             "acceptance.mjs",
             include_str!("proof_scaffold/acceptance.mjs").into(),
@@ -391,7 +404,17 @@ fn files(bound: &Bound) -> Vec<(&'static str, String)> {
 }
 
 /// Called only after a green check, never during deploy/private source checks.
-pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<String>> {
+// @ref LLP 3000.037.000#17-optional-proof-scaffolding-muse1 — draft code is opt-in; existing packets retain fresh coverage facts.
+pub(crate) fn generate(project: &Project, bound: &Bound, requested: bool, draft_requested: bool) -> io::Result<Option<String>> {
+    // Both recipes are explicit choices. Ordinary check only maintains existing matrix facts.
+    let matrix = generate_matrix(project, bound, requested)?;
+    let draft = if draft_requested { compact::generate(project, bound)? } else { None };
+    Ok(match (matrix, draft) {
+        (Some(matrix), Some(draft)) => Some(format!("{matrix}; {draft}")),
+        (notice, None) | (None, notice) => notice,
+    })
+}
+fn generate_matrix(project: &Project, bound: &Bound, requested: bool) -> io::Result<Option<String>> {
     let dir = project.root.join("scripts/proof-scaffold");
     // Refuse symlink custody for directories and files, including the manifest.
     for path in [project.root.join("scripts"), dir.clone()] {
@@ -401,13 +424,20 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
             ));
         }
     }
-    std::fs::create_dir_all(&dir)?;
     let manifest = dir.join(".generated-hashes.json");
+    // An ordinary check creates no packet and takes no custody of a collision.
+    // Existing opted-in packets still need current facts so new guards cannot
+    // disappear behind an old (possibly application-edited) cases file.
+    if !requested && !regular(&manifest)? {
+        return Ok(None);
+    }
+    std::fs::create_dir_all(&dir)?;
     let old: BTreeMap<String, String> = if regular(&manifest)? {
         serde_json::from_slice(&std::fs::read(&manifest)?).unwrap_or_default()
     } else {
         BTreeMap::new()
     };
+    if !requested && !old.contains_key("$current-schema") { return Ok(None); }
     let mut hashes = old.clone();
     let mut written = Vec::new();
     let mut kept = Vec::new();
@@ -424,6 +454,7 @@ pub(crate) fn generate(project: &Project, bound: &Bound) -> io::Result<Option<St
         ),
     );
     for (name, text) in packet {
+        if !requested && name != "schema.json" { continue; }
         let path = dir.join(name);
         let regular = regular(&path)?;
         let current = if regular {

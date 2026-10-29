@@ -1,0 +1,285 @@
+
+MODEL muse 15
+N 94.87 121.47
+sumC 9419169.4 16568066.73
+span 15.42 25.18
+tool 5.01 9.59
+model 10.41 15.59
+
+ purpose
+authoring 14.7 24.3 9.7
+verify 20 26.9 6.9
+own-reads 10.1 15.3 5.2
+lookup 6.9 10.3 3.4
+learning 8.7 10.5 1.8
+other 6.1 7 0.9
+reporting 5.3 5.7 0.5
+install 1.9 2 0.1
+message 1 1 0
+fix-after-red 16.3 15.5 -0.8
+waiting 4.1 3.1 -1.1
+
+ cats
+scripts/ + ACCEPTANCE reads 254503.4 1601829.1 1347325.7
+write files (code) 195275.6 633699.8 438424.2
+sb docs files (README/…) 221059.2 499727.6 278668.4
+sb guide cards 857275.9 1135578.7 278302.8
+own scripts/drivers 44318.2 282509.1 238190.9
+own source reads 172436.3 367776.9 195340.6
+sb package .d.ts/js 67452.1 251489.1 184037.0
+sb guide api digests 358180.6 481673.0 123492.4
+BRIEF re-read 388017.6 508451.2 120433.6
+sb check 100105.9 190977.6 90871.7
+generated api/.snapback4 reads 207061.6 270725.3 63663.7
+acceptance 80762.6 126675.1 45912.5
+frontend proof 30858.1 71021.6 40163.6
+package.json/config reads 98632.6 136891.5 38258.9
+sb init 53839.5 86183.5 32344.0
+sb data/admin/audit 3656.1 21574.3 17918.1
+write diary/report/friction 15586.8 23501.9 7915.2
+build 825.9 7718.9 6893.1
+typecheck (npm run check) 30351.4 37002.4 6651.0
+client:calls 17252.9 22088.4 4835.6
+other 9837.8 11771.3 1933.5
+tests/verify 0 1749.9 1749.9
+npm install/view 13782.6 15182.6 1400.0
+sb deploy 2499.0 3897.1 1398.1
+probe:check 1838.1 3120.0 1282.0
+sb test 0 1146.9 1146.9
+poll: probe:serve 0 440.0 440.0
+poll: frontend proof 0 382.3 382.3
+sb serve 1744.9 1191.9 -553.1
+logs reads 17475.1 15774.2 -1700.8
+node_modules reads (other) 2099.1 0 -2099.1
+diary/report reads 3724.2 1579.1 -2145.2
+serve/wait/curl/ps/sleep 21086.4 11993.6 -9092.8
+probe:serve 18879.9 9726.1 -9153.7
+sb --help 89347.9 74216.0 -15131.8
+agent meta 156694.7 122094.8 -34599.9
+
+ raw
+scripts/ + ACCEPTANCE reads 3936.9 17092.0 13155.1
+write files (code) 4419.1 9308.7 4889.7
+sb package .d.ts/js 1373.8 4126.9 2753.1
+own scripts/drivers 1618.3 4254.3 2636.0
+sb docs files (README/…) 2638.2 4602.3 1964.2
+own source reads 2436.9 4370.8 1933.9
+sb guide cards 10146.4 11193.0 1046.6
+frontend proof 846.9 1399.5 552.6
+sb check 1453.9 1923.5 469.6
+sb data/admin/audit 117.1 522.9 405.8
+client:calls 716.4 958.0 241.6
+write diary/report/friction 974.3 1184.3 210.0
+tests/verify 0 185.7 185.7
+generated api/.snapback4 reads 2879.7 3047.5 167.8
+sb init 726.2 838.8 112.5
+acceptance 1785.9 1884.1 98.2
+diary/report reads 90.6 182.3 91.7
+BRIEF re-read 4182.6 4271.5 88.8
+build 23.6 94.6 71.0
+sb guide api digests 5204.4 5264.4 60.0
+sb test 0 47.5 47.5
+sb deploy 59.4 98.5 39.1
+poll: probe:serve 0 30.0 30.0
+sb serve 120.5 141.8 21.3
+poll: frontend proof 0 16.3 16.3
+other 192.9 204.7 11.8
+probe:check 154.2 143.9 -10.3
+package.json/config reads 1462.9 1452.1 -10.8
+npm install/view 143.0 128.5 -14.6
+node_modules reads (other) 56.7 0 -56.7
+probe:serve 538.2 325.6 -212.6
+typecheck (npm run check) 870.3 596.5 -273.9
+sb --help 1185.2 861.1 -324.1
+serve/wait/curl/ps/sleep 970.9 591.5 -379.4
+logs reads 1122.4 578.9 -543.5
+agent meta 2193.2 1554.7 -638.5
+
+ features
+scaffold mentions [('before', {'tools': 0, 'chars': 0, 'tokens': 0, 'input_cost': 0, 'seconds': 0}), ('after', {'tools': 17.8, 'chars': 75915.1, 'tokens': 20675.3, 'input_cost': 1883833.5, 'seconds': 99.2})]
+scaffold reads [('before', {'tools': 0, 'chars': 0, 'tokens': 0, 'input_cost': 0, 'seconds': 0}), ('after', {'tools': 7.9, 'chars': 51982.6, 'tokens': 14077.0, 'input_cost': 1346695.8, 'seconds': 0.0})]
+verify mentions [('before', {'tools': 0, 'chars': 0, 'tokens': 0, 'input_cost': 0, 'seconds': 0}), ('after', {'tools': 2.3, 'chars': 5292.5, 'tokens': 1502.8, 'input_cost': 112377.2, 'seconds': 76.3})]
+generated reads [('before', {'tools': 0.9, 'chars': 10957.3, 'tokens': 2879.7, 'input_cost': 207061.6, 'seconds': 0}), ('after', {'tools': 1.5, 'chars': 11507.7, 'tokens': 3016.8, 'input_cost': 270494.2, 'seconds': 0})]
+waiting [('before', {'tools': 4.2, 'chars': 4092.1, 'tokens': 970.9, 'input_cost': 21086.4, 'seconds': 50.3}), ('after', {'tools': 3.1, 'chars': 2526.5, 'tokens': 637.8, 'input_cost': 12815.8, 'seconds': 102.7})]
+worst input deltas:
+19 019-snapback-child-talent-bookings expo 80 179 6919571 30527528
+32 032-snapback-gown-preservation-orders react 107 162 11279435 27865656
+26 026-snapback-wildlife-exclusion-jobs react 100 140 9632212 20889032
+35 035-snapback-real-estate-photo-shoots expo 74 128 6825726 15630223
+27 027-snapback-residential-appraisal-orders expo 71 118 6087325 14564899
+20 020-snapback-locum-physician-placements expo 93 119 10000591 16238905
+33 033-snapback-hull-cleaning-dives expo 119 146 13702208 19348664
+16 016-snapback-home-hospital-bed-rentals expo 83 107 7148757 12183591
+40 040-snapback-legal-name-change-clinic expo 89 103 8179035 13163887
+12 012-snapback-ev-charger-installs expo 120 136 13538560 18353895
+18 018-snapback-horse-trailer-rentals react 96 96 9964756 14457635
+11 011-snapback-lead-paint-abatement react 80 94 7398835 11598886
+34 034-snapback-billboard-ad-bookings react 108 115 11040555 14434317
+37 037-snapback-custom-hay-baling react 93 104 8405956 10936885
+9 009-snapback-spray-foam-insulation react 110 75 11164019 8326998
+cycles [('ERR_ASSERTION', 34, 106), ('acceptance: red (no code)', 3, 38), ('TimeoutError', 8, 32), ('ERR_INVALID_ARG_TYPE', 1, 15), ('SecurityError', 1, 14), ('script: red (no code)', 4, 12), ('TS2339', 5, 12), ('client-calls: red (no code)', 2, 11), ('E_QUARRY_TYPE', 4, 9), ('E_QUARRY_SYNTAX', 1, 7), ('E_JOB_CURSOR_INDEX', 3, 6), ('TS2322', 1, 5), ('E_PROOF_SCENARIO', 2, 4), ('TS1381', 1, 4), ('probe: red (no code)', 1, 4)]
+
+MODEL codex 25
+N 35.52 34.92
+sumC 2161128.36 2331870.72
+span 14.64 11.82
+tool 0.72 0.78
+model 13.92 11.04
+
+ purpose
+authoring 5.0 5.7 0.6
+learning 2.8 3.3 0.5
+reporting 1.4 1.8 0.4
+fix-after-red 3.5 3.6 0.1
+other 0.6 0.8 0.1
+own-reads 2.2 2.3 0.0
+message 1 1 0
+install 1.4 1.3 -0.2
+waiting 5.7 5.3 -0.4
+verify 6.3 5.6 -0.6
+lookup 5.5 4.2 -1.3
+
+ cats
+package.json/config reads 67888.6 199736.4 131847.8
+scripts/ + ACCEPTANCE reads 16641.3 53281.4 36640.0
+sb --help 8553.7 27079.5 18525.7
+sb check 27747.1 43172.1 15425.1
+generated api/.snapback4 reads 24255.2 32118.5 7863.4
+sb init 9520.5 15973.4 6452.9
+poll: write files (code) 22026.6 28326.7 6300.1
+typecheck (npm run check) 2970.7 8705.0 5734.3
+starter docs (README.snapback/install log) 0 5462.5 5462.5
+agent meta 8760.2 11448.4 2688.2
+write diary/report/friction 968.6 3645.6 2677.1
+poll: sb test 0 2439.7 2439.7
+logs reads 6763.3 8865.4 2102.1
+own source reads 22677.9 24569.8 1891.9
+poll: typecheck (npm run check) 4612.6 6336.4 1723.8
+poll: sb guide cards 498.2 1817.9 1319.7
+sb package .d.ts/js 7642.1 8652.4 1010.3
+poll: sb deploy 0 905.6 905.6
+serve/wait/curl/ps/sleep 66.7 767.9 701.2
+poll: sb guide api digests 0 343.1 343.1
+poll: other 1022.5 1267.6 245.1
+poll: node_modules reads (other) 118.9 333.9 215.1
+poll: starter docs (README.snapback/install log) 0 104.5 104.5
+sb deploy 0 103.2 103.2
+poll: sb init 544.5 625.9 81.4
+poll: serve/wait/curl/ps/sleep 0 58.0 58.0
+sb test 0 45.4 45.4
+poll: write diary/report/friction 118.6 135.1 16.4
+poll: sb --help 16.4 25.9 9.5
+poll: sb docs files (README/…) 42.5 0 -42.5
+probe:check 100.3 18.9 -81.4
+sb data/admin/audit 456.4 338.0 -118.4
+client:calls 122.3 0 -122.3
+poll: sb data/admin/audit 207.0 0 -207.0
+poll: client:calls 211.9 0 -211.9
+node_modules reads (other) 30455.5 30134.5 -321.0
+diary/report reads 394.1 10.1 -384.0
+write files (code) 10462.8 10032.5 -430.3
+own scripts/drivers 1941.3 1384.1 -557.2
+poll: npm install/view 4488.5 3850.0 -638.5
+BRIEF re-read 2484.6 1802.9 -681.7
+poll: probe:check 777.5 52.4 -725.0
+frontend proof 1290.2 486.2 -804.0
+sb serve 2066.7 1122.9 -943.9
+poll: own scripts/drivers 1442.1 467.4 -974.7
+other 1417.8 344.7 -1073.2
+acceptance 3008.3 1826.9 -1181.4
+npm install/view 7509.5 5148.9 -2360.6
+poll: acceptance 7611.0 4536.6 -3074.4
+poll: frontend proof 4255.5 1145.4 -3110.1
+poll: sb check 17458.3 13913.2 -3545.2
+sb docs files (README/…) 279086.1 274663.7 -4422.4
+sb guide api digests 176515.5 169590.1 -6925.4
+sb guide cards 240132.4 214117.1 -26015.3
+
+ raw
+package.json/config reads 2827.5 8208.9 5381.4
+scripts/ + ACCEPTANCE reads 780.5 2585.6 1805.2
+sb --help 513.7 1240.4 726.7
+sb check 1291.7 1827.4 535.7
+sb init 373.7 769.0 395.3
+typecheck (npm run check) 202.2 469.5 267.3
+agent meta 989.4 1233.3 243.9
+poll: sb test 0 215.0 215.0
+write diary/report/friction 110.5 252.5 142.1
+starter docs (README.snapback/install log) 0 128.3 128.3
+poll: other 115.7 242.2 126.5
+node_modules reads (other) 937.3 1059.9 122.6
+logs reads 516.3 632.3 116.0
+poll: typecheck (npm run check) 457.2 561.2 104.0
+poll: sb guide cards 31.0 92.2 61.2
+serve/wait/curl/ps/sleep 3.5 57.0 53.5
+poll: sb deploy 0 49.6 49.6
+poll: acceptance 640.0 671.3 31.3
+poll: sb guide api digests 0 26.6 26.6
+generated api/.snapback4 reads 1266.7 1284.9 18.1
+sb package .d.ts/js 283.8 295.4 11.6
+poll: write diary/report/friction 7.9 17.8 9.9
+poll: node_modules reads (other) 3.5 12.8 9.3
+sb deploy 0 6.2 6.2
+sb test 0 3.7 3.7
+poll: starter docs (README.snapback/install log) 0 3.1 3.1
+poll: serve/wait/curl/ps/sleep 0 2.1 2.1
+poll: sb init 25.2 25.8 0.6
+poll: sb --help 3.3 2.9 -0.4
+poll: sb docs files (README/…) 3.0 0 -3.0
+sb data/admin/audit 31.0 25.3 -5.7
+probe:check 11.8 5.3 -6.5
+acceptance 203.9 196.1 -7.9
+poll: npm install/view 138.6 128.6 -9.9
+own source reads 1032.3 1020.7 -11.5
+poll: client:calls 11.8 0 -11.8
+client:calls 12.8 0 -12.8
+poll: sb data/admin/audit 13.7 0 -13.7
+own scripts/drivers 153.4 112.0 -41.4
+poll: probe:check 61.9 18.6 -43.3
+npm install/view 211.3 158.1 -53.3
+poll: own scripts/drivers 147.4 76.4 -71.0
+frontend proof 163.6 79.3 -84.3
+diary/report reads 105.9 2.0 -103.9
+other 127.4 23.3 -104.1
+sb serve 192.8 62.5 -130.4
+poll: sb check 998.8 809.4 -189.4
+write files (code) 896.6 688.0 -208.5
+sb docs files (README/…) 9332.7 9099.8 -233.0
+BRIEF re-read 439.0 205.2 -233.7
+poll: frontend proof 424.7 148.8 -275.9
+sb guide cards 10793.0 10512.3 -280.7
+poll: write files (code) 2177.4 1890.6 -286.8
+sb guide api digests 7740.1 7137.3 -602.8
+
+ features
+waiting [('before', {'tools': 16.8, 'chars': 18265.1, 'tokens': 5264.6, 'input_cost': 65519.2, 'seconds': 18.5}), ('after', {'tools': 16.9, 'chars': 18200.8, 'tokens': 5052.1, 'input_cost': 67453.2, 'seconds': 23.1})]
+scaffold mentions [('before', {'tools': 0, 'chars': 0, 'tokens': 0, 'input_cost': 0, 'seconds': 0}), ('after', {'tools': 1.3, 'chars': 41200.2, 'tokens': 11066.9, 'input_cost': 266050.3, 'seconds': 0.3})]
+scaffold reads [('before', {'tools': 0, 'chars': 0, 'tokens': 0, 'input_cost': 0, 'seconds': 0}), ('after', {'tools': 1.0, 'chars': 34909.2, 'tokens': 9418.9, 'input_cost': 225916.8, 'seconds': 0.1})]
+generated reads [('before', {'tools': 0.4, 'chars': 4738.5, 'tokens': 1280.7, 'input_cost': 24381.5, 'seconds': 0.0}), ('after', {'tools': 0.3, 'chars': 5124.1, 'tokens': 1419.7, 'input_cost': 35239.7, 'seconds': 0.0})]
+worst input deltas:
+39 039-snapback-boat-shrink-wrapping react 24 54 1270364 4550844
+15 015-snapback-portable-toilet-rentals expo 31 49 1741822 3827422
+2 002-snapback-canine-hydrotherapy-sessions react 26 36 1352638 2528508
+28 028-snapback-scuba-certification-courses react 33 39 1741250 2901589
+23 023-snapback-travel-vaccine-consults react 37 40 1935987 2844955
+8 008-snapback-eyeglass-voucher-program react 32 38 1770227 2605877
+24 024-snapback-mole-mapping-visits react 31 38 1914633 2544360
+21 021-snapback-tattoo-removal-sessions react 38 39 2340435 2889392
+10 010-snapback-well-pump-service-calls react 42 43 2747397 3187093
+6 006-snapback-backyard-chicken-permits react 35 35 2035210 2374508
+7 007-snapback-senior-home-repair-grants expo 45 42 3004690 3093706
+1 001-snapback-cpap-equipment-setups expo 32 31 1848608 1836310
+3 003-snapback-bookkeeping-cleanup-engagements expo 31 30 1723295 1699530
+17 017-snapback-storage-container-drops react 33 33 2343618 2316612
+4 004-snapback-dumpster-street-permits expo 31 28 1623699 1566677
+25 025-snapback-pediatric-speech-evaluations expo 36 29 1990821 1736811
+36 036-snapback-foreign-credential-evaluations react 33 30 1940145 1657239
+29 029-snapback-fireworks-display-shows react 39 36 2499773 2164511
+30 030-snapback-pool-replastering-jobs expo 35 26 1989588 1587252
+5 005-snapback-short-term-rental-licenses react 42 29 2345490 1806491
+31 031-snapback-privacy-fence-installs react 35 29 2168114 1490019
+22 022-snapback-bladesmith-knife-commissions react 36 31 2594980 1876674
+13 013-snapback-phone-screen-repairs expo 44 32 2933246 2014050
+38 038-snapback-hardwood-floor-refinishing expo 41 26 2843504 1389045
+14 014-snapback-e-bike-conversions expo 46 30 3328675 1807293
+cycles [('TimeoutError', 4, 20), ('TS2769', 5, 11), ('E_INIT_CONFLICT', 1, 10), ('E_QUARRY_SYNTAX', 5, 10), ('script: red (no code)', 1, 9), ('E_QUARRY_TYPE', 7, 7), ('acceptance: Error: Probe exited before ready', 1, 7), ('script: Error: server truth timed out after N ms; last={"data":[],"complete":t', 1, 6), ('E_INPUT', 1, 6), ('E_QUARRY_UNSUPPORTED', 5, 5), ('E_STRUCTURAL_FANOUT', 3, 5), ('check: red (no code)', 1, 3), ('check: Error: Probe exited before ready', 1, 3), ('E_QUARRY_RULE_HOP', 1, 2), ('data: red (no code)', 1, 2)]

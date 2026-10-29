@@ -1,4 +1,4 @@
-// EDIT THIS FILE. check regenerates only files whose content hash still matches.
+// Optional exhaustive draft. check --proof-scaffold refreshes unedited code only.
 // Run: node scripts/proof-scaffold/acceptance.mjs. No guide/API lookups needed.
 import assert from 'node:assert/strict';
 export const accountPlan = ACCOUNT_PLAN;

@@ -1,0 +1,28 @@
+{
+  "source": "fc71b6edcc42ccc417bb63725d203a3d646a65d0",
+  "version": "0.4.48",
+  "mode": "consumer-only",
+  "binarySha256": "4b4767de85072da0aeaa866a5d857b8fbf6da9218049dc2838f3cc366b7d309b",
+  "clientIntegrity": "sha512-SHled3WWxaTDwo3DtbwaTtgCPrqUi9e2eQI+64Ah9hTw/GXaWLcMNzKVhz0QOI31IabQsBI307S560m0mXZlnQ==",
+  "expoIntegrity": "sha512-aYD1G0pQ8V3SIQgDXATTG+To5dJM8Lp0jGDNorppnaqB7hOLFvnqWsnRct/XCSi9682VKynPKzl7QmuIiZBUHA==",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.48",
+    "filename": "snapback4-linux-x64-0.4.48.tgz",
+    "integrity": "sha512-KoiSnhaVQsm/cj2gg6LObNTCt28IC5r6bdrU6RKwDEr3IWjD5ZiQW6YAazxeL/OD6MA3gjw6MEMk8W8GgmleEw==",
+    "bytes": 18786372
+  },
+  "consumerChainCompleted": true,
+  "consumerReceiptSha256": "d4c5fb0f547d890b28ef509271dc8ef43b1ff652f4a8cb00e84d345260582987",
+  "platformTarballMatchesReplays": true
+}

@@ -15,6 +15,7 @@ impl Project {
     fn check(&self) -> Output {
         Command::new(env!("CARGO_BIN_EXE_snapback4"))
             .arg("check")
+            .arg("--proof-scaffold")
             .arg("--json")
             .current_dir(&self.0)
             .output()
@@ -339,6 +340,7 @@ fn scaffold_notice_follows_the_verdict_and_unchanged_checks_are_quiet() {
     let run = || {
         Command::new(env!("CARGO_BIN_EXE_snapback4"))
             .arg("check")
+            .arg("--proof-scaffold")
             .current_dir(&p.0)
             .output()
             .unwrap()
@@ -360,4 +362,100 @@ fn scaffold_notice_follows_the_verdict_and_unchanged_checks_are_quiet() {
     let next = run();
     assert!(next.status.success());
     assert!(!String::from_utf8_lossy(&next.stdout).contains("proof scaffold:"));
+}
+
+#[test]
+fn ordinary_check_leaves_drafts_optional_and_refreshes_only_opted_in_facts() {
+    let p = Project::new("opt-in");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    let ordinary = || Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .arg("check").current_dir(&p.0).output().unwrap();
+    assert!(ordinary().status.success());
+    assert!(!p.file("").exists(), "ordinary checks must not emit a proof matrix");
+    let draft = p.0.join("scripts/proof-draft");
+    assert!(!draft.exists(), "ordinary check emits neither draft");
+    let requested = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft"]).current_dir(&p.0).output().unwrap();
+    assert!(requested.status.success(), "{}", String::from_utf8_lossy(&requested.stderr));
+    let before: Vec<_> = ["cases.mjs", "host.mjs", "acceptance.mjs"].iter().map(|name| {
+        let path = draft.join(name);
+        let syntax = Command::new("node").arg("--check").arg(&path).output().unwrap();
+        assert!(syntax.status.success(), "{}", String::from_utf8_lossy(&syntax.stderr));
+        (*name, fs::read(path).unwrap())
+    }).collect();
+    assert!(before.iter().map(|(_, bytes)| bytes.len()).sum::<usize>() <= 8000);
+
+    assert!(p.check().status.success());
+    let cases = fs::read(p.file("cases.mjs")).unwrap();
+    let runner = fs::read(p.file("acceptance.mjs")).unwrap();
+    fs::write(p.0.join("snapback/schema.q"), format!("{SOURCE}\nquery added():\n  return 1\n")).unwrap();
+    assert!(ordinary().status.success());
+    for (name, bytes) in &before { assert_eq!(&fs::read(draft.join(name)).unwrap(), bytes, "compact draft is never rewritten"); }
+    assert_eq!(fs::read(p.file("cases.mjs")).unwrap(), cases, "no unrequested draft expansion");
+    assert_eq!(fs::read(p.file("acceptance.mjs")).unwrap(), runner);
+    assert!(fs::read_to_string(p.file("schema.json")).unwrap().contains("added"), "coverage facts must see new operations");
+    fs::remove_file(p.file("acceptance.mjs")).unwrap();
+    assert!(ordinary().status.success());
+    assert!(!p.file("acceptance.mjs").exists(), "only an explicit request restores code");
+    assert!(p.check().status.success());
+    assert!(p.file("acceptance.mjs").exists());
+    assert!(fs::read_to_string(p.file("cases.mjs")).unwrap().contains("added"));
+}
+
+#[test]
+fn scaffold_flag_requires_current_project_check() {
+    let p = Project::new("flag-modes");
+    for flag in ["--proof-draft", "--proof-scaffold"] {
+    for mode in [vec!["--audit"], vec!["--emit-lean", "absent.q"], vec!["--store", "absent", "--release", "1"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+            .args(["check", flag]).args(mode).current_dir(&p.0).output().unwrap();
+        assert!(!out.status.success());
+        assert!(String::from_utf8_lossy(&out.stderr).contains("E_INPUT"));
+        assert!(!p.file("").exists());
+    }
+    }
+    let both = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft", "--proof-scaffold"]).current_dir(&p.0).output().unwrap();
+    assert!(!both.status.success());
+    assert!(String::from_utf8_lossy(&both.stderr).contains("choose --proof-draft"));
+}
+
+#[test]
+fn starter_readme_and_next_steps_do_not_require_the_optional_packet() {
+    let p = Project::new("starter-route");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .args(["init", ".", "--web", "--online", "--password", "--no-install"])
+        .current_dir(&p.0).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let next = String::from_utf8_lossy(&out.stdout);
+    assert!(next.contains("optional proof helpers: snapback4 check --proof-draft"), "{next}");
+    assert!(!next.contains("start app proofs from scripts/proof-scaffold"));
+    let readme = fs::read_to_string(p.0.join("README.md")).unwrap();
+    assert!(readme.contains("Optional proof helpers:"), "{readme}");
+    assert!(readme.contains("scripts/frontend-proof.mjs"));
+    assert!(!readme.contains("acceptance with scripts/proof-scaffold/acceptance.mjs"));
+    let checked = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .arg("check").current_dir(&p.0).output().unwrap();
+    assert!(checked.status.success());
+    assert!(!p.file("").exists());
+}
+
+#[test]
+fn compact_draft_respects_existing_files_and_dangling_links() {
+    let p = Project::new("compact-collision");
+    fs::write(p.0.join("snapback/schema.q"), SOURCE).unwrap();
+    fs::create_dir_all(p.0.join("scripts")).unwrap();
+    let draft = p.0.join("scripts/proof-draft");
+    fs::write(&draft, "application-owned").unwrap();
+    let run = || Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--proof-draft"]).current_dir(&p.0).output().unwrap();
+    assert!(run().status.success());
+    assert_eq!(fs::read_to_string(&draft).unwrap(), "application-owned");
+    fs::remove_file(&draft).unwrap();
+    #[cfg(unix)] {
+        std::os::unix::fs::symlink(p.0.join("absent"), &draft).unwrap();
+        assert!(run().status.success());
+        assert!(!p.0.join("absent").exists());
+        fs::remove_file(&draft).unwrap();
+    }
+    assert!(run().status.success());
+    assert!(draft.join("cases.mjs").exists());
 }

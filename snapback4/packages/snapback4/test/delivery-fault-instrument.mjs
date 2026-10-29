@@ -504,3 +504,14 @@ export function awaitBoundary() {
 // adds administrative host inspection only, outside application delivery custody.
 // DX15 serve-check joins and proof-text observation retries also own proof-host
 // work only. All 215 delivery await IDs, recipes and failure assertions are retained.
+
+// Integration 33 / R1: proofResponse's three transport awaits cannot reject:
+// disabled observation returns immediately; every enabled setup operation is
+// inside its catch. The installed json wrapper retains the original decode's
+// rejection at the existing caller await, while observation errors are caught.
+// It adds no body read, I/O or write custody. proof-observation's own await is
+// that deferred original json decode. proof-accounts' schema diagnostics and
+// proof.ts' browser freshness/host waits are Node-only harness orchestration,
+// outside SDK delivery. parent-lifetime and the other new proof helpers add no
+// awaits. Regenerate awaitBoundary() only; retain all 215 classified fault sites,
+// recipes and both matrix assertions without exceptions.
