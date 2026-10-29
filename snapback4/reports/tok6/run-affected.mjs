@@ -14,6 +14,7 @@ const keep=['build-cli','build-client','typecheck:snapback4','docs-budget','diag
 const steps=plan.steps.filter(s=>keep.includes(s.id)).map(s=>({...s,requires:[],fileRequires:undefined}));
 steps.push(
  step('rust:guide-reference',['cargo','test','-p','snapback4-lang','--test','guide','--test','residency_notes','--test','aggregate_copies','--test','maintains','--test','server_opt_in','--','--test-threads=4']),
+ step('rust:guide-history',['cargo','test','-p','snapback4','--bin','snapback4','guide_seen::','--','--test-threads=4']),
  step('rust:cli-flags',['cargo','test','-p','snapback4','--bin','snapback4','cli_flags::','--','--test-threads=4']),
  step('rust:guide-command',['cargo','test','-p','snapback4','--test','check','guide','--','--test-threads=4']),
  step('rust:scale-docs',['cargo','test','-p','snapback4','--test','scale','the_guide_and_readme_describe_three_classes','--','--exact']),
