@@ -110360,3 +110360,16 @@ The compact default is withdrawn. Ordinary check creates neither helper;
 --proof-scaffold retains the exhaustive matrix. Verify is unchanged. Preserve
 all six default-compact after sessions (remaining Muse results still running),
 then measure six opt-in fallback sessions against the same completed controls.
+
+### 2026-10-29 — MUSE1 final measured opt-in fallback
+
+All 30 complete sessions retained, exact parser/provider totals match, all replay
+copies removed. Final Muse medians 83 calls / 8.114M input versus .46 96 / 8.993M:
+both bars pass; wall 16.69 versus 16.31min is not a wall win. Codex 46 / 2.879M
+versus .47 34.5 / 2.227M misses both bars; do not claim overall non-regression.
+Fixture/security-note retries are recorded as a follow-up, without changing
+bind/security. Both helper choices remain explicit; verify is unchanged.
+Packed Linux consumer-only qualification passes at fc71b6edcc with unchanged
+source and byte-identical replay/qualification platform tarball (native 4b4767de).
+Suite not run, publicationQualified false; final affected run follows the report
+commit. See WORKSTREAM-REPORT.md and reports/20261028-muse1/RESULTS.md.

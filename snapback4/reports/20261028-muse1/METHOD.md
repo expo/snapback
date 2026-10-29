@@ -80,3 +80,14 @@ controls; preserve both rejected candidate sets. This uses fresh isolated ports
 Main merge 085cb67d7d adds fixture/test corrections only; repacking confirms every
 client/expo/platform byte and native hash unchanged. Final consumer qualification
 runs on a frozen checkout; no commits or Snapback4 edits until its receipt.
+
+## Final result and qualification
+
+All 30 sessions exited 0, reached their terminal response and wrote REPORT.md.
+Independent parsed totals exactly match provider calls/input for every session.
+All application copies were deleted. Final fallback: Muse passes both median
+input/call bars (paired medians agree); Codex misses both. No reroll or filtering.
+Final consumer-only qualification passes at frozen fc71b6edcc; native and platform
+tarball bytes exactly match fallback replays. Source/client remained unchanged.
+The scoped final affected run occurs after the results commit; no commits while
+it runs. Receipt is retained separately after completion.
