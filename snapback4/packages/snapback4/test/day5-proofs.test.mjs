@@ -72,6 +72,7 @@ test('relocated starter qualifier uses an explicitly transported generated proof
   rmSync(proofPath);writeFileSync(join(app,'src/App.tsx'),'function Home(){return <FirstRead />;}\n');
   const isolated=join(cwd,'proof','starters.mjs');mkdirSync(join(cwd,'proof'));
   copyFileSync(join(root,'scripts/publication-starters.mjs'),isolated);
+  copyFileSync(join(root,'scripts/test-npm-cache.mjs'),join(cwd,'proof','test-npm-cache.mjs'));
   const {installCustomWriteScenario}=await import(pathToFileURL(isolated));
   assert.throws(()=>installCustomWriteScenario(app,'web'),/ENOENT/);
   installCustomWriteScenario(app,'web',template);
