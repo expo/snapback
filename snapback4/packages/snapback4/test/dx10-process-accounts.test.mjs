@@ -15,7 +15,7 @@ const plan={roles:{admin:1,member:1},provision:{name:'provision'}};
 const guide=readFileSync(resolve(root,'crates/snapback4-lang/src/guide/staging.md'),'utf8');
 const schema=guide.match(/```quarry\n([\s\S]*?)```/)[1];
 async function project(t){const cwd=fixture(t);mkdirSync(join(cwd,'snapback'));write(cwd,'snapback/schema.q',schema);await deploy('production','snapback',{cwd,env});return cwd;}
-function npmScript(cwd,source){write(cwd,'package.json',JSON.stringify({type:'module',scripts:{'prod:serve':'node serve.mjs'}}));write(cwd,'serve.mjs',source);}
+function npmScript(cwd,source,script='node serve.mjs'){write(cwd,'package.json',JSON.stringify({type:'module',scripts:{'prod:serve':script}}));write(cwd,'serve.mjs',source);}
 const jsonLine='console.log(JSON.stringify({backendUrl:"http://example",password:"SECRET-NEVER-REPORT"}));';
 const hold='setInterval(()=>{},1000);';
 for(const [label,source,expected] of [
@@ -35,7 +35,10 @@ for(const [label,source,expected] of [
 });
 test('native store releases on npm death even when its proof driver ignores TERM',{skip:process.platform==='win32'},async t=>{
  const cwd=await project(t);
- npmScript(cwd,`import {startServe} from ${JSON.stringify(pathToFileURL(resolve(root,'packages/snapback4/dist/proof.js')).href)};const host=await startServe('production');process.on('SIGTERM',()=>{});${jsonLine}${hold}`);
+ // npm must die from the group TERM here. Linux dash keeps `sh -c` as npm's child, and that shell dies, so npm exits. macOS
+ // /bin/sh (bash) execs a lone command, which made the TERM-ignoring driver npm's direct child, so npm never died. `; exit $?`
+ // keeps the shell, and so npm's death, on every platform.
+ npmScript(cwd,`import {startServe} from ${JSON.stringify(pathToFileURL(resolve(root,'packages/snapback4/dist/proof.js')).href)};const host=await startServe('production');process.on('SIGTERM',()=>{});${jsonLine}${hold}`,'node serve.mjs; exit $?');
  const report=await serveCheck({cwd,env,deployment:'production',timeoutMs:10000,upMs:60,stopTimeoutMs:150});
  assert.ok(report.failures.some(f=>f.code==='E_SERVE_CHILD_RUNNING'));
  assert.equal(report.lockReleased,true,JSON.stringify(report));
