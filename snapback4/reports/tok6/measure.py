@@ -6,7 +6,27 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[2]; evidence=root/'target/tok6/evidence'
 os.environ['OUT']=str(evidence/'parser-unused');parser_path=Path.home()/'sb4-loop/wave34-repro/tx/parse.py'
 source=parser_path.read_text();source=source.replace("'cmd': red(cmdtxt)[:300]","'cmd': red(cmdtxt)").replace("'cmd': red(c['cmd'] or c['name'])[:300]","'cmd': red(c['cmd'] or c['name'])")
-mod=types.ModuleType('native_parser');exec(compile(source,str(parser_path),'exec'),mod.__dict__)
+# Provider cumulative counters identify repeated legacy token_count records,
+# including a late model-output item between two copies of the same counters.
+# Every deduplicated sum must reconcile with the terminal provider totals.
+dedup_audits={}
+def codex_events(path):
+ events=[json.loads(line) for line in open(path)];filtered=[];last_usage=None;model_output=False;skipped=0;seen_totals=set()
+ for e in events:
+  payload=e.get('payload')or{}
+  if e.get('type')=='response_item' and payload.get('type') in ('reasoning','message','function_call','custom_tool_call'):model_output=True
+  if e.get('type')=='event_msg' and payload.get('type')=='token_count' and payload.get('info'):
+   info=payload['info'];usage=json.dumps(info['last_token_usage'],sort_keys=True)
+   cumulative=info.get('total_token_usage');tag=json.dumps(cumulative,sort_keys=True) if cumulative else None
+   if (tag is not None and tag in seen_totals) or (tag is None and not model_output and usage==last_usage):skipped+=1;continue
+   if tag is not None:seen_totals.add(tag)
+   last_usage=usage;model_output=False
+  filtered.append(e)
+ dedup_audits[str(path)]=skipped
+ return filtered
+source=source.replace("ev = [json.loads(l) for l in open(path)]", "ev = _tok6_events(path)")
+mod=types.ModuleType('native_parser');mod.__dict__['_tok6_events']=codex_events
+exec(compile(source,str(parser_path),'exec'),mod.__dict__)
 prices_path=Path.home()/'sb4-loop/bakeoff/prices.json';price_bytes=prices_path.read_bytes();prices=json.loads(price_bytes)
 records=[]
 for launch in sorted(evidence.glob('*-launch.json')):
@@ -51,6 +71,7 @@ for launch in sorted(evidence.glob('*-launch.json')):
  tools=session['tools'];reads={'referenceFile':0,'serverReferenceFile':0,'fullReferenceCats':0,'referenceGuide':0,'wiringLookups':0,'wiringCalls':0,'generatedApiReads':0,'guideTotal':0};wiring_calls=set();commands=[]
  for t in tools:
   cmd=mod.strip_heredoc(t.get('cmd',''))
+  if t['cat'].startswith('poll:'):continue
   guides=re.findall(r'(?:snapback4|/snapback4)\s+guide\b',cmd);reads['guideTotal']+=len(guides)
   wiring=re.findall(r'(?:snapback4|/snapback4)\s+guide\s+api\s+[\'"]?(?:client|react|auth|generated)\b',cmd)
   reads['wiringLookups']+=len(wiring)
@@ -65,7 +86,7 @@ for launch in sorted(evidence.glob('*-launch.json')):
    if re.search(r'\bcat\s',cmd):reads['fullReferenceCats']+=1
   if wiring or reference or is_reference:commands.append({'call':t['k'],'kind':'wiring' if wiring else 'reference-guide' if reference else 'reference-file','count':len(wiring)or reference or 1})
  reads['wiringCalls']=len(wiring_calls)
- records.append({'phase':stem.rsplit('-',1)[0].split('-r')[0],'runLabel':stem.rsplit('-',1)[0],'idea':a['n'],'lane':a['id'],'model':a['model'],'modelId':model,'frontend':a['frontend'],'calls':len(calls),'input':input_total,'cachedInput':cached,'uncachedInput':input_total-cached,'output':output,'usdParts':costs,'usd':sum(costs.values()),'longContextRequests':long_requests,'terminalReconciled':bool(terminal),'wallMs':result['wallMs'],'exit':result['status'],'report':result['report'],'initialPackageInstalled':d['initialPackageInstalled'],'nativeSessions':[Path(p).name if a['model']=='codex' else Path(p).parent.name for p in native_paths],'reads':reads,'readCalls':commands,'perCall':per_call})
+ records.append({'phase':stem.rsplit('-',1)[0].split('-r')[0],'runLabel':stem.rsplit('-',1)[0],'idea':a['n'],'lane':a['id'],'model':a['model'],'modelId':model,'frontend':a['frontend'],'calls':len(calls),'input':input_total,'cachedInput':cached,'uncachedInput':input_total-cached,'output':output,'usdParts':costs,'usd':sum(costs.values()),'longContextRequests':long_requests,'terminalReconciled':bool(terminal),'duplicateUsageEventsSkipped':sum(dedup_audits.get(str(p),0) for p in native_paths),'wallMs':result['wallMs'],'exit':result['status'],'report':result['report'],'initialPackageInstalled':d['initialPackageInstalled'],'nativeSessions':[Path(p).name if a['model']=='codex' else Path(p).parent.name for p in native_paths],'reads':reads,'readCalls':commands,'perCall':per_call})
 result={'schema':'tok6-whole-session-v1','pricesVersion':prices['version'],'pricesSha256':hashlib.sha256(price_bytes).hexdigest(),'parserSha256':hashlib.sha256(parser_path.read_bytes()).hexdigest(),'rows':records}
 (evidence/'measurements.json').write_text(json.dumps(result,indent=2)+'\n')
 for r in records:print(r['phase'],r['idea'],r['model'],r['calls'],round(r['usd'],6),r['reads'])
