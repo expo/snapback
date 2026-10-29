@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "scope": "scripted mechanics, not model-session cost measurement",
+  "source": "72a35febbc",
+  "control": {
+    "yieldMs": 1000,
+    "pollYieldMs": 5000,
+    "separatePhases": [
+      {
+        "phase": "check",
+        "issuingCalls": 1,
+        "polls": 1,
+        "exit": 0,
+        "ms": 5461
+      },
+      {
+        "phase": "acceptance",
+        "issuingCalls": 1,
+        "polls": 1,
+        "exit": 0,
+        "ms": 5460
+      },
+      {
+        "phase": "frontend:proof",
+        "issuingCalls": 1,
+        "polls": 1,
+        "exit": 0,
+        "ms": 5459
+      },
+      {
+        "phase": "probe:check",
+        "issuingCalls": 1,
+        "polls": 1,
+        "exit": 0,
+        "ms": 5463
+      }
+    ]
+  },
+  "verify": {
+    "issuingCalls": 1,
+    "completionPolls": 3,
+    "elapsedMs": 21824,
+    "heartbeatPhases": [
+      "check",
+      "acceptance",
+      "frontend:proof",
+      "probe:check"
+    ],
+    "finalLines": 3
+  },
+  "museSequence": {
+    "commands": [
+      "npm run --silent acceptance",
+      "npm run --silent frontend:proof",
+      "npm run --silent verify"
+    ],
+    "executed": [
+      "acceptance",
+      "frontend:proof",
+      "check",
+      "probe:check"
+    ],
+    "acceptanceExecutions": 1,
+    "frontendExecutions": 1,
+    "test": "packages/snapback4/test/ver2-routing.test.mjs"
+  },
+  "decision": "CANDRUN forty-lane Snapback-only rerun before merge; dollars are primary, using ~/sb4-loop/bakeoff/prices.json"
+}

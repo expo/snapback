@@ -138,6 +138,7 @@ async function hook(mode, phase) {
         try { alive = processIdentity(Number(match[1])).birth === match[2]; } catch {}
         if (!alive) unlinkSync(join(directory, name));
       }
+      save(pending, { scanning: true }); // block reuse before the first asynchronous scan
       const key = await phaseKey(phase); if (key) save(pending, { key });
     } else if (mode === 'after') {
       const key = await phaseKey(phase);

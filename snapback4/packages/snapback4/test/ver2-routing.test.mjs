@@ -104,3 +104,18 @@ test('parent death during cache hashing cannot admit the next phase', { skip: pr
   await new Promise(r => setTimeout(r, 500));
   assert.deepEqual(f.counts(), ['check']);
 });
+test('interrupted overlapping pre-hook blocks an older run completing afterward', { skip: process.platform !== 'linux', timeout: 15000 }, async t => {
+  const f = fixture(t), signal = join(f.env.VER2_COUNTS, '../scanning'), patch = join(f.cwd, 'pause-scan.mjs');
+  // The patch is source before either run, so A's digest is stable. Only B
+  // imports it; stop B's owned group exactly while its pre-hook scans inputs.
+  writeFileSync(patch, `import fs from'node:fs';import{syncBuiltinESMExports}from'node:module';const read=fs.readFileSync;fs.readFileSync=(p,...args)=>{const b=read(p,...args);if(p==='src/App.tsx'){fs.writeFileSync(${JSON.stringify(signal)},'scanning');Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5000);}return b;};syncBuiltinESMExports();`);
+  const a = f.run('acceptance', { VER2_SLOW: '1500' });
+  await waitFor(() => { try { return f.counts().includes('acceptance'); } catch { return false; } });
+  const b = spawn('npm', ['run', '--silent', 'acceptance'], { cwd: f.cwd, env: { ...f.env, NODE_OPTIONS: `--import ${JSON.stringify(patch)}` }, detached: true, stdio: 'ignore' });
+  await waitFor(() => { try { return readFileSync(signal, 'utf8') === 'scanning'; } catch { return false; } });
+  const stopped = new Promise(r => b.once('exit', r)); process.kill(-b.pid, 'SIGKILL'); await stopped;
+  assert.equal((await a).code, 0);
+  const r = await f.run('verify', { VER2_SLOW: '1500' }); assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.out, /acceptance \(reused\)/);
+  assert.equal(f.counts().filter(p => p === 'acceptance').length, 2);
+});
