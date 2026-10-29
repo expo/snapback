@@ -57,3 +57,18 @@ runs check, acceptance, frontend and probe shutdown; do not run those separately
 first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
 unchanged passing direct proofs can be reused within the same builder session.
 Allow an initial tool wait of 30000ms; progress prints every 5s.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.

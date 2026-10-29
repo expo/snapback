@@ -110433,6 +110433,154 @@ engine, delivery paths, authority or runtime ceilings. The full Linux red check
 must be repeated for the repaired release; the initial failed run stays intact.
 
 
+### 2026-10-29 — Web startup footprint, first module split
+
+The author's preferred target is <100 KB for all local-first JS/WASM; loading
+full local execution after the initial page is an accepted practical fallback.
+On sb4/web-startup-20261029, app/persona local execution and the web device host
+are dynamic modules; worker support loads only on its path. Identity promotion,
+engine handshake, write admission and persistence use their existing sequences.
+A production consumer's initial SDK graph measures 122,883 -> 82,433 B gzip
+(103,364 -> 70,941 B Brotli), excluding React/authored UI. All emitted assets
+including optional worker code grow 873,092 -> 880,255 B gzip. Same retained
+0.4.47 device, Node 24.22.2 and Vite 8.3.5 in both measurements; not publication
+qualification. Typecheck/build, 100 app/local-session/browser startup assertions,
+the bundle regression and 15 durability assertions pass. Additional acquisition
+and worker witnesses receive server SIGTERM before readiness and remain
+unqualified. Signed-in first data still waits for the full runtime; no latency
+win, complete-runtime 100 KB claim or performance non-regression is asserted.
+LLP 3000.002 records the remaining progressive-read/SSR and custody questions.
+
+
+### 2026-10-29 — Web startup validation limit
+
+The later persona test times out after its 122 s server-readiness guard, before
+its client assertions; the rest of that test file is cancelled. The retained
+0.4.47 test binary remains a scope limit. The selector asks for a broad affected
+battery (31 steps, including 460 client files); it has not run. The module split
+is a local checkpoint, not a qualified landing or publication. The initial-byte
+regression and ref-check both pass again; no product source changed after the
+reported targeted passes.
+
+### 2026-10-29 — Deferred web startup, browser proof and cache initialization
+
+The Linux worktree replaces the retained-artifact startup limitation: 46
+persona, engine identity, persistence and acquisition tests pass against the
+matching 0.4.49 artifacts, including direct/worker offline reopen. The native
+binary is then rebuilt from this branch. The standalone IDB witness hits its
+inherited undeclared-mallory fixture and is not counted as passing.
+
+WASM preparation now reuses the compiled module after validating the content
+hash, and converts the existing hex cache with bounded temporary strings.
+Exact-byte cache round trip, offline reuse, corrupt-cache refusal and online
+repair pass. A production browser test with no eager fixture bootstrap keeps
+page input working while the WASM request is held, then preserves a pending
+local write through a new document with WASM requests blocked. Initial SDK
+bytes with the 0.4.49 device are 82,432 gzip / 70,929 Brotli; emitted JS/WASM is
+880,779 gzip. This remains the accepted deferral fallback, not a complete
+runtime under 100 KB. The full interpreter and its existing semantics remain.
+
+Four runs per variant in Chromium at 4× CPU throttle, same host/artifact and
+only the cache implementation changed, give median runtime opening 995 ->
+435 ms cold and 1,992 -> 433 ms offline. This measures initialization after
+shell load on loopback, not network startup or physical mobile performance.
+Typecheck/build and focused regressions pass. Broad affected qualification
+and landing remain pending at this entry; no publication claim is made.
+
+### 2026-10-29 — Web startup compressed-network comparison
+
+A minimal production persona app/device page, gzip served, in three fresh
+Chromium 151 contexts per variant at 1.6 Mbps / 150 ms latency / 4× CPU throttle:
+median first contentful paint 1,012 -> 788 ms; first local inbox result 6,901 ->
+6,514 ms. Order alternates between variants. Actual downloaded SDK assets grow
+860,256 -> 861,553 B gzip; optional worker chunks stay unloaded. The early
+paint improves, but full local readiness still pays the large WASM download.
+The representative entry retaining common React hooks separately measures
+122,882 -> 82,432 B gzip with the matching 0.4.49 device, React/UI excluded.
+Raw samples, scope and WASM digest are in the existing metrics streams. These
+are synthetic host probes, not physical-mobile or publication qualification.
+The broad affected run is in progress. No product behavior changes after its
+selected revision; this entry, measurement records, current-byte reference
+correction and one trailing blank-line cleanup retain that semantic delta.
+
+### 2026-10-29 — Web startup client qualification and ordinary landing
+
+The complete selected app/browser batch passes 1,028 tests across 33 files,
+including both 5,000-sequence session models, worker/admission review and the
+new deferred-load/offline-reload regression. Typecheck, package build,
+docs-budget, packaged-doc lint and ref-check pass. The moved device and
+persistence function bodies compare byte-for-byte with their former locations.
+The tested product revision is 1b375a217a; later commits record evidence/docs
+and remove a trailing blank line, without changing its semantic delta.
+
+The conservative selector expands the research-LLP/doc change to 31 steps,
+including every Rust package, the client pool and root-repository checks. Its
+install, native build, WASM build, client build and typecheck pass; backend
+suites are still running. Ordinary landing uses the scoped app/browser proof
+under the fast/affected cadence; that broad follow-up remains outstanding and
+is not represented as passing. This is not an npm release qualification.
+
+
+2026-10-29 — TOK6: stop offering full manuals to package-listing readers. Long
+references are embedded behind bounded package-reference topics/sections; SDK
+builds no longer duplicate Markdown digests under dist. Wiring API lookups bind
+current app sources and open with GEN1 calls/guards/shapes, then complementary
+signatures. Generic SDK-only access remains explicit. See LLP 3000.037.000 §18
+and reports/tok6 for paired native-session costs, packed consumer evidence and
+limits. No version bump or publication; no runtime/authorization change.
+
+
+### 2026-10-29 — STARTER2 starter verification and repairs
+
+The .48 archived call census points to separate typecheck/acceptance/frontend
+polls, repeated UI sign-in and exact-select-name failures, and seven SDK write
+handler type mismatches. STARTER2 adds short five-second progress, keeps one
+ordered first-red verify batch, registers fallback Playwright selectors before
+opening pages, reuses password UI sign-in/out helpers and existing
+labelledControl, and ships src/on-write.ts typed with Write<R>/refusalOf.
+Nullable/private-field advice leads with presence binding; ordered-exists
+errors include the named-predicate search. No accepted-program semantics,
+security binder, default proof scaffolding or version changes. See LLP
+3000.037.000 §18 and reports/20261029-starter2/METHOD.md. Whole-session dollar
+results and packed qualification remain pending; source correctness is not a
+performance claim.
+
+STARTER2's first packed consumer-only qualification passed at 4a550a5b4c with
+owned strace 6.17 after retaining a failed 6.8 undecoded-fragment attempt (the
+existing 20261021 strace ticket). No audit rule was relaxed. Its first complete
+Codex set missed the target: $0.6301014 → $0.6389919/lane; zero of four used
+verify, all four kept generated check. A bounded follow-up adds a successful-
+check handoff, starts no implicit proof and preserves either failure's status.
+The same fixed draws will measure that changed candidate; all first results stay.
+
+The final Codex mean was $0.6634801 (+$0.0333787/lane), also missing the
+$0.03 saving target. All four still bypassed verify; no third candidate or
+unchanged-code reroll was selected. Poll tools averaged 20.5 → 19.0 and browser
+repair cycles totaled 2 → 0, without a dollar win. The open 20261029 STARTER2
+dollar-target ticket records follow-up. Both packed consumer-only candidates
+passed with strict auditing and owned strace 6.17; no full publication claim.
+Final Muse pairs both improve ($0.074458236 → $0.066588872 and
+$0.064478738 → $0.050230194): strict two-pair dollar non-regression passes.
+All 18 draws exit successfully and primary calls/tokens reconcile with the
+independent parser; stdout-recovery and provider/cache limits remain explicit.
+The final affected pass caught the new generated src/on-write.ts absent from
+the documentation guard's exact application-file list. Add that one emitted
+path; do not widen src/ acceptance. The failed/incomplete attempt stays in
+local evidence; repeat affected checks on the repaired committed snapshot.
+Product bytes and packed proof semantics are unchanged by this test inventory.
+
+
+### 2026-10-29 — VER2: route builders through one proof loop
+
+Start/workflow and starter prose now name verify as the complete loop, with
+phase scripts reserved for focused reruns. New UI starter npm pre/post hooks
+retain source/session-bound passing acceptance/frontend receipts even after
+business command replacement. Verify reuses them conservatively, keeps check
+and shutdown fresh, prints five-second progress and names the first red rerun.
+LLP 3000.037.000 §18 records identity, invalidation and cache limits. This is
+mechanical routing/reuse work; CANDRUN owns the forty-lane cost decision.
+
+
 ### 2026-10-29 — DX17: one day-two release packet
 
 The existing day2 card folds upgrade, real v1 capture/production, change-kind
@@ -110502,9 +110650,15 @@ follow-up is filed; this is not a claimed Muse optimization success.
 
 ### 2026-10-29 — Integration 34, 0.4.50 candidate
 
-Merged TOK6, STARTER2, VER2 and DX17. App-specific API routing and bounded
-references remain TOK6-owned; day-two orchestration stays on the day2 card.
-Verify uses one stderr heartbeat across phases, conservative passing-phase reuse,
-and fresh check/shutdown. Both historical starter README suffixes remain recognized.
-The combined release requires affected, consumer and complete Linux red-check
-evidence; lane costs are directional, with same-window combined gating pending.
+Merged TOK6, STARTER2, VER2 and DX17. App-specific routing stays on API cards;
+day-two release orchestration stays on day2. Verify has one stderr heartbeat,
+conservative passing-phase reuse and fresh check/shutdown. Qualification pending.
+
+### 2026-10-29 — Integration 34 disposable caches and fresh-store custody
+
+Packed test/proof commands inherit a private cleaned npm cache, including
+standalone consumers and clean-userspace starter helpers. Both npm cache
+variable cases are set. A real two-pack/install guard checks default-home
+cache growth and cleanup on success/failure. Fresh-store Rust fixtures and
+client files confine child TMPDIR to owned cleanup roots; killed hosts cannot
+leave stores outside those roots. No foreign lane store is swept.
