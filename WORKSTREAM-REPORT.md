@@ -1,237 +1,177 @@
-# MUSE1 workstream report
+# Integration 33 — Snapback 4 0.4.49
 
-Worktree `/home/ccheever/projects/sb4-b34-lat1`; branch `sb4-b37-muse1`.
-Started clean at d6f0253bfa with the pre-existing readauth census fix retained.
-Main merged through 085cb67d7d; final fetch found no newer main.
-No push or version bump. Mac and the complete battery were excluded as requested.
+Qualified release on main: `55a4d4e39c75a6aa5f661222b4161d0c2a623f79`.
+Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
+Records: `/home/ccheever/sb4-loop/integration33/`.
+Complete Linux qualification: PASS. Normal main push: PASS. Exact commit to publish: `55a4d4e39c75a6aa5f661222b4161d0c2a623f79`.
 
-**Result: Muse's requested input/call bars PASS; Codex's bars MISS. The overall
-performance goal is not fully met.** The final source implements the authorized
-opt-in fallback, keeps both helper choices and retains verify unchanged. Packed
-Linux consumers passed. Final affected check status is recorded in §5.
+## Changes
 
-## 1. Diagnosis recorded before product edits
+| Item | Commit | Result |
+|---|---|---|
+| Main integration | `53eeed0208` | No-ff merge of pre-merge main `47ff676a47fc9a83dcf10814e7c19f52389bafcb`, including publication fixtures and version-pin ticket. |
+| MUSE1 | `da4a1a66bc` | No-ff merge of `5146b896cd`. Ordinary check creates neither proof helper. Exhaustive matrix and compact <=8KB draft are explicit opt-ins; existing matrix facts refresh without code expansion. Verify remains unchanged. Received Muse/Codex source reviews and measured negative outcomes are preserved. |
+| Early 0.4.49 bump | `2a58bf4b1c` | Four npm manifests/platform dependency pins, Rust workspace and both Cargo locks, both explicit fixture tripwires, and a 0.4.49 guide-changes entry. |
+| R1 review/seal | `25180bc742` | Source-reviewed nonrejecting observation setup; regenerated awaitBoundary(), preserving both assertions and all 215 delivery fault-site IDs/recipes. |
+| Wasm/review record | `85f6e3b97d` | Append-only journal and exactly measured+500 artifact allowance. |
+| Lifetime fixture | `f64de25232` | Arm serveUntilSignal before announcing readiness. Keep strict zero exit, EOF, group signals and store release/restart assertions. |
+| Generated production lifetime | `55a4d4e39c` | Same ordering repair in the shipped production script; real generated-script regression forces a scheduling gap at readiness. Guide changes explain the equivalent edit for existing scripts. |
 
-Sources: all 40 exact-draw wave34r1 and wave34r2 archived builder sessions,
-paired by idea/model/frontend. Reused wave34r1-repro/tx/parse.py (including
-Codex's issuing-call index fix), agg.py, calls.py and docs.py; wall.py supplied
-the timing interpretation. Local per-call output is under
-`/tmp/muse1-analysis/`; sanitized durable evidence is under snapback4/reports/20261028-muse1/.
-One additional parser correction recognizes `npm run verify` before the generic
-shell-read classifier: the inherited proof regex duplicated `npm run` around
-that pattern. The purpose classifier also had an unreachable rerun branch
-(`any(... for f in [])`); the local wrapper now assigns a red family’s rerun
-to fix-after-red. Both controls are treated identically. Purpose is the first
-tool in each call; combined shell commands and masked exits limit attribution.
-Token attribution is the parser's context-gap estimate weighted by subsequent
-calls, not an exact tokenizer partition or an independent causal experiment.
+Existing apps keep their source, assertions and scripts. The formerly automatic
+exhaustive proof scaffold is now opt-in. Both helper choices remain available;
+`npm run verify` retains its ordered, bounded first-red behavior. No engine,
+authority, delivery format or runtime ceiling changed in this integration.
 
-| Mean per lane | Muse .46 → .47 (15) | Codex .46 → .47 (25) |
-|---|---:|---:|
-| Calls | 94.87 → 121.47 | 35.52 → 34.92 |
-| Input tokens | 9.419M → 16.568M | 2.161M → 2.332M |
-| Wall minutes | 15.42 → 25.18 | 14.64 → 11.82 |
-| Tool minutes (union) | 5.01 → 9.59 | 0.72 → 0.78 |
+### R1 source review
 
-Muse's call growth is authoring +9.7, verification +6.9, own reads +5.2,
-lookup +3.4 and learning +1.8. Waiting falls 4.1 → 3.1 calls; classified
-fix-after-red calls, including reruns, fall 16.3 → 15.5. The loop is extra proof construction
-and exploration, not an increase in waiting calls. The latter classification
-cannot assign all masked failing proof runs to repair cycles.
+`proofResponse` returns immediately when observation is disabled. All enabled
+setup operations, including URL/header/custom-response accesses and installing
+the wrapper, are inside try/catch. It cannot add a rejection at its three new
+transport awaits. The deferred response.json wrapper preserves the original
+decode's rejection at the caller's existing await; observation errors are caught.
+It adds no eager body read, I/O or write custody. Proof-account diagnostics and
+proof/browser/host waits are Node harness orchestration outside SDK delivery.
+New zero-await helpers add no fault sites. Generated the seal via awaitBoundary()
+and retained all 215 classifications/recipes without exceptions. Final full
+matrix: **445/445 passed, no skips**, in `r1-final-matrix-summary.txt`.
 
-Muse reads mentioning the scaffold average 7.9 tools / 51,983 output characters,
-14,077 entering-context tokens and 1.347M repeated input tokens per lane.
-All script/acceptance reads grow 3,937 → 17,092 entering tokens and
-0.255M → 1.602M repeated input. Code-write tool output adds 4,890 entering
-and 0.438M repeated tokens; generated API reads add only 168 entering and
-0.064M repeated tokens. Model-authored output and the extra calls also compound
-all earlier context: these file-attribution figures do not sum to the full
-7.149M increase by themselves. Muse's pooled mean context/call rises
-99,289 → 136,400 tokens. A symmetric arithmetic split attributes 3.135M (44%)
-of the extra input to call count and 4.014M (56%) to mean-context growth;
-this is an accounting identity, not causal identification. The parser's
-repeated model-output component grows 2.736M → 5.508M and initial-context
-component 3.146M → 4.029M (the initial context itself stays ~33.17k).
-Codex's post-schema lookup calls fall 5.5 → 4.2;
-its scaffold reading is about one tool per lane, supporting retention of an
-available helper rather than deleting it.
+### Version tripwires
 
-The four largest Muse input regressions are child talent (019: 6.92M/80 →
-30.53M/179), gown preservation (032: 11.28M/107 → 27.87M/162), wildlife
-exclusion (026: 9.63M/100 → 20.89M/140), real estate photos (035:
-6.83M/74 → 15.63M/128). These are the four replay selections. Codex controls
-are CPAP (001, Expo) and e-bike (014, Expo), the latter a strong .47 gain.
+`snapback4/scripts/bump-version.mjs` validates every input before writing the nine
+release files: four manifests/platform pins, workspace version, both release
+locks, device-version and sync-generation pins. Used for 0.4.49. A disposable-copy
+control advanced all pins, then proved a stale final tripwire causes no writes.
+`issues/20261028-snapback4-version-bumps-miss-release-fixture-pins.md` is resolved
+under `issues/closed/`. Both tripwire files pass in the final full client pool.
 
-Concrete mechanisms, checked against source and per-call traces:
+### Additional red found and repaired
 
-* `cases.mjs` eagerly expands every operation × role plus every guard into
-  required placeholders, including required clock cases. Initial reads are
-  20,503 bytes (019), 30,531 (032), 30,355 (026). This is a second application
-  specification to fill before the scaffold admits any execution.
-* 019 reads all seven packet leaves and verify infrastructure in calls 15–18,
-  rewrites cases repeatedly, and debugs its frontend through call 158. 032
-  fills the matrix in calls 49–55, then creates multiple acceptance clones and
-  debugging drivers through call 110. 026 reads schema facts three times,
-  fills the matrix and repairs refusal expectations in calls 76–95.
-* Intentionally incomplete assertions refuse before any host work. This is
-  truthful proof behavior, but making this exhaustive matrix the default route
-  imposes substantial construction work. We must not turn missing tests green.
-* `check` does NOT rewrite identical bytes every time. It updates hash-owned
-  packet leaves on schema changes, preserves edited leaves, and maintains a
-  current-schema hash so an edited/stale facts file cannot conceal new guards.
-  Automatic refresh can expand unedited drafts as a schema grows; this is a
-  secondary incentive to reread, not evidence of unconditional rewrites.
-* `verify` already stops at first red, has three successful summary lines and
-  up to six extracted diagnostic lines on failure, with full details private.
-  It does not print every successful phase's log. Successful phases do rerun
-  on every invocation; no incremental proof claim should be invented.
-* Muse waiting tool time rises despite fewer calls: lengthy browser repairs and
-  repeated complete proof execution remain. Direct verify mentions account for
-  only ~1.5k entering tokens / 0.11M repeated input per lane in tools whose
-  retained commands mention verify (a lower bound: compound writes/run commands
-  can hide its name or output); the large default
-  packet and its required completion dominate direct reading growth.
+The first complete publication source suite passed Rust and models but failed
+one srv1-lifetime SIGTERM assertion: fixture readiness appeared before handlers
+were installed, permitting signal termination (`exitCode:null`) instead of zero.
+A controlled gap reproduces old ordering as -15; armed ordering exits zero in
+three trials (`srv1-readiness-control.json`). The generated production script
+had the same ordering, so it was repaired too. The existing starter test now
+pauses inside its actual readiness console.log, signals immediately and demands
+zero exit plus release/restart. An old-ordering copy fails that new assertion
+(`srv1-negative.log`). Rebuilt actual positive file: **22/22**, no skips;
+`srv1-positive.log`. All corresponding final full-pool cases pass. No timeout or
+exit/ownership assertion was weakened.
 
-Decision: retain `npm run verify` and its cleanup/first-red/bounded output gains.
-Make the exhaustive proof scaffold an explicit opt-in rather than the default
-check/start path. Keep its helpers, refusal assertions, truthful coverage and
-packed positive/negative controls available to builders who choose it. Ordinary
-checks must preserve opted-in code and still invalidate stale bound facts.
-The subsequent experiments and their missed bars are reported below;
-source-byte savings alone are not a performance result.
+## Verification
 
-## 2. Final implementation and decisions
+### Affected selection and root checks
 
-- Ordinary green `check` creates neither proof packet. Start/workflow/init/README
-  make both helpers optional; application assertions plus `npm run verify` remain
-  the default. TOK5/GEN1 and `bind/security/**` were not modified by this lane.
-- `check --proof-draft` explicitly creates three files totaling <=8KB with one
-  business scenario, shared real-account/lifecycle/upload/clock helpers and an
-  acceptance runner. It is created once and never rewritten, even on repeated
-  requests. Existing files/directories/symlinks remain author-owned; delete its
-  directory to request a fresh draft. No exhaustive operation/role expansion.
-- `check --proof-scaffold` explicitly creates/refreshes the exhaustive packet.
-  Ordinary checks still refresh existing matrix facts/manifest only; code never
-  expands or reappears without a request. Stale facts and missing coverage refuse.
-- The flags are mutually exclusive and reject audit, Lean and saved-release modes
-  before work. Missing, empty and refusal-only compact suites refuse before deploy;
-  success requires a business assertion and reports application-owned coverage.
-- `verify` is unchanged: ordered first-red stopping, bounded output (three summary
-  lines plus up to six diagnostic lines), private full log and process cleanup.
-  No incremental cache, skipped-proof claim or automatic application-script rewiring.
+The requested broad run against pre-merge main executed all **31** commands.
+Raw receipt: `target/affected/85f6e3b97de4-1793244662417.json`; its literal FAIL
+is preserved. After the discovered red was repaired during the run, its source
+stability guard correctly refused a qualification. The client batch saw the old
+compiled CLI against repaired source (srv1 and exact upgrade-history comparison).
+Root generated/guide checks also found missing root node_modules. Restored the
+frozen root install and hoist without changing source or locks; recorded retries.
+The separate Lean oracle exit1 is unchanged inherited evidence, detailed below.
 
-Three changed-code candidates were measured. Opt-in-only exhaustive scaffolding
-was insufficient; a compact default retained convenience but still invited work
-(the gown builder expanded cases to 16KB). That default was withdrawn. The final
-fallback keeps the compact option without making it a required path. Every
-unfavorable session is retained; no unchanged-code reroll replaced a failed draw.
+Final affected repair ran on frozen **55a4d4e39c**, base **85f6e3b97d**:
+**15/15 PASS**, complete and unchanged=true. It reruns the CLI crate, full language
+guide target, fixtures, all client files and models, diagnostics, docs budget,
+root guide/inventories, packaged docs and references. All affected unchanged
+engine-crate passes are retained from the broad run; the final full publication
+suite independently reruns the entire source battery.
 
-| Candidate | Product commit / frozen source | Muse median calls / input | Codex median calls / input |
-|---|---|---:|---:|
-| Full matrix opt-in, no compact helper | 8c78f21bdb; frozen 8f60156e9d | 118.5 / 13.176M | 40.5 / 2.719M |
-| Compact default, matrix opt-in | 8817e6693e; frozen 773f3dfd1f | 106.5 / 11.504M | 36 / 2.042M |
-| Both explicit choices (final) | de211888be + 5f29c81549; qualified fc71b6edcc | 83 / 8.114M | 46 / 2.879M |
+Receipt: `/home/ccheever/projects/snapback-sb4loop/target/affected/55a4d4e39c75-1793253615017.json`.
+Summary: `affected-final-summary.json`. Root generated-artifact retry also passes
+(`root-generated-final.log`, wrapper exit0). Root guide **22/22**, no skips or
+preconditions; inventories PASS; reference check **579 LLPs / 12,884 refs / zero
+errors or unchecked refs**; docs budget PASS. Earlier wrong-directory docs-budget
+invocation and missing-cache attempts remain in logs, not relabelled as passes.
 
-The initial decomposition was committed before product edits as 9ec7a73c10.
-Main integration commits are f9782b3243 (Integration 32/.48) and 085cb67d7d
-(fixture/test pin corrections). The latter changed no runtime/scaffold/guide input;
-repacking produced identical client, Expo and platform bytes. Review/evidence
-commits retain the intervening corrections and negative outcomes.
+### Differential evidence
 
-## 3. Whole-session remeasurement
+Ordinary short campaign: **2,000 cases / 120,026 executions / 9 oracles / zero
+disagreements**, exit0. Lean short campaign retains literal exit1: **18** existing
+next/continuation and E_RULE-vs-NOT_FOUND observations. All **16** saved finding
+files and every oracle counter exactly match the Integration31/30 baseline.
+No oracle/model/assertion was changed or weakened. `difftest-summary.json`.
+Core/device/difftest/simulator/native/Lean Git trees exactly match pre-merge main
+(`engine-tree-comparison.json`); only workspace version metadata differs there.
+These known model observations are separate from the complete Linux publication
+suite, which compiles the oracle and runs the full client models.
 
-Four Muse selections were fixed from the largest archived input regressions:
-019 child talent (Expo), 032 gown (React), 026 wildlife (React), 035 real-estate
-photos (Expo). Codex controls: 001 CPAP and 014 e-bike (both Expo). Each ran once
-on .46, .47 and each of the three changed candidates: **30 full sessions**.
-The same twelve before controls are reused for the later experiments.
+### Packed consumers and complete Linux red check
 
-All began with only the exact rendered harness BRIEF in an empty directory and
-no installed package, using the harness builder CLIs/flags. Only paths, isolated
-ports and pinned package versions changed. Sessions ran to terminal response;
-all exited 0 and wrote REPORT.md. No in-session feedback or early stopping.
-Original parser and provider input/call totals agree exactly for all 30; no missing
-sessions. All native/client lock pins were verified before deleting copies; full
-381-file client comparison was added after the first four captures and covers all
-six final draws. All replay copies have been deleted.
+The initial full consumer-only chain passed at **85f6e3b97d**, including all host
+starters, positive/negative proof kit/frontend controls, upgrades, production,
+migrations, staging, recipes and clean Ubuntu24.04/Alpine consumers.
+`consumer/qualification/consumer.json` truthfully says suite:not-run and
+publicationQualified:false. It is earlier-candidate evidence, not final Linux
+suite qualification.
 
-.46/.47 package/native pins match the wave source references 67740e5975 and
-11fb847329. Final candidate is unpublished .48 with Integration 32's TOK5/GEN1;
-its effects are not isolated from those upstream changes. Final native SHA-256:
-`4b4767de85072da0aeaa866a5d857b8fbf6da9218049dc2838f3cc366b7d309b`.
-The platform tarball exactly matches consumer qualification. Baseline/final
-manifests, scripts, [all results](snapback4/reports/20261028-muse1/RESULTS.md)
-and [exact counts](snapback4/reports/20261028-muse1/replays-final.json) are retained.
+First complete red attempt: `redcheck/qualification/suite.log` records exactly
+**1 failure in 3440 seconds**, the lifetime race above. Consumer checkpoints are
+retained in that attempt's proofs.json, with **no qualification receipt**.
+Source moved for repair; never use that run as a release qualification.
 
-| Model | Version | Median calls | Median input | Median uncached | Median wall min |
-|---|---|---:|---:|---:|---:|
-| muse | .46 | 96 | 8,993,342 | 143,121 | 16.31 |
-| muse | .47 | 117.5 | 16,457,696 | 260,868 | 23.43 |
-| muse | final .48 | 83 | 8,114,108 | 179,086 | 16.69 |
-| codex | .46 | 41.5 | 2,397,016 | 62,104 | 11.51 |
-| codex | .47 | 34.5 | 2,227,055 | 139,119 | 10.74 |
-| codex | final .48 | 46 | 2,878,928 | 75,920 | 10.53 |
+Fresh complete final run on **55a4d4e39c**:
+- Rust **8,547 tests**, 1,206 invocations plus doctests: PASS in 1,225 seconds.
+- Full client pool **453/453 files**, **8,042 pass / 57 existing platform skips /
+  zero failures** of 8,099 tests: PASS in 1,707 seconds.
+- Both full-count app-session and online-client models: PASS in 326 seconds.
+- Complete source suite: **0 failures in 3,379 seconds**.
+- All final packed consumers, six host starters and clean Ubuntu24.04/Alpine proofs: PASS.
+- Complete Linux qualification: PASS, exit0; receipt source exactly matches the qualified main release.
 
-Muse versus .46: absolute median calls **−13.54%**, input **−9.78%**; PASS/PASS.
-Median paired ratios also pass: calls 0.8680, input 0.9031. Three of four ideas
-improve on calls/input; gown regresses. Median wall is 16.69 versus 16.31min;
-uncached input is higher than .46. Do not describe this as a measured wall win.
+Receipt: `/home/ccheever/sb4-loop/integration33/redcheck-final/qualification/receipt.json`.
+Receipt SHA256: `124c0f41e0e3482f6b902086ec70ce2c96262bee93839d2015a860334ca72e76`.
+Native SHA256: `83b36258fe31128f661b714810fd12e5a5a2d858c774e7dfd2e2256053b2724b`.
+Prepared client/Expo and qualified Linux tarball SRIs independently rechecked against the receipt.
 
-Codex versus .47: calls **+33.33%**, input **+29.27%**; MISS/MISS. Paired medians
-also miss: 1.3298/1.3257. Median wall is 10.53 versus 10.74min and uncached input
-is lower, but neither substitutes for the requested total-input/call bars.
+Final records: `/home/ccheever/sb4-loop/integration33/redcheck-final/`.
+Source/client/Rust summaries are retained there. The full qualifier produced
+`qualification/receipt.json` and exit0 before landing; it is the authority
+for source, artifact integrities, ELF/flags and complete consumer results.
 
-Small samples, shared provider windows and stochastic authoring limit causal
-claims (including wall/κ). The results are exploratory across three changed
-candidates, not an independent population-wide confirmation. No performance claim
-follows merely from source size, source reviews or package correctness.
+The supplied kit's `redcheck-at.sh` actually takes a records directory and
+hardcodes a forbidden publication worktree. It was read and copied, never run.
+`redcheck-final-driver.sh` preserves its prepare + complete qualify-linux sequence
+in this worktree with explicit external output paths, source/clean checks,
+timeouts and memory limits. Original/driver provenance and failed runs remain.
+No direct invocation of the full test.sh outside the commissioned qualifier.
 
-## 4. Remaining gap and follow-up
+### Wasm
 
-The final Codex CPAP session made five fixture-based test runs and six related
-poll tools, with three E_SECURITY_NOTES refusals; .47's CPAP control had no such
-fixture-test tools. This is a concrete extra loop, not proof that all twenty
-extra model calls have one cause or that the security diagnostic is wrong.
-Both final Codex builders declined the optional helpers. Availability did not
-preserve their measured gains. No security gate was weakened to improve counts.
+Locked Linux artifact: **2,416,593 raw / 738,550 gzip / 556,076 Brotli bytes**.
+Budget **739,050 = measurement + exactly 500**. Final packed raw wasm SHA256:
+`8d58e71e98d26c9730b74fcb844f58d375e68f94d6095ac0d6da9b38aa05f407`.
+It is byte-identical to the artifact whose strict family/server-only absence
+audits passed. `wasm-final-binding.json` binds final packing and measurement.
+Whole-artifact version/layout attribution only; no runtime ceiling increase or
+independent feature-cost claim.
 
-Follow-up: [Codex bars and fixture/security-note loops](issues/20261029-sb4-muse1-codex-bars-and-fixture-proof-loops.md).
-Investigate authoring/proof routing and diagnostic repair guidance; coordinate any
-`bind/security/**` change with its owner. Do not claim Codex non-regression or an
-overall bakeoff win from this branch. This is the material deferral.
+## Retention, landing and remaining work
 
-## 5. Verification, reviews and limits
+All heavy jobs use user systemd scopes with MemoryMax60G/OOMPolicycontinue,
+Cargo16, no incremental/debug payloads, at most two heavy jobs and command
+timeouts. Removed 24 completed host workspaces from each of the three consumer runs,
+retaining top-level checkpoints, logs and packs. After source tests finished,
+removed 1,011 completed hashed Rust test executables (35.72GiB logical), retaining
+the top-level CLI, shared libraries and dependency caches. Cleanup manifests are
+retained. No protected publication targets/worktrees or wave stores were touched.
 
-- Final scaffold CLI integration: **14/14 passed**; guide: **135/135 passed**.
-- Direct installed tarball controls passed for no default packet, explicit compact
-  creation, <=8KB/syntax/custody, real-account business/refusal assertions,
-  empty/unfilled negatives, full matrix uploads/deadline/approval coverage,
-  stale-fact/missing-role negatives and Chromium writes.
-- Fresh restricted-snapshot Muse round 3 and Codex round 5 both returned READY
-  for the final source/amendment. Verbatim artifacts/provenance are under
-  llp/reviews/3000.037.000-muse1-*. Earlier NOT READY/corrected rounds remain;
-  one earlier contaminated Codex round was not counted as independent readiness.
-- Final `qualify-linux.mjs --consumer-only` **passed**, source fc71b6edcc, unchanged
-  checkout. Includes packed starters, proof kit, frontend, staging, migrations,
-  production, client recipes and Linux/proot consumers. ELF passed; native and
-  platform tarball bytes match the final replays. Full receipt and summary are
-  consumer-optin.json.gz / consumer-optin-summary.json in the evidence directory.
-  Suite is deliberately `not-run`; `publicationQualified:false`. No publication.
-- Initial affected run: all 16 commands exited 0, but its input-stability guard
-  refused because provenance commits landed during it. No final-pass claim from it.
-  Final scoped affected run: **PENDING_FINAL_AFFECTED**.
-- Two compact consumer attempts are retained: the first exposed the exact output
-  inventory correction; the second completed proofs but source changes prevented
-  a receipt. Final qualification ran frozen and passed. These failed attempts are
-  not recast as qualifications.
+Landing: final receipt validated, then fetched origin. Main had not advanced beyond
+47ff676a47, so no further merge or requalification was needed. Normal
+`git push origin sb4-loop:main` succeeded, advancing main to **55a4d4e39c75a6aa5f661222b4161d0c2a623f79**.
+Visibility governance allowed it; two selected frozen-record drift gates deferred
+to the scheduled backstop under repository policy. The pre-push hook warned that
+its Node24.18.0 pin was absent and used ambient24.13.1; the publication qualifier
+itself used its pinned24.13.1 successfully. No force push.
 
-The full selector plan expands the shared CLI table/root report to the complete
-battery expressly excluded by the brief. Its plan is retained. The scoped runner
-uses planAffected/runPlan for CLI, guide and five proof/client test files plus all
-mandatory root guide/inventory/generated/diagnostic/docs/ref checks; only unrelated
-W8B residency calibration is skipped. No language/planner/store semantic change,
-full multi-crate/client pool, difftest, Mac qualification or full scripts/test.sh.
-Long jobs used user systemd scopes with MemoryMax=40G/OOMPolicy=continue, at most
-four expensive workers, no Cargo incremental/debug payloads. Large completed
-consumer/replay applications were removed; frozen packs and sanitized audit data
-remain privately under /tmp/muse1-evidence/.
+Root WORKSTREAM-REPORT.md is lane-local. This final report is committed locally
+after the qualified main push; its report-only child is intentionally not pushed.
+The source to publish is the qualified main commit above, not that local metadata
+child. Worktree clean after the report commit; all product commits are on main.
+
+MUSE1's small-sample Muse input/call bars pass; Codex input/call bars miss. The
+existing Codex fixture/security-note follow-up remains open. No general dollar,
+wall-clock or overall bakeoff win is claimed. The inherited Lean model gaps stay
+explicit. Mac/signing/native publication and npm release remain with the publish
+agent; **0.4.49** is the version to publish from the final qualified source.
