@@ -526,7 +526,7 @@ export function awaitBoundary() {
 // of compiling identical bytes again. These are startup/representation sites,
 // not new durable-write, receipt, FIFO, grant or outbox transitions. Existing
 // delivery sites/recipes stay pinned and their full fault matrix still runs.
-// STARTER2 adds nine proof-browser UI/auth waits and one proof.ts mounted-control
-// wait; these operate on proof pages, outside client delivery custody. Browser
+// STARTER2 adds nine proof-browser UI/auth waits and one proof.ts rendered-selector
+// registration wait; these operate on proof pages, outside client delivery custody. Browser
 // restore/account-switch and startup/offline regressions exercise these paths.
 // @ref LLP 3000.002#browser-startup-loading — deferred runtime opening retains the existing persistence and identity lifecycle.

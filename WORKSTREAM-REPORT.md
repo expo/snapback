@@ -114,8 +114,8 @@ The final lean affected pass uses the selector's own `planAffected`/`runPlan`
 source binding. Both complete and scoped plans are retained under
 `/tmp/integration34/affected-final/`. The version/corpus changes conservatively
 select unrelated full crate suites, models and semantic difftests. The scoped
-pass retains CLI units and changed/relevant integrations, the language suite,
-changed client tests plus runner regressions, builds, fixtures and root checks;
+pass retains CLI units and changed/relevant integrations, language guide/diagnostic targets (the full language suite also passed in the
+earlier run), changed client tests plus runner regressions, builds, fixtures and root checks;
 only the unrelated W8B calibration is excluded from its CLI targets. The full
 publication red check retains all omitted work, including W8B and the full client
 pool. Scope overrides are explicit; a scoped affected receipt is not a full-suite
@@ -136,6 +136,27 @@ accesses the active 0.4.49 publication worktree or `target/publication/`.
 Qualification uses private strace 6.17 after the lane-documented 6.8 decoder issue;
 no listener-audit rule is relaxed. The complete red check must produce exit 0,
 a green suite and an exact-source receipt before push.
+
+## Final proof reconciliation
+
+`d39626599c` reconciles the remaining release checks with the merged surfaces:
+public helper examples and API-index names, five-second installer progress,
+the deferred web-runtime Metro transform, explicit 0.4.50 device/sync fixture
+pins and the bounded native-guide route. The await boundary was audited against
+the upstream startup split and STARTER2 UI helper changes; delivery fault sites
+and recipes remain intact. Both fresh round-3 reviews returned READY; the
+selector-registration wording advisory was also corrected. Focused fixes passed
+43 client tests in the Snapback 4 working directory.
+
+The earlier scoped pass accidentally dropped the selector's serial CLI feature/
+thread settings and exposed two fixture collisions. The final runner restores
+`--features snapback4-core/test-support` and `--test-threads=1`; production code
+and timing assertions were not weakened. Preliminary receipts also retain the
+obsolete expectation/version/census reds. After those fixes, final affected
+checks run on the new committed source, with fresh CLI integrations, client
+regressions, guide/diagnostic targets and root checks. Earlier source-changing
+runs remain explicitly non-qualifying. Final full publication qualification
+still executes the complete canonical battery on the exact final candidate.
 
 ## WASM, resources and limits
 
