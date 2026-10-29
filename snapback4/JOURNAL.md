@@ -110373,3 +110373,31 @@ Packed Linux consumer-only qualification passes at fc71b6edcc with unchanged
 source and byte-identical replay/qualification platform tarball (native 4b4767de).
 Suite not run, publicationQualified false; final affected run follows the report
 commit. See WORKSTREAM-REPORT.md and reports/20261028-muse1/RESULTS.md.
+
+
+### 2026-10-29 — Integration 33 / 0.4.49
+
+Merge MUSE1's reviewed opt-in fallback. Ordinary check creates neither proof
+packet; existing exhaustive packets retain code custody and refresh bound facts.
+The compact one-scenario helper and exhaustive matrix require explicit requests.
+Application assertions and npm run verify remain the default. The small retained
+replays improve Muse input/calls; Codex input/call bars miss, with the existing
+follow-up ticket retained. No universal cost or wall-clock win is claimed.
+
+R1 source review confirms proofResponse adds no rejection: disabled observation
+returns immediately and enabled setup is caught. Its deferred JSON wrapper keeps
+the original decoder rejection at the existing caller await; diagnostic errors
+are caught. Harness-only account/browser waits are outside SDK delivery custody.
+Regenerate awaitBoundary(), preserving all 215 fault sites and both assertions.
+
+The 0.4.49 bump advances the device-version and sync-generation tripwires and
+native Following lock. scripts/bump-version.mjs now validates every release pin
+before updating manifests, workspace/fixture locks and both tripwires together.
+A disposable-copy check proves full advancement and no writes on a stale pin.
+Locked Linux web device: 2,416,593 raw / 738,550 gzip / 556,076 Brotli bytes;
+739,050 budget is measurement plus 500. Strict family/absence audits pass.
+Whole-artifact version/layout attribution only; runtime ceilings are unchanged.
+Integration verification and the complete Linux red-check receipt are retained
+in the workstream report. The supplied redcheck-at.sh hardcodes a publication
+worktree, so a local driver preserves its full prepare/qualify sequence in this
+worktree with explicit external records and memory/timeout bounds.
