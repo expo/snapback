@@ -1,11 +1,11 @@
+import '../scripts/test-npm-cache.mjs';
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { createServer } from "node:net";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 export const environment = () => ({ ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}`,
-  npm_config_cache: process.env.npm_config_cache ?? join(tmpdir(), "snapback4-ceremony-npm-cache"), SNAPBACK4_BIN: undefined, CI: undefined });
+  SNAPBACK4_BIN: undefined, CI: undefined });
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function launch(command, args, { cwd, log, input, env = {}, limitMs } = {}) {
