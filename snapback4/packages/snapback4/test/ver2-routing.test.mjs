@@ -66,8 +66,9 @@ test('source mutation during proof, changed environment, corrupt receipt and sym
 test('Codex lane: one verify command supplies progress to 1s exec plus 5s completion polls', { timeout: 60000 }, async t => {
   const f = fixture(t); const r = await f.run('verify', { VER2_SLOW: '2600' });
   assert.equal(r.code, 0, r.out);
-  // Fast phases require no heartbeat; the terminal summary is still bounded.
-  assert.equal(r.out.trim().split('\n').length, 3);
+  // Even sub-five-second phases must not create a silent eleven-second loop.
+  assert.equal(r.chunks.filter(c => c.text.includes('verify: running')).length, 2);
+  assert.equal(r.out.trim().split('\n').slice(-3).length, 3);
   const slow = await f.run('verify', { VER2_SLOW: '5300' }); assert.equal(slow.code, 0, slow.out);
   assert.equal(slow.chunks.filter(c => c.text.includes('verify: running')).length, 4);
   const progress = slow.chunks.filter(c => c.text.includes('verify: running')).map(c => c.ms);

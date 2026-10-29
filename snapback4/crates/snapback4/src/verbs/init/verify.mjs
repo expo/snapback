@@ -29,14 +29,13 @@ const temporary = `${path}.${randomUUID()}.tmp`;
 const fd = openSync(temporary, 'wx', 0o600);
 const steps = ['check', 'acceptance', 'frontend:proof', 'probe:check'];
 const passed = [], reused = [], started = Date.now();
-let failed, code = 0;
+let failed, code = 0, current = steps[0];
+const progress = setInterval(() => console.log(`verify: running ${current}; ${Math.round((Date.now()-started)/1000)}s elapsed`), 5000);
 try {
   for (const step of steps) {
     unwatch.check(); // close the polling interval race before admitting a phase
+    current = step;
     writeSync(fd, `\n=== ${step} ===\n`);
-    const phaseStarted = Date.now();
-    const progress = setInterval(() => console.log(`verify: running ${step}; ${Math.round((Date.now()-phaseStarted)/1000)}s elapsed`), 5000);
-    try {
     const reuse = await reusePhase(step);
     unwatch.check(); // hashing may yield; revalidate before reuse or worker admission
     if (reuse) { passed.push(step); reused.push(step); writeSync(fd, 'reused passing phase (same source/session)\n'); continue; }
@@ -48,11 +47,11 @@ try {
       child.once('message', message => { if (Number.isInteger(message?.code)) result = message.code; child.disconnect(); });
       child.once('error', error => { writeSync(fd, String(error)+'\n'); resolve(1); });
       child.once('exit', () => resolve(result));
-    }); } finally { clearInterval(progress); }
+    });
     if (code) { failed = step; break; }
     passed.push(step);
   }
-} finally { unwatch(); closeSync(fd); renameSync(temporary, path); }
+} finally { clearInterval(progress); unwatch(); closeSync(fd); renameSync(temporary, path); }
 const detail = readFileSync(path, 'utf8');
 if (args.length) process.stdout.write(detail);
 else if (failed) {
