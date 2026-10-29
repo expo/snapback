@@ -1,6 +1,6 @@
 # snapback4 0.4.49: Darwin serve/dev SIGTERM themselves under a root-owned ancestor
 
-Status: Open
+Status: Resolved
 Date: 2026-10-29
 Scope: `crates/snapback4/src/supervisor.rs` (`adopt()`, macOS `identity()`), since `60bf7d65d1` and the SRV1 lifetime work.
 Found by: the 0.4.49 publication. `publish.mjs --resume` re-runs `proveDarwin`, whose `checkVerbHelp` runs the installed
@@ -44,3 +44,34 @@ example a test that stubs the identity read to fail with EPERM.
 0.4.49 was qualified (Linux receipt and Mac dry run green) and stopped before any upload pending a coordinator ruling. If it
 is published as is, its finish must run detached, reparented to launchd, because the release's own Darwin consumer proof hits
 this defect inside an ssh session.
+
+
+## Resolution — 2026-10-29 (DARWIN1)
+
+Implemented in `7234ee57f9` without a version bump. Native identity readers now
+fall back to signal-0 liveness on unreadable metadata on every platform. Only
+ESRCH establishes absence; EPERM preserves an unverified living identity.
+Known zombies, verified birth changes, getppid reparenting, Linux PDEATHSIG
+and private parent-pipe cleanup retain their existing death semantics. The
+JavaScript parent watcher uses the same absence rule and falls back on empty
+process-table output too. Discovery stops at an opaque ancestor without
+inventing a parent or birth identity.
+
+Help and version requests bypass native adoption, even with a dead supplied
+launcher. Unsupported per-verb --version still returns its normal E_INPUT
+rather than acquiring custody first. Regression tests inject libproc-style
+EPERM and probe EPERM into ancestor capture/watching, then prove ESRCH still
+reports loss; the CLI test poisons the supplied launcher for informational paths.
+
+The actual supervisor module compile-checks for aarch64-apple-darwin against
+the product's locked libc 0.2.189. A final packed Linux binary passes
+help/version probes and real-launcher SIGKILL cleanup for both serve and dev
+(pipe EOF in 132/126 ms, respectively). Existing packed serve/proof-kit and
+production proofs pass. The affected lifetime/startup suite and final receipt
+are recorded in WORKSTREAM-REPORT.md in the DARWIN1 worktree.
+
+Two independent source reviews (Muse and fresh Codex), plus their final
+informational-path delta reviews, are READY and preserved with lossless raw
+transcripts under llp/reviews/3000.037.000-darwin1-*. Physical Mac runtime and
+0.4.49 publication qualification remain with the publication host; this ticket
+closes the implementation defect and does not claim publication qualification.
