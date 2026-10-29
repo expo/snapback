@@ -110502,3 +110502,20 @@ are synthetic host probes, not physical-mobile or publication qualification.
 The broad affected run is in progress. No product behavior changes after its
 selected revision; this entry, measurement records, current-byte reference
 correction and one trailing blank-line cleanup retain that semantic delta.
+
+### 2026-10-29 — Web startup client qualification and ordinary landing
+
+The complete selected app/browser batch passes 1,028 tests across 33 files,
+including both 5,000-sequence session models, worker/admission review and the
+new deferred-load/offline-reload regression. Typecheck, package build,
+docs-budget, packaged-doc lint and ref-check pass. The moved device and
+persistence function bodies compare byte-for-byte with their former locations.
+The tested product revision is 1b375a217a; later commits record evidence/docs
+and remove a trailing blank line, without changing its semantic delta.
+
+The conservative selector expands the research-LLP/doc change to 31 steps,
+including every Rust package, the client pool and root-repository checks. Its
+install, native build, WASM build, client build and typecheck pass; backend
+suites are still running. Ordinary landing uses the scoped app/browser proof
+under the fast/affected cadence; that broad follow-up remains outstanding and
+is not represented as passing. This is not an npm release qualification.
