@@ -10,8 +10,8 @@ const excludes=['node_modules','./.agent.ndjson','./.agent-final.md','./.lane-st
 async function run(a){
  const dir=`/tmp/dx17/${phase}/apps/${a.id}`,tmp=`/tmp/dx17/t/${phase}-${a.n}`;
  mkdirSync(dir,{recursive:true});mkdirSync(tmp,{recursive:true});
- const targetVersion=phase==='after-route'?'0.4.49':'0.4.48';
- const lo=(phase==='before'?51000:phase==='after-route'?53000:52000)+a.n*10;
+ const targetVersion=['after-route','after-observe'].includes(phase)?'0.4.49':'0.4.48';
+ const lo=(phase==='before'?51000:phase==='after-route'?53000:phase==='after-observe'?54000:52000)+a.n*10;
  execFileSync('bash',['-c','tar "$@" -cf - . | tar -xf - -C "$DX17_DEST"','copy',...excludes.map(e=>'--exclude='+e)],{cwd:a.sourceLane,env:{...process.env,DX17_DEST:dir},timeout:600_000});
  const restored=[];
  const status=JSON.parse(readFileSync(a.sourceLane+'/.lane-status.json'));

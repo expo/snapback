@@ -48,3 +48,26 @@ Integration 33's .49 package manifest; this is not Mac qualification. Consumer
 proofs use installed tarballs and no SNAPBACK4_BIN override. They do not qualify
 publication. Completed multi-GB consumer directories are deleted after their
 root JSON receipts, platform tarball, log and digests are retained privately.
+
+The final replay manifest reports packaging-time HEAD 495cff6b4a. The native
+build began before documentation merge resolution, so it embedded DX17's note
+under .48 while canonical source puts it under .49. Rebuilt qualification at
+02be4d732f has a different platform digest. All 60 default native-guide packets
+were compared: only changes differs (section sizes/placement); day2 and SDK
+checker are identical. This is a known input difference, not an exact-input
+native source attestation. Keep both hashes and avoid a final-source byte-equal
+or isolated causal performance claim. The exact frozen replay platform also
+passed two complete installed DX17 checker fixtures, with hash equality. Both
+complete consumer-only qualifications passed and confer no publication status.
+
+The after-route cohort is REJECTED, not the final verdict. Its checker wrongly
+asserted frozen client exit0, contrary to the brief. Calls/dollars regressed;
+all raw runs remain retained. Correction 192dc516a4 records ordinary legacy
+outcomes, keeps original npm hooks and strict new callers/observable cleanup.
+The adapter-bypass proposal was rejected. Observe only the original command's
+status; opaque wrappers may mask nested signals, explicitly disclosed. The
+final after-observe cohort reuses the same five fixed seeds, .49 pin and briefs,
+ports54000+n*10, on a canonical production build shared with consumer qualification.
+Final source packet is7998bytes (7999served). Final observation round3 both
+families READY; source controls4/4 and guide135/135 passed. Performance remains
+unestablished until that separate complete cohort; never select best trials.

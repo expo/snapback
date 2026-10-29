@@ -1,5 +1,5 @@
 import{readFileSync,writeFileSync,existsSync}from'node:fs';import{createHash}from'node:crypto';import{join}from'node:path';
-const evidence=process.argv[2]??'/tmp/dx17/evidence',phases=['before','after-final','after-route'],ns=[2,5,9,11,18],rows=[];
+const evidence=process.argv[2]??'/tmp/dx17/evidence',phases=['before','after-final','after-route','after-observe'],ns=[2,5,9,11,18],rows=[];
 const read=p=>JSON.parse(readFileSync(p));
 for(const phase of phases)for(const n of ns){
  const lp=join(evidence,`${phase}-${n}-launch.json`),rp=join(evidence,`${phase}-${n}-result.json`),vp=join(evidence,`${phase}-${n}-verification.json`);
@@ -9,7 +9,8 @@ for(const phase of phases)for(const n of ns){
  const measured=read(join(launch.dir,'.harness/model-metrics.json'));
  let lastProof=v.lastProof??v.results.filter(r=>r.cmd==='npm run day2:proof').at(-1)?.result;
  rows.push({phase,n,lane:launch.a.id,model:launch.a.model,source:launch.a.sourceLane,registry:launch.registry,exit:result.code,wallMinutes:result.wallMs/60000,
-  costUsd:p.costUsd,costUsdMuseStandard:p.costUsdMuseStandard,costBasis:p.costBasis,calls:measured.modelCalls,
+  initialCompletionSensitivityMinutes:result.initialCompletionWallMs?result.initialCompletionWallMs/60000:null,postTerminalCleanup:result.postTerminalCleanup===true,
+  costUsd:p.costUsd,costUsdMuseStandard:p.costUsdMuseStandard,costBasis:p.costBasis,priceVersion:p.costPricing.priceVersion,priceSha256:p.costPricing.priceSha256,costComplete:p.costPricing.costComplete,calls:measured.modelCalls,
   ...p.costPricing.usageTotals,toolMinutes:measured.toolMinutes,modelMinutes:measured.modelMinutes,releaseCommandMinutes:measured.builderReleaseCommandMinutes,
   sourceArchiveComplete:!v.archive.missing.length,perCall:p.costPricing.units.map(({call,model,inputTokens,cachedInputTokens,outputTokens,reasoningTokens,costUsd,kind,basis,longContext})=>({call,model,inputTokens,cachedInputTokens,outputTokens,reasoningTokens,costUsd,kind,basis,longContext})),
   proofRuns:v.results.map(r=>({command:r.cmd,exit:r.code,seconds:r.ms/1000,proof:r.result})),proofsGreen:v.results.every(r=>r.code===0),lastProof,
@@ -21,6 +22,6 @@ for(const phase of phases)for(const n of ns){
  });
 }
 const mean=(xs,k)=>xs.reduce((n,x)=>n+x[k],0)/xs.length;
-const groups={};for(const phase of phases)for(const model of ['muse','codex']){const xs=rows.filter(x=>!x.pending&&x.phase===phase&&x.model===model);groups[phase+'/'+model]={n:xs.length,costUsd:xs.length?mean(xs,'costUsd'):null,calls:xs.length?mean(xs,'calls'):null,wallMinutes:xs.length?mean(xs,'wallMinutes'):null,allProofsGreen:xs.every(x=>x.proofsGreen),allStagesGreen:xs.every(x=>x.drill.stagesOk),allDataPreserved:xs.every(x=>x.drill.dataPreserved===true),frozenAfterV2Works:xs.filter(x=>x.drill.v1AfterV2==='works').length,frozenAfterRollbackWorks:xs.filter(x=>x.drill.v1AfterRollback==='works').length,allV2RowsReturned:xs.filter(x=>{const r=x.drill.v2WrittenReturns;return r?.considered>0&&r.returned===r.considered}).length};}
+const groups={};for(const phase of phases)for(const model of ['muse','codex']){const xs=rows.filter(x=>!x.pending&&x.phase===phase&&x.model===model);groups[phase+'/'+model]={n:xs.length,costUsd:xs.length?mean(xs,'costUsd'):null,calls:xs.length?mean(xs,'calls'):null,wallMinutes:xs.length?mean(xs,'wallMinutes'):null,allProofsGreen:xs.every(x=>x.proofsGreen),allProbesGreen:xs.every(x=>x.probeServe?.status===0),allStagesGreen:xs.every(x=>x.drill.stagesOk),allDataPreserved:xs.every(x=>x.drill.dataPreserved===true),frozenAfterV2Works:xs.filter(x=>x.drill.v1AfterV2==='works').length,frozenAfterRollbackWorks:xs.filter(x=>x.drill.v1AfterRollback==='works').length,allV2RowsReturned:xs.filter(x=>{const r=x.drill.v2WrittenReturns;return r?.considered>0&&r.returned===r.considered}).length};}
 const report={schema:'dx17-whole-day2-v1',generatedAt:new Date().toISOString(),target:{museCostUsd:0.0561,museCalls:99.47,comparison:'Supabase wave35 all-15-lane means, a threshold not a paired causal control'},groups,rows};
 writeFileSync(join(import.meta.dirname,'replays.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(groups,null,2));

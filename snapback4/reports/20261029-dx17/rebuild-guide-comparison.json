@@ -1,0 +1,25 @@
+{
+  "cards": 60,
+  "differences": [
+    {
+      "card": "changes",
+      "oldSha256": "e78fd716853063565c7fe891fffc9b11b88e0f9a70b3fd9702e9c38034937845",
+      "newSha256": "5828cf982e7e06bb303caecc0a3c93d4deeb4caf8420b1f410abc2795b482d3f",
+      "diff": [
+        "--- \n",
+        "+++ \n",
+        "@@ -13,8 +13,8 @@\n",
+        " ",
+        " Sections of guide changes:",
+        "     1. Opening (9 lines)",
+        "-    2. 0.4.49 (6 lines)",
+        "-    3. 0.4.48 (8 lines)",
+        "+    2. 0.4.49 (7 lines)",
+        "+    3. 0.4.48 (7 lines)",
+        "     4. 0.4.47 (7 lines)",
+        "     5. 0.4.46 (13 lines)",
+        "     6. 0.4.45 (9 lines)"
+      ]
+    }
+  ]
+}
