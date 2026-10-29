@@ -23,3 +23,14 @@ attempt failed in qualification; do not replace it with a successful restart.
 No campaign or harness was changed by OWN.
 
 Evidence and reproduction: `snapback4/reports/20261027-ownership-loss/REPORT.md`.
+
+## 2026-10-29: two natural occurrences under Stage R exact-key load
+
+SPR9 (`9ada6771e6`, R opt-in, G6 on) exited with `E_STORE_OWNERSHIP` in two
+native S1-R9 repetitions: `0564-W5-same-A-headlines-r9-2262-rep2` (6 ACKs)
+and `0683-W5-same-B-headlines-r9-1600-rep2` (3 ACKs); durable counters equal,
+rollback or durability recovery not confirmed. Same-binary flag-off main never
+exited in the matched blocks. The fail-stop fix worked as designed; the
+initiating fault is still unattributed and now has an R-specific reproduction
+target (exact key, 1,600–2,262/s). See
+`results-20261028-s1-r9-competitive/README.md` and `candidate-failures.json`.
