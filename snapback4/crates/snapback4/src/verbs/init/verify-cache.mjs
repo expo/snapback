@@ -45,10 +45,12 @@ async function source() {
   };
   // Only generated runtime/build state is excluded. Unknown authored files,
   // dotfiles, fixtures, scripts and all lockfiles participate, even outside git.
-  const outputs = new Set(['.git', '.snapback4', 'node_modules', 'dist', '.expo', 'target']);
+  const outputs = new Set(['.git', '.snapback4', 'node_modules', 'dist', '.expo', 'target', 'logs']);
   const walk = async path => {
     for (const name of readdirSync(path).sort()) {
       if (path === '.' && outputs.has(name)) continue;
+      // Test timing/evidence is a phase output, not an input to its own rerun.
+      if (join(path, name) === 'snapback/generated/security-test.json') continue;
       await tick();
       const file = join(path, name), stat = lstatSync(file);
       // Compiler-owned generated API files are rewritten by check; their bytes
@@ -68,8 +70,14 @@ async function source() {
   // Dependency source edits/install changes also invalidate reuse. Metadata is
   // cheaper than rehashing Expo's dependencies; ctime catches restored mtimes.
   // Follow symlinks once, so linked dependency trees remain covered.
+  // Vite writes and removes temporary config modules on every build. Prepare
+  // its reserved output directory before capturing node_modules metadata so
+  // its first creation cannot masquerade as an installation change.
+  try { if (lstatSync('node_modules').isDirectory()) mkdirSync('node_modules/.vite-temp', { recursive: true }); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
   const seen = new Set();
   const dependencies = async path => {
+    if (path === 'node_modules/.vite-temp') return;
     await tick();
     let stat;
     try { stat = lstatSync(path); } catch (error) { if (error.code === 'ENOENT') return; throw error; }

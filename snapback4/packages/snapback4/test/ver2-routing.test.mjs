@@ -131,3 +131,14 @@ test('concurrent removal of the same stale marker does not abort pass recording'
   const result = await f.run('verify', env); assert.equal(result.code, 0, result.out);
   assert.match(result.out, /acceptance \(reused\)/);
 });
+test('real starter outputs: test report, proof logs and Vite config cache do not invalidate passing source', { skip: process.platform !== 'linux' }, async t => {
+  const f = fixture(t);
+  mkdirSync(join(f.cwd, 'snapback/generated'), { recursive: true }); mkdirSync(join(f.cwd, 'node_modules'));
+  writeFileSync(join(f.cwd, 'snapback/generated/api.ts'), 'generated API');
+  writeFileSync(join(f.cwd, 'scripts/phase.mjs'), `import{mkdirSync,writeFileSync,rmSync}from'node:fs';mkdirSync('logs',{recursive:true});writeFileSync('logs/proof.log',String(Date.now()));writeFileSync('snapback/generated/security-test.json',JSON.stringify({elapsed:Date.now()}));if(process.argv[2]==='frontend:proof'){mkdirSync('node_modules/.vite-temp',{recursive:true});writeFileSync('node_modules/.vite-temp/config.mjs','temporary bundled config');rmSync('node_modules/.vite-temp/config.mjs');}`);
+  for (const phase of ['acceptance', 'frontend:proof']) assert.equal((await f.run(phase)).code, 0);
+  const reused = await f.run('verify'); assert.equal(reused.code, 0, reused.out);
+  assert.match(reused.out, /acceptance \(reused\), frontend:proof \(reused\)/);
+  writeFileSync(join(f.cwd, 'snapback/generated/api.ts'), 'edited API');
+  assert.doesNotMatch((await f.run('verify')).out, /reused/);
+});
