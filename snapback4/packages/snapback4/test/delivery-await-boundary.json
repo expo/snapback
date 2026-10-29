@@ -92,8 +92,8 @@
     "sha256": "b69c48f1988028b71ba35b0c50f25cceec862bafa18b2ce80aac0bcf2a2f3b92"
   },
   "client.ts": {
-    "count": 68,
-    "sha256": "06bcdad483f85e06b3c05e99005e0201c922e8618bea1ae13d9f9ec67610248e"
+    "count": 69,
+    "sha256": "645a598db3123051184b07d009c8d4cd36c5434e5fcbac60b5d4c895cbe3c993"
   },
   "clock.ts": {
     "count": 11,
@@ -168,8 +168,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "identity-request.ts": {
-    "count": 3,
-    "sha256": "8872c4680f22a7120d9ac0cab9a45f33e14873bc2049dc4b5fb068fc57bfac94"
+    "count": 4,
+    "sha256": "0ded8b2d1dc4c63f5b55d649c6d8ec4277147a19cc83110fce5fb963e2d77f57"
   },
   "identity-runtime.ts": {
     "count": 5,
@@ -264,8 +264,8 @@
     "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
   },
   "local.ts": {
-    "count": 175,
-    "sha256": "a128539bd2df6bed9e8787b99cfd603cb4868ba4b91b1ad187656542d48c4ab4"
+    "count": 176,
+    "sha256": "88a2351fdf3d789565edb6b2309036efd6c16bd670e9200d983c5183ecb8f931"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -307,6 +307,10 @@
     "count": 1,
     "sha256": "e6c6828a456c1d93886e526a7bc13a0f9944a4aa461382f065656e32e42c8406"
   },
+  "parent-lifetime.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "pending-items.ts": {
     "count": 3,
     "sha256": "b549ce4e8268976bea3ef5beb2fcbd3577244c5d0f5f52012aa81ae368d33691"
@@ -320,16 +324,24 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-accounts.ts": {
-    "count": 12,
-    "sha256": "2d6e57e6f0125d53bd5cd7197ed83ce9ac04a4d47f1eceeeba57a984d32daa61"
+    "count": 16,
+    "sha256": "97736ea5513e1fbe23b6b4be6b7c9545e6e85aad6044b32e53424e64849b5856"
   },
   "proof-command.ts": {
     "count": 1,
     "sha256": "b47dfef5007c37fe7ece8465adadaa7c6f4c833f6eb8c7f18251a9fd6a6f9adc"
   },
+  "proof-failure.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "proof-fixtures.ts": {
     "count": 5,
     "sha256": "0e6d41806735c7e3b4ec98e2fe8c29d18c41d19a3b48d7caec59c428f8ebeaea"
+  },
+  "proof-fresh.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-guard.ts": {
     "count": 0,
@@ -339,6 +351,10 @@
     "count": 7,
     "sha256": "02eb293783956fc30045f3fa71c0ab786337ca2acdc355bb7edf6ef239efd24b"
   },
+  "proof-observation.ts": {
+    "count": 1,
+    "sha256": "87121b42960b53ea61f4ba7f34e1c87555bd5c46b0d473b5ed3db607cf16d5a4"
+  },
   "proof-probe.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -346,6 +362,10 @@
   "proof-process.ts": {
     "count": 9,
     "sha256": "2f439e3bfe64e4babef29361749bbc2a3cf91d4a15738e78e862112fd13359eb"
+  },
+  "proof-report.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-roster-lock.ts": {
     "count": 0,
@@ -364,8 +384,8 @@
     "sha256": "400a92195e1f2725a0c0c9cae23614c4ba382cd45ec1382e32d51bfa33cd6fe9"
   },
   "proof.ts": {
-    "count": 70,
-    "sha256": "5646c9099914352bcef1fc8c4c5817839d8d84aea20f8f6a01d90339ef08950f"
+    "count": 74,
+    "sha256": "3e8849799d6df513a1c443de1261049a4960a540f9a1868715630e9e657e2ee2"
   },
   "query-custody.ts": {
     "count": 1,
