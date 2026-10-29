@@ -34,8 +34,10 @@ VER2 (product 067f042626) routes starters/start/workflow through verify, retains
 focused phase reruns, and reuses source/session-matched direct passes. Scripted
 Muse sequences execute acceptance/frontend once; the real web starter replay
 also reports both reused after excluding its known runtime report/log/Vite
-outputs. Codex-shaped actual tool replay: four separate issuing calls plus
-four completion polls become one issuing call plus three polls (21.824 s).
+outputs. Codex-shaped fixed-cadence transport replay: four issuing calls plus four
+completion polls become one issuing call plus five polls (eight requests to six;
+21.883 s). An earlier manual replay had three polls because agent time elapsed
+between calls; it is retained separately in mechanics.json.
 These are mechanical results, not whole-session model cost/adoption evidence.
 
 The current measurement instruction supersedes the old two-pair replay recipe:

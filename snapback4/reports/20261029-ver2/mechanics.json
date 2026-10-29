@@ -1,7 +1,7 @@
 {
-  "format": 1,
-  "scope": "scripted mechanics, not model-session cost measurement",
-  "source": "72a35febbc",
+  "format": 2,
+  "scope": "scripted tool transport mechanics; not model-session cost, token or adoption measurement",
+  "source": "fb1ccb0c90",
   "control": {
     "yieldMs": 1000,
     "pollYieldMs": 5000,
@@ -34,19 +34,34 @@
         "exit": 0,
         "ms": 5463
       }
+    ],
+    "issuingCalls": 4,
+    "completionPolls": 4,
+    "totalToolRequests": 8
+  },
+  "verifyFixedCadence": {
+    "source": "fb1ccb0c90",
+    "yieldMs": 1000,
+    "pollYieldMs": 5000,
+    "issuingCalls": 1,
+    "completionPolls": 5,
+    "elapsedMs": 21883,
+    "exit": 0,
+    "chunks": [
+      "verify: running check; 5s elapsed\n",
+      "verify: running acceptance; 10s elapsed\n",
+      "verify: running frontend:proof; 15s elapsed\n",
+      "verify: running probe:check; 20s elapsed\n",
+      "verify: passed; 4/4 phases; 21815ms\nsteps: check, acceptance, frontend:proof, probe:check\ndetails: .snapback4/last/verify.txt; npm run verify -- --explain for complete output\n"
     ]
   },
-  "verify": {
+  "interpretation": "Fixed cadence reduces eight exec/poll transport requests to six; completion polls alone are four separate vs five combined. Both run the same four 5.3-second synthetic phases. Heartbeats at 5/10/15/20s. This does not price model requests.",
+  "earlierManualReplay": {
+    "source": "72a35febbc",
     "issuingCalls": 1,
     "completionPolls": 3,
     "elapsedMs": 21824,
-    "heartbeatPhases": [
-      "check",
-      "acceptance",
-      "frontend:proof",
-      "probe:check"
-    ],
-    "finalLines": 3
+    "limitation": "Agent time between polls changes polling count; use final fixed-cadence replay for the controlled comparison."
   },
   "museSequence": {
     "commands": [
@@ -60,12 +75,10 @@
       "check",
       "probe:check"
     ],
-    "acceptanceExecutions": 1,
-    "frontendExecutions": 1,
     "test": "packages/snapback4/test/ver2-routing.test.mjs"
   },
-  "decision": "CANDRUN forty-lane Snapback-only rerun before merge; dollars are primary, using ~/sb4-loop/bakeoff/prices.json",
   "npmProcessTitleEvidence": [
     "npm run acceptance"
-  ]
+  ],
+  "decision": "Coordinator CANDRUN forty-lane Snapback-only rerun before merge; dollars primary using ~/sb4-loop/bakeoff/prices.json, wall clock secondary."
 }

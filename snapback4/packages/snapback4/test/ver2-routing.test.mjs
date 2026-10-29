@@ -68,13 +68,13 @@ test('Codex lane: one verify command supplies progress to 1s exec plus 5s comple
   assert.equal(r.code, 0, r.out);
   // Even sub-five-second phases must not create a silent eleven-second loop.
   assert.equal(r.chunks.filter(c => c.text.includes('verify: running')).length, 2);
-  assert.equal(r.out.trim().split('\n').slice(-3).length, 3);
+  assert.equal(r.out.trim().split('\n').filter(line => !line.startsWith('verify: running ')).length, 3);
   const slow = await f.run('verify', { VER2_SLOW: '5300' }); assert.equal(slow.code, 0, slow.out);
   assert.equal(slow.chunks.filter(c => c.text.includes('verify: running')).length, 4);
   const progress = slow.chunks.filter(c => c.text.includes('verify: running')).map(c => c.ms);
   assert.ok(progress[0] < 6500, JSON.stringify(progress));
   for (let i = 1; i < progress.length; i++) assert.ok(progress[i] - progress[i - 1] < 6500, JSON.stringify(progress));
-  assert.equal(slow.out.trim().split('\n').slice(-3).length, 3);
+  assert.equal(slow.out.trim().split('\n').filter(line => !line.startsWith('verify: running ')).length, 3);
   t.diagnostic(JSON.stringify({ lane: 'codex', issuingCalls: 1, completionPollsAt1Then5Seconds: Math.ceil((slow.ms - 1000) / 5000), elapsedMs: slow.ms, progressMs: progress }));
 });
 test('reuse is bound to the live builder incarnation and dependency edits', { skip: process.platform !== 'linux' }, async t => {
