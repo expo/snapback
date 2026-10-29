@@ -1,0 +1,35 @@
+{
+  "started": "2026-10-29T18:48:55Z",
+  "brief": "llp/reviews/3000.002.000-progressive-web-startup.panel.brief.md",
+  "brief_sha256": "18c9f52f9ccf36c852543a13203d30fce767e445b1f34788e6149775d6560984",
+  "source_commit": "8113683571",
+  "scope": "LLP 3000.002.000 whole document; direction check (panel skill, pass 1)",
+  "seats": [
+    {
+      "family": "OpenAI",
+      "model": "gpt-6-astra max",
+      "record": "llp/reviews/3000.002.000-progressive-web-startup.panel.astra.md",
+      "status": "received"
+    },
+    {
+      "family": "Anthropic",
+      "model": "claude-fable-5-1 xhigh",
+      "record": "llp/reviews/3000.002.000-progressive-web-startup.panel.fable.md",
+      "status": "received"
+    },
+    {
+      "family": "xAI",
+      "model": "grok-4.7 xhigh",
+      "record": "llp/reviews/3000.002.000-progressive-web-startup.panel.grok.md",
+      "status": "received"
+    },
+    {
+      "family": "Meta",
+      "model": "muse-wonder-full-1.0 xhigh",
+      "record": null,
+      "status": "did not sit: model id muse-wonder-full absent; muse-wonder-full-1.0 accepted but subscription quota exhausted until 2026-11-02T00:00:00Z (request 5e3a3529-d224-411c-8103-bb76ed9e319f)"
+    }
+  ],
+  "orchestrator": "Claude Fable 5.1 (Claude Code), who wrote no review and verified single-seat claims against the tree",
+  "finished": "2026-10-29T18:55:26Z"
+}
