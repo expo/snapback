@@ -1,6 +1,6 @@
 {
   "schema": "dx17-whole-day2-v1",
-  "generatedAt": "2026-10-29T05:27:13.957Z",
+  "generatedAt": "2026-10-29T05:38:07.498Z",
   "target": {
     "museCostUsd": 0.0561,
     "museCalls": 99.47,
@@ -14,7 +14,10 @@
       "wallMinutes": 18.35678888888889,
       "allProofsGreen": true,
       "allStagesGreen": true,
-      "allDataPreserved": true
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 2,
+      "frozenAfterRollbackWorks": 3,
+      "allV2RowsReturned": 0
     },
     "before/codex": {
       "n": 2,
@@ -23,7 +26,10 @@
       "wallMinutes": 13.352374999999999,
       "allProofsGreen": true,
       "allStagesGreen": true,
-      "allDataPreserved": true
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 2,
+      "frozenAfterRollbackWorks": 2,
+      "allV2RowsReturned": 1
     },
     "after-final/muse": {
       "n": 3,
@@ -32,7 +38,10 @@
       "wallMinutes": 18.163533333333334,
       "allProofsGreen": true,
       "allStagesGreen": true,
-      "allDataPreserved": true
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 2,
+      "frozenAfterRollbackWorks": 3,
+      "allV2RowsReturned": 0
     },
     "after-final/codex": {
       "n": 2,
@@ -41,7 +50,34 @@
       "wallMinutes": 12.580400000000001,
       "allProofsGreen": true,
       "allStagesGreen": true,
-      "allDataPreserved": true
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 1,
+      "frozenAfterRollbackWorks": 1,
+      "allV2RowsReturned": 1
+    },
+    "after-route/muse": {
+      "n": 0,
+      "costUsd": null,
+      "calls": null,
+      "wallMinutes": null,
+      "allProofsGreen": true,
+      "allStagesGreen": true,
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 0,
+      "frozenAfterRollbackWorks": 0,
+      "allV2RowsReturned": 0
+    },
+    "after-route/codex": {
+      "n": 0,
+      "costUsd": null,
+      "calls": null,
+      "wallMinutes": null,
+      "allProofsGreen": true,
+      "allStagesGreen": true,
+      "allDataPreserved": true,
+      "frozenAfterV2Works": 0,
+      "frozenAfterRollbackWorks": 0,
+      "allV2RowsReturned": 0
     }
   },
   "rows": [
@@ -544,6 +580,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 6,
           "internal": 0,
@@ -1307,6 +1355,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 6,
           "internal": 0,
@@ -2698,6 +2758,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "broken",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 1,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 5,
           "internal": 0,
@@ -4274,6 +4346,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 9,
           "internal": 0,
@@ -6402,6 +6486,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 9,
           "internal": 0,
@@ -7225,6 +7321,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 6,
           "internal": 0,
@@ -8019,6 +8127,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "broken",
         "v1AfterRollback": "broken",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": true,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 1,
+          "R1": 1,
+          "W2": 0,
+          "X2": 0,
+          "R2": 1,
+          "R2v": 1,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 12,
           "internal": 0,
@@ -9745,6 +9865,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "broken",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 1,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 5,
           "internal": 0,
@@ -11723,6 +11855,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 9,
           "internal": 0,
@@ -14043,6 +14187,18 @@
         "v2ClientExit": 0,
         "v1AfterV2": "works",
         "v1AfterRollback": "works",
+        "dayOneBaselineFailed": false,
+        "productionBaselineFailed": false,
+        "baselineStatus": "v1 client passed before day two",
+        "replayExit": {
+          "R0": 0,
+          "R1": 0,
+          "W2": 0,
+          "X2": 0,
+          "R2": 0,
+          "R2v": 0,
+          "F2": 0
+        },
         "v2WrittenReturns": {
           "created": 9,
           "internal": 0,
@@ -14218,6 +14374,31 @@
         "missingV1Fields": 0
       },
       "binarySha256": "41c750e04f6edf46d48fecf23362ebf618bbea731d568ad8150c2f51c8e47a1b"
+    },
+    {
+      "phase": "after-route",
+      "n": 2,
+      "pending": true
+    },
+    {
+      "phase": "after-route",
+      "n": 5,
+      "pending": true
+    },
+    {
+      "phase": "after-route",
+      "n": 9,
+      "pending": true
+    },
+    {
+      "phase": "after-route",
+      "n": 11,
+      "pending": true
+    },
+    {
+      "phase": "after-route",
+      "n": 18,
+      "pending": true
     }
   ]
 }

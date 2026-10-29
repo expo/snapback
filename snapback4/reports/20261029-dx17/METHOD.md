@@ -34,7 +34,10 @@ sensitivity, not a replacement wall result. Native Muse terminal UUID and
 recorded_at are synthetic/logical, so never derive wall time from them.
 This operational intervention prevents a simple causal wall-win claim.
 
-The first candidate passed all independent checks, but failed cost/call bars:
+The first candidate passed repeated proof processes, release stages and row
+conservation, but raw frozen-call scores and all-row returns are mixed (preserve
+them separately; judge:false does not calibrate new intended denials). It failed
+cost/call bars:
 Muse $0.066543→$0.075247; 118.33→140 calls. Codex $0.772266→$0.792532;
 36.5→39 calls. The final revised cohort is separately recorded. The fixed-seed
 threshold is wave35 Supabase all-15-lane means ($0.0561, 99.47 calls), not a
