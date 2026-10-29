@@ -11,7 +11,7 @@ npx snapback4 deploy ./deploy --save-version versions/v1
 
 ## Upgrade and save the actual v1
 
-Other sections are refusal-driven lookups; Postgres: guide release-json.
+Refusal lookups only; Postgres: guide release-json.
 
 Use the requested pin; restart old hosts. Adapt preserves authored scripts/snapshots and captures checked source, API and client:calls under v1/ BEFORE editing. Reuse existing immutable v1; never recapture v2 as v1. If v1/v2 are starter drafts, save actual v1 as versions/vN, copy to vM. Keep old snapshots. Substitute the chosen pair in ALL examples below, including both proof runs. The frozen client stays v1/. Record v1 ID once with releases ./deploy --json; 1 below assumes the first release.
 
@@ -96,8 +96,8 @@ The adapted day2:proof is a TEMPORARY-store conservation example: no business as
 npm run day2:check
 ```
 
-This runs check once; acceptance, frontend:proof and day2:proof twice each; rollback/forward twice each, with bounded prod:serve and frozen calls after EVERY move (v2 calls after forward); finally bounded probe:serve + v1/v2 calls. It deletes dist before each frontend proof and stale day2-proof.json before each day-two proof. Services stay ready 30s; group shutdown/store release is checked. First red stops with its exit code, phase and private .snapback4/last/day2-check.json; read that file without rerunning. --explain/--json rerun the drill. Rerun after a repair/relevant edit, not for reassurance. Authored assertions decide coverage.
+This runs check once; acceptance, frontend:proof and day2:proof twice each; rollback/forward twice each, with bounded prod:serve and frozen calls after EVERY move (v2 calls after forward); finally bounded probe:serve + v1/v2 calls. It deletes dist before each frontend proof and stale day2-proof.json before each day-two proof. Stage hosts span calls; probe is observed for 30s; shutdown/store release is checked. First red stops with its exit code, phase and private .snapback4/last/day2-check.json; read that file without rerunning. --explain/--json rerun the drill. Rerun after a repair/relevant edit, not for reassurance. Authored assertions decide coverage.
 
-Frozen calls use `npm --prefix v1 run client:calls` with BACKEND_URL and CALLS_USERS (a private JSON file). Keep v1 handles/API; distinguish rule refusals from transport failures. prod:serve serves the current selection; probe:serve selects v2, builds the production frontend, prints backendUrl/frontendUrl/sessions and stays up for its caller. Use serveUntilSignal and finally cleanup. The checker holds services and passes users privately. --timeout-ms bounds scripts; --up-ms sets observation time.
+Frozen calls use `npm --prefix v1 run client:calls` with BACKEND_URL and CALLS_USERS (a private JSON file). Keep v1 handles/API; distinguish rule refusals from transport failures. prod:serve serves the current selection; probe:serve selects v2, builds the production frontend, prints backendUrl/frontendUrl/sessions and stays up for its caller. Use serveUntilSignal and finally cleanup. The checker holds services and passes users privately. --timeout-ms bounds scripts; --up-ms sets probe observation time.
 
 `data TABLE --release ./deploy --all --json` / snapshotAll merge active/retained rows and cells by ID; admin inspection bypasses app rules and cannot prove frozen-client readability. Never substitute it for the client checks.

@@ -7,6 +7,12 @@ import { command } from '../dist/proof.js';
 import { serveCheck } from '../dist/proof-serve-check.js';
 import { synopsis } from './cli-usage.js';
 
+// serveCheck.ready is a boolean, not its private readiness payload. Keep the
+// persisted receipt explicit so future additions cannot publish that payload.
+const safeReceipt = r => ({ ok: r.ok, script: r.script, failures: r.failures,
+  ready: r.ready === true, upMs: r.upMs, lockReleased: r.lockReleased,
+  ...(r.commandCode === undefined ? {} : { commandCode: r.commandCode }) });
+
 export async function day2Check(args) {
   if (args.includes('--help')) { console.log(`usage: ${synopsis('day2-check')}`); return 0; }
   const options = { deployment: './deploy', timeoutMs: 1_800_000, upMs: 30_000 };
@@ -34,12 +40,19 @@ export async function day2Check(args) {
   }
   const report = { ok: false, phases: [], failed: null, note: 'Authored business assertions decide coverage; this check is not a publication or full-row compatibility certificate.' };
   const started = Date.now();
+  const runLogs = join(directory, `day2-check-${randomUUID()}`);
+  let commandNumber = 0;
   let code = 0, failureOutput = '';
+  async function runCommand(binary, args, settings) {
+    const logsDirectory = join(runLogs, String(++commandNumber));
+    try { return await command(binary, args, { ...settings, logsDir: logsDirectory }); }
+    catch (error) { throw Object.assign(error, { logsDirectory, message: `${error.message}; logs: ${logsDirectory}` }); }
+  }
   async function phase(name, work) {
     const began = Date.now();
     let result;
     try { result = await work(); }
-    catch (error) { result = { code: error.code ?? 1, stderr: String(error), ...(error.report ? { receipt: error.report } : {}), ...(error.logs ? { logs: error.logs } : {}) }; }
+    catch (error) { result = { code: error.code ?? 1, stderr: [String(error), ...(error.report?.failures ?? []).map(f => `${f.code}: ${f.message}`)].join('\n'), ...(error.report ? { receipt: safeReceipt(error.report) } : {}), ...(error.logs ? { logs: error.logs } : {}), ...(error.logsDirectory ? { logsDirectory: error.logsDirectory } : {}) }; }
     // A signalled npm child has code:null. It must stop the loop too.
     result = { ...result, code: Number.isInteger(result.code) && result.code >= 0 ? result.code : 1 };
     report.phases.push({ name, ...result, elapsedMs: Date.now() - began });
@@ -50,34 +63,36 @@ export async function day2Check(args) {
     }
     return true;
   }
-  const npm = (name, prefix) => command('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', name], {
-    timeoutMs: options.timeoutMs, processGroup: true, logsDir: directory,
+  const npm = (name, prefix) => runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', name], {
+    timeoutMs: options.timeoutMs, processGroup: true,
   });
   async function serve(script, currentClient) {
     let active;
     try {
-    const receipt = await serveCheck({ deployment: options.deployment, script, upMs: options.upMs,
+    const receipt = await serveCheck({ deployment: options.deployment, script, upMs: script === 'probe:serve' ? options.upMs : 1,
       // Each of two clients gets its own deadline plus the helper's bounded cleanup.
       timeoutMs: options.timeoutMs, thenTimeoutMs: options.timeoutMs * 2 + 30_000,
       then: (ready, signal) => active = (async () => {
         const users = ready.users ?? ready.accounts ?? ready.sessions;
         if (typeof ready.backendUrl !== 'string' || !users || typeof users !== 'object' || Array.isArray(users)
-          || !Object.keys(users).length || Object.values(users).some(accounts => !Array.isArray(accounts) || accounts.length < 2)) throw Error('readiness needs backendUrl and at least two real users per role');
+          || !Object.keys(users).length || Object.values(users).some(accounts => !Array.isArray(accounts) || accounts.length < 2
+            || accounts.some(account => !account || typeof account !== 'object' || Array.isArray(account)))) throw Error('readiness needs backendUrl and at least two real account objects per role');
         // Legacy clients take a file; credentials never enter this report.
         const temporary = mkdtempSync(join(tmpdir(), 'snapback4-day2-users-'));
+        try {
         const path = join(temporary, 'users.json');
         writeFileSync(path, JSON.stringify(users), { mode: 0o600, flag: 'wx' });
         const env = { ...process.env, BACKEND_URL: ready.backendUrl, CALLS_USERS: path };
-        try { for (const prefix of currentClient ? ['v1', null] : ['v1']) {
+        for (const prefix of currentClient ? ['v1', null] : ['v1']) {
           signal.throwIfAborted();
-          const result = await command('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
-            env, timeoutMs: options.timeoutMs, processGroup: true, secret: true, logsDir: directory,
+          const result = await runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
+            env, timeoutMs: options.timeoutMs, processGroup: true, secret: true,
           });
           if (result.code !== 0) throw Object.assign(Error(`${prefix ?? 'v2'} client:calls failed (exit ${result.code}); stderr: ${result.logs.stderr}; inspect authored call assertions`), { code: result.code ?? 1, logs: result.logs });
         } } finally { rmSync(temporary, { recursive: true, force: true }); }
       })(),
     });
-    return { code: receipt.ok ? 0 : receipt.commandCode || 1, receipt, stderr: receipt.failures.map(f => `${f.code}: ${f.message}`).join('\n') };
+    return { code: receipt.ok ? 0 : receipt.commandCode || 1, receipt: safeReceipt(receipt), stderr: receipt.failures.map(f => `${f.code}: ${f.message}`).join('\n') };
     } finally {
       // serveCheck aborts a timed-out callback; independently owned client groups
       // must finish their bounded cleanup before we report or admit another phase.

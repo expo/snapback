@@ -26,9 +26,10 @@ function fixture(t){
  `);
  // This uses the literal production recipe, real password signup and operator provisioning.
  writeFileSync(join(cwd,'scripts/prod-serve.mjs'),doc.match(/```js\n([\s\S]*?)```/)[1]);
- writeFileSync(join(cwd,'calls.mjs'),`import assert from'node:assert/strict';import{readFileSync,statSync,appendFileSync}from'node:fs';
+ writeFileSync(join(cwd,'calls.mjs'),`import assert from'node:assert/strict';import{readFileSync,statSync,appendFileSync,writeFileSync}from'node:fs';
  const users=JSON.parse(readFileSync(process.env.CALLS_USERS));assert.equal(statSync(process.env.CALLS_USERS).mode&511,384);
  if(process.env.FAIL_CLIENT){console.error('Error: deliberate client failure');process.exit(7);}
+ if(process.env.HANG_PID){const{spawn}=await import('node:child_process');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(process.env.HANG_PID,String(child.pid));writeFileSync(process.env.HANG_USERS_PATH,process.env.CALLS_USERS);await new Promise(()=>{});}
  assert.equal(users.member.length,2);assert.equal(users.admin.length,2);appendFileSync('../'.repeat(process.cwd().endsWith('/v1')?1:0)+'users-paths',process.env.CALLS_USERS+'\\n');
  const reply=await fetch(process.env.BACKEND_URL+'/q/myRole',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+users.member[0].token},body:'{"args":{}}'});
  assert.equal(reply.status,200);console.log('private-client-output-sentinel');
@@ -67,11 +68,25 @@ test('day2 checker runs literal stage/roster recipes, repeat requirements and fr
  // Execute the actual shipped temporary scaffold; it is deliberately not a
  // production-contract producer, and must receive an actionable refusal.
  assert.equal((await cli(['init','--adapt','--day2','--apply'],{cwd,env:{...env,SNAPBACK4_INIT_INSTALL:'0'}})).code,0);
+ // Adapt correctly preserves the app-owned script contract; use the exact
+ // shipped template bytes for this explicit scaffold control.
+ writeFileSync(join(cwd,'scripts/day2-proof.mjs'),readFileSync(join(root,'crates/snapback4/src/verbs/init/day2-proof.mjs')));
+ for(const name of ['v1','v2']){mkdirSync(join(cwd,'versions',name),{recursive:true});writeFileSync(join(cwd,'versions',name,'schema.q'),schema);}
  const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));pkg.scripts['day2:proof']='node scripts/day2-proof.mjs versions/v1 versions/v2';
  writeFileSync(join(cwd,'package.json'),JSON.stringify(pkg));
  const temporary=await check(cwd);assert.equal(temporary.code,1,temporary.stdout+temporary.stderr);
  assert.match(temporary.stdout,/temporary scaffold does not satisfy/);
  assert.match(temporary.stdout,/guide day2/);
+ pkg.scripts['day2:proof']='node finite.mjs day2';writeFileSync(join(cwd,'package.json'),JSON.stringify(pkg));
+ const hung=await check(cwd,['--timeout-ms','1500'],{HANG_PID:join(cwd,'client-pid'),HANG_USERS_PATH:join(cwd,'client-users')});
+ assert.equal(hung.code,1,hung.stdout+hung.stderr);assert.match(hung.stdout,/prod:serve/);
+ assert.throws(()=>process.kill(Number(readFileSync(join(cwd,'client-pid'))),0),error=>error.code==='ESRCH');
+ assert.equal(existsSync(readFileSync(join(cwd,'client-users'),'utf8')),false,'timed-out client user file removed before return');
+ const timed=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(timed.phases.at(-1).receipt.lockReleased,true);assert.ok(timed.phases.at(-1).logsDirectory);
+ for(const accounts of [[null,null],['invalid','invalid']]){
+  writeFileSync(join(cwd,'scripts/prod-serve.mjs'),`console.log(JSON.stringify({backendUrl:'http://127.0.0.1:1',users:{member:${JSON.stringify(accounts)}}}));setInterval(()=>{},1000);`);
+  const malformed=await check(cwd);assert.equal(malformed.code,1,malformed.stdout+malformed.stderr);assert.match(malformed.stdout,/account objects per role/);
+ }
 });
 test('first failure preserves exit and complete output, never starts later proofs or stages',{skip:process.platform==='win32'},async t=>{
  const cwd=fixture(t),r=await check(cwd,[],{FAIL_PHASE:'acceptance'});
@@ -91,4 +106,6 @@ test('a timed-out authored proof stops later phases and reaps its descendants',{
  assert.deepEqual(readFileSync(join(cwd,'sequence'),'utf8').trim().split('\n'),['check','acceptance']);
  const pid=Number(readFileSync(join(cwd,'hung-pid'),'utf8'));
  assert.throws(()=>process.kill(pid,0),error=>error.code==='ESRCH');
+ const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
+ assert.ok(existsSync(join(cwd,report.phases.at(-1).logsDirectory)),'timeout diagnostics remain locatable');
 });
