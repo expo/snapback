@@ -70,8 +70,8 @@ export async function day2Check(args) {
     let active;
     try {
     const receipt = await serveCheck({ deployment: options.deployment, script, upMs: script === 'probe:serve' ? options.upMs : 1,
-      // Each of two clients gets its own deadline plus the helper's bounded cleanup.
-      timeoutMs: options.timeoutMs, thenTimeoutMs: options.timeoutMs * 2 + 30_000,
+      // Each client gets its own deadline plus the helper's bounded cleanup.
+      timeoutMs: options.timeoutMs, thenTimeoutMs: options.timeoutMs * (currentClient ? 3 : 1) + 45_000,
       then: (ready, signal) => active = (async () => {
         const users = ready.users ?? ready.accounts ?? ready.sessions;
         if (typeof ready.backendUrl !== 'string' || !users || typeof users !== 'object' || Array.isArray(users)
@@ -83,7 +83,9 @@ export async function day2Check(args) {
         const path = join(temporary, 'users.json');
         writeFileSync(path, JSON.stringify(users), { mode: 0o600, flag: 'wx' });
         const env = { ...process.env, BACKEND_URL: ready.backendUrl, CALLS_USERS: path };
-        for (const prefix of currentClient ? ['v1', null] : ['v1']) {
+        // Match the harness: two v2 callers after the first forward, before
+        // the second rollback measures their rows through the frozen client.
+        for (const prefix of currentClient ? ['v1', null, null] : ['v1']) {
           signal.throwIfAborted();
           const result = await runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
             env, timeoutMs: options.timeoutMs, processGroup: true, secret: true,
@@ -120,11 +122,12 @@ export async function day2Check(args) {
   if (!code) for (let cycle = 1; cycle <= 2; cycle++) {
     for (const direction of ['rollback', 'forward']) {
       if (!await phase(`day2:${direction} ${cycle}/2`, () => npm(`day2:${direction}`))) break;
-      if (!await phase(`prod:serve + ${direction === 'forward' ? 'v1/v2' : 'v1'} calls ${cycle}/2`, () => serve('prod:serve', direction === 'forward'))) break;
+      const currentClient = direction === 'forward' && cycle === 1;
+      if (!await phase(`prod:serve + ${currentClient ? 'v1/v2' : 'v1'} calls ${cycle}/2`, () => serve('prod:serve', currentClient))) break;
     }
     if (code) break;
   }
-  if (!code) await phase('probe:serve + v1/v2 calls', () => serve('probe:serve', true));
+  if (!code) await phase('probe:serve + frozen v1 calls', () => serve('probe:serve', false));
   report.ok = code === 0; report.elapsedMs = Date.now() - started;
   const path = join(directory, 'day2-check.json'), temp = `${path}.${randomUUID()}.tmp`;
   try {

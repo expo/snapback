@@ -1,7 +1,7 @@
 // Literal day-two packet and its checker through installed tarballs, no source binary override.
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {runToolchainCommand} from './publication-process.mjs';
+import {runToolchainCommand} from './publication-starters.mjs';
 const consumer=String.raw`
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync,readFileSync,statSync,existsSync} from 'node:fs';

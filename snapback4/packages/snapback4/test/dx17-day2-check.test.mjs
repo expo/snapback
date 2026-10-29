@@ -57,7 +57,7 @@ test('day2 checker runs literal stage/roster recipes, repeat requirements and fr
   assert.ok(!JSON.stringify(report).includes('"password"'));
  }
  assert.deepEqual(readFileSync(join(cwd,'sequence'),'utf8').trim().split('\n'),Array(2).fill(['check','acceptance','acceptance','frontend','frontend','day2','day2']).flat());
- const paths=readFileSync(join(cwd,'users-paths'),'utf8').trim().split('\n');assert.equal(paths.length,16);for(const p of paths)assert.equal(existsSync(p),false,'private users removed');
+ const paths=readFileSync(join(cwd,'users-paths'),'utf8').trim().split('\n');assert.equal(paths.length,14);for(const p of paths)assert.equal(existsSync(p),false,'private users removed');
  const after=JSON.parse((await cli(['releases','deploy','--json'],{cwd,env})).stdout);
  assert.equal(after.live.source,before.live.source,'leaves v2 selected');
  const failed=await check(cwd,[],{FAIL_CLIENT:'1'});assert.equal(failed.code,7,failed.stdout+failed.stderr);
@@ -74,12 +74,13 @@ test('day2 checker runs literal stage/roster recipes, repeat requirements and fr
  for(const name of ['v1','v2']){mkdirSync(join(cwd,'versions',name),{recursive:true});writeFileSync(join(cwd,'versions',name,'schema.q'),schema);}
  const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));pkg.scripts['day2:proof']='node scripts/day2-proof.mjs versions/v1 versions/v2';
  writeFileSync(join(cwd,'package.json'),JSON.stringify(pkg));
- const temporary=await check(cwd);assert.equal(temporary.code,1,temporary.stdout+temporary.stderr);
+ const temporary=await check(cwd,['--timeout-ms','120000']);assert.equal(temporary.code,1,temporary.stdout+temporary.stderr);
  assert.match(temporary.stdout,/temporary scaffold does not satisfy/);
  assert.match(temporary.stdout,/guide day2/);
  pkg.scripts['day2:proof']='node finite.mjs day2';writeFileSync(join(cwd,'package.json'),JSON.stringify(pkg));
- const hung=await check(cwd,['--timeout-ms','1500'],{HANG_PID:join(cwd,'client-pid'),HANG_USERS_PATH:join(cwd,'client-users')});
+ const hung=await check(cwd,['--timeout-ms','10000'],{HANG_PID:join(cwd,'client-pid'),HANG_USERS_PATH:join(cwd,'client-users')});
  assert.equal(hung.code,1,hung.stdout+hung.stderr);assert.match(hung.stdout,/prod:serve/);
+ assert.ok(existsSync(join(cwd,'client-pid')),hung.stdout+hung.stderr);
  assert.throws(()=>process.kill(Number(readFileSync(join(cwd,'client-pid'))),0),error=>error.code==='ESRCH');
  assert.equal(existsSync(readFileSync(join(cwd,'client-users'),'utf8')),false,'timed-out client user file removed before return');
  const timed=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(timed.phases.at(-1).receipt.lockReleased,true);assert.ok(timed.phases.at(-1).logsDirectory);

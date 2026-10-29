@@ -40,4 +40,4 @@ async function run(a){
  writeFileSync(`/tmp/dx17/evidence/${phase}-${a.n}-result.json`,JSON.stringify({code,wallMs:Date.now()-started,report:existsSync(dir+'/REPORT.md')},null,2));
  console.log(phase,a.id,code,Math.round((Date.now()-started)/1000));
 }
-let next=0;await Promise.all(Array.from({length:2},async()=>{while(next<assignments.length)await run(assignments[next++]);}));
+let next=0;await Promise.all(Array.from({length:Number(process.env.DX17_CONCURRENCY??2)},async()=>{while(next<assignments.length)await run(assignments[next++]);}));
