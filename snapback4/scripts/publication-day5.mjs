@@ -42,7 +42,8 @@ for(const kind of ['web','expo']){
  assert.equal(packageJson.devDependencies['playwright-core'],'1.55.1');
  assert.equal(existsSync(join(dir,'fixtures/todos.jsonl')),false);
  assert.doesNotMatch(readFileSync(join(dir,'README.md'),'utf8'),/# Todos/);
- assert.match(readFileSync(join(dir,'README.md'),'utf8'),/npm run frontend:proof/);
+ const readme=readFileSync(join(dir,'README.md'),'utf8');
+ assert.match(readme,/npm run verify/);assert.match(readme,/targeted rerun/);
  const checked=await cli(['check'],{cwd:dir});assert.equal(checked.code,0,checked.stdout+checked.stderr);
 }
 // Execute the changed measurement recipes from the installed cards themselves.

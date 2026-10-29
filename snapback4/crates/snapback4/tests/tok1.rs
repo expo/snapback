@@ -14,8 +14,14 @@ fn wave32_codex_001_025_and_muse_019_028_first_schema_deltas_and_signatures() {
     fs::write(p.0.join("snapback/schema.q"),source).unwrap();
     let checked=p.cli(&["check"]);assert!(checked.status.success(),"{}",String::from_utf8_lossy(&checked.stderr));
     let generated=p.cli(&["guide","api","generated"]);assert!(generated.status.success());let index=String::from_utf8_lossy(&generated.stdout);
-    assert!(index.contains("openRequest(")&&index.contains("evidence:"));assert!(index.len()<3000);
-    for module in ["client","proof","auth"] { let out=p.cli(&["guide","api",module]);assert!(out.status.success());assert!(String::from_utf8_lossy(&out.stdout).contains("Declaration fingerprint")); }
+    // TOK6 defaults to current app usage; operation sections retain large-app
+    // navigation, while --generic explicitly selects the SDK digest.
+    assert!(index.contains("## query board") && index.contains("useMutation(api[\"approve\"])"), "{index}");
+    assert!(index.len() <= 8001);
+    let operation=p.cli(&["guide","api","generated","--section","mutation openRequest","--repeat"]);
+    assert!(operation.status.success());let operation=String::from_utf8_lossy(&operation.stdout);
+    assert!(operation.contains("openRequest") && operation.contains("evidence:"), "{operation}");
+    for module in ["client","proof","auth"] { let out=p.cli(&["guide","api",module,"--generic"]);assert!(out.status.success());assert!(String::from_utf8_lossy(&out.stdout).contains("Declaration fingerprint")); }
 }
 #[test]
 fn wave32_muse_028_starter_prints_a_custody_map_and_every_script_names_signature_digests() {
