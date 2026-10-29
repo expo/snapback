@@ -14,7 +14,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, password: bool) {
         if !scripts["typecheck"].is_string() {
             scripts["typecheck"] = scripts["check"].as_str().map(|s| json!(s)).unwrap_or(json!("tsc --noEmit"));
         }
-        scripts["check"] = json!("snapback4 check && npm run --silent typecheck");
+        scripts["check"] = json!("snapback4 check && npm run --silent typecheck && echo \"Next: wire app assertions, then npm run verify (all four phases). Codex: yield_time_ms=30000.\"");
         // Starter fixture acceptance is replaced by the app's authored scenario.
         scripts["acceptance"] = json!("snapback4 test");
         scripts["verify"] = json!("node scripts/verify.mjs");

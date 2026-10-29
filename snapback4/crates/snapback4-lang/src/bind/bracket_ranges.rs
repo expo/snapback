@@ -10,14 +10,15 @@ use crate::{ast::*, diag::Diagnostic, print};
 pub(super) fn refusal(read: &ReadExpr, rule: bool, error: Diagnostic) -> Diagnostic {
     if read.seeks.is_empty() || read.range.is_some() || error.code == "E_QUARRY_SYNTAX" { return error; }
     let tests = read.seeks.iter().map(|seek| format!("{} {} {}", seek.column, seek.op, print::expression(&seek.value))).collect::<Vec<_>>();
-    let message = format!("brackets take key equalities; `{}` is an ordered test, which brackets accept only as a seek on a bounded page over an index continuing with {} after the pinned keys",
+    let mut message = format!("brackets take key equalities; `{}` is an ordered test, which brackets accept only as a seek on a bounded page over an index continuing with {} after the pinned keys",
         tests.join("`, `"), read.seeks[0].column);
     let named = read.keys.iter().all(|key| key.column.is_some());
     let mut conditions: Vec<String> = read.keys.iter().filter_map(|key| key.column.as_ref().map(|column| format!(".{column} = {}", print::expression(&key.value)))).collect();
     conditions.extend(read.seeks.iter().map(|seek| format!(".{} {} {}", seek.column, seek.op, print::expression(&seek.value))));
     let search = format!("exists {} where {}", read.table, conditions.join(" and "));
+    if named && !rule { message.push_str(&format!("; write `{search}`")); }
     let rewrite = if rule {
-        format!("a rule probes one row by a unique key, so an ordered test cannot select it: check the order in the mutation (`require {search} else CODE`), or keep the compared value on this row")
+        format!("a rule probes one row by a unique key, so an ordered test cannot select it: check the order in the mutation (`require {search} else CODE`), or keep the compared value on this row; retain the row authorization rule: require does not grant writes")
     } else if named {
         format!("for a search, write `{search}`")
     } else {

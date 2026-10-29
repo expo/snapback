@@ -4,7 +4,7 @@
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { command, startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
+import { command, startDev, startStatic, withBrowser, renderedText, fillRN, signInUI, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
 
 import { runProofSuite } from "snapback4/proof-runner";
 // SHARED_IMPORT
@@ -48,7 +48,7 @@ try {
     await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
     // LABELLED_CONTROLS
     const task = page.getByLabel("Task", { exact: true });
-    assert.ok(await task.count(), "no write scenario: replace the Home assertions");
+    await task.waitFor({ state: "visible" }); // Wait for application controls after sign-in.
     {
       const title = `Proof ${randomUUID()}`;
       await fillRN(task, title);

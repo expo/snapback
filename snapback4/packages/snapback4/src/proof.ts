@@ -359,7 +359,12 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   }
   if (!caller) {
-    try { caller = (await import("playwright-core")).chromium; }
+    try {
+      const peer = await import("playwright-core");
+      // @ref LLP 3000.037.000#18-starter-verification-and-repair-guidance-starter2 — register on the peer that owns this browser before any page injects its selector engines.
+      await registerRenderedSelector(peer.selectors);
+      caller = peer.chromium;
+    }
     catch (cause) { throw new Error("E_PROOF_BROWSER: withBrowser requires playwright-core; run npm install --save-dev playwright-core before deploying or starting proof hosts", { cause }); }
   }
   const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -413,7 +418,11 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       // Proof code lives in this realm, outside the application's bundle.
       await context.addInitScript({ content: webWitnessObserverScript() });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
-      try { return await proof(context); } catch (error) { reportProofFailure(error); throw error; }
+      try { return await proof(context); } catch (error) {
+        reportProofFailure(error);
+        if (error instanceof Error && error.name === "TimeoutError") console.error("likely fix: browser controls: wait for the signed-in screen before business controls; use signInUI(page, account) for the password starter (it signs out restored sessions). Give selects explicit aria-label/accessibilityLabel values: wrapping labels include option text. Assert the write receipt before waiting for its result; a refused write cannot render it.");
+        throw error;
+      }
     } finally {
       try { if (context) await bounded(context.close(), 5000, "browser context close"); }
       finally { await bounded(browser.close(), 5000, "browser close"); }
@@ -633,3 +642,5 @@ export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pendin
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }
 
 export { serveCheck, withServeScript, type ServeScriptReady, type ServeCheckOptions, type ServeCheckReport } from "./proof-serve-check.ts";
+
+export { signInUI, signOutUI } from "./proof-browser.ts";

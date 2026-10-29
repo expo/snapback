@@ -230,6 +230,7 @@ fn an_ordered_test_in_brackets_names_the_search_form_and_hides_the_schedule_casc
     let d = first(&source, "E_QUARRY_TYPE");
     assert!(d.message.starts_with("brackets take key equalities; `totalPoints > app.totalPoints` is an ordered test"), "{d:#?}");
     let search = "exists applications where .status = 'submitted' and .totalPoints > app.totalPoints";
+    assert!(d.message.contains(search), "the short diagnostic must include the exact search: {d:#?}");
     assert_eq!(d.rewrite, format!("for a search, write `{search}`"));
     // (A public table, to pin `false`: over a per-row rule a query's search
     // `exists` with no readable match has no value, and a mutation's is

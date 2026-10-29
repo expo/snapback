@@ -68,8 +68,10 @@ if (args[0] === "--worker") {
   const report = s => console.log(s ? `frontend install: ${s.state}; ${Math.round((Date.now() - s.started) / 1000)}s elapsed${s.code === undefined ? "" : `; exit ${s.code}`}; log .snapback4/install.log` : "frontend install: not started; node scripts/install.mjs");
   const wait = async (target = requested()) => {
     const pendingSince = Date.now();
+    let progressAt = pendingSince;
     if (!target) { report(null); return 1; }
     for (;;) {
+      if (Date.now() - progressAt >= 5000) { console.error("frontend install: waiting for this request"); progressAt = Date.now(); }
       // Pin this join. A later launch cannot replace its failure with success.
       let s = read(target), seen = new Set([target]);
       while (s?.ownerRequest) {
@@ -118,9 +120,11 @@ if (args[0] === "--worker") {
       };
       save({}); admit(); console.error("frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).");
       const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--worker", ...args.filter(a => a !== "--background")], { detached: process.platform !== "win32", stdio: ["ignore", "inherit", "inherit", "ipc"] });
+      const heartbeat = setInterval(() => console.error(`frontend install: running; ${Math.round((Date.now()-started)/1000)}s elapsed; waiting`), 5000);
       let result = 1, done = false;
       const finish = () => {
         if (done) return; done = true;
+        clearInterval(heartbeat);
         save({ state: "finished", code: result }); unlinkSync(lockFile);
         console.error(`npm install finished (exit ${result})`); process.exitCode = result;
       };

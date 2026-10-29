@@ -173,6 +173,11 @@ impl Binder<'_> {
                 if op == "not" {
                     if !t.is_bool() {
                         let operand = print::expression(value);
+                        // @ref LLP 3000.037.000#18-starter-verification-and-repair-guidance-starter2 — missing/hidden flags require an explicit policy choice.
+                        if t.is_optional() && t.required().is_bool() {
+                            return Err(type_error(site, format!("not needs a bool, got {}; `{operand}` can be missing or hidden by its field read rule, even after a role require", t.name()),
+                                format!("bind `flag = {operand} ! else MISSING_VALUE`, then use `not flag`; keep authorization guards. Use `not ({operand} ?? false)` only if the spec intentionally treats missing/hidden as false")));
+                        }
                         return Err(type_error(site, format!("not needs a bool, got {} — `not` binds tighter than a comparison, so `not {operand} = x` reads as `(not {operand}) = x`", t.name()),
                             format!("write `{operand} != x`, or parenthesize: `not ({operand} = x)`")));
                     }
@@ -522,7 +527,7 @@ impl Binder<'_> {
             if !lt.is_bool() || !rt.is_bool() {
                 let nullable = [(left, &lt), (right, &rt)].into_iter().filter(|(_, ty)| ty.is_optional())
                     .map(|(value, ty)| format!("`{}` at {} is {}", self.catalog.source.expression(value), value.site(), ty.name())).collect::<Vec<_>>().join("; ");
-                return Err(type_error(site, format!("{op} needs bool operands; got {} and {}{}", lt.name(), rt.name(), if nullable.is_empty() { String::new() } else { format!("; nullable operand: {nullable}") }), "compare an optional bool with true or false explicitly; a missing/hidden value is not a Boolean"));
+                return Err(type_error(site, format!("{op} needs bool operands; got {} and {}{}", lt.name(), rt.name(), if nullable.is_empty() { String::new() } else { format!("; nullable operand: {nullable}") }), "bind each nullable flag with `flag = row.field ! else MISSING_VALUE`, then use the present flag; private fields stay nullable after role guards. Compare with true/false or use `?? false` only when the spec defines missing/hidden as false"));
             }
             branch.push(Stmt::Assign { name: result.clone(), value: r });
             let (then_body, else_body) = if op == "and" { (branch, setup::Body::default()) } else { (setup::Body::default(), branch) };
@@ -599,7 +604,7 @@ impl Binder<'_> {
                     return Err(type_error(
                         site,
                         format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()),
-                        format!("narrow first: `if {} != null:`, or `{} ?? 0`", print::expression(operand), print::expression(operand)),
+                        format!("bind `value = {} ! else MISSING_VALUE`, then compare value; a private field can be hidden even after a role require. Keep authorization guards; use `?? 0` only if the spec explicitly assigns zero to missing/hidden values", print::expression(operand)),
                     ));
                 }
                 if !lt.comparable(&rt) {
