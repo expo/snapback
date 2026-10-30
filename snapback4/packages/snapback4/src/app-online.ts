@@ -49,7 +49,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const pending = pendingChanges();
   const identification = new IdentityWait(pending.notify);
   // A synchronous capture owns the click before its async journal commit.
-  const capturing = new Map<string, import("./contract.ts").PendingWrite>();
+  const capturing = new Map<string, import("./contract.ts").PendingWrite & { storeId: string }>();
   const rawIntents = pendingIntentAccess(raw);
   const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
   const presentation = new OnlineIntentPresentation(intentScope, pending.notify);
@@ -329,7 +329,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const captured = identity ? capture.capture(id, op.name, snapshot, identity)
             : admissionRefusal("the backend store is not identified; the write was not admitted", "app.mutate", "retry with the same id");
           if (!("v" in captured)) { release(); return failedAdmission<R>(id, captured); }
-          capturing.set(id, { id, op: op.name, args: snapshot, state: "queued", predicted: [] }); pending.notify();
+          // @ref LLP 3000.002.000#6 — a peer can settle before our response; keep the capture's original store for its cut.
+          capturing.set(id, { id, op: op.name, args: snapshot, storeId: captured.storeId, state: "queued", predicted: [] }); pending.notify();
           return submit(release, captured);
         };
         if ((!dispatchIdentity(raw) || identification.size) && !restoredIds.has(id)) {

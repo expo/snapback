@@ -36,7 +36,7 @@ const schema = {generation:1,store_id:'A',schema:{tables:{}},programs:[
 async function fixture(t, {hold=true, drop=false, custody='none', store=memorySessionStore(), persist=memoryPersistence(), raw=false,
   backend=schema, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
   const url=(persona?'http://127.0.0.1:4400':'https://progressive-writes.invalid')+basePath, release=gate(), posted=gate(), coreGate=gate();
-  let head=20, requests=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
+  let head=20, requests=[], actions=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
   await store.set(sessionKey(url),JSON.stringify({token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000}));
   if(raw)coreGate.resolve();
   const inner=webDevice({wasm,persist});
@@ -52,6 +52,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
     if(path==='/auth/login')return Response.json({ok:true,session:{token:'bob-token',principal:'bob',kind:'user',expiresAt:Date.now()+7*86400000}});
     if(path==='/auth/refresh'&&refreshReply)return refreshReply();
     if(path.startsWith('/auth/')){revokes++;return Response.json({ok:true,revoked:1});}
+    if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json({id,state:'done',result:'acted'});}
     if(path.startsWith('/m/')){
       const body=JSON.parse(init.body);requests.push(body.id);
       if(failStore)return Response.json({denied:failStore},{status:409});
@@ -70,7 +71,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
   if(raw){if(startup!=='awaited'||journal)prepareProgressiveWrites(options,{store,report,authority});const prepared=await prepareClient(options,()=>createLocalClient(options));local=prepared.client;app={client:local,mutate:local.mutate,close:local.close,ready:Promise.resolve({ok:true})};progressiveWriteCustody(local)?.start();await prepared.start();}
   else app=createApp(options);
   t.after(async()=>{release.resolve();coreGate.resolve();syncWait?.resolve();await app.close();});
-  return {app,store,url,requests,executions,posted,release,coreGate,reads:()=>reads,coreOpens:()=>coreOpens,local:()=>local,
+  return {app,store,url,requests,actions,executions,posted,release,coreGate,reads:()=>reads,coreOpens:()=>coreOpens,local:()=>local,
     device:options.device, reopen:async(overrides)=>{await app.close();app=createApp({...options,...overrides});return app;},
     journal:async()=>JSON.parse(await store.get(storeKey('writes',url,persona?'dev:alice':'alice'))??'null'), change:body=>{const next=changes.shift();next?.(body);return !!next;}, fail:why=>{failStore=why;}, failSync:why=>{failSync=why;}, replace:id=>{storeId=id;head=0;}, head:value=>{head=value;}, offline:value=>{offline=value;}, revokes:()=>revokes};
 }
@@ -1447,4 +1448,45 @@ regression('E8 inspected peer receipt keeps its same-store cut across generation
   assert.deepEqual(await f.app.client.write(id),receipt);
   assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'observation incarnation fences authority, not comparable same-store sequence numbers');
   assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'covered');
+});
+
+regression('E9 a peer settles this tab\'s live capture before its held response without losing the same-store cut',async t=>{
+  const {authority}=browserCapture(t);let progressive;
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){await install.apply(this,args);progressive=this;});
+  const f=await fixture(t,{raw:true,authority,syncHead:20});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  assert.equal((await f.app.client.query(query,{})).data,'local');
+  const id=mintId(),writing=f.app.client.mutate(mutation,{}, {id,waitSeconds:0});await f.posted.promise;await writing;
+  assert.equal((await f.journal()).pending.find(write=>write.id===id).storeId,'A');
+  const key=storeKey('writes',f.url,'alice'),events=journalChanges(key,()=>{});t.after(()=>events.close());
+  await storeLock(key,async()=>{const journal=await f.journal();journal.pending=[];journal.receipts.push({state:'sent',id,seq:21,replayed:true});await f.store.set(key,JSON.stringify(journal));});events.notify();
+  await until(()=>!progressive.uncertain&&!progressive.current().some(write=>write.id===id));
+  assert.equal((await f.app.client.write(id)).seq,21);
+  assert.equal((await f.app.client.query(query,{})).data,'server','peer settlement must fence the pre-write local value at watermark 20');
+  f.release.resolve();await until(()=>progressive.receipts.has(id));
+  assert.equal((await f.app.client.query(query,{})).data,'server','the eventual original response must retain the established cut');
+  assert.deepEqual(f.requests,[id]);
+});
+
+for(const method of ['close','signOut']) regression(`E9 raw ${method} immediately fences actions during held nested recovery`,async t=>{
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId();
+  await store.set(key,'damaged opening');
+  const entered=gate(),release=gate();let installs=0,progressive;
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){progressive=this;if(++installs===2){entered.resolve();await release.promise;}return install.apply(this,args);});
+  t.after(()=>release.resolve());
+  const f=await fixture(t,{raw:true,store,hold:false}),action={kind:'action',name:'perform'};
+  assert.equal((await f.app.client.act(action,{})).state,'done');assert.equal(f.actions.length,1);
+  const recovering=progressive.pending();await entered.promise;
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  let ended=false;const ending=f.app.client[method]().then(()=>{ended=true;});
+  try {
+    const refused=await f.app.client.act(action,{});
+    assert.equal(refused.denied?.code,method==='close'?'E_CLOSED':'E_AUTH');
+    assert.equal(f.actions.length,1,'the original transport must not send a second action');assert.equal(ended,false,'cleanup still waits for nested recovery');
+  } finally { release.resolve();await recovering;await ending; }
+  const custody=progressiveWriteCustody(f.app.client);custody.start();await tick();
+  assert.deepEqual(await custody.inspect(),{pending:[],receipts:[]});assert.deepEqual(f.requests,[]);
+  assert.ok((await f.journal()).pending.some(write=>write.id===id));assert.deepEqual((await f.journal()).receipts,[]);
 });

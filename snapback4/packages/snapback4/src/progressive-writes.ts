@@ -145,8 +145,13 @@ export class ProgressiveWrites {
         };
       }
       let recovering: Promise<void> | undefined, closed = false;
-      local.close = async () => { closed = true; this.recoverOpening = undefined; await recovering; await original.close(); };
-      local.signOut = async () => { closed = true; this.recoverOpening = undefined; await recovering; await original.signOut(); };
+      const close = async (signOut: boolean) => {
+        closed = this.lifetimePaused = true; this.recoverOpening = undefined;
+        // Fence the original client's act/sendPost now, before recovery drains.
+        // Nested installation inherits the pause before exposing its custody.
+        await Promise.all([signOut ? original.signOut() : original.close(), recovering]);
+      };
+      local.close = () => close(false); local.signOut = () => close(true);
       this.recoverOpening = () => recovering ??= (async () => {
         try {
           // Opening inspection preserves bytes. A dependent read may retry the

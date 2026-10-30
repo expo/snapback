@@ -685,3 +685,12 @@ export function awaitBoundary() {
 // store/head observations in both startup modes. These are synchronous
 // evidence changes at existing boundaries; all 215 classified delivery sites,
 // failure classes and recipes remain unchanged. Regenerate the expression seal.
+
+// Lane E round 9: progressive-writes drops 26→23 awaits by combining retained
+// close/sign-out cleanup in one Promise.all. The original client's fence runs
+// synchronously before that wait; nested custody inherits its paused lifetime.
+// app-online retains 40 awaits: its live capture now carries the original
+// store into inspection, allowing a peer receipt to install the same-store cut
+// before the capturing response arrives. E9 regressions and isolated controls
+// cover both races. No delivery I/O/site, failure class or recipe changes;
+// regenerate the expression seal with all 215 classified sites intact.

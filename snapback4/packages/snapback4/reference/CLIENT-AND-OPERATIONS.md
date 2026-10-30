@@ -181,7 +181,9 @@ Device-app mutations keep their four-second default wait before returning
 mutation `waitSeconds` overrides it.
 A dependent server or local read waits on unsettled journal custody; known
 success requires an answer covering its server cut. Core attachment never retires
-its receipt owner. An empty journal adds no custody wait. A watch already showing
+its receipt owner. A peer tab's settlement of this tab's captured write keeps
+that same-store cut even while this tab's original response is still pending.
+An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
 settlement affect only intersecting read footprints; disjoint watches and local
@@ -202,6 +204,9 @@ An unreadable opening journal also refuses potentially dependent reads with
 journal and session locks, restoring reads and writes when storage recovers.
 Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
+Calling `client.close()` or `client.signOut()` during recovery immediately fences
+new actions and transport sends; cleanup waits for recovery and keeps any newly
+opened journal custody paused.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and
