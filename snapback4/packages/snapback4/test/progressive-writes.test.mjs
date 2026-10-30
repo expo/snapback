@@ -11,6 +11,7 @@ import { prepareClient } from '../dist/client-start.js';
 import { ProgressiveWrites, progressiveWriteCustody, prepareProgressiveWrites } from '../dist/progressive-writes.js';
 import { journalChanges } from '../dist/journal-changes.js';
 import { OnlineCapture } from '../dist/online-capture.js';
+import { pendingItemsSource } from '../dist/react-pending-items.js';
 import { pendingIntentAccess } from '../dist/pending-items.js';
 import { QueryCustody } from '../dist/query-custody.js';
 import { evaluateLocal } from '../dist/local-query.js';
@@ -20,6 +21,7 @@ import { DeviceVersionError } from '../dist/device-version.js';
 import { deviceControl } from '../dist/device-control.js';
 import { deviceRestore } from '../dist/device-restore.js';
 import { episodeDeadline } from '../dist/read-episode.js';
+import { QueryCuts } from '../dist/query-dependencies.js';
 const wasm = new WebAssembly.Module(readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)));
 const gate = () => Promise.withResolvers();
 const tick = () => new Promise(resolve => setTimeout(resolve, 5));
@@ -32,7 +34,7 @@ const schema = {generation:1,store_id:'A',schema:{tables:{}},programs:[
   {name:'constant',kind:'Query',args:{},body:[{Return:{Literal:{String:'constant'}}}],settlement:{reads:{},writes:{}}},
 ]};
 async function fixture(t, {hold=true, drop=false, custody='none', store=memorySessionStore(), persist=memoryPersistence(), raw=false,
-  backend=schema, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, refreshReply, syncHead, syncWait, authority, report=console.error, basePath='', startup='progressive', persona=false}={}) {
+  backend=schema, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
   const url=(persona?'http://127.0.0.1:4400':'https://progressive-writes.invalid')+basePath, release=gate(), posted=gate(), coreGate=gate();
   let head=20, requests=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
   await store.set(sessionKey(url),JSON.stringify({token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000}));
@@ -45,7 +47,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
     if(offline)throw new TypeError('offline witness');
     if(path==='/schema')return Response.json({...backend,store_id:storeId});
     if(path==='/probe')return Response.json({ok:true,viewer:'alice',scope:'full',store_id:storeId,seq:head,generation:backend.generation});
-    if(path==='/sync'){await syncWait?.promise;if(failSync)return Response.json({denied:failSync},{status:409});return Response.json({generation:backend.generation,store_id:storeId,snapshot:!JSON.parse(init.body).stream,watermark:syncHead??head,images_at:syncHead??head,events:[],committed_above:{},more:false});}
+    if(path==='/sync'){await syncWait?.promise;if(failSync)return Response.json({denied:failSync},{status:409});return Response.json({generation:syncGeneration??backend.generation,store_id:storeId,snapshot:!JSON.parse(init.body).stream,watermark:syncHead??head,images_at:syncHead??head,events:[],committed_above:{},more:false});}
     if(path==='/changes')return new Promise((resolve,reject)=>{changes.push(body=>resolve(Response.json(body)));if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
     if(path==='/auth/login')return Response.json({ok:true,session:{token:'bob-token',principal:'bob',kind:'user',expiresAt:Date.now()+7*86400000}});
     if(path==='/auth/refresh'&&refreshReply)return refreshReply();
@@ -63,9 +65,9 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
     reads++;return Response.json(await queryReply?.(path,head)??{data:'server',complete:true,tables:path.endsWith('/constant')?[]:path.endsWith('/other')?['other']:['items'],seq:head,store_id:storeId,generation:1});
   };
   let local;
-  const options={url,sessionStore:store,...(startup?{startup}:{}),...(persona?{persona:"alice"}:{}),device:{...device,async open(...args){const core=await device.open(...args);return {...core,onClient(client){local=client;}};}},fetch};
+  const options={url,sessionStore:store,onStoreChange,...(startup?{startup}:{}),...(persona?{persona:"alice"}:{}),device:{...device,async open(...args){const core=await device.open(...args);return {...core,onClient(client){local=client;}};}},fetch};
   let app;
-  if(raw){if(startup!=='awaited')prepareProgressiveWrites(options,{store,report,authority});const prepared=await prepareClient(options,()=>createLocalClient(options));local=prepared.client;app={client:local,mutate:local.mutate,close:local.close,ready:Promise.resolve({ok:true})};progressiveWriteCustody(local)?.start();await prepared.start();}
+  if(raw){if(startup!=='awaited'||journal)prepareProgressiveWrites(options,{store,report,authority});const prepared=await prepareClient(options,()=>createLocalClient(options));local=prepared.client;app={client:local,mutate:local.mutate,close:local.close,ready:Promise.resolve({ok:true})};progressiveWriteCustody(local)?.start();await prepared.start();}
   else app=createApp(options);
   t.after(async()=>{release.resolve();coreGate.resolve();syncWait?.resolve();await app.close();});
   return {app,store,url,requests,executions,posted,release,coreGate,reads:()=>reads,coreOpens:()=>coreOpens,local:()=>local,
@@ -658,7 +660,7 @@ regression('E1 a peer device id newer than journal open cannot enter an unlisted
   assert.equal((await f.journal()).pending.some(w=>w.id===id),false);release.resolve();peer.release.resolve();f.release.resolve();
 });
 
-for(const peer of [false,true])regression(`E1 surviving capture remains uncertain through ${peer?'pre-start peer broadcast':'failed recovery save and query inspection'}`,async t=>{
+for(const [peer,inspectionLag] of [[false,0],[false,1100],[true,0]])regression(`E1 surviving capture remains uncertain through ${peer?'pre-start peer broadcast':'failed recovery save and query inspection'} (inspection lag=${inspectionLag})`,async t=>{
   const entries=new Map(),storage={get length(){return entries.size;},key:i=>[...entries.keys()][i]??null,getItem:key=>entries.get(key)??null,setItem:(key,value)=>entries.set(key,String(value)),removeItem:key=>entries.delete(key)};
   for(const [name,value] of Object.entries({window:Object.assign(new EventTarget(),{location:{href:'https://app.invalid'}}),localStorage:storage})) {
     const before=Object.getOwnPropertyDescriptor(globalThis,name);Object.defineProperty(globalThis,name,{configurable:true,value});t.after(()=>before?Object.defineProperty(globalThis,name,before):delete globalThis[name]);
@@ -666,15 +668,17 @@ for(const peer of [false,true])regression(`E1 surviving capture remains uncertai
   const url='https://progressive-writes.invalid',key=sessionKey(url),journalKey=storeKey('writes',url,'alice'),memory=memorySessionStore(),id=mintId();
   const authority={capture:()=>({key,epoch:'1',principal:'alice',source:'browser'}),read:async requested=>requested===key?JSON.stringify({principal:'alice',snapback4Epoch:'1'}):'1',recheck(){}};
   const capture=new OnlineCapture(url,'alice',authority);await capture.ready;capture.capture(id,'write',{},'A');capture.close();
-  let fail=!peer,failures=0,progressive,inspections=0,uncertainAtBroadcast;const install=ProgressiveWrites.prototype.install;
-  const store={...memory,async set(key,value){if(fail&&key===journalKey&&JSON.parse(value).pending.some(w=>w.id===id)){failures++;throw Error('recovery save failed');}return memory.set(key,value);}};
+  let fail=!peer,failures=0,firstFailure,progressive,inspections=0,uncertainAtBroadcast;const install=ProgressiveWrites.prototype.install;
+  const store={...memory,async set(key,value){if(fail&&key===journalKey&&JSON.parse(value).pending.some(w=>w.id===id)){firstFailure??=performance.now();failures++;throw Error('recovery save failed');}return memory.set(key,value);}};
   t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);progressive=this;const custody=progressiveWriteCustody(local),inspect=custody.inspect;custody.inspect=async()=>{inspections++;return inspect();};
     if(peer){const events=journalChanges(journalKey,()=>{});events.notify();await until(()=>inspections>0);await tick();events.close();uncertainAtBroadcast=this.uncertain;}});
   t.after(()=>{fail=false;});
   const f=await fixture(t,{raw:true,store,authority,report:()=>{}});
+  if(inspectionLag){await new Promise(resolve=>setTimeout(resolve,inspectionLag));await until(()=>failures>=2);}
   if(peer)assert.equal(uncertainAtBroadcast,true,'peer inspection cannot certify a surviving capture');
   if(!peer){await until(()=>failures>0);let answered=false;const reading=f.app.client.query(query,{}).then(read=>{answered=true;return read;});
-    await until(()=>inspections>0);await new Promise(resolve=>setTimeout(resolve,150));assert.equal(progressive.uncertain,true);assert.equal(answered,false,'successful empty inspection cannot publish pre-capture data');
+    await until(()=>inspections>0);await new Promise(resolve=>setTimeout(resolve,100));assert.equal(progressive.uncertain,true);assert.equal(answered,false,'successful empty inspection cannot publish pre-capture data');
+    if(performance.now()-firstFailure<900)assert.equal(failures,1,'inspection must leave the failed recovery to its one-second backoff');
     fail=false;await f.posted.promise;f.release.resolve();assert.ok('data' in await reading);
   }else {await f.posted.promise;f.release.resolve();await until(async()=> (await f.app.client.write(id))?.state==='sent');}
 });
@@ -810,12 +814,14 @@ regression('E3 transient refresh failure preserves a held successful journal wri
   assert.equal((await core.call({op:'state'})).ok.generation,1,'obsolete response metadata did not adopt its generation');
 });
 
-regression('E3 receipt store binding is rechecked after a held journal save',async t=>{
+for(const startup of ['progressive','awaited'])regression(`E3 receipt store binding is rechecked after a held journal save (${startup})`,async t=>{
   const memory=memorySessionStore(),entered=gate(),save=gate(),id=mintId();let armed=false,core;
+  const url='https://progressive-writes.invalid';
+  await memory.set(storeKey('writes',url,'alice'),JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id:mintId(),op:'write',args:{},storeId:'A'}],receipts:[]}));
   const store={...memory,async set(key,value){if(armed&&key===storeKey('writes','https://progressive-writes.invalid','alice')&&JSON.parse(value).receipts?.some(w=>w.id===id)){entered.resolve();await save.promise;}return memory.set(key,value);}};
   t.after(()=>save.resolve());
-  const f=await fixture(t,{raw:true,hold:false,store,wrapCore:opened=>{core=opened;return opened;},receiptReply:receipt=>({...receipt,store_id:'A'})});
-  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');armed=true;
+  const f=await fixture(t,{raw:true,startup,journal:true,hold:false,store,wrapCore:opened=>{core=opened;return opened;},receiptReply:receipt=>({...receipt,store_id:'A'})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');await until(async()=>!(await f.app.client.pendingWrites()).length);armed=true;
   const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await entered.promise;
   f.replace('B');await f.app.client.sync();await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
   assert.equal((await core.call({op:'sync_state',capture:false})).ok.store_id,'B');
@@ -1028,4 +1034,417 @@ for(const remote of [[],{rows:[]},[{id:'server'}]])regression(`E4 provisional wa
   const replaced=Array.isArray(remote)&&remote.length>0;
   assert.deepEqual(candidate.read.data,replaced?remote:data);assert.equal(candidate.evaluationWatermark,replaced?undefined:23);assert.equal(candidate.seq,undefined);assert.equal(candidate.served,true);
   assert.equal((candidate.seq??candidate.evaluationWatermark??21)>=22,!replaced,'only the local published bytes cover the receipt cut');
+});
+
+regression('E5 inspected peer receipt recovers without a fresh capture on exhausted storage',async t=>{
+  const {storage,authority}=browserCapture(t),store=memorySessionStore(),id=mintId();
+  let inspected=false;const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);const custody=progressiveWriteCustody(local),inspect=custody.inspect;
+    custody.inspect=async()=>{const snapshot=await inspect();if(snapshot.receipts.some(write=>write.id===id))inspected=true;return snapshot;};});
+  const f=await fixture(t,{raw:true,authority,store});await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const receipt={state:'sent',id,seq:21,replayed:true},key=storeKey('writes',f.url,'alice');
+  await storeLock(key,()=>store.set(key,JSON.stringify({owner:'alice',backend:f.url,pending:[],receipts:[receipt]})));
+  const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();await until(()=>inspected);
+  let captures=0;t.mock.method(storage,'setItem',()=>{captures++;throw new DOMException('full','QuotaExceededError');});
+  // No write(id) lookup has taught MutationIds about this peer's id.
+  assert.deepEqual(await f.app.mutate(mutation,{}, {id,waitSeconds:0}),receipt);
+  assert.equal(captures,0);assert.deepEqual(f.requests,[]);
+  await f.app.close();
+});
+
+regression('E8 same-store generation adoption retains an unknown receipt cut until reads cover it',async t=>{
+  const backend=structuredClone(schema),cuts=[],cover=gate();let core;
+  const change=QueryCuts.prototype.change;
+  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+  t.after(()=>cover.resolve());
+  const f=await fixture(t,{raw:true,backend,syncHead:20,wrapCore:opened=>{core=opened;return opened;},
+    queryReply:async path=>{await cover.promise;return {data:'covered',complete:true,tables:path.endsWith('/other')?['other']:['items'],seq:21,store_id:'A',generation:2};}});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const writing=f.app.mutate(mutation,{}, {waitSeconds:5});await f.posted.promise;
+  backend.generation=2;await f.app.client.sync();assert.equal((await core.call({op:'state'})).ok.generation,2);
+  cuts.length=0;f.release.resolve();assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
+  assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'same-store sequences remain comparable; old execution metadata is unknown');
+  const answers=[];
+  const reads=[query,{kind:'query',name:'other'}].map(op=>f.app.client.query(op,{}).then(read=>{answers.push(read);return read;}));
+  await until(()=>f.reads()>=2);assert.deepEqual(answers,[],'neither dependent nor apparently disjoint stale local data is fresh');
+  cover.resolve();for(const read of await Promise.all(reads))assert.equal(read.data,'covered',JSON.stringify(read));
+});
+
+regression('E5 receipt A settling inside replacement adoption cannot write its seq into B cuts',async t=>{
+  const memory=memorySessionStore(),saveEntered=gate(),save=gate(),adopting=gate(),adopt=gate(),id=mintId(),cuts=[];
+  let armed=false,core,progressive,observation;const change=QueryCuts.prototype.change,install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){progressive=this;observation=args[6];return install.apply(this,args);});
+  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+  const store={...memory,async set(key,value){if(armed&&key===storeKey('writes','https://progressive-writes.invalid','alice')&&JSON.parse(value).receipts?.some(write=>write.id===id)){saveEntered.resolve();await save.promise;}return memory.set(key,value);}};
+  t.after(()=>{save.resolve();adopt.resolve();});
+  const f=await fixture(t,{raw:true,hold:false,store,wrapCore:opened=>{core=opened;return {...opened,async call(request,...args){
+    if(armed&&request.op==='adopt'&&request.backend.store_id==='B'){adopting.resolve();await adopt.promise;}
+    return opened.call(request,...args);
+  }};},receiptReply:receipt=>({...receipt,store_id:'A'})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');armed=true;
+  const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await saveEntered.promise;
+  f.replace('B');const syncing=f.app.client.sync();await adopting.promise;
+  // Stamp in the reset/adoption window, after the incarnation moved and the
+  // device identity is B but onlineStore is A: only the store check can reject.
+  const current=observation(),receipt=progressive.receipts.get(id);
+  assert.equal(current.store,'B');assert.equal(receipt.store,'A');assert.notEqual(receipt.incarnation,current.incarnation);
+  progressive.receipt(id,{...receipt,incarnation:current.incarnation});
+  cuts.length=0;save.resolve();assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
+  assert.deepEqual(cuts,[],'storeIdentity is B while onlineStore still names A');
+  adopt.resolve();await syncing;await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  assert.equal((await core.call({op:'sync_state',capture:false})).ok.store_id,'B');f.offline(true);
+  const read=await f.app.client.query(query,{});assert.equal(read.data,'local',JSON.stringify(read));
+});
+
+regression('E5 mismatched receipt settlement wakes a watch parked by journal intersection',async t=>{
+  const memory=memorySessionStore(),entered=gate(),save=gate(),id=mintId();let armed=false,evaluations=0,progressive;
+  const install=ProgressiveWrites.prototype.install;t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);progressive=this;
+    const custody=progressiveWriteCustody(local),inspect=custody.inspect;
+    // Keep the last committed pending snapshot readable while the receipt save
+    // is held, isolating journalIntersects from the separate uncertainty wake.
+    custody.inspect=()=>armed?Promise.resolve({pending:[{id,op:'write',args:{},state:'sent',predicted:[]}],receipts:[]}):inspect();});
+  const store={...memory,async set(key,value){if(armed&&key===storeKey('writes','https://progressive-writes.invalid','alice')&&JSON.parse(value).receipts?.some(write=>write.id===id)){entered.resolve();await save.promise;}return memory.set(key,value);}};
+  t.after(()=>save.resolve());
+  const f=await fixture(t,{raw:true,hold:false,store,wrapCore:core=>({...core,async call(request,...args){if(request.op==='query')evaluations++;return core.call(request,...args);}})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');armed=true;
+  const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await entered.promise;f.replace('B');await f.app.client.sync();
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready'&&!progressive.uncertain);
+  const before=evaluations,watch=f.app.client.observe(query,{});watch.subscribe(()=>{});t.after(()=>watch.close());
+  await until(()=>evaluations>before);await tick();assert.equal(watch.getSnapshot().loading,true);assert.equal(progressive.uncertain,false);
+  armed=false;save.resolve();assert.equal((await writing).state,'sent');
+  // Settlement must wake it now, before the unrelated five-second read poll.
+  for(let n=0;n<100&&watch.getSnapshot().data!=='local';n++)await tick();
+  assert.equal(watch.getSnapshot().data,'local','settlement wakes the parked watch without a later poll');
+});
+
+regression('E5 a receipt that adopts its own authority still plants its cut',async t=>{
+  const cuts=[],change=QueryCuts.prototype.change;
+  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+  const backend=structuredClone(schema);
+  const f=await fixture(t,{raw:true,backend,receiptReply:receipt=>({...receipt,generation:2})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const writing=f.app.mutate(mutation,{}, {waitSeconds:5});await f.posted.promise;backend.generation=2;cuts.length=0;f.release.resolve();
+  assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
+  assert.ok(cuts.some(([seq,writes])=>seq===21&&writes===undefined),'stamp the response-adopted epoch, retaining an unknown cut until its program metadata arrives');
+});
+
+for (const coalesced of [true, false]) regression(`E6 peer journal notification retains its fence with an own capture (coalesced=${coalesced})`, async t => {
+  let progressive;
+  const install = ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this,args); progressive=this; });
+  const f = await fixture(t,{raw:true}); await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const custody=progressiveWriteCustody(f.app.client), own={id:mintId(),op:'write',args:{},state:'queued',predicted:[]};
+  const scanning=gate(), scanRelease=gate(), inspecting=gate(), inspectRelease=gate();
+  t.after(()=>{scanRelease.resolve();inspectRelease.resolve();});
+  let scans=0, inspections=0, peer=false;
+  t.mock.method(custody,'captures',()=>[own]);
+  t.mock.method(custody,'captureState',async()=>{if(++scans===2&&coalesced){scanning.resolve();await scanRelease.promise;}return {unsettled:false,peers:[]};});
+  const inspect=custody.inspect;
+  t.mock.method(custody,'inspect',async()=>{if(++inspections===2){inspecting.resolve();await inspectRelease.promise;}return inspect();});
+  const events=journalChanges(storeKey('writes',f.url,'alice'),()=>{});t.after(()=>events.close());
+  events.notify();
+  if(coalesced) await scanning.promise; else await until(()=>scans>=2&&!progressive.uncertain);
+  // The peer commits W after the previous journal read, then drops its capture
+  // before the next scan. Only its journal notification can keep W fenced.
+  const key=storeKey('writes',f.url,'alice'), id=mintId();
+  await f.store.set(key,JSON.stringify({owner:'alice',backend:f.url,pending:[{owner:'alice',id,op:'peerWrite',args:{},storeId:'A'}],receipts:[]}));
+  peer=true;events.notify();await tick();scanRelease.resolve();await inspecting.promise;
+  let answer;
+  const reading=f.app.client.query({kind:'query',name:'other'},{}).then(value=>answer=value);
+  await tick();await tick();
+  assert.equal(peer,true);assert.equal(answer,undefined,'no pre-W disjoint-to-own-capture local data publishes');
+  assert.equal(progressive.uncertain,true,'the peer notification needs a covering inspection');
+  await f.store.set(key,JSON.stringify({owner:'alice',backend:f.url,pending:[],receipts:[]}));
+  inspectRelease.resolve();await reading;
+});
+
+regression('E6 opening replay receipt installs cut 22 despite inspections failing through settlement', async t => {
+  const {authority}=browserCapture(t), store=memorySessionStore(), id=mintId(), url='https://progressive-writes.invalid';
+  await store.set(storeKey('writes',url,'alice'),JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  let fail=true, inspections=0;
+  const inspect=OnlineCapture.prototype.inspect;
+  t.mock.method(OnlineCapture.prototype,'inspect',function(...args){if(fail){inspections++;return Promise.reject(Error('inspection unavailable'));}return inspect.apply(this,args);});
+  const f=await fixture(t,{raw:true,store,authority,report:()=>{},syncHead:21,receiptReply:receipt=>({...receipt,seq:22,head:22})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');await f.posted.promise;
+  const receipts=[];f.app.client.onWrite(write=>receipts.push(write));f.head(22);f.release.resolve();
+  await until(()=>receipts.some(write=>write.id===id));assert.ok(inspections>0);
+  fail=false;const events=journalChanges(storeKey('writes',url,'alice'),()=>{});t.after(()=>events.close());events.notify();
+  const answer=await f.app.client.query(query,{});
+  assert.equal(answer.data,'server','complete local watermark 21 cannot satisfy receipt 22');
+});
+
+regression('E6 existing facade and hook retain journal selections through opening recovery', async t => {
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  await store.set(key,'damaged opening');
+  const f=await fixture(t,{store});await f.app.ready;
+  const access=pendingIntentAccess(f.app.client), hook=pendingItemsSource(f.app.client);
+  const stop=hook.subscribe(()=>{},write=>write.op==='write');t.after(stop);
+  assert.ok('data' in await f.app.client.query(query,{}));
+  const writing=f.app.mutate(mutation,{}, {waitSeconds:0});await f.posted.promise;await writing;
+  const id=f.requests[0];
+  assert.ok((await access.read()).some(item=>item.write.id===id),'previously captured facade provider sees journal intent');
+  await until(()=>hook.getSnapshot().some(item=>item.write.id===id));
+  f.release.resolve();await until(()=>hook.getSnapshot().some(item=>item.write.id===id&&item.phase==='settling'));
+  assert.equal(hook.getSnapshot().find(item=>item.write.id===id).receipt.seq,21,'selection registered before recovery retains settlement');
+});
+
+regression('E6 recovery and inspection share one failure streak until both succeed', async t => {
+  const {authority}=browserCapture(t),memory=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  const id=mintId(),capture=new OnlineCapture(url,'alice',authority);await capture.ready;capture.capture(id,'write',{},'A');capture.close();
+  let failing=true,saves=0;const warnings=[],recoveryTimers=[],inspectionTimers=[];
+  const store={...memory,async set(k,value){if(failing&&k===key&&JSON.parse(value).pending.some(write=>write.id===id)){saves++;throw Error('journal storage unavailable');}return memory.set(k,value);}};
+  const native=setTimeout;
+  t.mock.method(globalThis,'setTimeout',(fn,delay,...args)=>{
+    const stack=new Error().stack;
+    if(stack.includes('scheduleRecovery')){recoveryTimers.push({fn,delay});return {unref(){}};}
+    if(stack.includes('/dist/progressive-writes.js')){inspectionTimers.push({fn,delay});return {unref(){}};}
+    return native(fn,delay,...args);
+  });
+  const f=await fixture(t,{raw:true,store,authority,report:error=>warnings.push(error),hold:false});
+  await until(()=>recoveryTimers.length===1);assert.equal(warnings.length,1);
+  for(let n=0;n<4;n++){
+    const before=inspectionTimers.length;inspectionTimers.at(-1).fn();await until(()=>inspectionTimers.length>before);
+    assert.equal(saves,n+1,'inspection does not bypass armed recovery timer');
+    recoveryTimers[n].fn();await until(()=>recoveryTimers.length===n+2);
+  }
+  assert.equal(warnings.length,1,'one report includes failed capture recovery and successful-but-uncertain inspections');
+  failing=false;recoveryTimers.at(-1).fn();await f.posted.promise;
+  const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();await tick();await tick();
+  const custody=progressiveWriteCustody(f.app.client);
+  t.mock.method(custody,'inspect',async()=>{throw Error('next inspection streak');});events.notify();
+  await until(()=>warnings.length===2);assert.equal(warnings.length,2);
+});
+
+regression('E6 live capture polling backs off to 3.2 seconds and resets after drainage', async t => {
+  const f=await fixture(t,{raw:true,report:()=>{}});await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const custody=progressiveWriteCustody(f.app.client),timers=[],native=setTimeout;
+  let live=true,fail=false;
+  t.mock.method(custody,'captureState',async()=>({unsettled:false,peers:live?[{id:'peer',op:'write',args:{},state:'queued',predicted:[]}]:[]}));
+  const inspect=custody.inspect;t.mock.method(custody,'inspect',()=>fail?Promise.reject(Error('new streak')):inspect());
+  t.mock.method(globalThis,'setTimeout',(fn,delay,...args)=>{if(new Error().stack.includes('/dist/progressive-writes.js')){timers.push({fn,delay});return {unref(){}};}return native(fn,delay,...args);});
+  const events=journalChanges(storeKey('writes',f.url,'alice'),()=>{});t.after(()=>events.close());events.notify();await until(()=>timers.length===1);
+  for(let n=0;n<7;n++){
+    const expected=Math.min(100*2**n,3200);assert.ok(timers[n].delay>=expected-20&&timers[n].delay<=expected,`capture retry ${n}: ${timers[n].delay}`);
+    timers[n].fn();await until(()=>timers.length===n+2);
+  }
+  live=false;timers.at(-1).fn();await tick();await tick();
+  fail=true;const before=timers.length;events.notify();await until(()=>timers.length>before);
+  assert.ok(timers.at(-1).delay<=100,'drained successful inspection resets backoff');fail=false;
+});
+
+for(const action of ['pause','retire']) regression(`E6 opening-recovery custody handle follows app ${action}`, async t => {
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  await store.set(key,'damaged opening');let handle,localClient;
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);localClient=local;handle??=progressiveWriteCustody(local);});
+  const f=await fixture(t,{store});await f.app.ready;assert.ok(handle,'the facade can capture a stable handle before recovery');
+  assert.ok('data' in await f.app.client.query(query,{}));
+  assert.ok(handle===progressiveWriteCustody(localClient),'opening recovery preserves the handle captured by the facade');
+  let calls=0;
+  const method=action==='pause'?'pause':'refuseStore',original=handle[method];
+  t.mock.method(handle,method,(...args)=>{calls++;return original(...args);});
+  if(action==='pause') await f.app.auth.logout();
+  else {
+    f.fail({code:'E_STORE_REPLACED',family:'store',message:'replacement'});
+    await f.app.mutate(mutation,{}, {waitSeconds:0});await until(()=>calls>0);
+  }
+  assert.ok(calls>0,`app ${action} reaches the custody installed after recovery`);
+});
+
+regression('E6 a hook captured during opening failure sees later held journal intent', async t => {
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  await store.set(key,'damaged opening');
+  let progressive;const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){await install.apply(this,args);progressive=this;});
+  const f=await fixture(t,{store,custody:'present',failure:Error('engine unavailable')});f.coreGate.resolve();await f.app.ready;
+  const access=pendingIntentAccess(f.app.client),hook=pendingItemsSource(f.app.client),stop=hook.subscribe(()=>{},write=>write.op==='write');t.after(stop);
+  await progressive.pending();
+  f.coreGate.resolve();await until(()=>localStatus(f.app.client).getSnapshot().state==='unavailable');
+  const write=await f.app.mutate(mutation,{}, {waitSeconds:0});assert.equal(write.state,'pending');
+  assert.equal((await access.read()).find(item=>item.write.id===write.id)?.phase,'held');
+  await until(()=>hook.getSnapshot().some(item=>item.write.id===write.id&&item.phase==='held'));
+  assert.deepEqual(f.requests,[]);
+});
+
+
+for(const custody of ['present','unknown','none']) regression(`E7 opening recovery keeps one admission owner and retryable ids (${custody})`,async t=>{
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  await store.set(key,'damaged opening');
+  const entered=gate(),release=gate();let installs=0,progressive,original,core;
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){
+    progressive=this;
+    if(++installs===1)original=local.mutate;
+    if(installs===2){entered.resolve();await release.promise;assert.equal(args.at(-1)?.mutate,original,'nested install retains the device method snapshot');}
+    return install.call(this,local,...args);
+  });
+  t.after(()=>release.resolve());
+  const f=await fixture(t,{raw:true,store,custody,hold:false,wrapCore:opened=>{core=opened;return opened;}});await f.app.ready;
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  if(custody==='none')await core.close();
+  const recovering=progressive.pending();await entered.promise;
+  const id=mintId(),write=await f.app.client.mutate(mutation,{}, {id,waitSeconds:0});
+  assert.equal(write.why?.code,'E_ADMISSION','the closed/unopened core cannot admit or emit E_STORE during recovery');
+  assert.deepEqual(f.requests,[]);assert.equal((await f.journal()).pending.length,0);
+  release.resolve();await recovering;
+  const retry=await f.app.client.mutate(mutation,{}, {id,waitSeconds:5});
+  assert.equal(retry.state,custody==='none'?'pending':'sent','refused id reaches the journal on retry');
+  const journal=await f.journal();assert.equal([...journal.pending,...journal.receipts].filter(write=>write.id===id).length,1);
+  if(custody!=='none')assert.deepEqual(f.requests,[id]);
+});
+
+for(const raw of [false,true]) regression(`E7 close during nested opening install pauses custody without retiring unsent replay (raw=${raw})`,async t=>{
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId();
+  await store.set(key,'damaged opening');
+  const entered=gate(),release=gate();let installs=0,progressive,local;
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(client,...args){local=client;progressive=this;if(++installs===2){entered.resolve();await release.promise;}return install.call(this,client,...args);});
+  t.after(()=>release.resolve());
+  const f=await fixture(t,{raw,store,hold:false});await f.app.ready;
+  const recovering=progressive.pending();await entered.promise;
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  const closing=f.app.close();await tick();release.resolve();await recovering;await closing;
+  const handle=progressiveWriteCustody(local);handle.start();await tick();await tick();
+  assert.deepEqual(f.requests,[]);assert.ok((await f.journal()).pending.some(write=>write.id===id));assert.deepEqual((await f.journal()).receipts,[]);
+  assert.deepEqual(await handle.inspect(),{pending:[],receipts:[]},'closed custody stays paused');
+});
+
+regression('E7 an onlineCustody failure during nested install re-arms opening recovery',async t=>{
+  const memory=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  await memory.set(key,'damaged opening');let installs=0,fail=false,progressive;
+  const store={...memory,async get(k){if(k===key&&fail){fail=false;throw Error('nested custody open failed');}return memory.get(k);}};
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){progressive=this;if(++installs===2)fail=true;return install.apply(this,args);});
+  const f=await fixture(t,{raw:true,store,hold:false,report:()=>{}});await f.app.ready;
+  await progressive.pending();assert.equal((await f.app.client.mutate(mutation,{})).why?.code,'E_ADMISSION');
+  await progressive.pending();assert.equal((await f.app.client.mutate(mutation,{})).state,'sent');assert.equal(f.requests.length,1);
+});
+
+regression('E7 recovery reports failed preservation and the successful quarantine side key',async t=>{
+  const memory=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),warnings=[];
+  await memory.set(key,'damaged opening');let fail=true,side,progressive;
+  const store={...memory,async set(k,value){if(k.startsWith(`${key}.damaged.`)){if(fail)throw Error('preservation blocked');side=k;}return memory.set(k,value);}};
+  const install=ProgressiveWrites.prototype.install;t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){progressive=this;return install.apply(this,args);});
+  const f=await fixture(t,{raw:true,store,report:error=>warnings.push(error)});await f.app.ready;warnings.length=0;
+  await progressive.pending();assert.ok(warnings.some(error=>error.why.message.includes('could not be preserved')));
+  assert.equal(await memory.get(key),'damaged opening');warnings.length=0;fail=false;await progressive.pending();
+  assert.ok(warnings.some(error=>error.why.rewrite.includes(side)),'the app receives the preserved-byte location');
+  assert.equal(await memory.get(side),'damaged opening');
+});
+
+regression('E7 unknown executed generation fences newly written other after credential-only rotation',async t=>{
+  const backend=structuredClone(schema),cuts=[],change=QueryCuts.prototype.change;let core;
+  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+  const f=await fixture(t,{raw:true,backend,syncHead:20,syncGeneration:1,wrapCore:opened=>{core=opened;return opened;},receiptReply:receipt=>({...receipt,generation:2}),
+    refreshReply:()=>Response.json({ok:false,why:{code:'E_OVERLOADED',family:'availability',message:'try later',retryable:true}},{status:503})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'other');
+  const writing=f.app.client.mutate(mutation,{}, {waitSeconds:5});await f.posted.promise;
+  backend.generation=2;backend.programs.find(op=>op.name==='write').settlement.writes.other=null;
+  assert.equal((await f.app.client.refreshSession()).ok,false);assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'other','disjoint local read remains available before settlement');cuts.length=0;f.release.resolve();assert.equal((await writing).state,'sent');
+  await until(async()=>!(await f.app.client.pendingWrites()).length);
+  assert.equal((await core.call({op:'state'})).ok.generation,1,'receipt metadata was not adopted');
+  assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'unknown execution footprint retains a conservative cut');
+  assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'server','no pre-mutation other value');
+});
+
+for(const bound of [true,false]) regression(`E7 inspected peer settlement cannot borrow replacement store authority (bound=${bound})`,async t=>{
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId();
+  let progressive;const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){await install.apply(this,args);progressive=this;});
+  const f=await fixture(t,{raw:true,store,hold:false});await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},...(bound?{storeId:'A'}:{})}],receipts:[]}));
+  const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();await until(()=>!progressive.uncertain&&progressive.current().some(write=>write.id===id));
+  f.replace('B');await f.app.client.sync();await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  const receipt={state:'sent',id,seq:21,replayed:true};await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[],receipts:[receipt]}));events.notify();
+  await until(()=>!progressive.uncertain&&!progressive.current().some(write=>write.id===id));
+  assert.deepEqual(await f.app.client.write(id),receipt,'terminal outcome remains recoverable');
+  f.offline(true);
+  assert.equal((await f.app.client.query(query,{})).data,'local','inspection must not install A sequence 21 in B');
+});
+
+regression('E7 inspections coalesce with a held recovery save that subsequently fails',async t=>{
+  const {authority}=browserCapture(t),memory=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice');
+  const id=mintId(),capture=new OnlineCapture(url,'alice',authority);await capture.ready;capture.capture(id,'write',{},'A');capture.close();
+  const entered=gate(),release=gate(),timers=[];let saves=0,fail=true,progressive;
+  const store={...memory,async set(k,value){if(k===key&&JSON.parse(value).pending.some(write=>write.id===id)){saves++;if(fail){entered.resolve();await release.promise;throw Error('held recovery save failed');}}return memory.set(k,value);}};
+  const native=setTimeout;t.mock.method(globalThis,'setTimeout',(fn,delay,...args)=>{if(new Error().stack.includes('scheduleRecovery')){timers.push({fn,delay});return {unref(){}};}return native(fn,delay,...args);});
+  const install=ProgressiveWrites.prototype.install;t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){await install.apply(this,args);progressive=this;});
+  t.after(()=>release.resolve());const f=await fixture(t,{raw:true,store,authority,hold:false,report:()=>{}});await entered.promise;
+  const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();await tick();await tick();
+  const custody=progressiveWriteCustody(f.app.client),first=custody.recover(),second=custody.recover();
+  assert.equal(first,second,'in-flight recoveries share their completion');
+  release.resolve();await first;await until(()=>timers.length===1);await new Promise(resolve=>setTimeout(resolve,150));
+  assert.equal(saves,1,'no recovery queued behind the failed save');assert.equal(progressive.uncertain,true);assert.deepEqual(f.requests,[]);
+  fail=false;timers[0].fn();await f.posted.promise;await until(async()=>(await f.journal()).receipts.some(write=>write.id===id));assert.deepEqual(f.requests,[id]);
+});
+
+regression('E8 skipped foreign-store receipt retains a displayed answer and retires an in-flight evaluation',async t=>{
+  let changed,observation,held=false,calls=0;
+  const entered=gate(),release=gate(),seen=[],install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){changed=args[3];observation=args[6];return install.apply(this,args);});
+  t.after(()=>release.resolve());
+  const f=await fixture(t,{queryReply:async()=>{
+    const attempt=held?++calls:0;
+    if(attempt===1){entered.resolve();await release.promise;}
+    return {data:attempt===1?'obsolete':attempt?'current':'displayed',complete:true,tables:['items'],scopes:{items:[{}]},seq:20,store_id:'A',generation:1};
+  }});
+  await f.app.ready;const watch=f.app.client.observe(query,{});watch.subscribe(()=>seen.push(watch.getSnapshot()));t.after(()=>watch.close());
+  await until(()=>watch.getSnapshot().data==='displayed');assert.equal(episodeDeadline(watch.getSnapshot()),undefined);held=true;
+  const foreign={...observation(),store:'retired',generation:1};
+  changed('write',21,foreign);await entered.promise;
+  changed('write',22,foreign);
+  assert.equal(watch.getSnapshot().data,'displayed','a skipped receipt has no authority to withdraw this answer');
+  assert.equal(episodeDeadline(watch.getSnapshot()),undefined,'unknown preserved scopes do not start a revocation episode');
+  release.resolve();await until(()=>watch.getSnapshot().data==='current');
+  assert.equal(seen.some(read=>read.data==='obsolete'),false,'changed=true retires the evaluation begun before settlement');
+  assert.equal(seen.some(read=>episodeDeadline(read)!==undefined),false);
+});
+
+regression('E8 awaited journal receipt does not repeat a replacement already adopted by sync',async t=>{
+  const changes=[],store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId();
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  const f=await fixture(t,{raw:true,startup:'awaited',journal:true,store,hold:false,onStoreChange:why=>changes.push(why)});
+  await until(async()=>(await f.app.client.write(id))?.state==='sent');
+  f.replace('B');await f.app.client.sync();
+  const before=changes.length;
+  const write=await f.app.client.mutate(mutation,{}, {waitSeconds:5});
+  // The transport remains bound to A and correctly refuses reuse in B. The
+  // local authority already adopted B, so it must not report replacement again
+  // or mistake A's old head for a restore of B.
+  assert.equal(write.state,'failed',JSON.stringify(write));assert.equal(write.why.code,'E_STORE_REPLACED');
+  assert.equal((await f.journal()).receipts.some(receipt=>receipt.id===write.id),true);
+  assert.equal(changes.length,before,'the first B journal receipt must compare against the already adopted device store');
+});
+
+regression('E8 seeded opening intent parks dependent reads until its settlement cut is covered',async t=>{
+  const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId(),admissions=[];
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){const changed=args[3];args[3]=(op,cut,...rest)=>{if(op&&cut===undefined)admissions.push(op);return changed(op,cut,...rest);};return install.apply(this,args);});
+  const f=await fixture(t,{raw:true,store,syncHead:20});await f.posted.promise;
+  const waits=[],wait=QueryCustody.prototype.wait;
+  t.mock.method(QueryCustody.prototype,'wait',function(...args){waits.push(args);return wait.apply(this,args);});
+  let answer;const reading=f.app.client.query(query,{}).then(read=>answer=read);
+  await until(()=>waits.length>0);assert.equal(answer,undefined);assert.deepEqual(admissions,[],'seeded ids do not emit a separate admission barrier');
+  assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'other');
+  f.release.resolve();await reading;assert.equal(answer.data,'server','the settled cut prevents local watermark 20 from appearing fresh');
+  assert.equal((await f.app.client.write(id)).state,'sent');
+});
+
+regression('E8 inspected peer receipt keeps its same-store cut across generation adoption',async t=>{
+  const store=memorySessionStore(),backend=structuredClone(schema),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId(),cuts=[];
+  let progressive;const install=ProgressiveWrites.prototype.install,change=QueryCuts.prototype.change;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){await install.apply(this,args);progressive=this;});
+  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+  const f=await fixture(t,{raw:true,store,backend,syncHead:20,queryReply:()=>({data:'covered',complete:true,tables:['other'],seq:21,store_id:'A',generation:2})});
+  await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
+  await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
+  const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();await until(()=>!progressive.uncertain&&progressive.current().some(write=>write.id===id));
+  backend.generation=2;await f.app.client.sync();cuts.length=0;
+  const receipt={state:'sent',id,seq:21,replayed:true};await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[],receipts:[receipt]}));events.notify();
+  await until(()=>!progressive.uncertain&&!progressive.current().some(write=>write.id===id));
+  assert.deepEqual(await f.app.client.write(id),receipt);
+  assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'observation incarnation fences authority, not comparable same-store sequence numbers');
+  assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'covered');
 });

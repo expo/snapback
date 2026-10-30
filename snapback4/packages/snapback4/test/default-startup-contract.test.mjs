@@ -12,6 +12,10 @@ test('client card retains its 114-line and 1200-word budgets with default and pr
   assert.match(card, /defaults to progressive startup/);
   assert.match(card, /startup: "awaited"/);
   assert.match(card, /Journal-owned documents predict no ordinary writes until the next open/);
+  const lead = card.split('\n\n')[1];
+  assert.ok(lead.trim().split(/\s+/).length <= 45);
+  assert.ok((lead.match(/\./g) ?? []).length <= 2);
+  assert.doesNotMatch(card, /\bLLP\s+\d/);
 });
 
 test('prediction and reference distinguish first-visit journal writes from next-open outbox prediction', () => {
@@ -20,8 +24,8 @@ test('prediction and reference distinguish first-visit journal writes from next-
   assert.match(reference, /four-second default wait/);
   assert.match(reference, /Persona web apps require IndexedDB-backed journal\nauthority in both startup modes/);
   const prediction = read('crates/snapback4-lang/src/guide/prediction.rs');
-  assert.match(prediction, /First-visit web apps journal ordinary writes without prediction for that whole document/);
-  assert.match(prediction, /At the next open, an empty journal and compatible device can select the outbox/);
+  assert.match(prediction, /A first-visit web document journals writes without prediction until the next open/);
+  assert.match(prediction, /a returning one with an empty journal and a compatible device predicts from held facts or queues/);
 });
 
 test('default-flip changelog entry has the next patch semver heading', () => {
@@ -30,6 +34,12 @@ test('default-flip changelog entry has the next patch semver heading', () => {
   const parts = previous.split('.').map(Number);
   assert.equal(next, `${parts[0]}.${parts[1]}.${parts[2] + 1}`);
   assert.match(changelog.split('\n## ')[1], /progressive startup/);
+});
+
+test('opening journal admission-barrier omission and its custody rationale are disclosed', () => {
+  const reference = read('packages/snapback4/reference/CLIENT-AND-OPERATIONS.md');
+  assert.match(reference, /Opening pending ids skip a separate admission change barrier: intersecting reads\nalready wait on journal custody, and settlement installs the receipt cut/);
+  assert.doesNotMatch(reference.replace(/<!--[\s\S]*?-->/g, ''), /\bLLP\s+\d/);
 });
 
 // Published starter identities immediately before Lane D (634fb6c821^).

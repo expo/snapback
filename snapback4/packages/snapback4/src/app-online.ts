@@ -21,7 +21,7 @@ import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true,
-  captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false) {
+  captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   // @ref LLP 3000.013.000#4 — a device-less browser app captures each click
@@ -394,9 +394,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const revisions = new Map(journal.pending.map(intent => [intent.id, intent.statusRevision]));
       for (const [id, hold] of unsavedHolds) if (!revisions.has(id) || revisions.get(id) !== hold.revision) unsavedHolds.delete(id);
       for (const id of dispatchRevisions.keys()) if (!revisions.has(id)) dispatchRevisions.delete(id);
-      return { receipts: [...journal.receipts, ...unpersisted.values()], pending: [...new Map([...identification.pending(), ...(progressive ? capturing.values() : []), ...journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
+      const receipts = [...journal.receipts, ...unpersisted.values()];
+      // A peer's inspected terminal id already has custody. Same-id retries
+      // must recover it before attempting another synchronous capture.
+      for (const receipt of receipts) ids.remember(receipt.id);
+      for (const id of journal.retired ?? []) ids.remember(id);
+      return { receipts, pending: [...new Map([...identification.pending(), ...(progressive ? capturing.values() : []), ...journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
         const reason = unsavedHolds.get(intent.id)?.reason ?? intent.holdReason;
-        return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
+        return { id: intent.id, op: intent.op, args: intent.args, storeId: intent.storeId, predicted: [],
           ...(reason ? { state: "held" as const, reason }
             : { state: intent.dispatched ? "sent" as const : "queued" as const }),
         };
@@ -436,7 +441,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4.4 — admit this scope's surviving captures once,
   // under the journal lock and then the session lock; replay them before this
   // runtime's new clicks. Ownership first; another authority source is never read.
+  let recovering: Promise<void> | undefined;
   function recover(): Promise<void> {
+    if (recovering) return recovering;
     if (!capture || !active) return Promise.resolve();
     capture.stale = false;
     const adopted: Intent[] = [];
@@ -490,9 +497,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         ids.release(intent.id);
         if (active) void client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id }).catch(report);
       }
-    }, error => { capture.stale = true; report(error); scheduleRecovery(); });
-    recovery = done;
-    return done;
+    }, error => { capture.stale = true; reportRecovery(error); scheduleRecovery(); });
+    recovery = recovering = done.finally(() => { recovering = undefined; });
+    return recovering;
   }
   if (autoStart) start();
   function refuseStore(why: Refusal): Promise<void> {
@@ -516,8 +523,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     captureState: async () => {
       const state = await capture?.inspect();
       return { unsettled: !!capture?.stale || !!state?.recoverable.length,
-        peers: state?.peers.map(record => ({ id: record.id, op: record.op, args: record.args, predicted: [], state: "queued" as const })) ?? [] };
+        peers: state?.peers.map(record => ({ id: record.id, op: record.op, args: record.args, storeId: record.storeId, predicted: [], state: "queued" as const })) ?? [] };
     },
-    // Inspection retries may recover dead peers only after session publication.
-    recover: () => started ? recover() : Promise.resolve() };
+    // Inspection may discover dead peers after session publication. A failed
+    // recovery already owes a backoff retry; inspection must not bypass it.
+    recover: () => recovering ?? (started && !capture?.stale ? recover() : Promise.resolve()) };
 }

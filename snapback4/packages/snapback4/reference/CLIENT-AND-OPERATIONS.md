@@ -200,12 +200,20 @@ server-only reads through `app.online` continue. Engine failure does not sign th
 An unreadable opening journal also refuses potentially dependent reads with
 `E_ADMISSION` while recovery fails; dependent reads retry the journal under its
 journal and session locks, restoring reads and writes when storage recovers.
+Existing pending-intent hooks continue observing recovered custody, including
+held intents and retained settlements.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
-3.2 seconds and one problem report per failure streak. Recovery-eligible captures
+3.2 seconds; live-capture polling uses the same backoff. Capture recovery and
+inspection report one problem per failure streak, reset after both succeed. Recovery-eligible captures
 remain uncertain until adopted or cancelled; an empty committed journal cannot
 clear that fence. This tab's live captures and live peers use their known write
-footprints, so disjoint reads remain available.
+footprints, so disjoint reads remain available. A peer journal notification
+keeps dependent reads fenced until an inspection covers it, even while this tab
+holds its own live capture. Replayed opening intents retain their committed
+read-your-writes barrier even if inspections fail through settlement.
+Opening pending ids skip a separate admission change barrier: intersecting reads
+already wait on journal custody, and settlement installs the receipt cut.
 
 Device-dependent media, upload and residency calls can report typed device
 unavailability until the engine is usable. Media intents and ephemeral signals

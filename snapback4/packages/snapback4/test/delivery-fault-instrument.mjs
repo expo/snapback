@@ -648,3 +648,40 @@ export function awaitBoundary() {
 // first-inspect failure and bounded retry; online-capture/app-online cover the
 // underlying storage faults. All 215 classified device delivery sites and their
 // recipes remain unchanged; regenerate the complete await boundary seal.
+
+// Lane E round 5: local.ts retains 228 awaits; its awaited journal install
+// expression now carries receipt incarnation/store stamps and the intersecting
+// watch wake after a skipped cut. onlineEvidence returns its adopted epoch at
+// its existing completion; there is no new I/O. app-online retains 40 awaits:
+// inspected terminal-id reservation and the stale-recovery backoff guard are
+// synchronous. Progressive-writes retains 26 awaits and changes only its erased
+// evidence type. E5 regressions cover exhausted capture storage, recovery retry
+// counts, awaited replacement, generation retirement, mid-adoption settlement
+// and watch wakeup. All 215 classified delivery sites and recipes are unchanged;
+// regenerate only the complete await-expression seal.
+
+// Lane E round 6: progressive-writes retains 26 awaits; its onlineCustody call
+// supplies the existing failure-streak reporter for capture recovery. Stable
+// pending-intent/custody delegates, opening operation tracking, notification
+// provenance and capped live-capture polling are synchronous. app-online keeps
+// 40 awaits and routes recovery errors to that reporter. Held/coalesced journal
+// inspections, replay-cut, hook/retention, recovery/backoff and app-lifetime
+// regressions cover these paths. Regenerate the complete expression seal;
+// all 215 classified delivery sites, recipes and failure classes are unchanged.
+
+// Lane E round 7: local retains 228 awaits, progressive-writes 26 and app-online
+// 40. Opening recovery keeps its admission/close fences through nested install,
+// passes the device method snapshot and reports quarantine at the existing read.
+// Receipt cuts now require generation-qualified footprints; peer inspections
+// retain store/incarnation evidence, and concurrent recovery shares one promise.
+// These reuse the existing installation, journal, transport and save boundaries.
+// E7 holds nested installation, receipt delivery and a failing recovery save;
+// it covers replacement-store peer receipts and failed/successful preservation.
+// Regenerate the expression seal; all 215 classified sites/recipes are unchanged.
+
+// Lane E round 8: local retains 228 awaits. Its existing journal-install
+// expression now accepts same-store cuts across program adoption and wakes
+// foreign-store settlement with unknown preserved scopes. Sync advances online
+// store/head observations in both startup modes. These are synchronous
+// evidence changes at existing boundaries; all 215 classified delivery sites,
+// failure classes and recipes remain unchanged. Regenerate the expression seal.
