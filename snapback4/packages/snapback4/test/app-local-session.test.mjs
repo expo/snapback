@@ -17,7 +17,7 @@ test("a failed local rotation save is not silently repeated by its notification"
     if (fail && k === key && JSON.parse(value).token) { fail = false; failures++; throw Error("one rotation save failed"); }
     await memory.set(k, value);
   } };
-  const options = { url, sessionStore: store, device: device(), fetch: async (input, init) => {
+  const options = { url, startup: "awaited", sessionStore: store, device: device(), fetch: async (input, init) => {
     const response = await fetch(input, init);
     if (new URL(input).pathname === "/auth/refresh") successor = (await response.clone().json()).session;
     return response;
@@ -35,7 +35,7 @@ test("a failed local rotation save is not silently repeated by its notification"
 
 test("a local query retries its consumed predecessor after the owned rotation arrives", { timeout: hangBudget(12) }, async t => {
   const { url } = await server(t, "online only"), store = memorySessionStore(), held = gate(); let successor, denied = false;
-  const app = createApp({ url, device: device(), sessionStore: store, fetch: async (input, init) => {
+  const app = createApp({ url, startup: "awaited", device: device(), sessionStore: store, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     const response = await fetch(input, init);
     if (path === "/auth/refresh") { successor = (await response.clone().json()).session; await held.promise; }

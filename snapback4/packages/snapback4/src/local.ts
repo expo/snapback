@@ -174,29 +174,31 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
-  const journalWrites = options.startup === "progressive" && options.device.custody ? ProgressiveWrites.for(options, base, viewer) : undefined;
+  const journalWrites = options.device.custody ? ProgressiveWrites.for(options, base, viewer) : undefined;
   let deviceListed = !progressive, deviceHistoryListed = !progressive;
   const probeCustody = async () => {
     const custody = await options.device.custody!(storeName);
     deviceListed = deviceHistoryListed = custody === "none";
-    return custody;
+    // Awaited opening can establish an outbox even on the first visit; the
+    // journal/capture inspection must still select its existing owner first.
+    return options.startup === "awaited" ? "present" : custody;
   };
   let openingFailure: unknown;
-  if (progressive) {
+  if (progressive || journalWrites) {
     // Admission and this absence decision share the session lock. The host
     // reads journal keys only after acquiring it, never from a prior probe.
     const key = admissionAuthorityKey(options) ?? sessionKey(base);
-    if (journalWrites) progressive = await journalWrites.decide(key, probeCustody);
+    if (journalWrites) { const onlineFirst = await journalWrites.decide(key, probeCustody); progressive &&= onlineFirst; }
     else try { progressive = await storeLock(key, probeCustody) === "none"; } catch { progressive = false; }
-    if (!progressive && options.device.engineInfo) try { engineInfo = normalizeEngine(await options.device.engineInfo()); version.compatible(engineInfo, headers); }
-    catch (error) { if (!journalWrites) throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
+    if (!progressive && !engineInfo && options.device.engineInfo) try { engineInfo = normalizeEngine(await options.device.engineInfo()); version.compatible(engineInfo, headers); }
+    catch (error) { if (!journalWrites || options.startup === "awaited") throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
   }
   const onlineBlocked = () => !progressive && versionBlocked();
   let link: Link = "online", linkRevision = 0, generation = 0;
   let initial: Awaited<ReturnType<typeof initialBackend>>;
   try { initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible); }
   catch (error) {
-    if (!journalWrites || !(error instanceof DeviceVersionError)) throw error;
+    if (!journalWrites || options.startup === "awaited" || !(error instanceof DeviceVersionError)) throw error;
     openingFailure = error; progressive = true; journalWrites.unavailable(); delete headers["x-snapback-device"];
     initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible);
   }
@@ -216,7 +218,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let publicationTimer: ReturnType<typeof setTimeout> | undefined;
   let activated = false, foregroundReads = 0;
   if (!progressive) try { core = await version.run(() => openLocalDevice(options.device, storeName, backend, initial.refusal)); }
-  catch (error) { if (!journalWrites || !backend) throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
+  catch (error) { if (!journalWrites || options.startup === "awaited" || !backend) throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
   let stopSuspend: (() => void) | undefined, stopClock: (() => void) | undefined;
   let sendingAllowed = !!core && !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
@@ -241,14 +243,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const recoverDeviceCustody = async () => {
     if (!core) return;
-    // A failure cannot erase committed onOutbox deltas with a recovery read.
+    // Deltas preserve entries but cannot certify that the full queue was listed.
     if (!deviceQueueObserved) try { await readCoreQueue(); } catch {}
     if (!deviceHistoryListed) try { await readDeviceHistory(); } catch {}
   };
   // @ref LLP 3000.002.000#5.2 — only a certified empty read footprint is
   // disjoint from unknown device debt; observed tables widen it at publication.
   const deviceReads = (reads?: Footprint) => !reads || Object.keys(reads).length > 0;
-  const custodyFailure = () => !deviceListed ? coreFailure : undefined;
+  const custodyFailure = () => journalWrites?.inspectionFailure ?? (!deviceListed ? coreFailure : undefined);
   const unknownDeviceCustody = (reads?: Footprint) => (!deviceListed && deviceReads(reads))
     || (journalWrites?.uncertain === true && (!reads || Object.keys(reads).length > 0));
   const queued = () => progressive && (!coreReady || coreFailure) ? Promise.resolve(custodyEntries) : readCoreQueue();
@@ -271,6 +273,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  const custodyParked = new Set<Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
@@ -1105,8 +1108,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const journalPending = (tables: Set<string> | null) => journalWrites?.current().some(write => intersects(tables ? tableFootprint(tables) : undefined, dependencies(backend, write.op)?.writes)) ?? false;
   const journalIntersects = (reads: Footprint | undefined) => journalWrites?.current().some(write => intersects(reads, dependencies(backend, write.op)?.writes)) ?? false;
-  const journalCovered = (result: Pick<LocalResult<unknown>, "seq" | "serverOnly" | "journalReads">) =>
-    result.serverOnly && result.seq === undefined || journalCuts.current(result.seq ?? seq, result.journalReads);
+  const journalCovered = (result: Pick<LocalResult<unknown>, "seq" | "evaluationWatermark" | "serverOnly" | "journalReads">) =>
+    result.serverOnly && result.seq === undefined || journalCuts.current(result.seq ?? result.evaluationWatermark ?? seq, result.journalReads);
   const pendingRead = (tables: Set<string> | null, predictions = core?.[deviceControl]?.()?.predictions) => unknownDeviceCustody() || journalPending(tables) || answers.pending(tables, predictions); // @ref LLP 3000.016#2.2 — one publication procedure governs every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal): Promise<LocalResult<R>> {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
@@ -1156,6 +1159,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         else if ("data" in result.read && (unknownDeviceCustody(result.journalReads) || !journalCovered(result) || journalIntersects(result.journalReads))) {
           result.read = { loading: true }; result.custodyWaiting = true;
         }
+        if (owner && result.custodyWaiting && journalWrites?.uncertain && deviceReads(result.journalReads)) custodyParked.add(owner);
         checkRead(signal);
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
@@ -1175,6 +1179,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
   }
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
+    if (watch && (result.custodyWaiting || "data" in result.read) && journalWrites?.uncertain && deviceReads(result.journalReads)) custodyParked.add(watch);
     // @ref LLP 3000.023#3.2 — custody is revalidation, not a replacement answer.
     // This also covers presence refreshes; keep the original expiry timers.
     if (result.custodyWaiting && (unknownDeviceCustody(result.journalReads) || progressive && !acquired || journalIntersects(result.journalReads) || !journalCovered(result))
@@ -1216,7 +1221,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.()) return;
       if (served && revision === incarnation && (authority === answers.revision || result.publicationCurrent?.()) && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result, result.authority === answers.revision)) return false;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result, progressive && result.authority === answers.revision)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
@@ -1266,7 +1271,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
       if (retryExpired && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) return;
-      if (!answers.current(watch, result, result.authority === answers.revision)) { if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); } watch.dirty = true; retryExpired = true; return; }
+      if (!answers.current(watch, result, progressive && result.authority === answers.revision)) { if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); } watch.dirty = true; retryExpired = true; return; }
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion && !result.publicationCurrent?.()) return false;
@@ -1495,7 +1500,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer);
           answers.resume(watch, dependencies(backend, watch.op.name)?.reads); void scheduleRead(watch); },
-        watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
+        watch => { custodyParked.delete(watch); answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
         (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
@@ -1684,7 +1689,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
-      watches.clear();
+      watches.clear(); custodyParked.clear();
       linkListeners.clear();
       sessionListeners.clear();
       viewerListeners.clear();
@@ -1795,12 +1800,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
     if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await step(call({ op: "backend" }))).ok as BackendJson;
     stopOutbox = core.onOutbox?.((time, entries) => {
-      if (!entries) deviceListed = false;
+      if (!entries) deviceListed = deviceQueueObserved = false;
       if (entries) {
         const merged = new Map(custodyEntries.map(entry => [entry.id, entry]));
         for (const entry of entries) merged.set(entry.id, entry);
         custodyEntries = [...merged.values()];
-        deviceListed = deviceQueueObserved = true;
         for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
         queryCustody.recovered(custodyEntries);
         answers.queued(custodyEntries);
@@ -1890,7 +1894,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   if (!progressive) try { await attachCore(); await journalWrites?.compatible(); }
   catch (error) {
-    if (!journalWrites || !backend) throw error;
+    if (!journalWrites || options.startup === "awaited" || !backend) throw error;
     openingFailure = error; progressive = true; journalWrites.unavailable();
     await recoverDeviceCustody();
     coreFailure = error instanceof DeviceVersionError ? error.why : (error as { why?: Refusal })?.why ?? { ...localUnavailable(), message: String(error) };
@@ -1917,13 +1921,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (why?.code === "E_STORE_RESTORE" && !confirmedJournalRefusal) throw new Error("waiting for restore witness validation");
     if (why) return Response.json({ denied: why }, { status: 403 });
     const request = requestCredentials(); delete request.headers["x-snapback-device"];
-    const capture = { store_id: onlineStore ?? storeIdentity ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
+    const dispatchIncarnation = incarnation, dispatchStore = onlineStore ?? storeIdentity;
+    const capture = { store_id: dispatchStore ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
     const response = await doFetch(input, { ...init, headers: request.headers });
     const json = await response.clone().json() as Record<string, unknown>;
     const denied = (json.denied ?? json.why) as Refusal | undefined;
     if (denied?.code === "E_AUTH" && request.revision !== credentialRevision) throw new Error("journal retry after credential rotation");
+    const current = () => !closed && !sessionDead && request.revision === credentialRevision
+      && dispatchIncarnation === incarnation && dispatchStore === (onlineStore ?? storeIdentity);
+    // Revocation belongs to the credential, even across a store/schema adoption.
     await refusedSession(denied, request.revision);
-    if (!closed && !sessionDead && request.revision === credentialRevision) {
+    if (current()) {
       if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)) {
         if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
         else {
@@ -1933,26 +1941,35 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       await onlineEvidence(json, capture);
-      if (json.state === "sent" && init?.body) journalWrites.receipt(JSON.parse(String(init.body)).id, { preserved: json.preserved, generation: json.generation });
     }
+    // @ref LLP 3000.002.000#6 — settlement cuts survive credential rotation.
+    // Keep the store binding
+    // across the asynchronous receipt save; metadata adoption stays fenced above.
+    if (json.state === "sent" && init?.body) journalWrites.receipt(JSON.parse(String(init.body)).id, {
+      preserved: json.preserved, generation: json.generation, store: typeof json.store_id === "string" ? json.store_id : dispatchStore,
+      authorityCurrent: current,
+    });
     return response;
   }, (op, committed, evidence) => {
     pending.notify();
-    if (op === undefined) {
+    if (op === undefined || evidence && (closed || sessionDead || evidence.store !== (onlineStore ?? storeIdentity))) {
       // Inspection can park even a disjoint watch before its footprint is
       // known. Clearing uncertainty must wake that publication attempt.
-      if (!journalWrites.uncertain) for (const watch of watches.values())
-        if ("loading" in watch.snapshot) void scheduleRead(watch);
+      if (!journalWrites.uncertain) for (const watch of custodyParked) {
+        custodyParked.delete(watch);
+        if (watches.get(watch.key) === watch) void scheduleRead(watch);
+      }
       return;
     }
     const sameGeneration = !evidence || evidence.generation === backend?.generation;
+    const preserved = evidence && !evidence.authorityCurrent() ? [] : evidence?.preserved;
     const writes = sameGeneration ? dependencies(backend, op)?.writes : undefined, tables = writes && Object.keys(writes);
     if (committed !== undefined) {
       journalCuts.change(committed, writes);
       answers.notified(tables, committed, !!tables?.length || writes === undefined, writes, true);
     } else answers.evidence(undefined, tables, writes, writes, true);
     for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
-      void scheduleRead(watch, true, committed, sameGeneration || evidence?.preserved == null ? evidence?.preserved : [], writes);
+      void scheduleRead(watch, true, committed, sameGeneration || preserved == null ? preserved : [], writes);
   }, id => mutationIds.knows(id) || custodyEntries.some(entry => entry.id === id) ? true : deviceListed && deviceHistoryListed ? false : undefined, custodyFailure);
   if (confirmedJournalRefusal) journalWrites?.refuseStore(confirmedJournalRefusal);
   if (!deferStart(options, start)) await start();

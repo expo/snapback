@@ -22,6 +22,11 @@ Build your screen and replace the marked proof assertions. Starting from a demo
 instead means adapting it after the schema changes: `init --adapt --apply`
 (preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
 All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
 Init waits for installation and returns its exit status. If explicitly deferred,
 run `node scripts/install.mjs --wait` once before building; do not poll.
 

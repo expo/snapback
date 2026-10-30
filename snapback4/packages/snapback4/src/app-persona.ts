@@ -107,16 +107,16 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
           ...(options.assets ? { assets: options.assets } : {}),
           ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}),
-          ...(options.startup === "progressive" ? { onStoreChange: (why: Refusal) => { storeChanged = why; void custody?.refuseStore(why).finally(() => custody?.pause()).catch(error => console.error("snapback4 persona retirement:", error)); } } : {}) };
-        if (options.startup === "progressive" && options.device.custody) {
+          ...(options.device.custody ? { onStoreChange: (why: Refusal) => { storeChanged = why; void custody?.refuseStore(why).finally(() => custody?.pause()).catch(error => console.error("snapback4 persona retirement:", error)); } } : {}) };
+        if (options.device.custody) {
           const browser = browserAdmission(), store = options.sessionStore ?? (browser ? localStorageSessionStore() : memorySessionStore());
           const source = browser ? sessionAuthority(store)?.source : undefined;
-          if (browser && !source) throw new StorageWarning(admissionRefusal("a progressive persona browser journal needs IndexedDB storage", "createApp.persona", "omit sessionStore, or pass localStorageSessionStore()"));
+          if (browser && !source) throw new StorageWarning(admissionRefusal("a persona browser journal needs IndexedDB storage", "createApp.persona", "omit sessionStore, or pass localStorageSessionStore()"));
           const authority = source ? personaAdmissionAuthority(url, viewer, source) : undefined;
           if (authority) prepareAdmissionAuthority(prepared, authority);
           prepareProgressiveWrites(prepared, { store, authority, report: error => console.error("snapback4 persona journal:", error) });
         }
-        if (options.startup === "progressive") {
+        if (options.device.custody) {
           const local = await prepareClient(prepared, () => createLocalClient(prepared));
           await local.commit();
           opened = local.client; start = local.start; custody = progressiveWriteCustody(opened);

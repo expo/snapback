@@ -14,7 +14,7 @@ test('web device: +25h default-now prediction stays above the latest page across
   const { page, api } = f, errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const viewer = await page.evaluate(async api => {
-    window.app = window.createApp({ url: api, device: window.webDevice(), sessionStore: window.localStorageSessionStore(), waitSeconds: 1 });
+    window.app = window.createApp({ url: api, startup: "awaited", device: window.webDevice(), sessionStore: window.localStorageSessionStore(), waitSeconds: 1 });
     await window.app.ready;
     const signed = await window.app.auth.guest();
     if (!signed.ok) throw Error(JSON.stringify(signed));

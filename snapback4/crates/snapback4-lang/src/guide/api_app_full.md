@@ -1,6 +1,7 @@
 # API app: exact signature digest
 
 Import from "snapback4/app". Generated from dist declarations; types named below retain their declaration meaning.
+startup?: "progressive" | "awaited". Web devices with a custody probe default to progressive: app.ready means usable client and write custody, not local replica readiness. localStatus(app.client) / useLocalStatus() report engine and acquisition state. "awaited" restores the device-opening barrier; openers without a probe always await. Author ruling 2026-10-30: default now, Lane C qualification follows.
 
 ```ts
 export function createApp(options: AppOptions): App;

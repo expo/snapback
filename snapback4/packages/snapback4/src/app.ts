@@ -60,7 +60,10 @@ export interface App {
   readonly online: Online;
   onOnlineChange(listener: () => void): () => void;
   readonly auth: AppAuth;
-  /** Initial session restoration; no network sign-in is attempted without a kept session. */
+  /** Initial restoration to a usable client, or a typed refusal. Web devices
+   * start progressively by default; this does not promise an open/acquired
+   * replica. Use localStatus(client), or startup: "awaited" for the old open
+   * barrier. No network sign-in is attempted without a kept session. */
   readonly ready: Promise<AppResult>;
   mutate: Client["mutate"];
   /** Stop this runtime, preserving session and pending writes for reopening. */
@@ -145,17 +148,26 @@ export function createApp(options: AppOptions): App {
 
 function createAppInner(options: AppOptions): App {
   validateReadOptions(options);
-  if (options.startup !== undefined && (options.startup !== "progressive" || !options.device)) return refusedApp(options, {
-    code: "E_CLIENT", family: "client", site: "createApp.startup", message: 'startup: "progressive" requires a device',
-    rewrite: 'createApp({ url, device: webDevice(), startup: "progressive" }) or omit startup',
+  if (options.startup !== undefined && options.startup !== "progressive" && options.startup !== "awaited") return refusedApp(options, {
+    code: "E_CLIENT", family: "client", site: "createApp.startup", message: 'startup must be "progressive", "awaited" or omitted',
+    rewrite: 'omit startup, or use startup: "awaited" to wait for the device',
+  });
+  if (options.startup !== undefined && !options.device) return refusedApp(options, {
+    code: "E_CLIENT", family: "client", site: "createApp.startup", message: `startup: "${options.startup}" requires a device`,
+    rewrite: 'createApp({ url, device: webDevice() }) or omit startup',
   });
   // @ref LLP 3000.013.000#17 — refuse unwritable configuration before identity branching.
   if (options.writes !== undefined && (options.writes !== "online" || options.device || options.readOnly)) {
     return refusedApp(options, { code: "E_CLIENT", family: "client", site: "createApp.writes",
       message: options.writes !== "online" ? 'writes must be "online" or omitted'
         : 'writes: "online" cannot be combined with a device or readOnly',
-      rewrite: 'omit writes, or createApp({ url, device: webDevice(), startup: "progressive" })' });
+      rewrite: 'omit writes, or createApp({ url, device: webDevice() })' });
   }
+  // @ref LLP 3000.002.000#4 — author ruling 2026-10-30: progressive web default now; qualification follows.
+  // Normalize once for both persona and session apps. Openers without a custody
+  // probe retain the awaited path even when progressive startup is requested.
+  if (options.startup === undefined && options.device?.custody) options = { ...options, startup: "progressive" };
+  else if (options.startup === "progressive" && !options.device?.custody) options = { ...options, startup: "awaited" };
   if (!options.device && !options.readOnly && browserAdmission()) {
     let available = false;
     try { available = !!globalThis.localStorage && !!globalThis.indexedDB && !!globalThis.navigator?.locks; } catch {}
@@ -698,7 +710,7 @@ function createAppInner(options: AppOptions): App {
           capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
           recheck: () => { void authorized().catch(() => {}); },
         });
-        if (options.startup === "progressive" && device?.custody) prepareProgressiveWrites(prepared, { store: storage, report,
+        if (device?.custody) prepareProgressiveWrites(prepared, { store: storage, report,
           authority: browserAdmission() && authority ? {
             capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority.source }), read: authority.read,
             recheck: () => { void authorized().catch(() => {}); },

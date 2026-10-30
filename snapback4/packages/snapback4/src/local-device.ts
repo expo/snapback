@@ -60,7 +60,10 @@ export interface DeviceOpener {
 }
 
 export interface LocalOptions {
-  readonly startup?: "progressive";
+  /** createApp defaults to progressive with a custody probe (webDevice), and
+   * awaited otherwise. "awaited" restores the device-opening barrier.
+   * Direct createLocalClient callers keep awaited startup unless opted in. */
+  readonly startup?: "progressive" | "awaited";
   /** App-owned recovery when online startup discovers a replacement store. */
   readonly onStoreChange?: (why: Refusal) => void;
   /** A delivery interval the server refused; queued reports do not enter onWrite. */

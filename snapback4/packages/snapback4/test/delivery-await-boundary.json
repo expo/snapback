@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 39,
-    "sha256": "5b5384beab13b74d1fc16fdaa1ac36a07d5e92aa8373140520ce8050525e7b47"
+    "count": 40,
+    "sha256": "eb82025f0583042c63b6e27e979ef6d8c171655e41c66ed38c221dd0bf87980e"
   },
   "app-persona.ts": {
     "count": 23,
@@ -269,7 +269,7 @@
   },
   "local.ts": {
     "count": 228,
-    "sha256": "fbdf20f492cfa1daa82822ac570eb97283a9eea1af0e50ca53c0e4748f82a0f3"
+    "sha256": "eda798288ad70e768637e4b69bbb73852284b0e48eddbe77bf66acf29371a978"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -300,8 +300,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "online-capture.ts": {
-    "count": 1,
-    "sha256": "10ef8fdb40b18a20f534f657e64e170cea5ded6eee65a1bf0552b99fb9f56875"
+    "count": 2,
+    "sha256": "0851ce1ef6d4495a8339d59041468bbe075ff5696a9c3fd251151d975d988b55"
   },
   "online-delivery.ts": {
     "count": 4,
@@ -328,8 +328,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "progressive-writes.ts": {
-    "count": 15,
-    "sha256": "2b417103827c80db9a70c09a1a6bcc3faf6c6d353c9767630001c649388b762c"
+    "count": 26,
+    "sha256": "fcbff7c4832a515113dd4362ea25e4c986c1d70b7809fcfe6892c7059e32fa0f"
   },
   "proof-accounts.ts": {
     "count": 16,

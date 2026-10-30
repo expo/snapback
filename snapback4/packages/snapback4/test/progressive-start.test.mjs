@@ -13,17 +13,17 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 5));
 async function until(fn) { for (let n = 0; n < 1000; n++) { if (await fn()) return; await tick(); } assert.fail('condition did not arrive'); }
 const q = { kind: 'query', name: 'read' };
 const backend = { generation: 1, store_id: 'store', schema: { tables: {} }, programs: [{ name: 'read', kind: 'Query', args: {}, body: [{ Return: { Literal: { String: 'local' } } }] }] };
-async function fixture(t, { custody = 'none', failure, heldRead = false, startup = 'progressive', includeProbe = true, change, alterReply, badEngine = false, heldHandshake = false, raw = false, backend: givenBackend = backend, queryReply, wrapCore, persist = memoryPersistence() } = {}) {
-  const url = 'https://progressive.invalid', sessions = memorySessionStore();
+async function fixture(t, { custody = 'none', failure, heldRead = false, startup = 'progressive', includeProbe = true, persona = false, change, alterReply, badEngine = false, heldHandshake = false, raw = false, backend: givenBackend = backend, queryReply, wrapCore, persist = memoryPersistence() } = {}) {
+  const url = persona ? 'http://127.0.0.1:4400' : 'https://progressive.invalid', sessions = memorySessionStore();
   await sessions.set(sessionKey(url), JSON.stringify({ token: 'token', principal: 'alice', kind: 'user', expiresAt: Date.now() + 7 * 86400000 }));
   const opened = gate(), release = gate(), readRelease = gate(), inner = webDevice({ wasm, persist });
-  if(raw && !startup) release.resolve();
-  let opens = 0, queryCount = 0, closedCores = 0, coreCalls = 0, syncFailure, server = structuredClone(givenBackend), head = 20, openedAt;
+  if(raw && startup !== 'progressive') release.resolve();
+  let probes = 0, opens = 0, queryCount = 0, closedCores = 0, coreCalls = 0, syncFailure, server = structuredClone(givenBackend), head = 20, openedAt;
   const pendingChanges = []; let poll; const polls = [], changeRequests = [], operations = [];
   const changeRelease = gate();
   const handshake = gate(), handshakeRelease = gate();
-  const options = { url, sessionStore: sessions, ...(startup ? { startup } : {}), device: {
-    ...(includeProbe ? { custody: async () => { if (custody instanceof Error) throw custody; return custody; } } : {}),
+  const options = { url, sessionStore: sessions, ...(startup ? { startup } : {}), ...(persona ? {persona: 'alice'} : {}), device: {
+    ...(includeProbe ? { custody: async () => { probes++; if (custody instanceof Error) throw custody; return custody; } } : {}),
     async open(...args) { opens++; openedAt ??= performance.now(); opened.resolve(); await release.promise; if (failure) throw failure; let core = await inner.open(...args); if (wrapCore) core = wrapCore(core); return { ...core, async call(request, ...rest) { coreCalls++; operations.push(request.op); if (heldHandshake && request.op !== 'engine_info' && operations.includes('engine_info')) await handshakeRelease.promise; if (request.op === 'engine_info') { handshake.resolve(); if (heldHandshake) await handshakeRelease.promise; if (badEngine) return {ok:{format:0,version:"old",capabilities:[]}}; } return core.call(request,...rest); }, async close() { closedCores++; await core.close(); } }; },
   }, fetch: async (input, init) => {
     const path = new URL(input).pathname;
@@ -45,7 +45,7 @@ async function fixture(t, { custody = 'none', failure, heldRead = false, startup
   }};
   const app = raw ? { client: await createLocalClient(options), close() { return this.client.close(); } } : createApp(options);
   t.after(async () => { release.resolve(); readRelease.resolve(); changeRelease.resolve(); handshakeRelease.resolve(); await app.close(); });
-  return { app, sessions, opened, release, readRelease, changeRelease, handshake, handshakeRelease, opens: () => opens, queryCount: () => queryCount, closedCores: () => closedCores,
+  return { app, sessions, opened, release, readRelease, changeRelease, handshake, handshakeRelease, probes: () => probes, opens: () => opens, queryCount: () => queryCount, closedCores: () => closedCores,
     coreCalls: () => coreCalls, failSync: why => {syncFailure=why;}, operations, changeRequests, openedAt: () => openedAt,
     change: value => { if (poll) poll(value); else pendingChanges.push(value); },
     changeOldest: value => { const respond = polls[0]; if (respond) respond(value); else pendingChanges.push(value); }, heldPolls: () => polls.length,
@@ -75,9 +75,32 @@ for (const custody of ['present', 'unknown', new Error('unreadable')]) test(`cus
   await f.opened.promise; await tick(); assert.equal(ready, false); assert.equal(f.queryCount(), 0);
   f.release.resolve(); assert.equal((await f.app.ready).ok, true);
 });
-for (const options of [{ includeProbe: false }, { startup: null }]) test(`native/omitted startup preserves awaited opening ${JSON.stringify(options)}`, async t => {
+for (const persona of [false, true]) test(`default web startup publishes ready before opening and reads the server with the opener held (persona: ${persona})`, {timeout: 10_000}, async t => {
+  let opensAtReply;
+  const f = await fixture(t, { startup: null, persona, queryReply: () => { opensAtReply = f.opens(); return {}; } });
+  assert.equal((await f.app.ready).ok, true);
+  assert.equal(f.probes(), 1); assert.equal(f.opens(), 0);
+  assert.equal(localStatus(f.app.client).getSnapshot().state, 'loading');
+  assert.equal((await f.app.client.query(q, {})).data, 'server');
+  assert.equal(opensAtReply, 0, 'the server answers before the opener is invoked');
+  assert.equal(f.coreCalls(), 0, 'the read completes while the device opener is held');
+  await f.opened.promise; f.release.resolve();
+  await until(() => localStatus(f.app.client).getSnapshot().state === 'ready');
+});
+for (const options of [{ includeProbe: false, startup: null }, { includeProbe: false }, { includeProbe: false, persona: true }, { startup: 'awaited' }, { startup: 'awaited', persona: true }]) test(`native/awaited startup preserves awaited opening ${JSON.stringify(options)}`, async t => {
   const f = await fixture(t, options); let ready = false; void f.app.ready.then(() => { ready = true; });
-  await f.opened.promise; assert.equal(ready, false); f.release.resolve(); assert.equal((await f.app.ready).ok, true);
+  await f.opened.promise; assert.equal(ready, false); assert.equal(f.probes(), options.includeProbe === false ? 0 : 1); assert.equal(f.queryCount(), 0);
+  f.release.resolve(); assert.equal((await f.app.ready).ok, true);
+  assert.equal(localStatus(f.app.client).getSnapshot().executable, true);
+  assert.equal((await f.app.client.query(q, {})).data, 'local');
+});
+test('awaited web startup keeps device-opening failure on the ready barrier', async t => {
+  const f = await fixture(t, { startup: 'awaited', failure: new Error('device open failed') });
+  await f.opened.promise; f.release.resolve();
+  const result = await f.app.ready;
+  assert.equal(result.ok, false); assert.equal(result.why.code, 'E_CLIENT');
+  assert.match(result.why.message, /device open failed/);
+  assert.equal(f.app.auth.state, 'signed-out'); assert.equal(f.probes(), 1);
 });
 for (const failure of [new Error('download failed'), new DeviceVersionError({ code: 'E_DEVICE_VERSION', family: 'device-version', message: 'incompatible device' })]) test(`failed engine keeps server reads and signed-in scope: ${failure.message}`, async t => {
   const f = await fixture(t, { failure }); await f.app.ready;
@@ -109,9 +132,9 @@ test('close during held open fences late attachment and closes the returned core
   await until(() => f.closedCores() === 1);
   assert.equal(client.acquired, false); assert.equal(localStatus(client).getSnapshot().state, 'unavailable');
 });
-test('progressive without device is a typed configuration refusal with rewrite', async () => {
-  const app = createApp({ url: 'https://progressive.invalid', sessionStore: memorySessionStore(), startup: 'progressive' });
-  const result = await app.ready; assert.equal(result.ok, false); assert.equal(result.why.code, 'E_CLIENT'); assert.match(result.why.rewrite, /webDevice/); await app.close();
+for (const startup of ['progressive', 'awaited']) test(`${startup} without device is a typed configuration refusal with rewrite`, async () => {
+  const app = createApp({ url: 'https://progressive.invalid', sessionStore: memorySessionStore(), startup });
+  const result = await app.ready; assert.equal(result.ok, false); assert.equal(result.why.code, 'E_CLIENT'); assert.match(result.why.rewrite, /webDevice/); assert.doesNotMatch(result.why.rewrite, /startup:/); await app.close();
 });
 
 for (const opening of [false, true]) test(`logout fences held online phase and late core (opening: ${opening})`, async t => {
@@ -226,7 +249,7 @@ test('a serialized worker handshake cannot block a foreground server-route read'
 });
 
 test('ordinary startup version refusal publishes unavailable local status', async t => {
-  const f = await fixture(t, { startup: undefined, custody: 'present' }); f.release.resolve(); await f.app.ready;
+  const f = await fixture(t, { startup: 'awaited', custody: 'present' }); f.release.resolve(); await f.app.ready;
   const client=f.app.client; await until(()=>localStatus(client).getSnapshot().state==='ready');
   f.failSync({code:'E_DEVICE_VERSION',family:'device-version',message:'engine retired'});
   await client.sync(); await until(()=>localStatus(client).getSnapshot().state==='unavailable');
@@ -390,7 +413,12 @@ test('outbox commit deltas retain A after B and an engine failure; A still block
     {name:'A',kind:'Mutation',args:{},body:[],settlement:{reads:{},writes:{rows:null}}},
     {name:'B',kind:'Mutation',args:{},body:[],settlement:{reads:{},writes:{other:null}}}]},
     wrapCore:core=>({...core,onOutbox(listener){listener(1,[entry('a','A',1)]); listener(2,[entry('b','B',2)]); return ()=>{};},
-      call(request,...rest){if(request.op==='next_submission') throw Error('recovery failed'); return core.call(request,...rest);}})});
+      call(request,...rest){
+        if(request.op==='next_submission') throw Error('recovery failed');
+        // The notifications describe durable entries. Full recovery must see
+        // those same entries; a synthetic empty listing would retire the debt.
+        if(request.op==='queued')return Promise.resolve({ok:[entry('a','A',1),entry('b','B',2)]});
+        return core.call(request,...rest);}})});
   const client=f.app.client; await client.query(q,{}); f.release.resolve();
   await until(()=>localStatus(client).getSnapshot().state==='unavailable');
   assert.deepEqual((await client.pendingWrites()).map(w=>w.id).sort(),['a','b']);
@@ -399,7 +427,7 @@ test('outbox commit deltas retain A after B and an engine failure; A still block
   await client.close(); assert.equal((await read).denied?.code,'E_CLOSED');
 });
 
-for (const startup of ['progressive', null]) test(`auth refusal after ready never publishes executable status (${startup??'ordinary'})`, async t => {
+for (const startup of ['progressive', 'awaited']) test(`auth refusal after ready never publishes executable status (${startup})`, async t => {
   let denied=false;
   const f=await fixture(t,{raw:true,startup,queryReply:()=>denied?{denied:{code:'E_AUTH',family:'auth',message:'expired'},data:undefined}:{}});
   const client=f.app.client; await client.query(q,{}); f.release.resolve();

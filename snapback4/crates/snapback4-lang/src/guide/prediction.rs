@@ -1,7 +1,7 @@
 //! The mutation's eligibility and the device's decision on a call.
 pub(super) const CARD: &str = r##"# Prediction: queued writes and local rows
 
-**Start here:** Write ordinary mutations against synced data; the client predicts when it holds the needed facts and otherwise queues. This mutation is from the default starter's todos schema; show pending writes even when there is no predicted row.
+**Start here:** Write ordinary mutations against synced data; show pending writes without a `pending: true` row. A first-visit web document journals writes without prediction until the next open; a returning one with an empty journal and a compatible device predicts from held facts or queues.
 
 ```quarry
 mutation add(title: text <=200):

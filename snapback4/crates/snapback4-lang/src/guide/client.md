@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQueryData`/`useQueryResult`: short screens; `useQuery`/`usePage`: metadata; `useFollowing` (`guide feeds`): history; `ReadState`: lists.
+**Start here:** `useQueryData`/`useQueryResult`: short screens; `useQuery`/`usePage`: metadata; `useFollowing` (`guide feeds`): history; `ReadState`: lists; web `createApp` defaults to progressive startup (`app.ready` means usable custody, `localStatus`/`useLocalStatus` report replica readiness, `startup: "awaited"` waits for the device, native/Expo always await).
 
 ```tsx
 import { matchRead, readPresentation, usePage } from "snapback4/react";
@@ -16,12 +16,12 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 
 ## Reference
 
-Short screens: `guide package-reference client --section "Short screens"`.
+`guide package-reference client --section "Short screens"`.
 
-Proofs/exports: `exhaustPages` (`snapback4/proof`); screens: `usePage`.
+Proofs: `exhaustPages` (`snapback4/proof`); screens: `usePage`.
 - Treat the cursor as opaque: pass `next` back unchanged.
 - Projection changes fields only, never order, completeness or cursor meaning.
-- Accepted pages say `complete:true`, `cut:null` and nonpartial existence. It refuses denied, loading, malformed, repeated, capped, incomplete, partial or over-limit pages rather than returning a partial snapshot.
+- Accepted pages say `complete:true`, `cut:null` and nonpartial existence. It refuses denied, loading, malformed, repeated, capped, incomplete, partial or over-limit pages.
 `Write`: pending custody, fresh sent result, replay without result, or failed. Clear on sentResult; undefined is not success.
 ```tsx
 import { useState } from "react"; import { matchRead, sentResult, useAppReady, useMutation, useQuery } from "snapback4/react";
@@ -63,9 +63,9 @@ function StaffRows({team}: {team:string}) {
     otherwise: () => <p>Updating notes…</p>})}</>;
 }
 ```
-Mount `<StaffWorkspace key={team} team={team}/>` to preserve drafts. Gate reads/Save on settled role/operation availability; rules decide authority. Use fallbacks such as `row.priority ?? "normal"`.
+Mount `<StaffWorkspace key={team} team={team}/>`; preserve drafts. Gate reads/Save on settled capabilities; rules decide authority. Default nullable fields.
 
-## A public guest page
+## Guest page
 
 Guests (`use identity`/`use identity guests`): public reads require browser session custody.
 ```tsx
@@ -90,7 +90,7 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Never gate sign-in with useAppReady: it needs a signed-in client. Keep drafts above gates; readiness is not authority. Password/custody/refusals: `guide package-reference client --section password`.
+Never gate sign-in with useAppReady. Keep drafts above gates; readiness grants no authority. Password/custody/refusals: `guide package-reference client --section password`.
 `useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
 
 | Helper | Input/result | Handlers/arguments |
@@ -100,15 +100,15 @@ Never gate sign-in with useAppReady: it needs a signed-in client. Keep drafts ab
 | `otherwiseAll(fallback, overrides?)` | Spread into matchRead handlers | `fallback(read)` includes denied/partial; named handlers win in any order. |
 | `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore, loading, why}`; loading: boolean; why: Refusal or null. Completeness/freshness: read. |
 
-`'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `absent` can be an authorised empty list. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. PDFs need `doc: file <=10000000 ?`; persist uploaded ids through mutations (`guide assets`).
+`'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `absent` can be an authorised empty list. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. PDFs: `doc: file <=10000000 ?`; persist ids through mutations (`guide assets`).
 ```ts
 import type { Read, Client } from "snapback4/contract";
 export function listLabel(read: Read<readonly {id:string}[]>): string {
   if ('denied' in read) return "not available"; if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`; return "Loading…"; }
 export async function uploadPdf(client: Client, picked: File) { return client.upload(picked, {file: {type: "application/pdf", name: picked.name}}); }
 ```
-`loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations. `predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
+`loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations. Journal-owned documents predict no ordinary writes until the next open. `predicts`: outbox-owned/eligible/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs require fresh sent.
 `client.observe(op,args)` returns `{getSnapshot,subscribe,close}`; call subscribe(listener), not observe(op,args,callback) or watch. `client.asset(id)` returns `{url,type,bytes,revoke}` or `{denied}`; call revoke when done, while React uses useAsset. `sentResult` is exported by snapback4/contract and snapback4/react. Headless recovery: settleMutation from snapback4/client waits through reconnect for a pending write's same-id terminal receipt; waitSeconds:0 retains explicit custody.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: `guide package-reference client`. Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
-Browser/native proofs/strictness: `guide package-reference client --section "Client tier"`. Starters select tiers. Node 24 imports use .ts under src ESM. Expo configs stay CommonJS. Optional properties/indices: there.
+Browser/native proofs: `guide package-reference client --section "Client tier"`. Node 24 src ESM imports use .ts; Expo configs: CommonJS.
 Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0.

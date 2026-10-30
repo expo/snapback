@@ -143,6 +143,10 @@ createRoot(document.querySelector('#root')).render(<AccountEntry url={${JSON.str
   assert.equal((await page.evaluate(()=>window.signup())).ok,true);
   assert.equal((await page.evaluate(()=>window.add())).state,'sent');
   await page.getByText('Held ledger',{exact:true}).waitFor();
+  // Default progressive readiness/server data does not establish held data.
+  // Acquire the replica before testing its independent offline restoration.
+  await page.evaluate(()=>window.client.sync());
+  await page.waitForFunction(()=>window.client.acquired);
   await page.evaluate(async()=>{await window.client.close();for(const key of Object.keys(localStorage))if(key.startsWith('snapback4:auth-config:'))localStorage.removeItem(key);});
   let attempts=0;
   await page.route(backend.url+'/**',route=>{attempts++;return route.abort('internetdisconnected');});

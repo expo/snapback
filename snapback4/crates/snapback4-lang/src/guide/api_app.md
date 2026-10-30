@@ -1,6 +1,7 @@
 # API app: exact signature digest
 
 Import from "snapback4/app". Generated from dist declarations; types named below retain their declaration meaning.
+startup?: "progressive" | "awaited". Web devices with a custody probe default to progressive: app.ready means usable client and write custody, not local replica readiness. localStatus(app.client) / useLocalStatus() report engine and acquisition state. "awaited" restores the device-opening barrier; openers without a probe always await. Author ruling 2026-10-30: default now, Lane C qualification follows.
 
 ```ts
 export function createApp(options: AppOptions): App;
@@ -13,4 +14,4 @@ export interface App { readonly client: Client; readonly online: Online; onOnlin
 export interface Online extends Pick<Client, "query" | "observe" | "act" | "link" | "onLink" | "now" | "viewer" | "readOnly"> { mutate<A, R>(op: Ephemeral<A, R>, args: A): Promise<Signal<R>>; }
 ```
 
-Declaration fingerprint: 5e0cdb663d59da8162466edd4582dc8b1916c232da578291b4cd0cb00a78c1b1
+Declaration fingerprint: c93c81aaf00265c270096520a59618d6272f1c5dee21d90ab62abf2f7ecdac3e

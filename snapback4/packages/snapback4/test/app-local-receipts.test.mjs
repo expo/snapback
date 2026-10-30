@@ -24,7 +24,7 @@ for (const tier of ["wasm", "native"]) for (const refuse of [false, true]) for (
         return core.call(request, ...rest);
       } };
     } };
-    const options = { url, device, sessionStore: memorySessionStore() }, app = createApp(options);
+    const options = { url, startup: "awaited", device, sessionStore: memorySessionStore() }, app = createApp(options);
     t.after(async () => { saving.release(); await app.close(); });
     await app.ready; assert.equal((await app.auth.guest()).ok, true);
     app.client.onWrite(write => events.push(write));

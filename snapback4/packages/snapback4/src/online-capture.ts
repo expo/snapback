@@ -177,10 +177,15 @@ export class OnlineCapture {
 
   /** This scope's records recovery may consider, in capture order. */
   async candidates(): Promise<CaptureRecord[]> {
+    return (await this.inspect()).recoverable;
+  }
+
+  /** Live records have known footprints; only adoptable leftovers imply unknown custody. */
+  async inspect(): Promise<{ recoverable: CaptureRecord[]; peers: CaptureRecord[] }> {
     const { stamp, source } = this.scope();
     const snapshot = await globalThis.navigator.locks.query();
     const busy = new Set([...(snapshot.held ?? []), ...(snapshot.pending ?? [])].map(lock => lock.name));
-    const store = storage(), found: CaptureRecord[] = [];
+    const store = storage(), found: CaptureRecord[] = [], peers: CaptureRecord[] = [];
     // @ref LLP 3000.013.000#4.4 — another authority source is not an ended session: only this source and session key.
     const sourcePrefix = `${backendPrefix(this.url)}${hex(source)}:`;
     for (const key of keys(store)) {
@@ -189,10 +194,13 @@ export class OnlineCapture {
       // A cancellation placeholder is never executable; sweeping it frees its slot.
       if (record === "cancelled") { try { store.removeItem(key); } catch { /* Harmless. */ } continue; }
       if (typeof record !== "object" || record.authority.key !== stamp.key) continue;
-      if (record.runtime === this.runtime ? this.live.has(key) : busy.has(RUNTIME + record.runtime)) continue;
+      if (record.runtime === this.runtime ? this.live.has(key) : busy.has(RUNTIME + record.runtime)) {
+        if (record.runtime !== this.runtime && record.viewer === this.viewer) peers.push(record);
+        continue;
+      }
       found.push(record);
     }
-    return found.sort((a, b) => a.seq - b.seq || a.at - b.at);
+    return { recoverable: found.sort((a, b) => a.seq - b.seq || a.at - b.at), peers };
   }
 
   /** Under the caller's locks: whether this record's session still holds. */

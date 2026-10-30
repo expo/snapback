@@ -51,7 +51,7 @@ function fixture(t,{held=false,reject=false,clockFailure=false}={}){
 }
 
 async function reopenCheckpoint(t,f,values,persist){
-  const app=createApp({url,sessionStore:store(values),device:webDevice({wasm,persist}),fetch:async()=>{throw Error('offline crash checkpoint');}});
+  const app=createApp({url,startup:"awaited",sessionStore:store(values),device:webDevice({wasm,persist}),fetch:async()=>{throw Error('offline crash checkpoint');}});
   f.apps.push(app);
   assert.equal((await app.ready).ok,true,'the independent crash checkpoint opens offline');
   assert.equal(app.auth.state,'signed-in');assert.equal(app.client.session().token,f.original.token);

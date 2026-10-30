@@ -103,11 +103,15 @@ idempotence limits; add `--field Task --value "Browser proof" --button Add` for 
 
 ## Progressive web startup
 
-Opt in with `createApp({ url, sessionStore: localStorageSessionStore(),
-device: webDevice({ worker: true }), startup: "progressive" })`. Omitting
-`startup` keeps the awaited device startup. Supplying it without a device
-returns an `E_CLIENT` configuration refusal with a rewrite. Native/Expo openers
-without a custody probe accept the option and keep ordinary awaited startup.
+`createApp({ url, sessionStore: localStorageSessionStore(),
+device: webDevice({ worker: true }) })` starts progressively by default.
+`startup?: "progressive" | "awaited"` selects the mode: `"awaited"` restores
+the previous device-opening barrier, including its opening failures. Either explicit
+startup mode without a device returns an `E_CLIENT` configuration refusal
+with a rewrite. Native/Expo openers without a custody probe always keep awaited
+startup. Direct `createLocalClient` callers still opt into progressive startup.
+Author ruling, 2026-10-30: "land it and make it the default"; the default flips
+now; qualification of the populated-screen latency targets follows.
 
 The browser first reads existing device custody without loading WASM. Only a
 proven first-device scope can publish online before the engine: an existing
@@ -115,7 +119,9 @@ database, live claim, admission journal or orphan, an unreadable probe, and
 custom persistence without the required evidence all take ordinary device
 recovery. Existing pending writes therefore retain their recovery owner.
 
-In progressive mode `app.ready` means the current identity has a usable client;
+By default for web apps, `app.ready` resolves once the current identity has a
+usable client and the required write-custody gate has completed, or returns a
+typed refusal;
 `auth.state` can be `signed-in` while the engine loads. It does not mean the
 replica is acquired. Observe `localStatus(app.client)` from `snapback4/app`
 (`getSnapshot()` and `subscribe(listener)`), or use `useLocalStatus()` from
@@ -125,6 +131,12 @@ replica is acquired. Observe `localStatus(app.client)` from `snapback4/app`
 `acquired` booleans distinguish those milestones; `client.acquired` retains
 its existing replica meaning. Hold the observation for the current client;
 an account change retires it just like a query observation.
+These local-status observations also work with `startup: "awaited"`. That
+opt-out waits for local device opening before publishing the signed-in client;
+`client.acquired` remains the separate replica-acquisition signal. Both modes
+inspect and recover existing journal custody and fence dependent reads and later
+writes; opting out never skips unsettled journal intents. With an empty journal
+and no unsettled capture, awaited opening can select the compatible outbox.
 
 Preparation starts after the first foreground answer, or after client
 publication if no read is pending. A private 1,500 ms fallback prevents a
@@ -150,21 +162,31 @@ This choice applies to fresh ids: recorded ids recover or refuse through their
 original store. Each store settles the writes it already admitted. Journal
 dispatch waits behind the attached device's unsettled ordinary outbox prefix,
 including adopted orphan writes; new captures remain durable while waiting.
+Until the device queue and receipt history have been listed, caller-supplied
+ids that neither store is known to own return `E_ADMISSION`; retry the same id
+after recovery. Hook/facade-minted ids and known journal retries keep their
+ordinary capture/recovery path. An id's timestamp cannot establish custody.
 
 Once identity and backend binding are available, a browser mutation captures
 synchronously into the existing online journal's localStorage staging records,
 so same-turn navigation preserves its original id without requesting WASM.
 Session apps use `sessionStore: localStorageSessionStore()`; persona apps acquire
-that storage themselves. Before binding, the existing bounded identity wait
-applies. Startup writes have no local prediction. `pendingIntents`, pending-write
+that storage themselves. Persona web apps require IndexedDB-backed journal
+authority in both startup modes; a custom `sessionStore` without it refuses
+`E_ADMISSION`. Omit that override or use `localStorageSessionStore()`. Before binding, the existing bounded identity wait
+applies. Writes in a journal-owned document, until the next open, have no local prediction. `pendingIntents`, pending-write
 status, `usePendingWrites` and receipts combine both stores by their original ids.
+Device-app mutations keep their four-second default wait before returning
+`pending`, including through the journal and after engine attachment; explicit
+mutation `waitSeconds` overrides it.
 A dependent server or local read waits on unsettled journal custody; known
 success requires an answer covering its server cut. Core attachment never retires
 its receipt owner. An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
 settlement affect only intersecting read footprints; disjoint watches and local
-offline reads stay usable. `writes: "online"` with a device is refused with a
+offline reads stay usable. A live peer tab's uncommitted capture parks this tab's intersecting reads until the peer commits or dies.
+`writes: "online"` with a device is refused with a
 rewrite: omit `writes` to use progressive ownership, or omit the device for an
 online journal app.
 
@@ -174,6 +196,16 @@ reads return `denied` with the local-status failure; blocked journal intents
 remain durable and appear as `held` with that reason. Reopen after repairing the
 device to recover them. Reads with a proven empty footprint and explicit
 server-only reads through `app.online` continue. Engine failure does not sign the user out.
+
+An unreadable opening journal also refuses potentially dependent reads with
+`E_ADMISSION` while recovery fails; dependent reads retry the journal under its
+journal and session locks, restoring reads and writes when storage recovers.
+Once opened, failed journal inspections retry while the client is active,
+including for reads already waiting, with exponential backoff from 100 ms to
+3.2 seconds and one problem report per failure streak. Recovery-eligible captures
+remain uncertain until adopted or cancelled; an empty committed journal cannot
+clear that fence. This tab's live captures and live peers use their known write
+footprints, so disjoint reads remain available.
 
 Device-dependent media, upload and residency calls can report typed device
 unavailability until the engine is usable. Media intents and ephemeral signals
@@ -194,7 +226,7 @@ import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
 
 const app = createApp({ url: "https://your-backend", sessionStore: localStorageSessionStore(),
-  device: webDevice({ worker: true }), startup: "progressive" });
+  device: webDevice({ worker: true }) }); // startup: "awaited" restores the device-opening barrier.
 const opened = await app.ready;
 if (!opened.ok) throw new Error(opened.why.message);
 const status = localStatus(app.client);
@@ -239,7 +271,7 @@ most once. When no table declares `sync`, it does this without a device (see
 whole local interpreter compiled to wasm: about 2.4 MB raw, 742 KB gzip or
 556 KB Brotli in 0.4.49 (a release budget caps the gzip size), on top of the app's
 JavaScript. A Vite production build emits it as its own asset, and the
-device fetches it when it opens at restore or sign-in. It buys offline reads
+device fetches it when local preparation begins after restore or sign-in. It buys offline reads
 and predictions over synced tables. With no synced table, omit it. The
 representative app/auth/device/React-hook SDK entry starts at 82,432 B gzip
 (70,929 B Brotli), excluding React and authored UI; all emitted SDK JS/WASM,
@@ -251,14 +283,15 @@ module, or Expo Go's online tier) and the same wasm on Expo web.
 
 The app and web entry points now keep local execution and the browser device
 host in deferred modules. Constructing `webDevice()` does not fetch the device;
-engine preflight/open loads it during restoration or sign-in. This lets an
-initial shell or sign-in page load without the full local runtime. A restored
-local client still waits for that runtime: splitting does not make its first
-query ready earlier by itself. Keep deferred chunks and WASM with the offline
+engine preflight/open loads it during local preparation. The default progressive
+web app can publish a usable client and server answers before that preparation,
+subject to the custody rules above. `startup: "awaited"` restores the previous
+open-before-publication barrier. Keep deferred chunks and WASM with the offline
 shell; `web-shell` already caches all exported assets from the same build.
 Render the page before awaiting `app.ready`; let `useAuth()` show restoration
-or sign-in progress while local data becomes available. Awaiting readiness at
-the page's entry point still delays that page until the device opens. WASM
+or sign-in progress while data becomes available. `app.ready` normally waits
+for a usable client, not local readiness; use `localStatus` / `useLocalStatus`
+for the engine and replica milestones. WASM
 preflight and opening share the validated compiled module; its offline cache
 retains the existing content checks and persistent format.
 
@@ -1740,7 +1773,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | --- | --- |
 | `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
 | `useRelease()` | authenticated served capabilities; generation changes refresh metadata, never authority |
-| `useAppReady()` | initial app.ready settled, current auth is signed-in without an admission refusal; later sign-in recovers failed restoration; gate initial write forms, not connectivity or permission |
+| `useAppReady()` | initial app.ready settled, current auth is signed-in without an admission refusal; later sign-in recovers failed restoration; gate initial write forms, not connectivity, local readiness or permission |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
 | `SignedIn` | auth gate under AppProvider; signed-out fallback, restoring placeholder, signed-in children |

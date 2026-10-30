@@ -511,7 +511,7 @@ test("web startup bundle defers the local runtime under the 100 KB gzip SDK budg
   t.diagnostic(JSON.stringify({ initial: result.initial, emitted: result.emitted, note: result.note }));
 });
 
-test('web startup: page works during deferred download and retains offline writes across reload', { timeout: hangBudget(20) }, async t => {
+test('awaited web startup: page works during deferred download and retains offline writes across reload', { timeout: hangBudget(20) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-deferred-start-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), `use identity
@@ -536,9 +536,9 @@ document.body.innerHTML = '<label>Draft <input id="draft"></label><output id="ec
 document.querySelector('#draft').addEventListener('input', event => {
   document.querySelector('#echo').textContent = event.target.value;
 });
-window.startStartup = (url, offline = false) => {
+window.startStartup = (url, offline = false, startup = 'awaited') => {
   window.offline = offline;
-  window.app = createApp({ url, sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1,
+  window.app = createApp({ url, ...(startup ? {startup} : {}), sessionStore: localStorageSessionStore(), device: webDevice(), waitSeconds: 1,
     fetch: (...args) => window.offline ? Promise.reject(new TypeError('offline')) : fetch(...args) });
   return app.ready;
 };
@@ -579,7 +579,7 @@ window.startStartup = (url, offline = false) => {
   // the deferred module opens its device. WASM must come from IndexedDB.
   await page.route('**/*.wasm', route => route.abort());
   const restored = await page.evaluate(async api => {
-    const ready = await startStartup(api, true);
+    const ready = await startStartup(api, true, null);
     const read = await app.client.query({ kind: 'query', name: 'list' }, {});
     return { ready, read, pending: await app.client.pendingWrites() };
   }, api);
@@ -591,7 +591,7 @@ window.startStartup = (url, offline = false) => {
 });
 
 // @ref LLP 3000.002.000#6 — the mounted query survives a thirty-second engine download.
-test('progressive worker startup: signed-in React data while WASM is held 30 seconds', { timeout: hangBudget(45) }, async t => {
+test('default progressive worker startup: signed-in React data while WASM is held 30 seconds', { timeout: hangBudget(45) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-progressive-start-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), `use identity
@@ -617,7 +617,7 @@ Object.assign(window, { webDevice, localStatus, createLocalClient, storeLock, me
 window.startProgressive = async (url, session) => {
   const storage = localStorageSessionStore(); await keepSession(url, session, storage);
   window.mounts = 0; window.unmounts = 0; window.reads = [];
-  window.app = createApp({url, sessionStore:storage, device:webDevice({worker:true}), startup:'progressive', waitSeconds:1});
+  window.app = createApp({url, sessionStore:storage, device:webDevice({worker:true}), waitSeconds:1});
   await app.ready;
   window.firstClient = app.client;
   function Screen() {
@@ -773,12 +773,32 @@ window.pendingScreen=()=>{
   const other=await page.context().newPage();teardownAfter(t,()=>other.close());
   await other.goto(page.url());await other.waitForFunction(()=>!!window.openProgressive);await other.evaluate(api=>openProgressive(api),api);
   await until(()=>other.evaluate(()=>localStatus(app.client).getSnapshot().state==='ready'),'device document ready');
-  const write=(page,room)=>page.evaluate(async room=>{const id=mintId();const outcome=await app.mutate({kind:'mutation',name:'removeMember'},{room,principal:'user:other'},{id});return {id,outcome};},room);
+  const write=async(page,room)=>{
+    const result=await page.evaluate(async room=>{const id=mintId();const outcome=await app.mutate({kind:'mutation',name:'removeMember'},{room,principal:'user:other'},{id,waitSeconds:0});return {id,outcome};},room);
+    assert.equal(result.outcome.state,'pending');
+    // Mutation wait deadlines return custody, independently of this witness's
+    // deliberate sync gate. Require the same-id receipt before advancing it.
+    await until(async()=>{result.outcome=await page.evaluate(id=>app.client.write(id),result.id);return result.outcome?.state==='sent';},'owner write receipt');
+    return result;
+  };
+  // Freeze the journal owner's sync after apply but before the round cursor
+  // advances. Both owners' receipts must be covered by the evaluation itself.
+  const ownersSent=Promise.withResolvers(),syncHeld=Promise.withResolvers(),finishSync=Promise.withResolvers();
+  let syncPages=0;
+  teardownAfter(t,()=>{ownersSent.resolve();finishSync.resolve();});
+  await page.route('**/sync',async route=>{
+    if(syncPages++===0){await ownersSent.promise;const response=await route.fetch();const body=await response.json();await route.fulfill({response,json:{...body,more:true}});}
+    else {syncHeld.resolve();await finishSync.promise;await route.continue();}
+  });
+  await page.evaluate(()=>{window.midRound=app.client.sync();});
   const [journal,device]=await Promise.all([write(page,'room1'),write(other,'room2')]);
+  ownersSent.resolve();await syncHeld.promise;
   assert.equal(journal.outcome.state,'sent');assert.equal(device.outcome.state,'sent');
   assert.equal(posted.filter(w=>w.id===journal.id).length,1);assert.equal(posted.filter(w=>w.id===device.id).length,1);
-  const totalAfterOwners=await page.evaluate(async()=>({read:await app.client.query({kind:'query',name:'total'},{}),pending:await app.client.pendingWrites(),captures:Object.keys(localStorage).filter(key=>key.startsWith('snapback4-online-admission:')).map(key=>localStorage.getItem(key)),status:localStatus(app.client).getSnapshot()}));
+  const totalAfterOwners=await page.evaluate(async()=>({read:await app.client.query({kind:'query',name:'total'},{}),localRead:await app.client.query({kind:'query',name:'roster'},{room:'room1'}),pending:await app.client.pendingWrites(),captures:Object.keys(localStorage).filter(key=>key.startsWith('snapback4-online-admission:')).map(key=>localStorage.getItem(key)),status:localStatus(app.client).getSnapshot()}));
   assert.equal(totalAfterOwners.read.data,3,JSON.stringify(totalAfterOwners));
+  assert.equal(totalAfterOwners.localRead.data?.length,1,JSON.stringify(totalAfterOwners));
+  finishSync.resolve();await page.evaluate(()=>midRound);await page.unroute('**/sync');
   assert.deepEqual(await page.evaluate(async()=>{const a=await app.client.pendingWrites();return a.map(w=>w.id).filter((id,i,ids)=>ids.indexOf(id)!==i);}),[]);
   await other.evaluate(()=>app.close());await page.evaluate(()=>app.close());
   // A committed response lost at reload stays with the journal, even when a
@@ -819,12 +839,14 @@ window.pendingScreen=()=>{
   await page.route('**/*.wasm',async route=>{await engine.promise;await route.continue();});
   await page.route('**/m/removeMember',async route=>{const reply=await route.fetch();committed.resolve();await response.promise;await route.fulfill({response:reply});});
   await page.evaluate(async({api,session})=>{await openProgressive(api,session);window.receipts=[];app.client.onWrite(w=>receipts.push(w));pendingScreen();},{api,session:faultSession});
-  const lateId=await page.evaluate(()=>{const id=mintId();window.lateWrite=app.mutate({kind:'mutation',name:'removeMember'},{room:'fault',principal:'user:other'},{id});return id;});
+  const lateId=await page.evaluate(()=>{const id=mintId();window.lateWrite=app.mutate({kind:'mutation',name:'removeMember'},{room:'fault',principal:'user:other'},{id,waitSeconds:0});return id;});
   await committed.promise;await page.waitForFunction(id=>document.querySelector('#pending')?.textContent===id,lateId);
+  assert.equal((await page.evaluate(()=>lateWrite)).state,'pending','a deliberately held response retains custody');
   engine.resolve();await until(()=>page.evaluate(()=>localStatus(app.client).getSnapshot().state==='ready'),'late-result core attachment');
   assert.equal(await page.locator('#pending').textContent(),lateId);
   assert.deepEqual(await page.evaluate(async()=> (await pendingIntentAccess(app.client).read()).map(item=>item.write.id)),[lateId]);
-  response.resolve();assert.equal((await page.evaluate(()=>lateWrite)).state,'sent');
+  response.resolve();await page.waitForFunction(id=>receipts.some(write=>write.id===id&&write.state==='sent'),lateId);
+  assert.equal((await page.evaluate(id=>app.client.write(id),lateId)).state,'sent');
   await page.waitForFunction(()=>document.querySelector('#pending')?.textContent==='');
   assert.deepEqual(await page.evaluate(()=>receipts.map(w=>w.id)),[lateId]);
   assert.equal(posted.filter(w=>w.id===lateId).length,1);
@@ -878,15 +900,15 @@ window.openB4=async(mode,holdPublication=false)=>{
 };
 `;
 
-test('B4 returning custody captures useMutation and explicit fresh ids before probe while engine is held', {timeout:hangBudget(20)}, async t=>{
+test('E1 returning custody captures hook-minted ids and refuses unlisted explicit ids before probe', {timeout:hangBudget(20)}, async t=>{
   const witness=await launch({memory:true,bootstrap:false,ready:()=>!!window.openB4,entrySource:b4Entry});teardownAfter(t,()=>witness.close());const {page}=witness;
   await page.evaluate(async()=>{await openB4('returning');mountMutation();});await page.waitForFunction(()=>!!window.runHook);
   const result=await page.evaluate(async()=>{
     const before=probes;document.querySelector('#b4-write').click();const id=mintId();window.explicit=app.mutate({kind:'mutation',name:'write'},{},{id});
     const records=captureRecords(),after=probes;const intents=await pendingIntentAccess(app.client).read();
-    return {id,records,intents:intents.map(item=>item.write.id),before,after,sent};
+    return {id,records,intents:intents.map(item=>item.write.id),before,after,sent,explicit:await explicit};
   });
-  assert.equal(result.records.length,2);assert.ok(result.records.some(record=>record.id===result.id));
+  assert.equal(result.records.length,1);assert.equal(result.records.some(record=>record.id===result.id),false);assert.equal(result.explicit.why?.code,'E_ADMISSION');
   for(const record of result.records)assert.ok(result.intents.includes(record.id));
   assert.equal(result.after,result.before);assert.deepEqual(result.sent,[]);
 });
@@ -919,4 +941,37 @@ test('B4 surviving capture fences first query and observe while another tab hold
   await peer.evaluate(async()=>{releaseRecovery();await locked;});
   assert.equal((await page.evaluate(()=>reading)).data,'after');
   await page.waitForFunction(()=>watch.getSnapshot().data==='after');assert.deepEqual(await page.evaluate(()=>sent),[click.id]);
+});
+
+
+// The default now needs journal authority even when the eventual engine can open.
+test('persona web startup refuses a custom session store without IndexedDB authority in both modes', {timeout: hangBudget(10)}, async t => {
+  const witness = await launch({seed: [], bootstrap: false, ready: () => typeof window.createPersonaApp === 'function', entrySource: `
+import {createApp} from '${join(root, 'packages/snapback4/src/app.ts')}';
+import {memorySessionStore, localStorageSessionStore} from '${join(root, 'packages/snapback4/src/auth.ts')}';
+import {webDevice} from '${join(root, 'packages/snapback4/src/web.ts')}';
+window.createPersonaApp = (url, startup, storage) => createApp({url, persona:'alice', device:webDevice(),
+  ...(startup ? {startup} : {}), ...(storage === 'memory' ? {sessionStore:memorySessionStore()} : storage === 'browser' ? {sessionStore:localStorageSessionStore()} : {})});
+`});
+  teardownAfter(t, () => witness.close());
+  const results = await witness.page.evaluate(async api => {
+    const results = [];
+    for (const startup of [null, 'awaited']) {
+      const app = createPersonaApp(api, startup, 'memory');
+      const ready = await app.ready;
+      results.push({startup, ready, state:app.auth.state}); await app.close();
+    }
+    for (const storage of ['internal', 'browser']) {
+      const app = createPersonaApp(api, null, storage);
+      results.push({storage, ready:await app.ready, state:app.auth.state}); await app.close();
+    }
+    return results;
+  }, witness.api);
+  for (const result of results.slice(0, 2)) {
+    assert.equal(result.ready.ok, false, JSON.stringify(result));
+    assert.equal(result.ready.why.code, 'E_ADMISSION');
+    assert.match(result.ready.why.rewrite, /omit sessionStore.*localStorageSessionStore/);
+    assert.equal(result.state, 'signed-out');
+  }
+  for (const result of results.slice(2)) assert.equal(result.ready.ok, true, JSON.stringify(result));
 });

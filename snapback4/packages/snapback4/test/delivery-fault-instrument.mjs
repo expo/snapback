@@ -617,3 +617,34 @@ export function awaitBoundary() {
 // text seal is regenerated; all 215 classified delivery sites, failure classes
 // and recipes remain unchanged. B4 progressive/browser/retained-history tests
 // cover these custody and publication changes.
+
+// Lane E round 1: custody fixes retain local.ts's 228 and progressive-writes.ts's
+// 15 awaits; only their expression-text seals change. The journal response now
+// checks dispatch incarnation/store around existing authority I/O; inspection
+// completion and recovery reuse the existing inspect await and timer. Queue
+// completeness, evaluation watermark coverage, explicit-id routing and parked
+// watch tracking add no I/O. All 215 classified delivery sites, classifications
+// and recipes remain unchanged. Progressive-writes and the held-sync two-owner
+// browser witness cover these paths, including negative controls for each fix.
+
+// Lane E round 3: local.ts retains 228 awaits; its transport now separates
+// credential revocation and metadata adoption from store-bound settlement.
+// progressive-writes.ts grows from 15 to 16 awaits: uncertain capture inspection
+// retries await the existing app-online locked recovery after session publication.
+// This can admit/replay a dead peer's capture through the existing journal path;
+// it adds no new persistence or transport primitive and preserves liveness and
+// authority checks. Progressive-writes E3 tests cover live-to-dead recovery,
+// transient refresh, generation revocation, and a receipt save held across store
+// adoption; online-capture/app-online cover recovery storage faults. Regenerate
+// the complete seal; all 215 classified device delivery sites/recipes are intact.
+
+// Lane E round 4: app-online grows 39→40 awaits and online-capture 1→2 to
+// expose the existing liveness-filtered capture scan to progressive inspection.
+// progressive-writes grows 16→26: opening-failure recovery reads/quarantines
+// through the existing journal/session locks, reinstalls custody and drains
+// recovery on close; ordinary inspection checks capture state before and after
+// its existing journal read. Recovery keeps the same admission/authority path.
+// E4 covers held own captures, live/dead peers, failed removal, failed quarantine,
+// first-inspect failure and bounded retry; online-capture/app-online cover the
+// underlying storage faults. All 215 classified device delivery sites and their
+// recipes remain unchanged; regenerate the complete await boundary seal.

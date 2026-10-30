@@ -23,14 +23,13 @@ interface Plan {
 }
 const plans = new WeakMap<object, Plan>();
 type Custody = Awaited<ReturnType<typeof onlineCustody>>;
-type ReceiptEvidence = { preserved: unknown; generation: unknown };
+type ReceiptEvidence = { preserved: unknown; generation: unknown; store: string | undefined; authorityCurrent(): boolean };
 const lifetimes = new WeakMap<Client, Custody>();
 export const prepareProgressiveWrites = (options: object, plan: Plan): void => { plans.set(options, plan); };
 export const progressiveWriteCustody = (client: Client) => lifetimes.get(client);
 const unique = <T extends { id: string }>(items: readonly T[]): T[] => [...new Map(items.map(item => [item.id, item])).values()];
 
 export class ProgressiveWrites {
-  private readonly openedAt = Date.now();
   readonly plan: Plan;
   readonly key: string;
   private selected: "journal" | "outbox" = "journal";
@@ -40,8 +39,11 @@ export class ProgressiveWrites {
   private snapshot: readonly PendingWrite[] = [];
   private snapshotValid = true;
   private retryInspection: (() => void) | undefined;
+  private recoverOpening: (() => Promise<void>) | undefined;
+  private bridgeOpeningWrites: ((journal: Client) => void) | undefined;
   private blocked: () => Refusal | undefined = () => undefined;
   get uncertain(): boolean { return !this.snapshotValid; }
+  get inspectionFailure(): Refusal | undefined { return !this.custody ? this.admissionDenied : undefined; }
   private initial?: Journal;
   private sessionKey?: string;
   private candidate = false;
@@ -65,7 +67,8 @@ export class ProgressiveWrites {
         const captured = this.plan.authority && OnlineCapture.unsettled(this.url, this.plan.authority);
         this.candidate = custody !== "none" && !this.initial.pending.length && !captured;
       } catch (error) {
-        this.admissionDenied = admissionRefusal(`the write journal cannot be inspected: ${String(error)}`, "app.mutate", "repair browser storage, then reopen the app");
+        this.snapshotValid = false;
+        this.admissionDenied = admissionRefusal(`the write journal cannot be inspected: ${String(error)}`, "app.mutate", "repair browser storage, then retry a read");
         this.plan.report(new StorageWarning(this.admissionDenied));
         return custody === "none";
       }
@@ -82,13 +85,15 @@ export class ProgressiveWrites {
         const captured = this.plan.authority && OnlineCapture.unsettled(this.url, this.plan.authority);
         if (!this.initial.pending.length && !captured) this.selected = "outbox";
       } catch (error) {
-        this.admissionDenied = admissionRefusal(`the write journal cannot be inspected: ${String(error)}`, "app.mutate", "repair browser storage, then reopen the app");
+        this.snapshotValid = false;
+        this.admissionDenied = admissionRefusal(`the write journal cannot be inspected: ${String(error)}`, "app.mutate", "repair browser storage, then retry a read");
         this.plan.report(new StorageWarning(this.admissionDenied));
       }
     }));
   }
   unavailable(): void { this.candidate = false; this.selected = "journal"; }
   async pending(): Promise<readonly PendingWrite[]> {
+    await this.recoverOpening?.();
     if (!this.snapshotValid) this.retryInspection?.();
     return this.current();
   }
@@ -101,10 +106,36 @@ export class ProgressiveWrites {
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined): Promise<void> {
     this.blocked = blocked;
     const original = { ...local };
+    const learned = new Map<string, Write>();
     const recorded = (id: string): Write | undefined => local.viewer() === this.viewer && this.initial
-      ? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
+      ? learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
     if (this.admissionDenied) {
       local.mutate = routeMutations(original.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(), this.admissionDenied!));
+      if (!this.bridgeOpeningWrites) {
+        const listeners = new Set<Parameters<Client["onWrite"]>[0]>(); let waiting = true;
+        local.onWrite = listener => { const stop = original.onWrite(listener); if (waiting) listeners.add(listener); return () => { stop(); listeners.delete(listener); }; };
+        this.bridgeOpeningWrites = journal => { waiting = false; journal.onWrite(write => { for (const listener of listeners) listener(write); }); };
+      }
+      let recovering: Promise<void> | undefined, closed = false;
+      local.close = async () => { closed = true; this.recoverOpening = undefined; await recovering; await original.close(); };
+      local.signOut = async () => { closed = true; this.recoverOpening = undefined; await recovering; await original.signOut(); };
+      this.recoverOpening = () => recovering ??= (async () => {
+        try {
+          // Opening inspection preserves bytes. A dependent read may retry the
+          // existing quarantine/recovery under the same journal/session locks.
+          const initial = await storeLock(this.key, () => storeLock(this.sessionKey!, () =>
+            journalReader(this.key, this.viewer, this.url, this.plan.store, () => {}, false)(true)));
+          // Capture storage is part of the opening inspection too. Do not
+          // clear its typed refusal until that same source is readable again.
+          if (this.plan.authority) OnlineCapture.unsettled(this.url, this.plan.authority);
+          if (closed || local.viewer() !== this.viewer) return;
+          this.initial = initial; delete this.admissionDenied; this.recoverOpening = undefined;
+          local.mutate = original.mutate; local.close = original.close; local.signOut = original.signOut;
+          await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked);
+          if (closed) await local.close();
+          else { this.custody?.start(); changed(undefined); }
+        } catch { /* Keep the typed refusal while storage recovery keeps failing. */ }
+      })().finally(() => { recovering = undefined; });
       return;
     }
     if (this.owner === "outbox") {
@@ -117,7 +148,7 @@ export class ProgressiveWrites {
       local.write = id => Promise.resolve(recorded(id) ?? original.write(id));
       const refused = { ...local, mutate: routeMutations(original.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
         admissionRefusal("the device outbox owns fresh writes in this document", "app.mutate", "submit through app.mutate"))) };
-      lifetimes.set(local, { client: refused, start() {}, pause() {}, refuseStore: async () => {}, captures: () => [], inspect: async () => ({ pending: [], receipts: [] }) });
+      lifetimes.set(local, { client: refused, start() {}, pause() {}, recover: async () => {}, refuseStore: async () => {}, captures: () => [], captureState: async () => ({ unsettled: false, peers: [] }), inspect: async () => ({ pending: [], receipts: [] }) });
       return;
     }
     // This private, read-less transport reuses the shipped online retry queue.
@@ -136,12 +167,13 @@ export class ProgressiveWrites {
         this.plan.authority, true, true);
     } catch (error) {
       await transport.close();
-      this.admissionDenied = admissionRefusal(`the write journal cannot be opened: ${String(error)}`, "app.mutate", "repair browser storage, then reopen the app");
+      this.snapshotValid = false;
+      this.admissionDenied = admissionRefusal(`the write journal cannot be opened: ${String(error)}`, "app.mutate", "repair browser storage, then retry a read");
       this.plan.report(new StorageWarning(this.admissionDenied));
-      local.mutate = routeMutations(original.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(), this.admissionDenied!));
-      return;
+      return this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked);
     }
     const custody = this.custody, journal = custody.client;
+    this.bridgeOpeningWrites?.(journal); this.bridgeOpeningWrites = undefined;
     lifetimes.set(local, custody);
     const deviceIntents = pendingIntentAccess(local), journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
@@ -152,6 +184,10 @@ export class ProgressiveWrites {
         admitted.set(entry.id, entry.op); changed(entry.op);
       }
       for (const write of receipts) {
+        // Inspection can learn a peer's settlement after the opening snapshot.
+        // Retain positive ownership so an unlisted device cannot refuse its retry.
+        learned.set(write.id, write);
+        if (learned.size > WRITE_HISTORY_LIMIT) learned.delete(learned.keys().next().value!);
         const op = admitted.get(write.id);
         if (op !== undefined && write.state !== "pending" && !completed.has(write.id)) {
           const evidence = this.receipts.get(write.id); this.receipts.delete(write.id);
@@ -160,46 +196,75 @@ export class ProgressiveWrites {
         }
       }
     };
-    let refreshing: Promise<void> | undefined, dirty = false, active = true, retryAfter = 0;
+    let refreshing: Promise<void> | undefined, dirty = false, active = true, retryAfter = 0, retryDelay = 100, failing = false, capturePending = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
+    const refresh = (invalidate = true) => {
+      if (!active) return Promise.resolve();
       // Recovery can commit a capture before this runtime knows its operation.
-      // Invalidate synchronously; a held/failed inspect is never settled custody.
+      // Unknown notifications invalidate synchronously. Own live captures already
+      // expose their footprint, so a held commit need not park disjoint reads.
+      const knownCapture = !invalidate && this.snapshotValid;
       this.snapshotValid = false;
       dirty = true;
       changed(undefined);
       return refreshing ??= (async () => {
         do {
           dirty = false;
+          // An initially live peer may have died since opening. Re-run the same
+          // locked recovery (including its liveness check) before inspecting.
+          let captures = await custody.captureState();
+          if (knownCapture && !dirty && !captures.unsettled) {
+            // Publish the live capture footprints before waiting for a held
+            // journal commit; peers discovered here also keep their reads parked.
+            observe(unique([...this.snapshot, ...captures.peers]), []);
+            this.snapshotValid = true; changed(undefined);
+          }
+          if (captures.unsettled) { this.snapshotValid = false; await custody.recover(); }
           const snapshot = await custody.inspect();
+          captures = await custody.captureState();
           if (!active) return;
-          observe(snapshot.pending, snapshot.receipts);
-          this.snapshotValid = !dirty;
+          observe(unique([...snapshot.pending, ...captures.peers]), snapshot.receipts);
+          capturePending = captures.peers.length > 0 || custody.captures().length > 0;
+          this.snapshotValid = !dirty && !captures.unsettled;
+          failing = false;
+          if (this.snapshotValid) { retryDelay = 100; clearTimeout(retryTimer); retryTimer = undefined; }
           changed(undefined);
         } while (dirty);
-      })().catch(this.plan.report).finally(() => { refreshing = undefined; retryAfter = Date.now() + 100; if (active && dirty) void refresh(); });
+      })().catch(error => {
+        this.snapshotValid = false;
+        if (!failing) { failing = true; this.plan.report(error); }
+      }).finally(() => {
+        refreshing = undefined; retryAfter = Date.now() + retryDelay;
+        if (!this.snapshotValid) retryDelay = Math.min(retryDelay * 2, 3200);
+        if (active && (!this.snapshotValid || capturePending)) this.retryInspection?.();
+      });
     };
     // Reads can repair a failed inspection without polling storage on every
     // evaluation or waiting behind a held inspection (including table-free reads).
     this.retryInspection = () => {
-      if (!active || refreshing || retryTimer !== undefined) return;
-      retryTimer = setTimeout(() => { retryTimer = undefined; if (active && !this.snapshotValid && !refreshing) void refresh(); }, Math.max(0, retryAfter - Date.now()));
+      if (!active || retryTimer !== undefined) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        if (!active || this.snapshotValid && !capturePending) return;
+        if (refreshing) return; // Its completion schedules the next retry.
+        else void refresh(!this.snapshotValid);
+      }, Math.max(0, retryAfter - Date.now()));
     };
-    const stopPending = journal.onPendingWrites(() => { this.snapshotValid = false; observe(this.snapshot, []); void refresh(); });
+    const stopPending = journal.onPendingWrites(() => { observe(this.snapshot, []); void refresh(custody.captures().length === 0); });
     const stopWrite = journal.onWrite(write => { this.snapshot = this.snapshot.filter(entry => entry.id !== write.id); observe(this.snapshot, [write]); void refresh(); });
     local.mutate = routeMutations(original.mutate, (op, args, options) => {
+      // Preserve the device mutation wait bound across its journal dispatcher.
+      const journalOptions = { ...options, waitSeconds: options?.waitSeconds ?? 4 };
       if (options?.id) {
         const known = deviceKnown(options.id);
         if (known) return original.mutate(op, args, options);
-        // Previous-session ids predate this open; same-session device ids are
-        // already known above. Accept a caller-minted id only past that floor.
-        const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        const mintedAt = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(options.id)
-          ? [...options.id.slice(0, 10)].reduce((time, digit) => time * 32 + alphabet.indexOf(digit), 0) : 0;
-        if (known === undefined && !freshlyMinted(options) && mintedAt <= this.openedAt) return failedAdmission(options.id, admissionRefusal("device write custody has not been listed", "app.mutate", "retry this id after device custody is recovered"));
+        if (this.current().some(write => write.id === options.id) || this.initial?.pending.some(write => write.id === options.id)
+          || this.receipts.has(options.id) || recorded(options.id)) return journal.mutate(op, args, journalOptions);
+        // A timestamp cannot exclude a concurrent peer's device admission.
+        if (known === undefined && !freshlyMinted(options)) return failedAdmission(options.id, admissionRefusal("device write custody has not been listed", "app.mutate", "retry this id after device custody is recovered"));
       }
       if (this.admissionDenied) return failedAdmission(options?.id ?? mintId(), this.admissionDenied);
-      return journal.mutate(op, args, options);
+      return journal.mutate(op, args, journalOptions);
     });
     local.write = async id => deviceKnown(id) ? original.write(id) : await journal.write(id) ?? original.write(id);
     local.pendingWrites = async () => unique([...(await this.pending()), ...(await devicePending())]);
@@ -224,8 +289,5 @@ export class ProgressiveWrites {
     local.close = () => close(false); local.signOut = () => close(true);
     combineClose(local, original, transport);
     await refresh();
-    // A surviving synchronous capture is debt before recovery acquires its
-    // lock. Only an inspection after adoption may publish settled custody.
-    if (this.plan.authority && OnlineCapture.unsettled(this.url, this.plan.authority)) this.snapshotValid = false;
   }
 }

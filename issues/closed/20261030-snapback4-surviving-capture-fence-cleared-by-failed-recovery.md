@@ -1,6 +1,6 @@
 # Snapback 4 progressive writes: a failed recovery save can clear the surviving-capture fence
 
-Status: Open
+Status: Closed
 Date: 2026-10-30
 Scope: progressive web startup (LLP 3000.002.000 §7.2), opt-in `startup: "progressive"` only; the default path is unaffected
 Source: Astra, Lane B verification pass (llp/reviews/3000.002.000-lane-b-r4.astra.md), High, recorded at landing of Lane B (commit on main; see the RFC §13 Lane B record)
@@ -12,3 +12,8 @@ Fix: keep opening-capture uncertainty latched until recovery confirms adoption o
 Landing posture: Lane B landed opt-in after four blind two-family fix rounds; the verification pass on the
 landed snapshot raised this item and the orchestrator ticketed it rather than run a fifth round (LLP 0232
 optimistic landing; LLP 0189 fix-forward). Closing this ticket is a precondition of the Lane C default flip.
+
+Also (Fable, Low): the same fence can be cleared by a peer tab's journal broadcast between `install` returning and `custody.start()`: a cross-tab `onPendingWrites` triggers `refresh()`, whose inspection sees no adopted intent yet and sets the snapshot valid. Fix together: keep the snapshot invalid while `OnlineCapture.unsettled(...)` holds until the custody's recovery promise has settled once.
+
+Resolution: fixed in Lane E round 1. Every successful inspection checks surviving captures; an empty committed journal cannot clear their recovery obligation.
+Proof: progressive-writes.test.mjs:656 — failed recovery save plus query inspection; peer broadcast between install and start. Negative control: snapback4/reports/lane-e1/negative-capture-v2.log.

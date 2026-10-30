@@ -512,5 +512,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;
   }
-  return { client, pause, start, refuseStore, inspect, captures: () => [...capturing.values()] };
+  return { client, pause, start, refuseStore, inspect, captures: () => [...capturing.values()],
+    captureState: async () => {
+      const state = await capture?.inspect();
+      return { unsettled: !!capture?.stale || !!state?.recoverable.length,
+        peers: state?.peers.map(record => ({ id: record.id, op: record.op, args: record.args, predicted: [], state: "queued" as const })) ?? [] };
+    },
+    // Inspection retries may recover dead peers only after session publication.
+    recover: () => started ? recover() : Promise.resolve() };
 }

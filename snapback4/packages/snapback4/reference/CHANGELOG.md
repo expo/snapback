@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.51
+
+- **Behavior change (2026-10-30):** `createApp` with `webDevice()` now defaults
+  to progressive startup. `app.ready` establishes a usable client and write
+  custody, not an open/acquired replica; observe `localStatus` / `useLocalStatus`
+  for local readiness. `startup: "awaited"` restores the old opening barrier.
+  Openers without a custody probe (native/Expo) still await. Author ruling:
+  "land it and make it the default"; Lane C qualification follows the flip.
+
 ## 0.4.50
 
 ### Guide changes

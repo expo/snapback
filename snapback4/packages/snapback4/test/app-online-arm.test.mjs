@@ -38,8 +38,9 @@ query hints():
 `;
 async function openFixture(t, options = {}) {
   const { url } = await server(t, undefined, source);
-  const app = createApp({ url, sessionStore: memorySessionStore(), device: device(), ...options });
-  t.after(() => app.close()); await app.ready;
+  const configured = {device: device(), ...options};
+  const app = createApp({ url, sessionStore: memorySessionStore(), ...(configured.device ? {startup: "awaited"} : {}), ...configured });
+  t.after(() => app.close()); assert.deepEqual(await app.ready, {ok: true});
   return { app, url };
 }
 

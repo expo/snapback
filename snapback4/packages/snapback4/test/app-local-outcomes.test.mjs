@@ -18,7 +18,7 @@ for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent",
     const { url, dir } = await server(t, operation === "query" ? "online only" : "sync to .owner"), held = gate(), id = mintId(); let received;
     const device = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") });
     const sessionStore = memorySessionStore();
-    const options = { url, device, sessionStore, fetch: async (input, init) => {
+    const options = { url, startup: "awaited", device, sessionStore, fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (operation.startsWith("mutation") && path === "/m/add") {
         received = operation === "mutation-sent" ? await (await fetch(input, init)).json() : { state: "failed", id, why };
@@ -67,7 +67,7 @@ for (const tier of ["wasm", "native"]) for (const operation of ["mutation-sent",
       const core = await underlying.open(...args);
       return { ...core, async close() { if (armClose) { cleaning = true; await cleanup.promise; } await core.close(); } };
     } };
-    const app = createApp({ url, device, sessionStore: memorySessionStore(), fetch: async (input, init) => {
+    const app = createApp({ url, startup: "awaited", device, sessionStore: memorySessionStore(), fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === "/m/add") received = operation === "mutation-sent" ? await (await fetch(input, init)).json() : { state: "failed", id, why };
       else if (path === "/a/work") received = operation === "action-done" ? { state: "done", id, result: { accepted: true } } : { state: "failed", id, why };
