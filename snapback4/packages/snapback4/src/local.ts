@@ -1934,7 +1934,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (denied?.code === "E_AUTH" && request.revision !== credentialRevision) throw new Error("journal retry after credential rotation");
     const current = () => !closed && !sessionDead && request.revision === credentialRevision
       && dispatchIncarnation === incarnation && dispatchStore === (storeIdentity ?? onlineStore);
-    let receiptIncarnation = dispatchIncarnation;
     // Revocation belongs to the credential, even across a store/schema adoption.
     await refusedSession(denied, request.revision);
     if (current()) {
@@ -1947,14 +1946,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           options.onStoreChange?.(denied);
         }
       }
-      receiptIncarnation = await onlineEvidence(json, capture) ?? dispatchIncarnation;
+      await onlineEvidence(json, capture);
     }
     // @ref LLP 3000.002.000#6 — settlement cuts survive credential rotation.
     // Keep the store binding
     // across the asynchronous receipt save; metadata adoption stays fenced above.
     if (json.state === "sent" && init?.body) journalWrites.receipt(JSON.parse(String(init.body)).id, {
       preserved: json.preserved, generation: json.generation, store: typeof json.store_id === "string" ? json.store_id : dispatchStore,
-      incarnation: receiptIncarnation, authorityCurrent: current,
+      authorityCurrent: current,
     });
     return response;
   }, (op, committed, evidence) => {
@@ -1988,7 +1987,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
       void scheduleRead(watch, true, committed, preserved, writes);
   }, id => mutationIds.knows(id) || custodyEntries.some(entry => entry.id === id) ? true : deviceListed && deviceHistoryListed ? false : undefined, custodyFailure,
-    () => ({ store: storeIdentity ?? onlineStore, incarnation, generation: backend?.generation, preserved: undefined, authorityCurrent: () => false }));
+    () => ({ store: storeIdentity ?? onlineStore, generation: backend?.generation, preserved: undefined, authorityCurrent: () => false }));
   if (confirmedJournalRefusal) journalWrites?.refuseStore(confirmedJournalRefusal);
   if (!deferStart(options, start)) await start();
   if (!progressive) stopHost = core?.onClient?.(client, base);

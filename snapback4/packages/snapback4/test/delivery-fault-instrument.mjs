@@ -704,3 +704,12 @@ export function awaitBoundary() {
 // Sync advances generation in both startup modes. Public pending writes strip
 // internal store bindings. E10 regressions cover these synchronous changes at
 // existing I/O boundaries; all 215 classified delivery sites/recipes are unchanged.
+
+// Lane E round 11: local/progressive-writes/app-online retain 228/23/40 awaits.
+// The opening-failure lifecycle waits for original cleanup and nested recovery
+// with allSettled, holding response custody through both; this does not await
+// the network or acquire delivery custody. The pre-transport retired-viewer
+// guard, identity-wait binding repair and bounded receipt evidence are sync.
+// Removing the unread receipt stamp changes the existing install expression,
+// not delivery I/O. E11 and the strengthened E1/E5/E9 regressions cover these
+// boundaries. All 215 classified delivery sites and recipes remain unchanged.

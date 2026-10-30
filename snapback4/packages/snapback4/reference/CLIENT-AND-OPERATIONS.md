@@ -210,9 +210,11 @@ journal and session locks, restoring reads and writes when storage recovers.
 Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
-new actions and transport sends; cleanup waits for recovery and keeps any newly
-opened journal custody paused, even if nested installation fails. A later read
-cannot restart that closed lifetime. A failed installation keeps the typed
+new actions and transport sends; cleanup waits for recovery, retaining already
+dispatched action outcomes received before public close completes. Retired
+recovery opens no journal custody and reports no storage failure; a mutation
+after sign-out returns `E_AUTH`. A later read cannot restart that closed lifetime.
+A failed installation in an open lifetime keeps the typed
 `E_ADMISSION` refusal until custody is successfully installed. Failed quarantine
 preservation reports once per failure streak; success reports its saved-byte key.
 Once opened, failed journal inspections retry while the client is active,

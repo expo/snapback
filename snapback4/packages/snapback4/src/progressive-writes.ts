@@ -13,7 +13,7 @@ import { prepareClient } from "./client-start.ts";
 import { inheritDispatch, seedDispatchIdentity } from "./online-dispatch.ts";
 import { pendingIntentAccess, registerPendingIntents, registerIntentObserver, observeIntents, intentObserver, type PendingIntentAccess } from "./pending-items.ts";
 import { routeMutations } from "./ephemeral.ts";
-import { inheritClose, combineClose } from "./closing-responses.ts";
+import { inheritClose, combineClose, holdClose } from "./closing-responses.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 
 interface Plan {
@@ -23,7 +23,7 @@ interface Plan {
 }
 const plans = new WeakMap<object, Plan>();
 type Custody = Awaited<ReturnType<typeof onlineCustody>>;
-type ReceiptEvidence = { preserved: unknown; generation: unknown; store: string | undefined; incarnation: number; authorityCurrent(): boolean };
+type ReceiptEvidence = { preserved: unknown; generation: unknown; store: string | undefined; authorityCurrent(): boolean };
 const lifetimes = new WeakMap<Client, Custody>();
 export const prepareProgressiveWrites = (options: object, plan: Plan): void => { plans.set(options, plan); };
 export const progressiveWriteCustody = (client: Client) => lifetimes.get(client);
@@ -53,7 +53,12 @@ export class ProgressiveWrites {
   private candidate = false;
   private admissionDenied?: Refusal;
   private readonly receipts = new Map<string, ReceiptEvidence>();
-  receipt(id: string, evidence: ReceiptEvidence): void { this.receipts.set(id, evidence); }
+  private readonly completed = new Set<string>();
+  receipt(id: string, evidence: ReceiptEvidence): void {
+    if (this.completed.has(id)) return;
+    this.receipts.set(id, evidence);
+    if (this.receipts.size > WRITE_HISTORY_LIMIT) this.receipts.delete(this.receipts.keys().next().value!);
+  }
   constructor(options: object, readonly url: string, readonly viewer: string) {
     this.plan = plans.get(options)!;
     this.key = storeKey("writes", url, viewer);
@@ -133,7 +138,11 @@ export class ProgressiveWrites {
       ? learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
     if (this.admissionDenied && !recoveringOpening) {
       const denied = this.admissionDenied;
-      local.mutate = routeMutations(original.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(), denied));
+      local.mutate = routeMutations(original.mutate, (op, args, options) => {
+        if (local.viewer() !== this.viewer) return failedAdmission(options?.id ?? mintId(), { code: "E_AUTH", family: "auth", message: "sign in to write" });
+        if (this.lifetimePaused) return original.mutate(op, args, options);
+        return failedAdmission(options?.id ?? mintId(), denied);
+      });
       if (!this.bridgeOpeningWrites) {
         const listeners = new Set<Parameters<Client["onWrite"]>[0]>(), pendingListeners = new Set<() => void>(); let waiting = true;
         local.onWrite = listener => { const stop = original.onWrite(listener); if (waiting) listeners.add(listener); return () => { stop(); listeners.delete(listener); }; };
@@ -148,8 +157,12 @@ export class ProgressiveWrites {
       const close = async (signOut: boolean) => {
         closed = this.lifetimePaused = true; this.recoverOpening = undefined;
         // Fence the original client's act/sendPost now, before recovery drains.
-        // Nested installation inherits the pause before exposing its custody.
-        await Promise.all([signOut ? original.signOut() : original.close(), recovering]);
+        // @ref LLP 3000.013#6 — retain responses until both local cleanups finish.
+        const finish = holdClose(local);
+        try {
+          const results = await Promise.allSettled([signOut ? original.signOut() : original.close(), recovering]);
+          for (const result of results) if (result.status === "rejected") throw result.reason;
+        } finally { finish(); }
       };
       local.close = () => close(false); local.signOut = () => close(true);
       const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, this.plan.report, false);
@@ -200,6 +213,7 @@ export class ProgressiveWrites {
     // This private, read-less transport reuses the shipped online retry queue.
     // The local client supplies every credential, store and rollback fence.
     // It has no refresh authority, subscriptions, interpreter or result cache.
+    if (this.lifetimePaused || local.viewer() !== this.viewer) return;
     const options = { url: this.url, ...(local.session() ? { token: local.session()!.token } : { persona: this.viewer.slice(4) }), fetch };
     const transport = (await prepareClient(options, () => sdkOwned(() => createClient(options)))).client;
     const raw: Client = { ...local, mutate: transport.mutate, write: transport.write,
@@ -232,11 +246,17 @@ export class ProgressiveWrites {
     const binding = (evidence: ReceiptEvidence | undefined, store: string | null | undefined) => evidence && {
       ...evidence, store: store ?? undefined, preserved: undefined,
     };
-    const admitted = new Map(this.initial?.pending.map(intent => [intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) }])), completed = new Set<string>();
+    const admitted = new Map(this.initial?.pending.map(intent => [intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) }])), completed = this.completed;
     const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], evidence = observation()) => {
       this.snapshot = entries;
-      for (const entry of unique([...entries, ...custody.captures()])) if (!admitted.has(entry.id) && !completed.has(entry.id)) {
-        admitted.set(entry.id, { op: entry.op, evidence: binding(evidence, (entry as { storeId?: string | null }).storeId) }); changed(entry.op);
+      for (const entry of unique([...entries, ...custody.captures()])) if (!completed.has(entry.id)) {
+        const prior = admitted.get(entry.id);
+        // Identity waits are visible before capture has an original store.
+        // Fill that binding once; never rebind an already identified intent.
+        if (!prior || prior.evidence?.store === undefined && entry.storeId != null) {
+          admitted.set(entry.id, { op: entry.op, evidence: binding(evidence, entry.storeId) });
+          if (!prior) changed(entry.op);
+        }
       }
       for (const write of receipts) {
         // Inspection can learn a peer's settlement after the opening snapshot.

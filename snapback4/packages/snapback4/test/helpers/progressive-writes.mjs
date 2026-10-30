@@ -19,7 +19,7 @@ const schema = {generation:1,store_id:'A',schema:{tables:{}},programs:[
   {name:'constant',kind:'Query',args:{},body:[{Return:{Literal:{String:'constant'}}}],settlement:{reads:{},writes:{}}},
 ]};
 async function fixture(t, {hold=true, drop=false, custody='none', store=memorySessionStore(), persist=memoryPersistence(), raw=false,
-  backend=schema, mutationRefusal, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
+  backend=schema, mutationRefusal, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, actionReply, probeWait, schemaStore=true, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
   const url=(persona?'http://127.0.0.1:4400':'https://progressive-writes.invalid')+basePath, release=gate(), posted=gate(), coreGate=gate();
   let head=20, requests=[], actions=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
   await store.set(sessionKey(url),JSON.stringify({token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000}));
@@ -30,14 +30,14 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
   const fetch=async(input,init)=>{
     const path=new URL(input).pathname.slice(basePath.length);
     if(offline)throw new TypeError('offline witness');
-    if(path==='/schema')return Response.json({...backend,store_id:storeId});
-    if(path==='/probe')return Response.json({ok:true,viewer:'alice',scope:'full',store_id:storeId,seq:head,generation:backend.generation});
+    if(path==='/schema'){const reply={...backend};if(schemaStore)reply.store_id=storeId;else delete reply.store_id;return Response.json(reply);}
+    if(path==='/probe'){await probeWait?.promise;return Response.json({ok:true,viewer:persona?'dev:alice':'alice',scope:'full',store_id:storeId,seq:head,generation:backend.generation});}
     if(path==='/sync'){await syncWait?.promise;if(failSync)return Response.json({denied:failSync},{status:409});return Response.json({generation:syncGeneration??backend.generation,store_id:storeId,snapshot:!JSON.parse(init.body).stream,watermark:syncHead??head,images_at:syncHead??head,events:[],committed_above:{},more:false});}
     if(path==='/changes')return new Promise((resolve,reject)=>{changes.push(body=>resolve(Response.json(body)));if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
     if(path==='/auth/login')return Response.json({ok:true,session:{token:'bob-token',principal:'bob',kind:'user',expiresAt:Date.now()+7*86400000}});
     if(path==='/auth/refresh'&&refreshReply)return refreshReply();
     if(path.startsWith('/auth/')){revokes++;return Response.json({ok:true,revoked:1});}
-    if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json({id,state:'done',result:'acted'});}
+    if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json(await actionReply?.(id)??{id,state:'done',result:'acted'});}
     if(path.startsWith('/m/')){
       const body=JSON.parse(init.body);requests.push(body.id);
       if(body.store_id&&body.store_id!==storeId)return Response.json({state:'failed',id:body.id,why:{code:'E_STORE_REPLACED',family:'store',message:'request belongs to another store'},store_id:storeId,generation:backend.generation},{status:409});
@@ -57,7 +57,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
   let app;
   if(raw){if(startup!=='awaited'||journal)prepareProgressiveWrites(options,{store,report,authority});const prepared=await prepareClient(options,()=>createLocalClient(options));local=prepared.client;app={client:local,mutate:(...args)=>local.mutate(...args),close:()=>local.close(),ready:Promise.resolve({ok:true})};progressiveWriteCustody(local)?.start();await prepared.start();}
   else app=createApp(options);
-  t.after(async()=>{release.resolve();coreGate.resolve();syncWait?.resolve();await app.close();});
+  t.after(async()=>{release.resolve();coreGate.resolve();syncWait?.resolve();probeWait?.resolve();await app.close();});
   return {app,store,url,requests,actions,executions,posted,release,coreGate,reads:()=>reads,coreOpens:()=>coreOpens,local:()=>local,
     device:options.device, reopen:async(overrides)=>{await app.close();app=createApp({...options,...overrides});return app;},
     journal:async()=>JSON.parse(await store.get(storeKey('writes',url,persona?'dev:alice':'alice'))??'null'), change:body=>{const next=changes.shift();next?.(body);return !!next;}, fail:why=>{failStore=why;}, failSync:why=>{failSync=why;}, replace:id=>{storeId=id;head=0;}, head:value=>{head=value;}, offline:value=>{offline=value;}, revokes:()=>revokes};
