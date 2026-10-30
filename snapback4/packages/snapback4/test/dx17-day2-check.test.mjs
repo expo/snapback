@@ -27,9 +27,11 @@ function fixture(t){
  `);
  // This uses the literal production recipe, real password signup and operator provisioning.
  writeFileSync(join(cwd,'scripts/prod-serve.mjs'),doc.match(/```js\n([\s\S]*?)```/)[1]);
+ // runCommand gives this caller its own process group. Kill that group for an observable signal control:
+ // macOS npm normalizes a nested SIGTERM to exit 1, which the frozen-caller contract records as an observation.
  writeFileSync(join(cwd,'calls.mjs'),`import assert from'node:assert/strict';import{readFileSync,statSync,appendFileSync,writeFileSync}from'node:fs';
  const users=JSON.parse(readFileSync(process.env.CALLS_USERS));assert.equal(statSync(process.env.CALLS_USERS).mode&511,384);
- if(process.env.SIGNAL_FROZEN&&process.cwd().endsWith('/v1'))process.kill(process.pid,'SIGTERM');
+ if(process.env.SIGNAL_FROZEN&&process.cwd().endsWith('/v1'))process.kill(0,'SIGKILL');
  if(process.env.FAIL_FROZEN&&process.cwd().endsWith('/v1')){console.log(JSON.stringify({op:'tightened',role:'member',ok:false,expected:'E_RULE',error:'E_RULE: private-denial-sentinel',password:'private-password-sentinel',row:{token:'private-token-sentinel'}}));process.exit(7);}
  if(process.env.FAIL_CLIENT&&!process.cwd().endsWith('/v1')){console.error('Error: deliberate client failure');process.exit(7);}
  if(process.env.HANG_PID){const{spawn}=await import('node:child_process');const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(process.env.HANG_PID,String(child.pid));writeFileSync(process.env.HANG_USERS_PATH,process.env.CALLS_USERS);await new Promise(()=>{});}

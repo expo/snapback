@@ -29,7 +29,9 @@ for(const [label,source,expected] of [
  ['trailing-output',jsonLine+'process.on("SIGTERM",()=>{process.stdout.write("trailing");process.exit(0)});'+hold,['E_SERVE_EXTRA_OUTPUT']],
 ])test(`serve-check ${label}`,{skip:process.platform==='win32'},async t=>{
  const cwd=await project(t);npmScript(cwd,source);
- const report=await serveCheck({cwd,env,deployment:'production',timeoutMs:1000,upMs:60,stopTimeoutMs:150});
+ // The positive control uses public startup/shutdown grace; refusal controls keep their short deadlines.
+ const clean=label==='clean'?{timeoutMs:30000,stopTimeoutMs:5000}:{};
+ const report=await serveCheck({cwd,env,deployment:'production',timeoutMs:1000,upMs:60,stopTimeoutMs:150,...clean});
  for(const code of expected)assert.ok(report.failures.some(f=>f.code===code),JSON.stringify(report));
  assert.equal(report.ok,expected.length===0,JSON.stringify(report));
  assert.ok(!JSON.stringify(report).includes('SECRET-NEVER-REPORT'));

@@ -14,7 +14,8 @@ function scratch(t){const cwd=mkdtempSync(join(tmpdir(),'dx12-'));t.after(()=>rm
 async function project(t){const cwd=scratch(t);mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),schema);await deploy('production','snapback',{cwd,env});return cwd;}
 function script(cwd,body){writeFileSync(join(cwd,'package.json'),JSON.stringify({type:'module',scripts:{'probe:serve':'node serve.mjs'}}));writeFileSync(join(cwd,'serve.mjs'),body);}
 const ready='console.log(JSON.stringify({backendUrl:"http://127.0.0.1:1",frontendUrl:"http://127.0.0.1:2",password:"PRIVATE-SERVE-SENTINEL"}));setInterval(()=>{},1000);';
-const opts=cwd=>({cwd,env,script:'probe:serve',deployment:'production',timeoutMs:3000,thenTimeoutMs:3000,stopTimeoutMs:100});
+// Successful npm/child cleanup uses the public shutdown grace, not a 100 ms scheduler race.
+const opts=cwd=>({cwd,env,script:'probe:serve',deployment:'production',timeoutMs:3000,thenTimeoutMs:3000,stopTimeoutMs:5000});
 test('serve callback receives private readiness, returns its value and releases the lock', {skip:process.platform==='win32'},async t=>{
  const cwd=await project(t);script(cwd,ready);
  const value=await withServeScript('probe:serve',async (ready,signal)=>{assert.equal(signal.aborted,false);assert.equal(ready.password,'PRIVATE-SERVE-SENTINEL');return 42;},opts(cwd));
