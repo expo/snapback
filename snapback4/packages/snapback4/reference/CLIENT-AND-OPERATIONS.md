@@ -183,6 +183,11 @@ A dependent server or local read waits on unsettled journal custody; known
 success requires an answer covering its server cut. Core attachment never retires
 its receipt owner. A peer tab's settlement of this tab's captured write keeps
 that same-store cut even while this tab's original response is still pending.
+Same-generation peer receipts keep the operation's footprint; a failed write
+does not block disjoint reads. Inspected receipts invalidate affected reads
+without inventing revocation evidence, so retained answers keep their deadlines.
+Public pending writes omit internal store bindings. A replacement refusal for
+an older store's request does not fence a replacement the device already adopted.
 An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
@@ -206,7 +211,10 @@ Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
 new actions and transport sends; cleanup waits for recovery and keeps any newly
-opened journal custody paused.
+opened journal custody paused, even if nested installation fails. A later read
+cannot restart that closed lifetime. A failed installation keeps the typed
+`E_ADMISSION` refusal until custody is successfully installed. Failed quarantine
+preservation reports once per failure streak; success reports its saved-byte key.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and

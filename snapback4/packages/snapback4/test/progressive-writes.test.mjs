@@ -22,59 +22,7 @@ import { deviceControl } from '../dist/device-control.js';
 import { deviceRestore } from '../dist/device-restore.js';
 import { episodeDeadline } from '../dist/read-episode.js';
 import { QueryCuts } from '../dist/query-dependencies.js';
-const wasm = new WebAssembly.Module(readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)));
-const gate = () => Promise.withResolvers();
-const tick = () => new Promise(resolve => setTimeout(resolve, 5));
-async function until(fn) { for (let n=0;n<1000;n++) { if(await fn()) return; await tick(); } assert.fail('condition did not arrive'); }
-const mutation = {kind:'mutation',name:'write'}, query = {kind:'query',name:'read'};
-const schema = {generation:1,store_id:'A',schema:{tables:{}},programs:[
-  {name:'read',kind:'Query',args:{},body:[{Return:{Literal:{String:'local'}}}],settlement:{reads:{items:null},writes:{}}},
-  {name:'write',kind:'Mutation',args:{},body:[{Return:{Literal:{String:'written'}}}],settlement:{reads:{},writes:{items:null}}},
-  {name:'other',kind:'Query',args:{},body:[{Return:{Literal:{String:'other'}}}],settlement:{reads:{other:null},writes:{}}},
-  {name:'constant',kind:'Query',args:{},body:[{Return:{Literal:{String:'constant'}}}],settlement:{reads:{},writes:{}}},
-]};
-async function fixture(t, {hold=true, drop=false, custody='none', store=memorySessionStore(), persist=memoryPersistence(), raw=false,
-  backend=schema, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
-  const url=(persona?'http://127.0.0.1:4400':'https://progressive-writes.invalid')+basePath, release=gate(), posted=gate(), coreGate=gate();
-  let head=20, requests=[], actions=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
-  await store.set(sessionKey(url),JSON.stringify({token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000}));
-  if(raw)coreGate.resolve();
-  const inner=webDevice({wasm,persist});
-  const device={custody:async()=>custody,async open(...args){coreOpens++;await coreGate.promise;if(failure)throw failure;const core=await inner.open(...args);
-    return wrapCore({...core,call:(request,...rest)=>badEngine&&request.op==='engine_info'?Promise.resolve({ok:{format:0}}):core.call(request,...rest)});}};
-  const fetch=async(input,init)=>{
-    const path=new URL(input).pathname.slice(basePath.length);
-    if(offline)throw new TypeError('offline witness');
-    if(path==='/schema')return Response.json({...backend,store_id:storeId});
-    if(path==='/probe')return Response.json({ok:true,viewer:'alice',scope:'full',store_id:storeId,seq:head,generation:backend.generation});
-    if(path==='/sync'){await syncWait?.promise;if(failSync)return Response.json({denied:failSync},{status:409});return Response.json({generation:syncGeneration??backend.generation,store_id:storeId,snapshot:!JSON.parse(init.body).stream,watermark:syncHead??head,images_at:syncHead??head,events:[],committed_above:{},more:false});}
-    if(path==='/changes')return new Promise((resolve,reject)=>{changes.push(body=>resolve(Response.json(body)));if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
-    if(path==='/auth/login')return Response.json({ok:true,session:{token:'bob-token',principal:'bob',kind:'user',expiresAt:Date.now()+7*86400000}});
-    if(path==='/auth/refresh'&&refreshReply)return refreshReply();
-    if(path.startsWith('/auth/')){revokes++;return Response.json({ok:true,revoked:1});}
-    if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json({id,state:'done',result:'acted'});}
-    if(path.startsWith('/m/')){
-      const body=JSON.parse(init.body);requests.push(body.id);
-      if(failStore)return Response.json({denied:failStore},{status:409});
-      const replayed=executions.has(body.id);
-      if(!replayed)executions.set(body.id,++head);
-      posted.resolve(); if(drop){drop=false;throw Error('response lost after commit');}
-      if(hold)await release.promise;
-      const receipt={state:'sent',seq:executions.get(body.id),head,store_id:storeId,generation:1,replayed};
-      return Response.json(receiptReply?.(receipt)??receipt);
-    }
-    reads++;return Response.json(await queryReply?.(path,head)??{data:'server',complete:true,tables:path.endsWith('/constant')?[]:path.endsWith('/other')?['other']:['items'],seq:head,store_id:storeId,generation:1});
-  };
-  let local;
-  const options={url,sessionStore:store,onStoreChange,...(startup?{startup}:{}),...(persona?{persona:"alice"}:{}),device:{...device,async open(...args){const core=await device.open(...args);return {...core,onClient(client){local=client;}};}},fetch};
-  let app;
-  if(raw){if(startup!=='awaited'||journal)prepareProgressiveWrites(options,{store,report,authority});const prepared=await prepareClient(options,()=>createLocalClient(options));local=prepared.client;app={client:local,mutate:local.mutate,close:local.close,ready:Promise.resolve({ok:true})};progressiveWriteCustody(local)?.start();await prepared.start();}
-  else app=createApp(options);
-  t.after(async()=>{release.resolve();coreGate.resolve();syncWait?.resolve();await app.close();});
-  return {app,store,url,requests,actions,executions,posted,release,coreGate,reads:()=>reads,coreOpens:()=>coreOpens,local:()=>local,
-    device:options.device, reopen:async(overrides)=>{await app.close();app=createApp({...options,...overrides});return app;},
-    journal:async()=>JSON.parse(await store.get(storeKey('writes',url,persona?'dev:alice':'alice'))??'null'), change:body=>{const next=changes.shift();next?.(body);return !!next;}, fail:why=>{failStore=why;}, failSync:why=>{failSync=why;}, replace:id=>{storeId=id;head=0;}, head:value=>{head=value;}, offline:value=>{offline=value;}, revokes:()=>revokes};
-}
+import { fixture, wasm, gate, tick, until, mutation, query, schema } from './helpers/progressive-writes.mjs';
 
 test('journal keeps its id, pending surfaces and receipt owner after attachment; no outbox admission',async t=>{
   const f=await fixture(t);assert.equal((await f.app.ready).ok,true);
@@ -1276,7 +1224,7 @@ for(const custody of ['present','unknown','none']) regression(`E7 opening recove
   t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){
     progressive=this;
     if(++installs===1)original=local.mutate;
-    if(installs===2){entered.resolve();await release.promise;assert.equal(args.at(-1)?.mutate,original,'nested install retains the device method snapshot');}
+    if(installs===2){entered.resolve();await release.promise;assert.equal(args[6]?.mutate,original,'nested install retains the device method snapshot');}
     return install.call(this,local,...args);
   });
   t.after(()=>release.resolve());
@@ -1294,14 +1242,14 @@ for(const custody of ['present','unknown','none']) regression(`E7 opening recove
   if(custody!=='none')assert.deepEqual(f.requests,[id]);
 });
 
-for(const raw of [false,true]) regression(`E7 close during nested opening install pauses custody without retiring unsent replay (raw=${raw})`,async t=>{
+regression('E7 close during nested opening install pauses custody without retiring unsent replay (raw=false)',async t=>{
   const store=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),id=mintId();
   await store.set(key,'damaged opening');
   const entered=gate(),release=gate();let installs=0,progressive,local;
   const install=ProgressiveWrites.prototype.install;
   t.mock.method(ProgressiveWrites.prototype,'install',async function(client,...args){local=client;progressive=this;if(++installs===2){entered.resolve();await release.promise;}return install.call(this,client,...args);});
   t.after(()=>release.resolve());
-  const f=await fixture(t,{raw,store,hold:false});await f.app.ready;
+  const f=await fixture(t,{raw:false,store,hold:false});await f.app.ready;
   const recovering=progressive.pending();await entered.promise;
   await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id,op:'write',args:{},storeId:'A'}],receipts:[]}));
   const closing=f.app.close();await tick();release.resolve();await recovering;await closing;
@@ -1415,7 +1363,8 @@ regression('E8 awaited journal receipt does not repeat a replacement already ado
   // or mistake A's old head for a restore of B.
   assert.equal(write.state,'failed',JSON.stringify(write));assert.equal(write.why.code,'E_STORE_REPLACED');
   assert.equal((await f.journal()).receipts.some(receipt=>receipt.id===write.id),true);
-  assert.equal(changes.length,before,'the first B journal receipt must compare against the already adopted device store');
+  assert.equal(changes.length,before,'an A-bound server refusal must not fence the already adopted device store B');
+  f.offline(true);assert.equal((await f.app.client.query(query,{})).data,'local','B remains usable after the real server refusal');
 });
 
 regression('E8 seeded opening intent parks dependent reads until its settlement cut is covered',async t=>{

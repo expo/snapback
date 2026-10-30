@@ -36,7 +36,7 @@ export class ProgressiveWrites {
   get owner(): "journal" | "outbox" { return this.selected; }
   private decision?: Promise<boolean>;
   private custody?: Awaited<ReturnType<typeof onlineCustody>>;
-  private snapshot: readonly PendingWrite[] = [];
+  private snapshot: readonly (PendingWrite & { storeId?: string | null | undefined })[] = [];
   private snapshotValid = true;
   private retryInspection: (() => void) | undefined;
   private recoverOpening: (() => Promise<void>) | undefined;
@@ -103,12 +103,12 @@ export class ProgressiveWrites {
   }
   current(): readonly PendingWrite[] {
     const reason = this.blocked();
-    return unique([...this.snapshot, ...this.custody?.captures() ?? []]).map(write => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
+    return unique([...this.snapshot, ...this.custody?.captures() ?? []]).map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
   }
   refuseStore(why: Refusal): void { void this.custody?.refuseStore(why).catch(this.plan.report); }
   async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: (op: string | undefined, committed?: number, evidence?: ReceiptEvidence) => void,
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined,
-    observation: () => ReceiptEvidence | undefined = () => undefined, original: Client = { ...local }): Promise<void> {
+    observation: () => ReceiptEvidence | undefined = () => undefined, original: Client = { ...local }, recoveringOpening = false): Promise<void> {
     this.blocked = blocked;
     const openingEvidence = observation();
     if (!this.deviceIntents) {
@@ -131,7 +131,7 @@ export class ProgressiveWrites {
     const learned = new Map<string, Write>();
     const recorded = (id: string): Write | undefined => local.viewer() === this.viewer && this.initial
       ? learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
-    if (this.admissionDenied) {
+    if (this.admissionDenied && !recoveringOpening) {
       const denied = this.admissionDenied;
       local.mutate = routeMutations(original.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(), denied));
       if (!this.bridgeOpeningWrites) {
@@ -152,26 +152,35 @@ export class ProgressiveWrites {
         await Promise.all([signOut ? original.signOut() : original.close(), recovering]);
       };
       local.close = () => close(false); local.signOut = () => close(true);
+      const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, this.plan.report, false);
       this.recoverOpening = () => recovering ??= (async () => {
         try {
           // Opening inspection preserves bytes. A dependent read may retry the
           // existing quarantine/recovery under the same journal/session locks.
           const initial = await storeLock(this.key, () => storeLock(this.sessionKey!, () =>
-            journalReader(this.key, this.viewer, this.url, this.plan.store, this.plan.report, false)(true)));
+            recoverJournal(true)));
           // Capture storage is part of the opening inspection too. Do not
           // clear its typed refusal until that same source is readable again.
           if (this.plan.authority) OnlineCapture.unsettled(this.url, this.plan.authority);
           if (closed || this.lifetimePaused || local.viewer() !== this.viewer) return;
-          this.initial = initial; delete this.admissionDenied;
+          this.initial = initial;
           // Keep admission and close fenced until install replaces both wrappers.
           // Its method snapshot must still name the device, not this denial.
-          await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original);
-          if (!this.admissionDenied) this.recoverOpening = undefined;
-          if (this.custody) {
-            if (closed) await local.close();
-            else { this.custody.start(); changed(undefined); }
+          await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original, true);
+          if (closed || this.lifetimePaused) {
+            this.recoverOpening = undefined;
+            if (this.custody) await local.close();
+          } else if (this.custody) {
+            delete this.admissionDenied; this.recoverOpening = undefined;
+            this.custody.start(); changed(undefined);
           }
-        } catch { /* Keep the typed refusal while storage recovery keeps failing. */ }
+        } catch {
+          if (!this.custody) this.admissionDenied ??= denied;
+        } finally {
+          // A failed nested install may have installed another denial frame.
+          // Closing this lifetime must retire that frame's retry as well.
+          if (closed || this.lifetimePaused) this.recoverOpening = undefined;
+        }
       })().finally(() => { recovering = undefined; });
       return;
     }
@@ -221,7 +230,7 @@ export class ProgressiveWrites {
     const deviceIntents = this.deviceIntents!, journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
     const binding = (evidence: ReceiptEvidence | undefined, store: string | null | undefined) => evidence && {
-      ...evidence, store: store ?? undefined, generation: undefined, preserved: undefined,
+      ...evidence, store: store ?? undefined, preserved: undefined,
     };
     const admitted = new Map(this.initial?.pending.map(intent => [intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) }])), completed = new Set<string>();
     const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], evidence = observation()) => {

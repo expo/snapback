@@ -382,7 +382,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     onWrite(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     // @ref LLP 3000.019#3.3 — restored online intent is visible before replay;
     // the shared journal supplies order and persisted dispatch status.
-    async pendingWrites() { return (await inspect()).pending; },
+    async pendingWrites() { return (await inspect()).pending.map(({ storeId: _store, ...write }: import("./contract.ts").PendingWrite & { storeId?: string | null | undefined }) => write); },
     onPendingWrites: pending.subscribe,
     async close() { pause(); await raw.close(); await writes.catch(report); },
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
@@ -419,7 +419,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     const entries = journalEntries(journal);
     const items = presentation.sync(entries, [...journal.receipts, ...unpersisted.values()]);
     const listed = new Set([...items.map(item => item.write.id), ...entries.map(entry => entry.id), ...journal.receipts.map(write => write.id)]);
-    return [...items, ...[...capturing.values(), ...identification.pending()].filter(write => !listed.has(write.id)).map(write => pendingIntent(write, !progressive || !capturing.has(write.id)))];
+    return [...items, ...[...capturing.values(), ...identification.pending()].filter(write => !listed.has(write.id)).map(({ storeId: _store, ...write }: import("./contract.ts").PendingWrite & { storeId?: string }) => pendingIntent(write, !progressive || !capturing.has(write.id)))];
   } });
   registerIntentObserver(client, ids => { if (intentScope() != null) presentation.observed(ids); });
   inheritClose(client, raw);

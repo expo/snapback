@@ -269,7 +269,7 @@
   },
   "local.ts": {
     "count": 228,
-    "sha256": "512c5f11bdbbd6d76ef18ae39185b34f945819ba02211b77ad06cddca4bc2499"
+    "sha256": "1beec1b23226160af1aee1dd6f93beaf61cb8f99d8074861ef949ed6f616f14d"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -329,7 +329,7 @@
   },
   "progressive-writes.ts": {
     "count": 23,
-    "sha256": "10b2d2675e4d6f1a52c6183d7f019d61909169d65518fbbf2900900576efc9ad"
+    "sha256": "7c27cdf770f2f89aa01655c60ed54684b1b92884c760406bcc87ce7e2dd2caa4"
   },
   "proof-accounts.ts": {
     "count": 16,

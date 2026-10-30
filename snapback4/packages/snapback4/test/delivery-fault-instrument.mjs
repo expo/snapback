@@ -694,3 +694,13 @@ export function awaitBoundary() {
 // before the capturing response arrives. E9 regressions and isolated controls
 // cover both races. No delivery I/O/site, failure class or recipe changes;
 // regenerate the expression seal with all 215 classified sites intact.
+
+// Lane E round 10: local keeps 228 awaits and progressive-writes keeps 23.
+// Existing journal installation now retains typed admission failure through
+// nested preparation and clears recovery even after a closed installation fails.
+// The recovery reader persists its quarantine warning streak. Same-generation
+// peer cuts retain footprints; failed writes stay scoped, unknown preservation
+// does not revoke, and store refusals qualify against the request binding.
+// Sync advances generation in both startup modes. Public pending writes strip
+// internal store bindings. E10 regressions cover these synchronous changes at
+// existing I/O boundaries; all 215 classified delivery sites/recipes are unchanged.
