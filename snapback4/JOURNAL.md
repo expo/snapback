@@ -110800,3 +110800,45 @@ ordinary-mode version refusal publishes `unavailable`. Focused suites: 11 files,
 witnessed head after the poll under test was dispatched (the snapshot-at-dispatch
 semantics are the correct conservative choice; a continuing regression is caught
 by the next poll). The broad affected run follows on the committed result.
+
+### 2026-10-30 — Progressive startup lane B: one dispatcher per document
+
+Implements LLP 3000.002.000 revision 1 §7 as the panel ruled it: no cross-store
+transfer, no ownership record, no import. `progressive-writes.ts` decides the
+document's write owner once at open, under the online journal lock and then the
+session lock together with the A1 custody probe: existing device custody with an
+empty journal and no unsettled capture takes the awaited device path; otherwise
+the online intent journal owns ordinary writes for this document, including after
+the core attaches, through a private read-less online transport that reuses the
+shipped journal, retry queue and receipt machinery. An outbox-owned document
+refuses a direct journal capture with `E_ADMISSION` and a rewrite. Pending
+writes, intents, receipts and `usePendingWrites` merge both stores by original
+id; a dependent server or local read waits on unsettled journal custody; an empty
+journal adds no wait; a watch already showing data keeps it while custody
+settles. A pre-progressive journal fixture proves older clients still read the
+unchanged record shape. In Chromium: a click is captured before the WASM request,
+its id survives navigation and a lost response, journal and device tabs each
+dispatch once, and a late receipt reaches the pending hook across attachment.
+The interim "writes wait for the engine" note from lane A1 is replaced.
+
+Three codex sessions drove this lane (two Astra, one Sol); each died at model
+capacity, the last after fixing an A1 regression it had introduced (the custody
+wait published `loading` over displayed data). The orchestrator finished the
+boundary census and this entry. Focused suites: progressive-writes,
+progressive-start, web-start (24), online-capture, app-online, pending-items,
+api-index, readme-examples, app-local-session, admit-before-identity,
+app-online-arm, browser-navigation and the complete delivery matrix (445) all
+pass; typecheck passes. Independent review and the broad affected run follow on
+the committed result.
+
+### 2026-10-30 — Progressive startup lane B round 2: preserve prior custody and scope revalidation
+
+Addressed all eleven findings from the Astra, Grok and Fable reviews of 13ca7a5443. Fresh ordinary writes have one admission owner per document; each store still settles its prior admissions, and journal dispatch waits behind the attached outbox prefix while new captures remain durable. RFC §13 and the client reference record that rule-3 clarification. Journal admission and settlement now invalidate only intersecting footprints and retain displayed answers below their relevant settled cut within the existing bounded episode; disjoint and offline reads stay usable, and both retained-authority readauth variants pass. Engine/handshake and inspection failures preserve online operation without session revocation, recorded ids retain their original custody, terminal journal store refusals withdraw local reads, and provisional cold restore can become obsolete without retiring intents or wedging the app. Public close holds include the private response owner. Query custody uses notification-maintained journal snapshots, outbox-owned documents skip journal transport/I/O after opening, and ordinary persona/device ordering plus device-less pre-commit saving phases are restored. Replay-head handling and the writes-online/device refusal now have explicit regressions. Build and typecheck pass; all 23 selected files have passing evidence (893 passed tests, two intentional persona/session-only skips), including the 445-test delivery matrix and the 30-second progressive worker witness. The final seven-file rerun reports 206 tests, 204 pass, zero failures, two skips. The regenerated await seal matches all 215 existing delivery sites with no added or removed site. REPORT-B2.md maps every fix to source and tests, preserves all runner summaries including corrected development failures, and bounds the real-WASM orphan test to the host adoption-notification seam. No git mutation, agent, clone, remote command, second product interpreter, result cache, wire, Rust, wasm-budget or native implementation change was made.
+
+### 2026-10-30 — Progressive startup lane B round 3: preserve unknown custody through failure
+
+Addressed all ten final-round items from the Astra, Grok and Fable reviews of dd7ed724e9. Journal dispatch now waits for actual device-queue knowledge and its unsettled ordinary prefix even after open, handshake or later engine failure; an incompatible opened core still lists queue/history, committed adoption deltas survive recovery failure, explicit retries cannot enter the wrong store, and fresh clicks remain durable. Non-candidate documents become ready online before WASM, while potentially dependent reads honor §5.2's typed custody wait; a certified table-free authenticated read proves early progress. Scoped receipts preserve field-disjoint remembered answers and resume cuts, carry live preservation/generation evidence into the original bounded withdrawal episode, and retain displayed data during offline attachment or below an unapplied cut. Recovery notifications invalidate the journal snapshot synchronously through held/failed inspection. E_GENERATION settles individually; actual store replacement clears old journal/scoped cuts; inspection failure falls back by custody; unsequenced server replies revalidate without an indefinite cut wait. The device-less pre-commit saving listing is intentionally retained and explicitly recorded. RFC §7.2 rule 3 and §13 now both state one admitting dispatcher with prior device settlement. Build and typecheck pass; all 27 selected files have passing evidence (1,181 passed tests, two expected persona/session-only skips). The final seven-file rerun reports 615 tests, 613 pass, zero failures and two skips, including all 445 delivery-matrix cases and the held-WASM Chromium witness. The regenerated seal retains all 215 classified delivery sites unchanged. REPORT-B3.md maps each fix to source and proving tests and preserves every runner summary, including corrected development failures. No git state mutation, agent, clone, remote command, broad affected battery, second product interpreter, new result cache, wire, Rust, wasm-budget or native change was made.
+
+### 2026-10-30 — Progressive startup lane B round 4: capture fresh clicks and bound custody recovery
+
+Addressed the nine requested delta-review items on 547d125cfe. Hook-minted and provably fresh explicit ids capture during unlisted device custody; failed attachment seeds capture from authenticated schema identity. Inspection completion wakes parked watches before and after attachment, failed inspections retry, and surviving browser captures fence the first query and observation before recovery obtains its lock. Journal receipt coverage now goes through retained-history arbitration; the cut-20 departed-room answer survives an empty server reply at journal cut 21. Dispatch honors backend base paths. The author's bounded-recovery ruling is recorded in RFC §5.2 and the client reference: impossible outbox listing denies unknown-custody reads and exposes durable journal intents as held, while table-free and explicit online reads proceed. Candidate failure clears the device header and acquired status. The existing hide() reorder is acknowledged as a default-path change and tested on a device-less session app. Build and typecheck pass. The requested 25-file sweep reported 1,042 passes, one failure and two expected skips; its only failure was an intermittent E_QUERY_RETRY in the existing two-owner browser test. The final uninstrumented serial run of progressive-writes, progressive-start and web-start passed all 128 tests, so each selected file has passing evidence, but the intermittent failure's cause remains unresolved and is not claimed fixed. The 445-case delivery matrix passes; the regenerated await seal keeps all 215 classified sites and their recipes unchanged. REPORT-B4.md records each source/test witness, verbatim summaries and the remaining validation limitation. No git state mutation, agents, clones, remote commands, broad affected battery, second product interpreter, result cache, wire, Rust, wasm-budget or native implementation change was made.

@@ -15,6 +15,9 @@ import { inspect } from "../dist/inspection.js";
 import { ServerClock } from "../dist/clock.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
+import { createApp, localStatus } from "../dist/app.js";
+import { memorySessionStore } from "../dist/auth.js";
+import { server as startServer } from "./helpers/app-server.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -938,4 +941,37 @@ query wordBoth():
   assert.ok(deliveries.includes(25)); assert.ok(!deliveries.includes(0));
   assert.equal((await post("/q/history", { args: { room: "left" } }, "bob")).data.length, 0);
   console.log(`R5 ${tier} watch: rows=${watch.getSnapshot().data.length}, complete=${watch.getSnapshot().complete}; offline left: rows=25; revoked server: rows=0`);
+});
+
+test('B4 journal cut 21 cannot replace departed-room retained messages at 20 with empty server history', {timeout:hangBudget(20)}, async t=>{
+  const {url}=await startServer(t,undefined,source,{memory:true});
+  const post=async(path,body)=>{const response=await fetch(url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify(body)});const value=await response.json();assert.equal(response.status,200,JSON.stringify(value));return value;};
+  await post('/seed',[
+    ...['left','held'].flatMap(room=>['alice','bob'].map(person=>({table:'members',row:{id:room+person,room,principal:'dev:'+person}}))),
+    {table:'messages',row:{id:'retained',room:'left',at:1,body:'keep this message'}},
+  ]);
+  const release=Promise.withResolvers();let holdSync=false,emptyReplies=0;
+  const inner=webDevice({wasm,persist:memoryPersistence()});
+  const app=createApp({url,persona:'bob',sessionStore:memorySessionStore(),startup:'progressive',device:{...inner,custody:async()=> 'none'},fetch:async(input,init)=>{
+    const path=new URL(input).pathname;
+    if(path==='/changes')return new Promise((_,reject)=>{if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
+    if(path==='/sync'&&holdSync)await release.promise;
+    const response=await fetch(input,init);
+    if(path==='/q/history'&&holdSync){const reply=await response.clone().json();assert.deepEqual(reply.data,[]);assert.equal(reply.seq,21);emptyReplies++;}
+    return response;
+  }});
+  t.after(async()=>{release.resolve();await app.close();});await app.ready;
+  await until(()=>localStatus(app.client).getSnapshot().state==='ready','progressive engine acquired');
+  assert.deepEqual((await app.client.query(query,{room:'left'})).data.map(row=>row.id),['retained']);
+  await post('/m/leave',{args:{room:'left'}});
+  let head=(await post('/probe',{})).seq;
+  while(head<20){const receipt=await post('/m/send',{args:{room:'held',at:head,body:'padding'}});head=receipt.seq;}
+  assert.equal(head,20);await app.client.sync();
+  const watch=app.client.observe(query,{room:'left'}),seen=[];watch.subscribe(()=>seen.push(watch.getSnapshot()));t.after(()=>watch.close());
+  await until(()=>watch.getSnapshot().data?.[0]?.id==='retained','departed room history displayed at 20');
+  holdSync=true;
+  const receipt=await app.mutate({kind:'mutation',name:'send'},{room:'held',at:100,body:'journal at 21'});assert.equal(receipt.state,'sent');assert.equal(receipt.seq,21);
+  await until(()=>emptyReplies>0,'covering empty reply passed retained routing');
+  assert.deepEqual(watch.getSnapshot().data.map(row=>row.id),['retained']);
+  assert.equal(seen.some(read=>Array.isArray(read.data)&&read.data.length===0),false);
 });

@@ -2,7 +2,7 @@ import { observeRefusal, refusalObservation } from "./proof-observation.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
 import { mintId } from "./client.ts";
 import type { Queued } from "./local-types.ts";
-import type { Refusal, Write } from "./contract.ts";
+import type { MutateOptions, Refusal, Write } from "./contract.ts";
 import type { DeviceCore } from "./local-device.ts";
 import type { SessionStore } from "./auth.ts";
 
@@ -26,6 +26,15 @@ export function sdkOwned<T>(create: () => T): T {
   try { return create(); } finally { sdkClients--; }
 }
 export const sdkOwning = () => sdkClients > 0;
+// The facade mints before its authority wait. Keep that fresh-id provenance
+// private so an unlisted device queue can refuse retries without refusing clicks.
+const freshOptions = new WeakSet<MutateOptions>();
+export function mintedOptions(options: MutateOptions | undefined, id: string): MutateOptions {
+  const next = { ...options, id };
+  if (options?.id === undefined || freshOptions.has(options)) freshOptions.add(next);
+  return next;
+}
+export const freshlyMinted = (options: MutateOptions): boolean => freshOptions.has(options);
 export function admissionRefusal(message: string, site = "client.mutate", rewrite = "wait for app.ready, restore writable localStorage, then retry with the same id"): Refusal {
   return { code: "E_ADMISSION", family: "store", message, site, rewrite, guide: "writes" };
 }

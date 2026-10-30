@@ -228,6 +228,7 @@ export function intentReadSequence(client: Client, read?: Read<unknown>): number
   return evidence && evidence.scope === pendingIntentAccess(client).scope() && evidence.current() ? evidence.seq : undefined;
 }
 const observers = new WeakMap<Client, (ids: readonly string[]) => void>();
+export const intentObserver = (client: Client) => observers.get(client);
 export function registerIntentObserver(client: Client, observed: (ids: readonly string[]) => void) { observers.set(client, observed); }
 export function forwardIntentObserver(client: Client, raw: Client, valid: () => boolean) { registerIntentObserver(client, ids => { if (valid()) observers.get(raw)?.(ids); }); }
 export function observeIntents(client: Client, ids: readonly string[]) { observers.get(client)?.(ids); }

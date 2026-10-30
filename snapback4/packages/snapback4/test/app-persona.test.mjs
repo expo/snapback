@@ -114,3 +114,13 @@ test("invalid online-write combinations publish auth.why before branching on ide
     }
   }
 });
+
+test('ordinary persona device finishes initial sync before publishing signed-in', {timeout:hangBudget(5)}, async t=>{
+  const {url,dir}=await server(t,undefined,source), released=Promise.withResolvers();let syncing=false;
+  const app=createApp({url,persona:'alice',device:processDevice({dir:join(dir,'ordered-device'),binary}),fetch:async(input,init)=>{
+    if(new URL(input).pathname==='/sync'){syncing=true;await released.promise;}return fetch(input,init);
+  }});
+  t.after(async()=>{released.resolve();await app.close();});
+  await until(()=>syncing);assert.equal(app.auth.state,'restoring');
+  released.resolve();assert.equal((await app.ready).ok,true);assert.equal(app.auth.state,'signed-in');assert.equal(app.client.acquired,true);
+});

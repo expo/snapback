@@ -13,12 +13,14 @@ export class QueryCustody {
     private readonly subscribe: (notify: () => void) => () => void,
     private readonly unavailable: () => unknown,
     private readonly acquire: () => Promise<unknown>,
-    private readonly offline: () => boolean) {}
+    private readonly offline: () => boolean,
+    private readonly unknown: (query: string) => boolean = () => false) {}
   private affects(query: string, operation: string): boolean {
     return intersects(dependencies(this.backend(), query)?.reads, dependencies(this.backend(), operation)?.writes);
   }
   async blocked(query: string, candidate: Candidate, acquire = false): Promise<boolean> {
     if (this.unavailable()) return false;
+    if (this.unknown(query)) return true;
     // Narrow the old predicate: complete device predictions still settle.
     const writes = (await this.queued()).filter(w => w.observed_seq == null && (!w.predictable || candidate.served || candidate.localWakeup || candidate.custodyWaiting) && this.affects(query, w.op));
     if (acquire && writes.some(w => successSequence(w) != null)) void this.acquire().catch(() => {});

@@ -1,5 +1,6 @@
 // @ref LLP 3000.011.003.000#9 — a run owns its settlement observer, even after the screen unmounts.
 import { mintId } from "./client.ts";
+import { mintedOptions } from "./admission.ts";
 import type { Client, Mutation, MutateOptions, Write } from "./contract.ts";
 
 /** Advice only; it neither cancels the write nor settles its promise. */
@@ -42,7 +43,7 @@ export async function settleMutation<A, R>(client: Client, op: Mutation<A, R>, a
   };
   let stopLink: (() => void) | undefined;
   try {
-    const write = await client.mutate(op, args, { ...options, id });
+    const write = await client.mutate(op, args, mintedOptions(options, id));
     if (write.state !== "pending") return write;
     if (observed) return observed;
     if (development()) { stopLink = client.onLink(offline); offline(client.link()); }

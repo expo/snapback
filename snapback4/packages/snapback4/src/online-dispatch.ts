@@ -10,6 +10,9 @@ export interface DispatchOwner {
 export interface DispatchState { store?: string; owner?: DispatchOwner; identify?: () => Promise<void> }
 const clients = new WeakMap<Client, DispatchState>();
 export function trackDispatch(client: Client, state: DispatchState): void { clients.set(client, state); }
+export function inheritDispatch(client: Client, raw: Client): void { clients.set(client, clients.get(raw)!); }
+/** Authorized /schema identified this store before the late-bound core. */
+export function seedDispatchIdentity(client: Client, store: string): void { clients.get(client)!.store = store; }
 export function ownDispatch(client: Client, owner: DispatchOwner): void {
   const state = clients.get(client);
   if (!state) throw new Error("online journal needs the online transport's dispatch boundary");

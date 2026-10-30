@@ -31,6 +31,7 @@ export function intersects(reads: Footprint | undefined, writes: Footprint | und
 export class QueryChanges {
   private version = 0;
   private readonly cuts = new QueryCuts();
+  clear(): void { this.cuts.clear(); }
   change(changes?: Changes): void { this.cuts.change(++this.version, changes); }
   capture(): (reads: Footprint | ReadonlySet<string> | undefined) => boolean {
     const version = this.version;
@@ -73,11 +74,17 @@ export class QueryCuts {
     }
   }
   current(cut: number, reads: Footprint | ReadonlySet<string> | undefined): boolean {
-    if (!Number.isSafeInteger(cut) || cut < this.unknown) return false;
-    if (reads === undefined) return cut >= this.latest;
+    return Number.isSafeInteger(cut) && cut >= this.required(reads);
+  }
+  required(reads: Footprint | ReadonlySet<string> | undefined): number {
+    if (reads === undefined) return this.latest;
     const inputs = reads instanceof Set ? tableFootprint(reads) : reads as Footprint | undefined;
-    return [...this.tables].every(([table, entry]) => inputs && !Object.hasOwn(inputs, table)
-      || cut >= entry.all && [...entry.fields].every(([field, at]) => cut >= at || inputs?.[table] != null && !inputs[table]!.includes(field)));
+    let cut = this.unknown;
+    for (const [table, entry] of this.tables) if (!inputs || Object.hasOwn(inputs, table)) {
+      cut = Math.max(cut, entry.all);
+      for (const [field, at] of entry.fields) if (inputs?.[table] == null || inputs[table]!.includes(field)) cut = Math.max(cut, at);
+    }
+    return cut;
   }
 }
 

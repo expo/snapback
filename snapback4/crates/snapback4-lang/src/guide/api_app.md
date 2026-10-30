@@ -13,4 +13,4 @@ export interface App { readonly client: Client; readonly online: Online; onOnlin
 export interface Online extends Pick<Client, "query" | "observe" | "act" | "link" | "onLink" | "now" | "viewer" | "readOnly"> { mutate<A, R>(op: Ephemeral<A, R>, args: A): Promise<Signal<R>>; }
 ```
 
-Declaration fingerprint: 91f4c45f554f2d6cd6e416737a9628aca6ea7517b1905e9329d111ed3bd5dec6
+Declaration fingerprint: 5e0cdb663d59da8162466edd4582dc8b1916c232da578291b4cd0cb00a78c1b1

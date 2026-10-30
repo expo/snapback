@@ -137,17 +137,54 @@ cursors are session-scoped opaque values: an app must not persist them across
 sessions or modes. Retention and
 expiry deadlines are not renewed by the handoff.
 
-**Writes still wait for the engine in this increment.** Before attachment,
-ordinary mutations enter the existing bounded identity/admission wait (15
-seconds), then use ordinary device admission or return its typed refusal.
-They are not durable while waiting; this lane does not route them to the
-online write journal. Device-dependent media, upload and residency calls can
-report typed device unavailability until the engine is usable.
+**Fresh ordinary writes have one admission owner per document.** Before `prepareClient`
+returns, opening checks the unchanged online intent journal and synchronous
+captures under the journal lock, then the existing session lock, together with
+the device custody probe. Existing device custody with an empty journal takes
+the awaited, compatible device path. Otherwise the online journal owns ordinary
+writes for this document, including after the core attaches. Pending, issued
+and unknown journal intents keep that owner. The decision is fixed until the
+next open: no imports, replacement ids or mid-session transfer. An outbox-owned
+document refuses direct journal captures with `E_ADMISSION` and a rewrite.
+This choice applies to fresh ids: recorded ids recover or refuse through their
+original store. Each store settles the writes it already admitted. Journal
+dispatch waits behind the attached device's unsettled ordinary outbox prefix,
+including adopted orphan writes; new captures remain durable while waiting.
+
+Once identity and backend binding are available, a browser mutation captures
+synchronously into the existing online journal's localStorage staging records,
+so same-turn navigation preserves its original id without requesting WASM.
+Session apps use `sessionStore: localStorageSessionStore()`; persona apps acquire
+that storage themselves. Before binding, the existing bounded identity wait
+applies. Startup writes have no local prediction. `pendingIntents`, pending-write
+status, `usePendingWrites` and receipts combine both stores by their original ids.
+A dependent server or local read waits on unsettled journal custody; known
+success requires an answer covering its server cut. Core attachment never retires
+its receipt owner. An empty journal adds no custody wait. A watch already showing
+data retains that answer and its original deadlines while custody settles;
+waiting keeps the existing bounded revalidation episode. Journal admission and
+settlement affect only intersecting read footprints; disjoint watches and local
+offline reads stay usable. `writes: "online"` with a device is refused with a
+rewrite: omit `writes` to use progressive ownership, or omit the device for an
+online journal app.
+
+Unknown device custody withholds reads only while recovery remains possible.
+If the engine cannot open, or failed attachment cannot list its outbox, affected
+reads return `denied` with the local-status failure; blocked journal intents
+remain durable and appear as `held` with that reason. Reopen after repairing the
+device to recover them. Reads with a proven empty footprint and explicit
+server-only reads through `app.online` continue. Engine failure does not sign the user out.
+
+Device-dependent media, upload and residency calls can report typed device
+unavailability until the engine is usable. Media intents and ephemeral signals
+keep their existing owners. Logout, account/epoch changes, global logout,
+backend replacement and rollback fence journal capture, recovery and dispatch
+through the same app authority as the device outbox.
 
 An engine download, open or version failure reports local `unavailable` while
-authorized server-route reads continue. It does not sign out the app. Logout,
-account/epoch changes, backend replacement and rollback still fence publication
-and any late core attachment.
+authorized server-route reads continue subject to the custody rule above. It
+does not sign out the app. Logout, account/epoch changes, backend replacement
+and rollback still fence publication and any late core attachment.
 
 Observe the current client's engine status without delaying its queries:
 

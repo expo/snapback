@@ -1,4 +1,4 @@
-import { QueryChanges, QueryCuts, dependencies, readFootprint, tableFootprint, intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
+import { QueryChanges, QueryCuts, dependencies, intersects, readFootprint, tableFootprint, intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
 import { watchCanRevoke } from "./change-evidence.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import type { Queued } from "./local-types.ts";
@@ -100,6 +100,7 @@ export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<stri
 }
 
 export type ServerAnswer = {
+  inputs?: Footprint | undefined;
   decorationExpiry?: number | null | undefined;
   read: Extract<import("./contract.ts").Read<unknown>, { data: unknown }>;
   scopes?: ReadScopes | undefined;
@@ -157,6 +158,9 @@ export class RememberedAnswers {
       this.forget(key);
     }
   }
+  clearIntersecting(writes: Footprint): void {
+    for (const [key, answer] of this.answers) if (intersects(readFootprint(answer.inputs, answer.tables), writes)) this.forget(key);
+  }
   withdraw(losses: ScopeLoss[]): void {
     for (const [key, answer] of this.answers) if (losses.some(loss => overlapsScope(answer.tables, answer.scopes, loss))) this.forget(key);
   }
@@ -203,6 +207,9 @@ export class LocalReads {
   readonly oneShotChanges = new QueryChanges();
   private readonly oneShotCuts = new QueryCuts();
   private readonly oneShotBarriers = new QueryChanges();
+  private readonly scopedChanges = new QueryChanges();
+  private readonly scopedBarriers = new QueryChanges();
+  private readonly scopedCuts = new QueryCuts();
   private serverBarrier = 0;
   private serverCut = 0;
   private inputBarrier = 0;
@@ -216,11 +223,16 @@ export class LocalReads {
     return () => (watch.changeVersion ?? 0) - version === (this.watchChanges.get(watch) ?? 0) - changes;
   }
   // @ref LLP 3000.023#10 — detached answers and pending results share one fence.
-  evidence(cut?: number, tables?: readonly string[], oneShotTables: Changes | null | undefined = validCut(cut) ? tables : undefined, external?: Footprint): void {
+  evidence(cut?: number, tables?: readonly string[], oneShotTables: Changes | null | undefined = validCut(cut) ? tables : undefined, external?: Footprint, scoped = false): void {
     this.oneShotChanges.change(oneShotTables ?? undefined);
     if (validCut(cut)) this.oneShotCuts.change(cut, external ?? (tables?.length === 0 ? {} : undefined));
     else this.oneShotBarriers.change(oneShotTables ?? undefined);
     this.revision++;
+    if (scoped && external) {
+      this.scopedChanges.change(external);
+      if (validCut(cut)) this.scopedCuts.change(cut, external); else this.scopedBarriers.change(external);
+      return;
+    }
     if (validCut(cut)) this.serverCut = Math.max(this.serverCut, cut);
     else this.serverBarrier++;
     if (validCut(cut) && tables !== undefined) {
@@ -230,9 +242,11 @@ export class LocalReads {
   // @ref LLP 3000.023#10 — only a whole server reply can cover repeated cut evidence.
   // Capture before evaluation; an unsequenced change can never be discharged
   // by a later server sequence. Local/composed answers still use revision.
-  serverCurrent(watch?: LocalWatch): (cut: number) => boolean {
+  serverCurrent(watch?: LocalWatch, inputs?: Footprint): (cut: number) => boolean {
     const barrier = this.serverBarrier, current = watch ? this.watchCurrent(watch) : () => true;
-    return cut => current() && barrier === this.serverBarrier && this.admissions === 0 && validCut(cut) && cut >= this.serverCut;
+    const scoped = this.scopedBarriers.capture();
+    return cut => current() && barrier === this.serverBarrier && this.admissions === 0 && validCut(cut) && cut >= this.serverCut
+      && scoped(readFootprint(inputs, watch?.tables ?? [])) && this.scopedCuts.current(cut, readFootprint(inputs, watch?.tables ?? []));
   }
   // @ref LLP 3000.023#11 — replica input and complete server interval proofs are independent.
   oneShotCurrent(backend: BackendJson, operation: string) {
@@ -244,9 +258,10 @@ export class LocalReads {
   }
   // @ref LLP 3000.023#10 — disjoint sequenced evidence does not change a local
   // input. This is independent of the server cut; unknown footprints widen.
-  inputsCurrent(watch?: LocalWatch): (tables: ReadonlySet<string>) => boolean {
+  inputsCurrent(watch?: LocalWatch, inputs?: Footprint): (tables: ReadonlySet<string>) => boolean {
     const revision = this.revision, barrier = this.inputBarrier, current = watch ? this.watchCurrent(watch) : () => true;
-    return tables => current() && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
+    const scoped = this.scopedChanges.capture();
+    return tables => current() && scoped(readFootprint(inputs, tables)) && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
   }
   // @ref LLP 3000.028#3.2 — a covering server cut cannot renew an older route.
   published(watermark: number): void {
@@ -261,18 +276,26 @@ export class LocalReads {
   admissions = 0;
   private scopeCuts: ScopeLoss[] = [];
   private readonly notifiedCuts = new Map<string | undefined, number>();
+  private readonly scopedNotifiedCuts = new QueryCuts();
   /** Notifications invalidate memory even when its last observation is closed.
    * The existing revision fences every older evaluation, including unseen keys. */
-  notified(tables: readonly string[] | undefined, cut: number, advanced = true, writes?: Footprint): readonly string[] | undefined {
+  notified(tables: readonly string[] | undefined, cut: number, advanced = true, writes?: Footprint, scoped = false): readonly string[] | undefined {
     if (!advanced && tables?.length === 0) return tables;
     if (advanced && !tables?.length) tables = undefined;
-    this.evidence(cut, tables, writes ?? tables, writes ?? (tables && tableFootprint(tables)));
-    this.serverAnswers.clear(tables);
-    for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
+    this.evidence(cut, tables, writes ?? tables, writes ?? (tables && tableFootprint(tables)), scoped);
+    if (scoped && writes) {
+      this.serverAnswers.clearIntersecting(writes);
+      this.scopedNotifiedCuts.change(cut, writes);
+    } else {
+      this.serverAnswers.clear(tables);
+      for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
+    }
     return tables;
   }
-  resume(watch: LocalWatch): void {
+  resume(watch: LocalWatch, inputs?: Footprint): void {
     if (watch.detachedEpoch === undefined) return;
+    const scoped = this.scopedNotifiedCuts.required(readFootprint(inputs, watch.tables));
+    if (scoped > this.publishedWatermark) watch.changeCut = Math.max(watch.changeCut ?? 0, scoped);
     for (const [table, cut] of this.notifiedCuts) if (table === undefined || !watch.tables.size || watch.tables.has(table)) {
       watch.changeCut = Math.max(watch.changeCut ?? 0, cut);
     }
@@ -316,8 +339,8 @@ export class LocalReads {
 
   // @ref LLP 3000.023#10 — change evidence retires recovery memory and
   // pre-change evaluations without resetting the displayed answer.
-  changed(watch: LocalWatch, cut?: number): void {
-    this.evidence(cut, watch.tables?.size ? [...watch.tables] : undefined);
+  changed(watch: LocalWatch, cut?: number, writes?: Footprint): void {
+    this.evidence(cut, writes ? Object.keys(writes) : watch.tables?.size ? [...watch.tables] : undefined, writes, writes, writes !== undefined);
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
     watch.changeVersion = (watch.changeVersion ?? 0) + 1;
     this.watchChanges.set(watch, (this.watchChanges.get(watch) ?? 0) + 1);
@@ -383,7 +406,7 @@ export class LocalReads {
     }
   }
 
-  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined; served?: boolean; serverOnly?: boolean; seq?: number | undefined }): boolean {
+  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined; served?: boolean; serverOnly?: boolean; seq?: number | undefined }, unchanged = false): boolean {
     // New mounts have no prior footprint: certify their evaluated dependency
     // against every unpublished removal before installing the first answer.
     const cut = this.blocked(result);
@@ -393,7 +416,7 @@ export class LocalReads {
       watch.waitingForSync = true;
     }
     return !("data" in result.read) || watch.scopeCut === undefined && (watch.changeCut === undefined
-      || (result.serverOnly === true && result.seq !== undefined && result.seq >= watch.changeCut))
+      || (result.serverOnly === true && (result.seq !== undefined ? result.seq >= watch.changeCut : unchanged)))
       && (watch.displayedCut === undefined || result.served === true);
     // Keep the replica floor even after a qualifying server replacement: an
     // offline re-read must not reinstall its older local rows before sync.
@@ -462,7 +485,10 @@ export class LocalReads {
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown, publishedCut?: number, inputTables?: readonly string[], oneShotTables: Changes | null | undefined = inputTables, external?: Footprint): void {
     this.evidence(reset ? undefined : publishedCut, inputTables, reset ? undefined : oneShotTables, external);
-    if (reset) { this.oneShotCuts.clear(); this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); this.publishedWatermark = 0; }
+    if (reset) {
+      this.oneShotCuts.clear(); this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); this.publishedWatermark = 0;
+      this.scopedCuts.clear(); this.scopedChanges.clear(); this.scopedBarriers.clear(); this.scopedNotifiedCuts.clear();
+    }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {

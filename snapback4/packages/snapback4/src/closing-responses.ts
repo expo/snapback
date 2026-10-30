@@ -3,12 +3,18 @@ import type { Refusal, Write } from "./contract.ts";
 // @ref LLP 3000.013#6 — each invocation owns its reply through the public close cutoff.
 // The private app wrapper can extend that cutoff through its session cleanup;
 // raw close still waits only for its own local work, never for caller outcomes.
-const owners = new WeakMap<object, ClosingResponses>();
-export const trackClose = (client: object, responses: ClosingResponses): void => { owners.set(client, responses); };
+const owners = new WeakMap<object, readonly ClosingResponses[]>();
+export const trackClose = (client: object, responses: ClosingResponses): void => { owners.set(client, [responses]); };
 export const inheritClose = (client: object, raw: object): void => {
   const responses = owners.get(raw); if (responses) owners.set(client, responses);
 };
-export const holdClose = (client?: object): (() => void) => client ? owners.get(client)?.hold() ?? (() => {}) : () => {};
+export const combineClose = (client: object, ...raw: object[]): void => {
+  owners.set(client, [...new Set([...(owners.get(client) ?? []), ...raw.flatMap(owner => owners.get(owner) ?? [])])]);
+};
+export const holdClose = (client?: object): (() => void) => {
+  const releases = (client ? owners.get(client) ?? [] : []).map(owner => owner.hold());
+  return () => { for (const release of releases) release(); };
+};
 
 export class ClosingResponses {
   private phase: "open" | "closing" | "complete" = "open";

@@ -13,7 +13,8 @@ import { DeviceUploads } from "./uploads.ts";
 export { blobArrayBuffer } from "./assets.ts";
 export { uploadAndPlace, hasUploads, type UploadIntent, type UploadAndPlaceOptions, type UploadClient } from "./uploads.ts";
 import { LocalNetwork } from "./local-network.ts";
-import { intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
+import { dependencies, intersects, readFootprint, tableFootprint, intervalChanges, waitForQueryWrites, QueryCuts, type Changes, type Footprint } from "./query-dependencies.ts";
+import { ProgressiveWrites } from "./progressive-writes.ts";
 import { QueryCustody } from "./query-custody.ts";
 import { notifyFollowing } from "./following-transport.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
@@ -173,15 +174,32 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
+  const journalWrites = options.startup === "progressive" && options.device.custody ? ProgressiveWrites.for(options, base, viewer) : undefined;
+  let deviceListed = !progressive, deviceHistoryListed = !progressive;
+  const probeCustody = async () => {
+    const custody = await options.device.custody!(storeName);
+    deviceListed = deviceHistoryListed = custody === "none";
+    return custody;
+  };
+  let openingFailure: unknown;
   if (progressive) {
     // Admission and this absence decision share the session lock. The host
     // reads journal keys only after acquiring it, never from a prior probe.
-    try { progressive = await storeLock(admissionAuthorityKey(options) ?? sessionKey(base), () => options.device.custody!(storeName)) === "none"; } catch { progressive = false; }
-    if (!progressive && options.device.engineInfo) { engineInfo = normalizeEngine(await options.device.engineInfo()); version.compatible(engineInfo, headers); }
+    const key = admissionAuthorityKey(options) ?? sessionKey(base);
+    if (journalWrites) progressive = await journalWrites.decide(key, probeCustody);
+    else try { progressive = await storeLock(key, probeCustody) === "none"; } catch { progressive = false; }
+    if (!progressive && options.device.engineInfo) try { engineInfo = normalizeEngine(await options.device.engineInfo()); version.compatible(engineInfo, headers); }
+    catch (error) { if (!journalWrites) throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
   }
   const onlineBlocked = () => !progressive && versionBlocked();
   let link: Link = "online", linkRevision = 0, generation = 0;
-  const initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible);
+  let initial: Awaited<ReturnType<typeof initialBackend>>;
+  try { initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible); }
+  catch (error) {
+    if (!journalWrites || !(error instanceof DeviceVersionError)) throw error;
+    openingFailure = error; progressive = true; journalWrites.unavailable(); delete headers["x-snapback-device"];
+    initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible);
+  }
   let backend = initial.backend;
   // No authorized online bootstrap: preserve the ordinary kept-store/open refusal.
   if (!backend) progressive = false;
@@ -197,7 +215,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let attaching: Promise<void> | undefined, prepareTimer: ReturnType<typeof setTimeout> | undefined;
   let publicationTimer: ReturnType<typeof setTimeout> | undefined;
   let activated = false, foregroundReads = 0;
-  if (!progressive) core = await version.run(() => openLocalDevice(options.device, storeName, backend, initial.refusal));
+  if (!progressive) try { core = await version.run(() => openLocalDevice(options.device, storeName, backend, initial.refusal)); }
+  catch (error) { if (!journalWrites || !backend) throw error; openingFailure = error; progressive = true; journalWrites.unavailable(); }
   let stopSuspend: (() => void) | undefined, stopClock: (() => void) | undefined;
   let sendingAllowed = !!core && !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
@@ -207,9 +226,34 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // R2's host probe establishes the initial custody. Retain subsequent actual
   // outbox evidence if the engine fails; failure cannot erase dependent writes.
   let custodyEntries: Queued[] = [];
-  const readCoreQueue = () => answers.readQueued(async () => custodyEntries = await readQueued(call, mutationIds, history, settling), watches.values());
+  let deviceQueueObserved = false;
+  const readCoreQueue = () => answers.readQueued(async () => {
+    const entries = await readQueued(call, mutationIds, history, settling);
+    const first = !deviceListed;
+    custodyEntries = entries; deviceListed = deviceQueueObserved = true; if (first) pending.notify();
+    return entries;
+  }, watches.values());
+  const readDeviceHistory = async () => {
+    const reply = await call({ op: "meta", key: "write-history", lookup: true });
+    if (reply.denied) throw new Error(reply.denied.message);
+    for (const write of reply.ok ? JSON.parse(reply.ok as string) as Write[] : []) mutationIds.remember(write.id);
+    deviceHistoryListed = true;
+  };
+  const recoverDeviceCustody = async () => {
+    if (!core) return;
+    // A failure cannot erase committed onOutbox deltas with a recovery read.
+    if (!deviceQueueObserved) try { await readCoreQueue(); } catch {}
+    if (!deviceHistoryListed) try { await readDeviceHistory(); } catch {}
+  };
+  // @ref LLP 3000.002.000#5.2 — only a certified empty read footprint is
+  // disjoint from unknown device debt; observed tables widen it at publication.
+  const deviceReads = (reads?: Footprint) => !reads || Object.keys(reads).length > 0;
+  const custodyFailure = () => !deviceListed ? coreFailure : undefined;
+  const unknownDeviceCustody = (reads?: Footprint) => (!deviceListed && deviceReads(reads))
+    || (journalWrites?.uncertain === true && (!reads || Object.keys(reads).length > 0));
   const queued = () => progressive && (!coreReady || coreFailure) ? Promise.resolve(custodyEntries) : readCoreQueue();
-  const queryCustody = new QueryCustody(() => backend, queued, pending.subscribe, () => unavailable() ?? changesStopped ?? partitionDenied, () => ordinarySending ? network.acquire() : network.once(), () => link === "offline");
+  const queryQueue = async () => [...await queued(), ...((await journalWrites?.pending()) ?? []).map(write => ({ ...write, seq: 0, new_ids: [], predicted: [], predictable: false }))];
+  const queryCustody = new QueryCustody(() => backend, queryQueue, pending.subscribe, () => unavailable() ?? changesStopped ?? partitionDenied ?? custodyFailure(), () => ordinarySending ? network.acquire() : network.once(), () => link === "offline", query => unknownDeviceCustody(dependencies(backend, query)?.reads));
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   history = new WriteHistory({
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
@@ -223,6 +267,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let nativeReady = false;
   const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());
   let submissions = 0, seq = 0;
+  const journalCuts = new QueryCuts();
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
@@ -284,6 +329,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false, delivery?: (() => void)[], cause = "store-reset") {
     if (!force && (id === undefined || id === storeIdentity)) return;
+    if (id !== storeIdentity) journalCuts.clear();
     const resetProgress = force || storeIdentity !== undefined;
     storeIdentity = id; identified = false;
     incarnation++; holds.clear();
@@ -317,9 +363,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return affected;
   }
-  function refuseRestore(denied?: Refusal) {
+  let confirmedJournalRefusal: Refusal | undefined;
+  function refuseRestore(denied?: Refusal, confirmed = true) {
     if (denied?.code !== "E_STORE_RESTORE") return;
     partitionDenied = denied!;
+    if (confirmed) { confirmedJournalRefusal = denied; journalWrites?.refuseStore(denied); }
     deliveryQueue?.fence(true);
     pending.notify();
     observeIncarnation(storeIdentity, true);
@@ -357,7 +405,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return capture;
   }
   async function call(request: Record<string, unknown>, committedTables?: { tables: Set<string>; unknown: boolean; resumed: Set<Watch> }, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
-    if (!core || progressive && coreFailure) return { denied: coreFailure ?? localUnavailable() };
+    const custodyRead = request.op === "queued" || request.op === "meta" && request.key === "write-history";
+    if (!core || progressive && coreFailure && !custodyRead) return { denied: coreFailure ?? localUnavailable() };
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     // A retained restore proof is retried before the next device transaction; a failed retry
     // fails that transaction rather than letting it proceed over unpersisted evidence.
@@ -918,7 +967,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network.run(probe); });
   let onlineHead = 0, onlineStore = backend?.store_id, onlineGeneration = Number(backend?.generation ?? 0);
   async function onlineEvidence(json: Record<string, unknown>, captured: StoreCapture): Promise<void> {
-    const id = json.store_id, head = Number(json.head ?? json.seq);
+    const id = json.store_id, head = Number(json.head ?? (json.replayed === true ? undefined : json.seq));
     if (typeof id !== "string" || !Number.isSafeInteger(head) || head < 0) return;
     const replaced = onlineStore !== undefined && id !== onlineStore;
     if (!replaced && head < captured.watermark && await witnessRestore(id, head, captured, captured.watermark)) return;
@@ -1054,7 +1103,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     })();
   }
-  const pendingRead = (tables: Set<string> | null, predictions = core?.[deviceControl]?.()?.predictions) => answers.pending(tables, predictions); // @ref LLP 3000.016#2.2 — one publication procedure governs every read kind.
+  const journalPending = (tables: Set<string> | null) => journalWrites?.current().some(write => intersects(tables ? tableFootprint(tables) : undefined, dependencies(backend, write.op)?.writes)) ?? false;
+  const journalIntersects = (reads: Footprint | undefined) => journalWrites?.current().some(write => intersects(reads, dependencies(backend, write.op)?.writes)) ?? false;
+  const journalCovered = (result: Pick<LocalResult<unknown>, "seq" | "serverOnly" | "journalReads">) =>
+    result.serverOnly && result.seq === undefined || journalCuts.current(result.seq ?? seq, result.journalReads);
+  const pendingRead = (tables: Set<string> | null, predictions = core?.[deviceControl]?.()?.predictions) => unknownDeviceCustody() || journalPending(tables) || answers.pending(tables, predictions); // @ref LLP 3000.016#2.2 — one publication procedure governs every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal): Promise<LocalResult<R>> {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view(); const owner = watch ?? backgroundWatch, changeVersion = owner?.changeVersion;
@@ -1062,19 +1115,26 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = { serverCursorAffinity: progressive, current: () => !owner || owner.changeVersion === changeVersion,
-      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : signal ? { ...answers.oneShotCurrent(backend!, op.name) } : {}),
+      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner, dependencies(backend, op.name)?.reads), inputsCurrent: answers.inputsCurrent(owner, dependencies(backend, op.name)?.reads) } : signal ? { ...answers.oneShotCurrent(backend!, op.name) } : {}),
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
       get backend() { return backend!; },
-      get partitionDenied() { return changesStopped ?? partitionDenied; }, get credentialRevision() { return credentialRevision; },
+      get partitionDenied() { return changesStopped ?? partitionDenied ?? (deviceReads(dependencies(backend, op.name)?.reads) ? custodyFailure() ?? null : null); }, get credentialRevision() { return credentialRevision; },
       get incarnation() { return incarnation; }, get authority() { return answers.revision; },
       get refreshing() { return refreshing; }, get link() { return link; },
       get linkRevision() { return linkRevision; }, get caughtUp() { return caughtUp; },
       get identityChecked() { return identityChecked; }, get lastSyncAt() { return lastSyncAt; },
       get partitionCurrent() { return coreReady && !coreFailure && partitionCurrent; }, get nativeReady() { return nativeReady; },
+      // Receipt coverage asks the existing router for a covering replacement;
+      // it never invalidates the partition's retained-history arbitration.
+      receiptCurrent: (watermark: number | undefined, tables: ReadonlySet<string>) => journalCuts.current(watermark ?? seq, readFootprint(dependencies(backend, op.name)?.reads, tables)),
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: signal ?? aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify, followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
+      principal, signal: signal ?? aborter.signal, unavailable,
+      queued: async () => { await journalWrites?.pending(); return queued(); },
+      pending: (tables: Set<string> | null, predictions?: readonly string[] | null) => answers.pending(tables, predictions)
+        || (journalWrites?.current().some(write => intersects(readFootprint(dependencies(backend, op.name)?.reads, tables ?? []), dependencies(backend, write.op)?.writes)) ?? false),
+      call, installNative, notify, followingPending: (tables: ReadonlySet<string>) => followingIntents.pending(tables),
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core?.[deviceControl]?.() : undefined, undefined, signal),
       searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode, signal),
       refreshSearch: (name: string) => refreshSearchRoots(watches, name, backend?.schema.operations?.[name]?.search?.cursor, notify, scheduleRead),
@@ -1084,8 +1144,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const work = duringRead((async (): Promise<LocalResult<R>> => {
       for (let attempt = 0; ; attempt++) {
         checkRead(signal);
+        await journalWrites?.pending();
         const revision = incarnation, authority = answers.revision;
-        const result = { ...await evaluateLocal(queryEnvironment, op, args, revision, authority, watch), controlCurrent: bypass?.current };
+        const evaluated = await evaluateLocal(queryEnvironment, op, args, revision, authority, watch);
+        const result = { ...evaluated, controlCurrent: bypass?.current, journalReads: readFootprint(dependencies(backend, op.name)?.reads, evaluated.tables) };
+        // The online phase has no local candidate to replace a displayed answer
+        // on transport loss. Preserve its ordinary revalidation deadlines.
+        if (link === "offline" && "loading" in result.read && (progressive && (!coreReady || !partitionCurrent) || !journalCuts.current(seq, result.journalReads))) result.transportOffline = true;
+        const custodyDenied = deviceReads(result.journalReads) && custodyFailure();
+        if (custodyDenied) result.read = { denied: custodyDenied };
+        else if ("data" in result.read && (unknownDeviceCustody(result.journalReads) || !journalCovered(result) || journalIntersects(result.journalReads))) {
+          result.read = { loading: true }; result.custodyWaiting = true;
+        }
         checkRead(signal);
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
@@ -1105,8 +1175,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work); void work.finally(() => active.delete(work)).catch(() => {}); return work;
   }
   function publishLocal(result: Awaited<ReturnType<typeof runLocal>>, publish: () => boolean, watch?: Watch) {
+    // @ref LLP 3000.023#3.2 — custody is revalidation, not a replacement answer.
+    // This also covers presence refreshes; keep the original expiry timers.
+    if (result.custodyWaiting && (unknownDeviceCustody(result.journalReads) || progressive && !acquired || journalIntersects(result.journalReads) || !journalCovered(result))
+      && "loading" in result.read && watch && "data" in watch.snapshot) return true;
     result.read = currentDecorations(result.read);
-    return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
+    return publishDelivery(deliveryQueue, result, () => !unavailable() && (!("data" in result.read) || !unknownDeviceCustody(result.journalReads) && !journalIntersects(result.journalReads) && journalCovered(result) && !changesStopped && !partitionDenied && answers.blocked(result) === undefined)
       && result.incarnation === incarnation && (result.authority === answers.revision || result.publicationCurrent?.() === true)
       && (result.credential === undefined || result.credential === credentialRevision) && (!result.controlCurrent || result.controlCurrent())
       && (!result.ephemeralRequest || ephemeralReads.current(result.ephemeralRequest))
@@ -1142,7 +1216,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.()) return;
       if (served && revision === incarnation && (authority === answers.revision || result.publicationCurrent?.()) && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result)) return false;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result, result.authority === answers.revision)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
@@ -1159,8 +1233,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
   const readWork = new ObservationWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
-  function scheduleRead(watch: Watch, changed = false, cut?: number, preserved?: unknown) {
-    if (closed || sessionDead) return; if (changed) answers.changed(watch, cut);
+  function scheduleRead(watch: Watch, changed = false, cut?: number, preserved?: unknown, writes?: Footprint) {
+    if (closed || sessionDead) return; if (changed) answers.changed(watch, cut, writes);
     const denied = changesStopped ?? partitionDenied; if (denied) { watch.reset({ denied }); notify(watch); return; }
     if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); return; }
     watch.reload(changed && watchCanRevoke(watch, preserved), { queued: true }); notify(watch); acquireRead(watch);
@@ -1192,7 +1266,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
       if (retryExpired && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) return;
-      if (!answers.current(watch, result)) { if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); } watch.dirty = true; retryExpired = true; return; }
+      if (!answers.current(watch, result, result.authority === answers.revision)) { if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); } watch.dirty = true; retryExpired = true; return; }
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion && !result.publicationCurrent?.()) return false;
@@ -1420,7 +1494,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer);
-          answers.resume(watch); void scheduleRead(watch); },
+          answers.resume(watch, dependencies(backend, watch.op.name)?.reads); void scheduleRead(watch); },
         watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
         (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
     },
@@ -1707,7 +1781,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed || sessionDead || partitionDenied || changesStopped) { await opened.close(); return; }
       // Clock/media also hold the core directly. Keep their metadata calls
       // behind the same engine fence as local queries and admissions.
-      core = { ...opened, call: (request, committed) => coreFailure
+      core = { ...opened, call: (request, committed) => coreFailure && request.op !== "queued" && !(request.op === "meta" && request.key === "write-history")
         ? Promise.resolve({ denied: coreFailure }) : opened.call(request, committed) };
     }
     const step = <T>(work: Promise<T>): Promise<T> => !progressive ? work : work.then(value => {
@@ -1721,10 +1795,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
     if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await step(call({ op: "backend" }))).ok as BackendJson;
     stopOutbox = core.onOutbox?.((time, entries) => {
+      if (!entries) deviceListed = false;
       if (entries) {
         const merged = new Map(custodyEntries.map(entry => [entry.id, entry]));
         for (const entry of entries) merged.set(entry.id, entry);
         custodyEntries = [...merged.values()];
+        deviceListed = deviceQueueObserved = true;
+        for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
         queryCustody.recovered(custodyEntries);
         answers.queued(custodyEntries);
       }
@@ -1759,8 +1836,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
     // @ref LLP 3000.007#20.4 — recover existing IDs before accepting a fresh synchronous web admission; custody stays with the outbox and its receipt window.
     await step(readCoreQueue());
-    const keptWrites = (await step(call({ op: "meta", key: "write-history", lookup: true }))).ok as string | null;
-    for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
+    await step(readDeviceHistory());
     seq = Number(((await step(call({ op: "state" }))).ok as { watermark?: number } | undefined)?.watermark ?? 0);
     deliveryQueue = localDelivery({ offline: () => setLink("offline"), viewer: principal, url: base, fetch: doFetch, call, backend: () => backend,
       collect: core[deliveryCommit]?.bind(core), current: () => !closed && !sessionDead && !versionBlocked() && !partitionDenied,
@@ -1779,6 +1855,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     clearTimeout(prepareTimer); clearTimeout(publicationTimer);
     attaching = (async () => {
       try {
+        if (openingFailure) throw openingFailure;
         await attachCore();
         if (closed || sessionDead || !coreReady) return;
         await startCore();
@@ -1788,6 +1865,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) void scheduleRead(watch);
       } catch (error) {
         if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return;
+        // Queue/history inspection needs no compatible interpreter. Failed
+        // inspection preserves the probe's unknown custody, never an empty list.
+        await recoverDeviceCustody();
         if (error instanceof DeviceVersionError && !versionBlocked()) incompatible(error.why);
         coreFailure = error instanceof DeviceVersionError ? error.why : (error as { why?: Refusal })?.why ?? { ...localUnavailable(), message: String(error) };
         incarnation++; // An attachment failure also retires outstanding local evaluations.
@@ -1808,8 +1888,73 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     publicationTimer = setTimeout(() => { if (!foregroundReads && !watches.size) accelerate(); }, 0);
     follow(); scheduleRefresh();
   };
-  if (!progressive) await attachCore();
-  else { generation = Number(backend!.generation); answers.queued([]); }
+  if (!progressive) try { await attachCore(); await journalWrites?.compatible(); }
+  catch (error) {
+    if (!journalWrites || !backend) throw error;
+    openingFailure = error; progressive = true; journalWrites.unavailable();
+    await recoverDeviceCustody();
+    coreFailure = error instanceof DeviceVersionError ? error.why : (error as { why?: Refusal })?.why ?? { ...localUnavailable(), message: String(error) };
+    coreReady = false; partitionCurrent = false; delete headers["x-snapback-device"];
+    setAcquired(false);
+    localState.set({ state: "unavailable", executable: false, acquired: false, why: coreFailure });
+    if ((partitionDenied as Refusal | null)?.code === "E_DEVICE_VERSION") partitionDenied = null;
+  }
+  if (progressive) { generation = Number(backend!.generation); answers.queued([]); }
+  if (journalWrites) await journalWrites.install(client, storeIdentity ?? onlineStore, async (input, init) => {
+    // @ref LLP 3000.002.000#7.2 — journal dispatch waits behind the outbox prefix;
+    // admission is already durable, and every store settles only its own ids.
+    if (new URL(String(input)).pathname.startsWith(`${new URL(base).pathname.replace(/\/$/, "")}/m/`)) await waitForQueryWrites(async () => {
+      if (closed || sessionDead || partitionDenied || custodyFailure()) return false;
+      if (!deviceListed) return true;
+      return (await queued()).some(entry => !entry.upload && successSequence(entry) == null);
+    }, pending.subscribe, aborter.signal);
+    // Preserve journal custody for a future open, with a visible hold reason.
+    // A transport refusal would incorrectly retire this admitted intent.
+    if (custodyFailure()) throw new Error(custodyFailure()!.message);
+    if (refreshing) await refreshing;
+    const why = unavailable() ?? partitionDenied;
+    // A provisional cold witness fences transport without retiring its intent.
+    if (why?.code === "E_STORE_RESTORE" && !confirmedJournalRefusal) throw new Error("waiting for restore witness validation");
+    if (why) return Response.json({ denied: why }, { status: 403 });
+    const request = requestCredentials(); delete request.headers["x-snapback-device"];
+    const capture = { store_id: onlineStore ?? storeIdentity ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
+    const response = await doFetch(input, { ...init, headers: request.headers });
+    const json = await response.clone().json() as Record<string, unknown>;
+    const denied = (json.denied ?? json.why) as Refusal | undefined;
+    if (denied?.code === "E_AUTH" && request.revision !== credentialRevision) throw new Error("journal retry after credential rotation");
+    await refusedSession(denied, request.revision);
+    if (!closed && !sessionDead && request.revision === credentialRevision) {
+      if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)) {
+        if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
+        else {
+          partitionDenied = denied; observeIncarnation(typeof json.store_id === "string" ? json.store_id : storeIdentity, true);
+          answers.refuse(watches.values(), denied); confirmedJournalRefusal = denied; journalWrites.refuseStore(denied);
+          options.onStoreChange?.(denied);
+        }
+      }
+      await onlineEvidence(json, capture);
+      if (json.state === "sent" && init?.body) journalWrites.receipt(JSON.parse(String(init.body)).id, { preserved: json.preserved, generation: json.generation });
+    }
+    return response;
+  }, (op, committed, evidence) => {
+    pending.notify();
+    if (op === undefined) {
+      // Inspection can park even a disjoint watch before its footprint is
+      // known. Clearing uncertainty must wake that publication attempt.
+      if (!journalWrites.uncertain) for (const watch of watches.values())
+        if ("loading" in watch.snapshot) void scheduleRead(watch);
+      return;
+    }
+    const sameGeneration = !evidence || evidence.generation === backend?.generation;
+    const writes = sameGeneration ? dependencies(backend, op)?.writes : undefined, tables = writes && Object.keys(writes);
+    if (committed !== undefined) {
+      journalCuts.change(committed, writes);
+      answers.notified(tables, committed, !!tables?.length || writes === undefined, writes, true);
+    } else answers.evidence(undefined, tables, writes, writes, true);
+    for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
+      void scheduleRead(watch, true, committed, sameGeneration || evidence?.preserved == null ? evidence?.preserved : [], writes);
+  }, id => mutationIds.knows(id) || custodyEntries.some(entry => entry.id === id) ? true : deviceListed && deviceHistoryListed ? false : undefined, custodyFailure);
+  if (confirmedJournalRefusal) journalWrites?.refuseStore(confirmedJournalRefusal);
   if (!deferStart(options, start)) await start();
   if (!progressive) stopHost = core?.onClient?.(client, base);
   bindSessionRefusal(client, () => authRefusal);

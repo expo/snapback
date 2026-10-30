@@ -10,6 +10,7 @@ import { createClient, mintId } from "../dist/client.js";
 import { identifyDispatch } from "../dist/online-dispatch.js";
 import { personaAdmissionAuthority } from "../dist/admission-authority.js";
 import { storeKey } from "../dist/app-storage.js";
+import { pendingIntentAccess } from "../dist/pending-items.js";
 
 const url = "https://journal.invalid", op = { kind: "mutation", name: "write" };
 const SESSION = storeKey("session", url);
@@ -125,6 +126,17 @@ test("a click is in localStorage before mutate returns, then admitted, sent once
   await waitFor(async () => (await c.client.pendingWrites()).length === 0, "settled");
   await waitFor(async () => !(await journal(store)).captured, "the remover drops its marker");
   assert.deepEqual(srv.posts, [record.id]);
+});
+
+test("device-less pre-commit captures keep the saving phase", async t => {
+  browser(t); const srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const c = await open(t, srv, store, authority(), { start: false });
+  t.after(() => c.start());
+  const id = mintId(), writing = c.client.mutate(op, { body: "before recovery" }, { id });
+  assert.deepEqual(await c.client.pendingWrites(), []);
+  const items = await pendingIntentAccess(c.client).read();
+  assert.equal(items.find(item => item.write.id === id)?.phase, "saving");
+  c.start(); assert.equal((await writing).state, "sent");
 });
 
 test("unusable localStorage refuses synchronously with E_ADMISSION and sends nothing; the same id retries", async t => {

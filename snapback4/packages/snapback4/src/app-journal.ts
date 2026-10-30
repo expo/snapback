@@ -110,7 +110,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
 /** Called inside the journal lock. Preserve damaged/foreign bytes before
  * replacing the active record. If preservation fails, sign-in still succeeds,
  * but writes remain blocked until storage can preserve those bytes. */
-export function journalReader(key: string, owner: string, backend: string, store: SessionStore, report: (error: unknown) => void) {
+export function journalReader(key: string, owner: string, backend: string, store: SessionStore, report: (error: unknown) => void, inspectOnly = false) {
   const empty = (): Journal => ({ owner, backend, pending: [], receipts: [] });
   return async (forWrite = false): Promise<Journal> => {
     const text = await store.get(key);
@@ -119,6 +119,9 @@ export function journalReader(key: string, owner: string, backend: string, store
       const parsed: unknown = JSON.parse(text);
       if (valid(parsed, owner, backend)) return parsed;
     } catch { /* Preserve the original bytes below. */ }
+    if (inspectOnly) throw new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
+      message: "the online write journal is damaged; opening inspection does not replace it",
+      rewrite: "repair the journal before reopening" });
     const journal = empty();
     try {
       const side = `${key}.damaged.${mintId().toLowerCase()}`;

@@ -298,6 +298,14 @@ export function instrument(destination) {
 // never mutation admission, persistence, dispatch or settlement. proof-contract
 // and the packed proof-kit cases exercise their errors. Existing delivery sites,
 // required/optional classifications and fault recipes remain unchanged.
+// Lane B round 3: readCoreQueue/readDeviceHistory and attachment-failure
+// recovery inspect the existing outbox/history; they admit, dispatch and
+// persist nothing. The journal's existing dispatch wait now holds unknown
+// custody through engine failure. Progressive-writes covers failed open,
+// handshake, delayed listing, orphan adoption/version refusal and same-id
+// retries. Read notification inspection is fail-closed until a successful
+// snapshot; browser-capture recovery has held/failed-inspection witnesses.
+// All 215 classified delivery awaits, recipes and failure classes are unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {
@@ -572,3 +580,40 @@ export function awaitBoundary() {
 // engine-opening custody above the same classified delivery I/O. Generated
 // WASM declarations and local-status contain no awaits. App/browser tests and
 // the unchanged complete delivery matrix cover those existing boundaries.
+
+// Lane B (LLP 3000.002.000 section 7.2): one dispatcher per document. The new
+// awaits live in progressive-writes.ts (the open-time owner decision under the
+// journal then session lock, the merged pending/receipt views and the private
+// read-less online transport for journal dispatch), in app-persona.ts (the same
+// decision for persona apps) and in local.ts outside every classified helper
+// (the decision call, the journal-aware queued view, and the transport's
+// credential/evidence fences). The census finds no new delivery site: the
+// journal's own dispatch I/O is the shipped online journal (app-online.ts), whose
+// recipes are unchanged, and the outbox keeps its sites. progressive-writes,
+// progressive-start and web-start (captured-before-WASM, same-id replay after
+// navigation and a lost response, two tabs, late receipt across attachment,
+// journal refusal once the outbox owns the document) cover the new boundary.
+
+// Lane B round 2: recovered/adopted outbox writes use the unchanged flush and
+// exit delivery sites. Journal dispatch now waits on that existing queue before
+// private transport I/O; capture is already durable. ProgressiveWrites refreshes
+// one pending/receipt snapshot on notifications, not on query evaluations. The
+// cached-engine fallback adds schema retry/open handling; the ordinary persona
+// path again awaits its full open. app-online.inspect shares its pending read.
+// These change four complete await seals (app-online, app-persona, local and
+// progressive-writes), with no added or removed classified delivery site:
+// census remains 215/215. progressive-writes proves prefix ordering, orphan
+// adoption, engine/storage failure, receipt cuts, provisional restore recovery
+// and the public close cutoff; online-capture/app-persona cover default paths.
+
+// Lane B round 4: settleMutation preserves the facade's fresh-id marker across
+// its existing mutate await. ProgressiveWrites' pending-intent merge retains
+// its two existing reads while overlaying a held reason; inspection retry and
+// capture uncertainty reuse the existing inspect await. local.ts seeds journal
+// capture from authenticated schema identity and matches its existing dispatch
+// wait relative to the backend base path. No await was added or removed:
+// write-settlement (2), progressive-writes (15), local (228). Only local and
+// write-settlement change their await-expression text hashes. The complete
+// text seal is regenerated; all 215 classified delivery sites, failure classes
+// and recipes remain unchanged. B4 progressive/browser/retained-history tests
+// cover these custody and publication changes.

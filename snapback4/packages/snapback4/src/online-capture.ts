@@ -56,6 +56,13 @@ function parse(key: string, text: string | null, url: string): CaptureRecord | "
 }
 
 export class OnlineCapture {
+  /** Open-time custody includes live captures, not only adoptable dead peers.
+   * Called under journal and session locks; does not change a record's shape. */
+  static unsettled(url: string, authority: AdmissionAuthorityContext): boolean {
+    const stamp = authority.capture(), store = storage();
+    return keys(store).some(key => key.startsWith(scopePrefix(url, stamp.source ?? "", stamp.principal))
+      && typeof parse(key, store.getItem(key), url) === "object");
+  }
   readonly runtime = mintId();
   /** Granted before custody exposes a client (LLP 3000.013.000 §4.5). */
   readonly ready: Promise<void>;

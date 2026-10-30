@@ -622,7 +622,7 @@ window.startProgressive = async (url, session) => {
   window.firstClient = app.client;
   function Screen() {
     const read = useQuery(list, {c:null}), status = useLocalStatus();
-    window.reads.push(read);
+    window.reads.push(read); (window.readTimes ??= []).push({at:performance.now(),local:status.state});
     useEffect(() => { window.mounts++; return () => { window.unmounts++; }; }, []);
     return h('div', {}, h('p', {id:'data'}, 'data' in read ? read.data.map(row=>row.body).join(',') : 'pending'), h('p', {id:'local'}, status.state));
   }
@@ -705,10 +705,218 @@ window.startProgressive = async (url, session) => {
   const result = await page.evaluate(async cursor=>{
     const first = reads.findIndex(r=>'data' in r);
     const page = await app.client.query({kind:'query',name:'list'},{c:cursor});
-    return {same:app.client===firstClient,mounts,unmounts,loadingAfterData:reads.slice(first).some(r=>'loading' in r),page};
+    return {same:app.client===firstClient,mounts,unmounts,loadingAfterData:reads.slice(first).some(r=>'loading' in r),trace:reads.map((r,i)=>({i,state:'data' in r?'data':'loading' in r?'loading':'denied',revalidating:r.revalidating,...readTimes[i]})).filter((r,i,a)=>i===0||r.state!==a[i-1].state),page};
   },cursor);
+  if(result.loadingAfterData)t.diagnostic(JSON.stringify(result));
   assert.equal(result.same,true); assert.equal(result.mounts,1); assert.equal(result.unmounts,0); assert.equal(result.loadingAfterData,false);
   assert.equal(result.page.data[0].body,'second page'); assert.deepEqual(errors,[]);
   t.diagnostic(`progressive worker WASM hold: ${Date.now()-heldAt} ms; mounted once; status ready`);
   await page.evaluate(async()=>{reactRoot.unmount();await app.close();});
+});
+
+// Lane B: no interpreter is requested in the click's turn. The browser's
+// synchronous capture, then its original online journal, own the same id.
+test('progressive writes: same-turn navigation before WASM, replay and two document owners', {timeout:hangBudget(120)}, async t=>{
+  const project=mkdtempSync(join(tmpdir(),'sb4-progressive-writes-')),sourceDir=join(project,'snapback');mkdirSync(sourceDir);
+  writeFileSync(join(sourceDir,'schema.q'),source);
+  teardownAfter(t,()=>rmSync(project,{recursive:true,force:true}));
+  const witness=await launch({sourceDir,bootstrap:false,ready:()=>!!window.openProgressive,entrySource:`
+import {createApp,localStatus} from '${join(root,'packages/snapback4/src/app.ts')}';
+import {keepSession,localStorageSessionStore} from '${join(root,'packages/snapback4/src/auth.ts')}';
+import {webDevice} from '${join(root,'packages/snapback4/src/web.ts')}';
+import {mintId} from '${join(root,'packages/snapback4/src/client.ts')}';
+import {pendingIntentAccess} from '${join(root,'packages/snapback4/src/pending-items.ts')}';
+import {AppProvider,usePendingWrites} from '${join(root,'packages/snapback4/src/react.tsx')}';
+import {createElement as h} from '${require.resolve('react')}';
+import {createRoot} from '${require.resolve('react-dom/client')}';
+Object.assign(window,{createApp,localStatus,webDevice,mintId,pendingIntentAccess});
+window.openProgressive=async(url,session,navigate=false)=>{
+  const store=localStorageSessionStore();if(session)await keepSession(url,session,store);
+  window.app=createApp({url,sessionStore:store,device:webDevice({worker:true}),startup:'progressive',waitSeconds:1});
+  const ready=await app.ready;if(!ready.ok)throw Error(JSON.stringify(ready));
+  if(navigate){
+    const set=store.set;store.set=(key,value)=>key.endsWith('.writes')?new Promise(()=>{}):set(key,value);
+    const id=mintId();app.mutate({kind:'mutation',name:'removeMember'},{room:'room0',principal:'user:other'},{id});
+    const captures=Object.keys(localStorage).filter(k=>k.startsWith('snapback4-online-admission:')).map(k=>JSON.parse(localStorage.getItem(k)));
+    sessionStorage.setItem('progressive-click',JSON.stringify({id,captures,wasm:performance.getEntriesByType('resource').some(r=>r.name.endsWith('.wasm'))}));
+    location.assign('/?progressive-write=1');
+  }
+};
+window.pendingScreen=()=>{
+  window.pendingSnapshots=[];
+  function Screen(){const writes=usePendingWrites();pendingSnapshots.push(writes.map(w=>w.id));return h('p',{id:'pending'},writes.map(w=>w.id).join(','));}
+  const element=document.createElement('div');document.body.append(element);
+  window.pendingRoot=createRoot(element);pendingRoot.render(h(AppProvider,{app},h(Screen)));
+};
+`});
+  teardownAfter(t,()=>witness.close());const {page,api}=witness;
+  const session=(await fetch(api+'/auth/guest',{method:'POST'}).then(r=>r.json())).session;
+  const rows=[{table:'removals',row:{id:'audit',total:0}}];
+  for(let n=0;n<3;n++)rows.push({table:'members',row:{id:'a'+n,room:'room'+n,principal:session.principal,admin:true}},{table:'members',row:{id:'b'+n,room:'room'+n,principal:'user:other',admin:false}});
+  await fetch(api+'/seed',{method:'POST',body:JSON.stringify(rows)});
+  const posted=[];page.context().on('request',request=>{if(request.url().endsWith('/m/removeMember'))posted.push(JSON.parse(request.postData()));});
+  await page.route('**/*.wasm',route=>route.abort('blockedbyclient'));
+  await page.evaluate(({api,session})=>openProgressive(api,session,true),{api,session});
+  await page.waitForURL('**/?progressive-write=1');await page.waitForFunction(()=>!!window.openProgressive);
+  const click=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('progressive-click')));
+  assert.equal(click.wasm,false);assert.equal(click.captures.length,1);assert.equal(click.captures[0].id,click.id);
+  assert.equal(posted.length,0,'no dispatch preceded the navigation');
+  await page.evaluate(api=>openProgressive(api),api);
+  await until(()=>page.evaluate(async id=>(await app.client.write(id))?.state==='sent',click.id),'startup intent replay');
+  assert.deepEqual(posted.map(write=>write.id),[click.id]);
+  assert.equal((await page.evaluate(()=>app.client.query({kind:'query',name:'total'},{}))).data,1);
+  // This document stays journal-owned after its core attaches. Retry the engine
+  // in a new first-device document, then open a peer once custody exists.
+  await page.evaluate(()=>app.close());await page.unroute('**/*.wasm');await page.reload();await page.waitForFunction(()=>!!window.openProgressive);
+  await page.evaluate(api=>openProgressive(api),api);
+  await until(()=>page.evaluate(()=>localStatus(app.client).getSnapshot().state==='ready'),'journal document engine attached');
+  const other=await page.context().newPage();teardownAfter(t,()=>other.close());
+  await other.goto(page.url());await other.waitForFunction(()=>!!window.openProgressive);await other.evaluate(api=>openProgressive(api),api);
+  await until(()=>other.evaluate(()=>localStatus(app.client).getSnapshot().state==='ready'),'device document ready');
+  const write=(page,room)=>page.evaluate(async room=>{const id=mintId();const outcome=await app.mutate({kind:'mutation',name:'removeMember'},{room,principal:'user:other'},{id});return {id,outcome};},room);
+  const [journal,device]=await Promise.all([write(page,'room1'),write(other,'room2')]);
+  assert.equal(journal.outcome.state,'sent');assert.equal(device.outcome.state,'sent');
+  assert.equal(posted.filter(w=>w.id===journal.id).length,1);assert.equal(posted.filter(w=>w.id===device.id).length,1);
+  const totalAfterOwners=await page.evaluate(async()=>({read:await app.client.query({kind:'query',name:'total'},{}),pending:await app.client.pendingWrites(),captures:Object.keys(localStorage).filter(key=>key.startsWith('snapback4-online-admission:')).map(key=>localStorage.getItem(key)),status:localStatus(app.client).getSnapshot()}));
+  assert.equal(totalAfterOwners.read.data,3,JSON.stringify(totalAfterOwners));
+  assert.deepEqual(await page.evaluate(async()=>{const a=await app.client.pendingWrites();return a.map(w=>w.id).filter((id,i,ids)=>ids.indexOf(id)!==i);}),[]);
+  await other.evaluate(()=>app.close());await page.evaluate(()=>app.close());
+  // A committed response lost at reload stays with the journal, even when a
+  // device exists for the previous principal. The server audit is non-idempotent.
+  const fresh=async()=>{
+    const session=(await fetch(api+'/auth/guest',{method:'POST'}).then(r=>r.json())).session;
+    await fetch(api+'/seed',{method:'POST',body:JSON.stringify([
+      {table:'members',row:{id:mintIdForTest(),room:'fault',principal:session.principal,admin:true}},
+      {table:'members',row:{id:mintIdForTest(),room:'fault',principal:'user:other',admin:false}},
+    ])});
+    await page.reload();await page.waitForFunction(()=>!!window.openProgressive);
+    return session;
+  };
+  function mintIdForTest(){return crypto.randomUUID().replaceAll('-','');}
+  let faultSession=await fresh(),committed=Promise.withResolvers(),response=Promise.withResolvers(),first=true;
+  await page.route('**/*.wasm',route=>route.abort('blockedbyclient'));
+  await page.route('**/m/removeMember',async route=>{
+    if(!first){await route.continue();return;}first=false;
+    const reply=await route.fetch();committed.resolve();await response.promise;
+    await route.fulfill({response:reply}).catch(()=>{});
+  });
+  teardownAfter(t,()=>response.resolve());
+  await page.evaluate(({api,session})=>openProgressive(api,session),{api,session:faultSession});
+  const lostId=await page.evaluate(()=>{const id=mintId();window.lostWrite=app.mutate({kind:'mutation',name:'removeMember'},{room:'fault',principal:'user:other'},{id});return id;});
+  await committed.promise;
+  await page.reload();response.resolve();await page.waitForFunction(()=>!!window.openProgressive);
+  await page.evaluate(async api=>{await openProgressive(api);window.receipts=[];app.client.onWrite(w=>receipts.push(w));},api);
+  await until(()=>page.evaluate(async id=>(await app.client.write(id))?.state==='sent',lostId),'same-id lost-response recovery');
+  assert.equal((await page.evaluate(()=>app.client.query({kind:'query',name:'total'},{}))).data,4);
+  assert.equal(posted.filter(w=>w.id===lostId).length,2);
+  assert.deepEqual(await page.evaluate(()=>receipts.map(w=>w.id)),[lostId]);
+  await page.evaluate(()=>app.close());await page.unroute('**/m/removeMember');await page.unroute('**/*.wasm');
+
+  // Hold a journal result across attachment and render its unchanged id through
+  // the real hook. Neither attachment nor hook subscription may steal its receipt.
+  faultSession=await fresh();committed=Promise.withResolvers();response=Promise.withResolvers();
+  const engine=Promise.withResolvers();teardownAfter(t,()=>engine.resolve());
+  await page.route('**/*.wasm',async route=>{await engine.promise;await route.continue();});
+  await page.route('**/m/removeMember',async route=>{const reply=await route.fetch();committed.resolve();await response.promise;await route.fulfill({response:reply});});
+  await page.evaluate(async({api,session})=>{await openProgressive(api,session);window.receipts=[];app.client.onWrite(w=>receipts.push(w));pendingScreen();},{api,session:faultSession});
+  const lateId=await page.evaluate(()=>{const id=mintId();window.lateWrite=app.mutate({kind:'mutation',name:'removeMember'},{room:'fault',principal:'user:other'},{id});return id;});
+  await committed.promise;await page.waitForFunction(id=>document.querySelector('#pending')?.textContent===id,lateId);
+  engine.resolve();await until(()=>page.evaluate(()=>localStatus(app.client).getSnapshot().state==='ready'),'late-result core attachment');
+  assert.equal(await page.locator('#pending').textContent(),lateId);
+  assert.deepEqual(await page.evaluate(async()=> (await pendingIntentAccess(app.client).read()).map(item=>item.write.id)),[lateId]);
+  response.resolve();assert.equal((await page.evaluate(()=>lateWrite)).state,'sent');
+  await page.waitForFunction(()=>document.querySelector('#pending')?.textContent==='');
+  assert.deepEqual(await page.evaluate(()=>receipts.map(w=>w.id)),[lateId]);
+  assert.equal(posted.filter(w=>w.id===lateId).length,1);
+  assert.equal((await page.evaluate(()=>app.client.query({kind:'query',name:'total'},{}))).data,5);
+  await page.evaluate(async()=>{pendingRoot.unmount();await app.close();});
+  t.diagnostic('progressive click: captured before WASM request; same id replayed after navigation and lost response; journal/device tabs each dispatched once; late receipt and pending hook survive attachment; server audit = 5');
+});
+
+const b4Entry = `
+import {createApp,localStatus} from '${join(root,'packages/snapback4/src/app.ts')}';
+import {keepSession,localStorageSessionStore} from '${join(root,'packages/snapback4/src/auth.ts')}';
+import {webDevice,memoryPersistence} from '${join(root,'packages/snapback4/src/web.ts')}';
+import {mintId} from '${join(root,'packages/snapback4/src/client.ts')}';
+import {storeKey} from '${join(root,'packages/snapback4/src/app-storage.ts')}';
+import {ProgressiveWrites} from '${join(root,'packages/snapback4/src/progressive-writes.ts')}';
+import {pendingIntentAccess} from '${join(root,'packages/snapback4/src/pending-items.ts')}';
+import {AppProvider,useMutation} from '${join(root,'packages/snapback4/src/react.tsx')}';
+import {createElement as h} from '${require.resolve('react')}';
+import {createRoot} from '${require.resolve('react-dom/client')}';
+const url='https://b4.invalid',op={kind:'mutation',name:'write'};
+const backend={generation:1,store_id:'A',schema:{tables:{}},programs:[
+{name:'write',kind:'Mutation',args:{},body:[{Return:{Literal:{String:'written'}}}],settlement:{reads:{},writes:{items:null}}},
+{name:'read',kind:'Query',args:{},body:[{Return:{Literal:{String:'local'}}}],settlement:{reads:{items:null},writes:{}}}]};
+Object.assign(window,{mintId,pendingIntentAccess,localStatus,storeKey});
+window.writeKey=storeKey('writes',url,'alice');
+window.captureRecords=()=>Object.keys(localStorage).filter(k=>k.startsWith('snapback4-online-admission:')).map(k=>JSON.parse(localStorage.getItem(k)));
+window.openB4=async(mode,holdPublication=false)=>{
+  const store=localStorageSessionStore();
+  if(!localStorage.getItem('b4-session')){await keepSession(url,{token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+86400000},store);localStorage.setItem('b4-session','yes');}
+  if(mode==='returning')await store.set(writeKey,JSON.stringify({owner:'alice',backend:url,pending:[{owner:'alice',id:mintId(),op:'write',args:{},storeId:'A'}],receipts:[]}));
+  window.probes=0;window.requestHeaders=[];window.sent=[];
+  const coreGate=Promise.withResolvers(),inner=webDevice({persist:memoryPersistence()});window.releaseEngine=()=>coreGate.resolve();
+  const device={custody:async()=>mode==='returning'||mode==='handshake'?'present':'none',
+    engineInfo:mode==='handshake'?inner.engineInfo:undefined,
+    async open(...args){if(mode!=='handshake')await coreGate.promise;const core=await inner.open(...args);return {...core,call:(request,...rest)=>mode==='handshake'&&request.op==='engine_info'?Promise.resolve({ok:{format:0}}):core.call(request,...rest)};}};
+  if(holdPublication){const install=ProgressiveWrites.prototype.install;ProgressiveWrites.prototype.install=async function(...args){await install.apply(this,args);window.installed=true;await new Promise(resolve=>window.publishClient=resolve);};}
+  const fetch=async(input,init)=>{
+    const path=new URL(input).pathname;requestHeaders.push({path,headers:init?.headers});
+    if(path==='/schema')return Response.json(backend);
+    if(path==='/probe'){probes++;if(mode==='handshake'||mode==='returning')await new Promise(()=>{});return Response.json({ok:true,viewer:'alice',scope:'full',store_id:'A',generation:1,seq:20+sent.length});}
+    if(path==='/changes'||path==='/sync')return new Promise((_,reject)=>{if(init.signal.aborted)reject(init.signal.reason);else init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});});
+    if(path.startsWith('/m/')){const {id}=JSON.parse(init.body);sent.push(id);return Response.json({state:'sent',seq:20+sent.length,head:20+sent.length,store_id:'A',generation:1});}
+    return Response.json({data:sent.length?'after':'before',complete:true,tables:['items'],seq:20+sent.length,store_id:'A',generation:1});
+  };
+  window.app=createApp({url,sessionStore:store,device,startup:'progressive',fetch});
+  const ready=await app.ready;if(!ready.ok)throw Error(JSON.stringify(ready));
+  window.holdJournal=()=>{const set=store.set;store.set=(key,value)=>key===writeKey?new Promise(()=>{}):set(key,value);};
+  window.captureAndNavigate=()=>{holdJournal();const id=mintId();app.mutate(op,{}, {id});sessionStorage.setItem('b4-click',JSON.stringify({id,records:captureRecords(),probes}));location.assign('/?b4=reopened');};
+  window.mountMutation=()=>{function Screen(){const mutation=useMutation(op);window.runHook=mutation.run;return h('button',{id:'b4-write',onClick:()=>{window.hookWrite=mutation.run({});}},'Write');}
+    const element=document.createElement('div');document.body.append(element);createRoot(element).render(h(AppProvider,{app},h(Screen)));};
+};
+`;
+
+test('B4 returning custody captures useMutation and explicit fresh ids before probe while engine is held', {timeout:hangBudget(20)}, async t=>{
+  const witness=await launch({memory:true,bootstrap:false,ready:()=>!!window.openB4,entrySource:b4Entry});teardownAfter(t,()=>witness.close());const {page}=witness;
+  await page.evaluate(async()=>{await openB4('returning');mountMutation();});await page.waitForFunction(()=>!!window.runHook);
+  const result=await page.evaluate(async()=>{
+    const before=probes;document.querySelector('#b4-write').click();const id=mintId();window.explicit=app.mutate({kind:'mutation',name:'write'},{},{id});
+    const records=captureRecords(),after=probes;const intents=await pendingIntentAccess(app.client).read();
+    return {id,records,intents:intents.map(item=>item.write.id),before,after,sent};
+  });
+  assert.equal(result.records.length,2);assert.ok(result.records.some(record=>record.id===result.id));
+  for(const record of result.records)assert.ok(result.intents.includes(record.id));
+  assert.equal(result.after,result.before);assert.deepEqual(result.sent,[]);
+});
+
+test('B4 handshake fallback captures before held probe and survives immediate navigation; device header is removed', {timeout:hangBudget(20)}, async t=>{
+  const witness=await launch({memory:true,bootstrap:false,ready:()=>!!window.openB4,entrySource:b4Entry});teardownAfter(t,()=>witness.close());const {page}=witness;
+  await page.evaluate(()=>openB4('handshake'));
+  const headers=await page.evaluate(async()=>{await app.client.query({kind:'query',name:'read'},{});return requestHeaders.filter(request=>request.path==='/q/read'||request.path==='/changes');});
+  assert.ok(headers.length);assert.ok(headers.every(request=>!request.headers['x-snapback-device']));
+  await page.evaluate(()=>captureAndNavigate());await page.waitForURL('**/?b4=reopened');await page.waitForFunction(()=>!!window.openB4);
+  const click=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('b4-click')));
+  assert.equal(click.records.length,1);assert.equal(click.records[0].id,click.id);assert.equal(click.probes,0);
+  await page.evaluate(()=>openB4('recover'));
+  await until(()=>page.evaluate(async id=>(await app.client.write(id))?.state==='sent',click.id),'handshake capture recovered');
+  assert.deepEqual(await page.evaluate(()=>sent),[click.id]);
+});
+
+test('B4 surviving capture fences first query and observe while another tab holds recovery lock', {timeout:hangBudget(30)}, async t=>{
+  const witness=await launch({memory:true,bootstrap:false,ready:()=>!!window.openB4,entrySource:b4Entry});teardownAfter(t,()=>witness.close());const {page}=witness;
+  await page.evaluate(()=>openB4('capture'));await page.evaluate(()=>captureAndNavigate());await page.waitForURL('**/?b4=reopened');await page.waitForFunction(()=>!!window.openB4);
+  const click=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('b4-click')));assert.equal(click.records.length,1);
+  const peer=await page.context().newPage();teardownAfter(t,()=>peer.close());await peer.goto(page.url());await peer.waitForFunction(()=>!!window.openB4);
+  await page.evaluate(()=>{window.opening=openB4('recover',true);});await page.waitForFunction(()=>window.installed);
+  const key=await page.evaluate(()=>writeKey);
+  await peer.evaluate(key=>new Promise(resolve=>{window.locked=navigator.locks.request(key,()=>{resolve();return new Promise(release=>window.releaseRecovery=release);});}),key);
+  await page.evaluate(async()=>{publishClient();await opening;window.answers=[];window.queryDone=false;window.reading=app.client.query({kind:'query',name:'read'},{}).then(answer=>{queryDone=true;answers.push(answer);return answer;});window.watch=app.client.observe({kind:'query',name:'read'},{});watch.subscribe(()=>answers.push(watch.getSnapshot()));});
+  await page.waitForFunction(()=>requestHeaders.some(request=>request.path==='/q/read'));
+  const waiting=await page.evaluate(()=>({done:queryDone,snapshot:watch.getSnapshot(),answers}));
+  assert.equal(waiting.done,false);assert.deepEqual(waiting.snapshot,{loading:true});assert.ok(waiting.answers.every(answer=>!('data' in answer)));
+  await peer.evaluate(async()=>{releaseRecovery();await locked;});
+  assert.equal((await page.evaluate(()=>reading)).data,'after');
+  await page.waitForFunction(()=>watch.getSnapshot().data==='after');assert.deepEqual(await page.evaluate(()=>sent),[click.id]);
 });

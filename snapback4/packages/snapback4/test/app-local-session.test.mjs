@@ -49,3 +49,11 @@ test("a local query retries its consumed predecessor after the owned rotation ar
   held.release(); assert.equal((await rotating).ok, true); assert.deepEqual((await reading).data, []);
   assert.equal(app.auth.state, "signed-in"); assert.equal((await restoreSession(url, store)).token, successor.token);
 });
+
+test('default session hide fences the facade before custody-pause notifications', async t => {
+  const { url } = await server(t, 'online only'), app = createApp({ url, sessionStore: memorySessionStore() });
+  t.after(() => app.close()); await app.ready; await app.auth.guest();
+  const client = app.client, viewers = []; client.onPendingWrites(() => viewers.push(client.viewer()));
+  await app.auth.logout();
+  assert.ok(viewers.length > 0 && viewers.every(viewer => viewer === null), 'every pause/retirement notification sees the fenced default facade');
+});

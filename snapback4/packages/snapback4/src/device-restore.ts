@@ -13,7 +13,7 @@ export const restoreRefusal = (): Refusal => ({ code: "E_STORE_RESTORE", family:
 
 // @ref LLP 3000.007#20.4 — unavailable identity fences provisionally until host validation.
 export function coldRestoreWitness(fence: RestoreFence, current: () => Refusal | null,
-  refuse: (denied: Refusal) => void, retire: () => void) {
+  refuse: (denied: Refusal, confirmed: boolean) => void, retire: () => void) {
   const pending = new Set<object>();
   let provisional: Refusal | undefined;
   return (evidence: RestoreEvidence, identityUnavailable: boolean): Promise<void> => {
@@ -21,10 +21,10 @@ export function coldRestoreWitness(fence: RestoreFence, current: () => Refusal |
     pending.add(token);
     if (!identityUnavailable) {
       provisional = undefined;
-      refuse(restoreRefusal());
+      refuse(restoreRefusal(), true);
     } else if (current()?.code !== "E_STORE_RESTORE") {
       provisional = restoreRefusal();
-      refuse(provisional);
+      refuse(provisional, false);
     }
     // The host retains this callback across a failed attempt and Worker restart.
     // An obsolete completion cannot clear another pending or confirmed refusal.
@@ -32,7 +32,7 @@ export function coldRestoreWitness(fence: RestoreFence, current: () => Refusal |
       pending.delete(token);
       if (outcome.status === "refused") {
         provisional = undefined;
-        refuse(outcome.denied);
+        refuse(outcome.denied, true);
       } else if (!pending.size && provisional && current() === provisional) {
         provisional = undefined;
         retire();

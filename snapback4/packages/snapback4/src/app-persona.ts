@@ -13,7 +13,9 @@ import { createClient, mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
 import { localStorageSessionStore, memorySessionStore } from "./auth.ts";
 import { sessionAuthority } from "./session-authority.ts";
-import { personaAdmissionAuthority } from "./admission-authority.ts";
+import { personaAdmissionAuthority, prepareAdmissionAuthority } from "./admission-authority.ts";
+import { prepareProgressiveWrites, progressiveWriteCustody } from "./progressive-writes.ts";
+import { prepareClient } from "./client-start.ts";
 import { guardClient } from "./app-client.ts";
 import { onlineCustody } from "./app-online.ts";
 import { identifyDispatch } from "./online-dispatch.ts";
@@ -93,17 +95,32 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
   const ready: Promise<AppResult> = (async (): Promise<AppResult> => {
     if (refused) { await signedOut(refused); return { ok: false, why: refused }; }
     let opened: Client | undefined;
+    let start: (() => Promise<void>) | undefined;
     try {
       if (options.device) {
         // @ref LLP 3000.002#browser-startup-loading — ordinary app/auth imports do not load local execution.
         const { createLocalClient } = await import("./local.ts");
-        opened = await createLocalClient({ url, persona, device: options.device,
+        const prepared = { url, persona, device: options.device,
           ...(options.startup ? { startup: options.startup } : {}),
           ...(options.onDeviceVersion ? { onDeviceVersion: options.onDeviceVersion } : {}),
           ...(fetcher ? { fetch: fetcher } : {}),
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
           ...(options.assets ? { assets: options.assets } : {}),
-          ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}) });
+          ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}),
+          ...(options.startup === "progressive" ? { onStoreChange: (why: Refusal) => { storeChanged = why; void custody?.refuseStore(why).finally(() => custody?.pause()).catch(error => console.error("snapback4 persona retirement:", error)); } } : {}) };
+        if (options.startup === "progressive" && options.device.custody) {
+          const browser = browserAdmission(), store = options.sessionStore ?? (browser ? localStorageSessionStore() : memorySessionStore());
+          const source = browser ? sessionAuthority(store)?.source : undefined;
+          if (browser && !source) throw new StorageWarning(admissionRefusal("a progressive persona browser journal needs IndexedDB storage", "createApp.persona", "omit sessionStore, or pass localStorageSessionStore()"));
+          const authority = source ? personaAdmissionAuthority(url, viewer, source) : undefined;
+          if (authority) prepareAdmissionAuthority(prepared, authority);
+          prepareProgressiveWrites(prepared, { store, authority, report: error => console.error("snapback4 persona journal:", error) });
+        }
+        if (options.startup === "progressive") {
+          const local = await prepareClient(prepared, () => createLocalClient(prepared));
+          await local.commit();
+          opened = local.client; start = local.start; custody = progressiveWriteCustody(opened);
+        } else opened = await createLocalClient(prepared);
       } else {
         opened = sdkOwned(() => createClient({ url, persona, onStoreChange: why => {
           storeChanged = why;
@@ -155,6 +172,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
       online = onlineView(options.device ? (remote = sdkOwned(() => createClient({ url, persona, ...(fetcher ? { fetch: fetcher } : {}) }))) : current);
       custody?.start();
       publish({ state: "signed-in", viewer, ...(openingRefusal ? { why: openingRefusal } : {}) });
+      await start?.();
       await previous.close();
       return openingRefusal ? { ok: false, why: openingRefusal } : { ok: true };
     } catch (error) {

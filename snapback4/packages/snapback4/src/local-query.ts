@@ -1,5 +1,6 @@
 import { decorationPaths, withDecorations, valueDeadline, mergeValueDeadlines, type ValueDeadlines } from "./read-decoration.ts";
 import { readyRead } from "./read-existence.ts";
+import { dependencies } from "./query-dependencies.ts";
 import { checkRead } from "./read-work.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
@@ -59,6 +60,7 @@ export interface QueryEnvironment {
   lastSyncAt: number;
   principal: string;
   partitionCurrent: boolean;
+  receiptCurrent?(watermark: number | undefined, tables: ReadonlySet<string>): boolean;
   nativeReady: boolean;
   signal: AbortSignal;
   unavailable(): Refusal | null;
@@ -259,7 +261,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   });
   // Rules 2–4 apply to every local observation, including an expiry retry.
   const routeLocal = async (first: { outcome: Outcome; result: Result<R> }, retain = true): Promise<Candidate<R>> => {
-    if (!first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
+    const current = (value: typeof first) => env.receiptCurrent?.(value.outcome.watermark, tables) !== false;
+    if (current(first) && !first.outcome.unknown && first.outcome.complete === true) return localCandidate(); // Rule 2.
     const withheld = "loading" in first.result.read;
     const components = Object.values(first.outcome.components ?? {});
     const composed = components.some(wantsServer) && components.some(c => c.retained);
@@ -267,7 +270,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // @ref LLP 3000.018#3.2 — a composed read remembers no whole answer, and clears nothing before
     // its reply: only that reply names the server's cut, and so takes its place in the order.
     if (composed || retainedRows) remember = false;
-    if (!withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
+    if ((!current(first) && "denied" in first.result.read) || current(first) && !withheld && !wantsServer(first.outcome) && !composed && !retainedRows) return localCandidate(); // Rule 4: known prefixes/refusals.
     const stopped = await blocked(); checkpoint();
     if (stopped) { const result = await recover(); checkpoint(); return result; } // Rules 3/4.
     const composedSince = env.lastSyncAt;
@@ -317,7 +320,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     }
     // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — reobserve retained fields after the original server query, then publish once.
     const second = await local(); checkpoint();
-    if (!second.outcome.unknown && second.outcome.complete === true) return localCandidate(); // Rule 2 again.
+    if (current(second) && !second.outcome.unknown && second.outcome.complete === true) return localCandidate(); // Rule 2 again.
     if (remote.origin !== "server" || !("data" in remote.result.read)) return localCandidate();
     const stoppedAfterObservation = await blocked(); checkpoint();
     if (stoppedAfterObservation) return localCandidate(); // Rules 3/5.
@@ -332,7 +335,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const secondComponents = Object.values(second.outcome.components ?? {});
     const secondComposed = secondComponents.some(wantsServer) && secondComponents.some(c => c.retained);
     const secondRetainedRows = !!second.outcome.unknown && hasRetainedRows(second.outcome.retainedRows);
-    if (!wantsServer(second.outcome) && !secondComposed && !secondRetainedRows) return localCandidate();
+    if (current(second) && !wantsServer(second.outcome) && !secondComposed && !secondRetainedRows) return localCandidate();
     if (secondRetainedRows) {
       remember = false;
       // Retention appeared in flight: this reply did not request the engine's
@@ -481,7 +484,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       if (origin === "server" || origin === "composed") {
         checkpoint();
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
-        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, scopes: result.scopes, at: Date.now(), nextExpiry: result.serverExpiry ?? null, decorationExpiry: result.valueServer, tables: new Set(tables) }, result.seq);
+        if (remember && "data" in result.read) env.serverAnswers.set(key, { inputs: dependencies(env.backend, op.name)?.reads, read: result.read, scopes: result.scopes, at: Date.now(), nextExpiry: result.serverExpiry ?? null, decorationExpiry: result.valueServer, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
       if (followingPending && "data" in result.read) result.read = readyRead<R>({ ...result.read, complete: false }, pendingHere);

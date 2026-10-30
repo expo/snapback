@@ -38,6 +38,7 @@ async function fixture(t, { custody = 'none', failure, heldRead = false, startup
     if (path === '/schema') return Response.json(server);
     if (path === '/sync') { if (syncFailure) return Response.json({denied:syncFailure}, {status:409}); const req = JSON.parse(init.body); return Response.json({ generation: server.generation, store_id: server.store_id, snapshot: !req.stream, watermark: head, images_at: head, events: [], committed_above: {}, more: false }); }
     if (path === '/probe') return Response.json({ ok: true, viewer: 'alice', scope: 'full', store_id: server.store_id, seq: head, generation: server.generation });
+    if (path.startsWith('/m/')) return Response.json({ state: 'sent', seq: head, store_id: server.store_id, replayed: false });
     if (path.startsWith('/auth/')) return Response.json({ ok: true });
     queryCount++; if (heldRead) await readRelease.promise;
     return Response.json(alterReply?.(queryCount) ?? { data: 'server', complete: true, tables: [], seq: head, store_id: server.store_id, generation: server.generation, ...queryReply?.() });
@@ -85,7 +86,7 @@ for (const failure of [new Error('download failed'), new DeviceVersionError({ co
   await until(() => localStatus(client).getSnapshot().state === 'unavailable');
   assert.equal((await client.query(q, {})).data, 'server'); assert.equal(f.app.auth.state, 'signed-in'); assert.equal(f.app.client, client);
   assert.equal(localStatus(client).getSnapshot().why.code, failure instanceof DeviceVersionError ? 'E_DEVICE_VERSION' : 'E_STORE');
-  assert.equal((await client.mutate({ kind: 'mutation', name: 'write' }, {})).state, 'failed');
+  assert.equal((await client.mutate({ kind: 'mutation', name: 'write' }, {})).state, 'sent');
 });
 test('first pending read has priority; bounded fallback starts the held engine', async t => {
   const f = await fixture(t, { heldRead: true }); await f.app.ready;
@@ -128,13 +129,11 @@ for (const opening of [false, true]) test(`logout fences held online phase and l
   if (opening) await until(() => f.closedCores() === 1);
 });
 
-test('mutation before core accelerates preparation, waits, and times out without admission', async t => {
+test('mutation before core uses journal and settles without waiting for attachment', async t => {
   const f = await fixture(t); await f.app.ready;
-  let settled = false;
-  const write = f.app.mutate({kind:'mutation',name:'write'}, {}); void write.then(() => {settled=true;});
-  await f.opened.promise; await tick(); assert.equal(settled,false);
-  const result = await write;
-  assert.equal(result.state,'failed'); assert.equal(result.why.code,'E_ADMISSION_TIMEOUT');
+  const result = await f.app.mutate({kind:'mutation',name:'write'}, {});
+  assert.equal(result.state,'sent');
+  assert.equal(localStatus(f.app.client).getSnapshot().executable, false);
   assert.equal(f.app.auth.state,'signed-in');
 });
 
@@ -164,7 +163,7 @@ test('version refusal after acquisition fences all local calls while keeping the
   await client.sync(); await until(()=>localStatus(client).getSnapshot().state==='unavailable');
   const calls=f.coreCalls();
   assert.equal((await client.asset('a')).denied.code,'E_DEVICE_VERSION');
-  assert.equal((await client.mutate({kind:'mutation',name:'write'},{})).why.code,'E_DEVICE_VERSION');
+  assert.equal((await client.mutate({kind:'mutation',name:'write'},{})).state,'sent');
   assert.equal((await client.query(q,{})).data,'server');
   assert.equal(f.coreCalls(),calls); assert.equal(f.app.auth.state,'signed-in');
 });

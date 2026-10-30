@@ -8,7 +8,7 @@ import { guardFollowing, notifyFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
-import { browserAdmission, failedAdmission } from "./admission.ts";
+import { browserAdmission, failedAdmission, mintedOptions } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
 import type { ObserveOptions, Client, Observed, Query, Read, Refusal, Mutation, MutateOptions, MutationPromise, Write } from "./contract.ts";
 import { forwardInspection } from "./observation-work.ts";
@@ -258,7 +258,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       if (browserAdmission() && admit) {
         const id = options?.id ?? mintId();
         const denied = valid() ? admit() : why();
-        return denied ? failedAdmission<R>(id, denied) : raw.mutate(op, args, { ...options, id });
+        return denied ? failedAdmission<R>(id, denied) : raw.mutate(op, args, mintedOptions(options, id));
       }
       return (async (): Promise<Write<R>> => {
       const id = options?.id ?? mintId();
@@ -276,7 +276,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         }
         return { state: "failed", id, why: denied };
       }
-      return raw.mutate(op, snapshot, { ...options, id });
+      return raw.mutate(op, snapshot, mintedOptions(options, id));
       })();
     })),
     async write(id) {

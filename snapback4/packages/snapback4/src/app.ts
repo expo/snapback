@@ -19,6 +19,7 @@ import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-stor
 import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
+import { prepareProgressiveWrites, progressiveWriteCustody } from "./progressive-writes.ts";
 import { identifyDispatch } from "./online-dispatch.ts";
 import { guardClient } from "./app-client.ts";
 import { personaApp } from "./app-persona.ts";
@@ -81,7 +82,8 @@ interface AppConfiguration extends Omit<LocalOptions, "device" | "persona" | "se
    * predictions). Chosen automatically when the backend syncs no table;
    * `"online"` also chooses it when tables sync. Needs
    * `sessionStore: localStorageSessionStore()` for session identity; persona
-   * apps acquire their browser journal storage internally. */
+   * apps acquire their browser journal storage internally. With a progressive
+   * web device, the open-time custody decision chooses the dispatcher. */
   readonly writes?: "online";
 }
 
@@ -152,7 +154,7 @@ function createAppInner(options: AppOptions): App {
     return refusedApp(options, { code: "E_CLIENT", family: "client", site: "createApp.writes",
       message: options.writes !== "online" ? 'writes must be "online" or omitted'
         : 'writes: "online" cannot be combined with a device or readOnly',
-      rewrite: 'omit writes with a device/readOnly, or createApp({ url, writes: "online" })' });
+      rewrite: 'omit writes, or createApp({ url, device: webDevice(), startup: "progressive" })' });
   }
   if (!options.device && !options.readOnly && browserAdmission()) {
     let available = false;
@@ -356,8 +358,8 @@ function createAppInner(options: AppOptions): App {
   };
   const inactive = (): Extract<SignIn, { ok: false }> => ({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this app operation was superseded", site: "app.auth", rewrite: "await app.auth.login(email, password)" } });
   const hide = (state: AuthState = "signed-out", pause = true, why?: Refusal) => {
-    if (pause) owner?.pause();
     const notifyHidden = [...scopes].map(scope => scope.fenceView?.());
+    if (pause) owner?.pause();
     if (current !== owner?.view) void current.close();
     current = anonymous(why);
     signedOutOnline = onlineView(current);
@@ -696,6 +698,11 @@ function createAppInner(options: AppOptions): App {
           capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
           recheck: () => { void authorized().catch(() => {}); },
         });
+        if (options.startup === "progressive" && device?.custody) prepareProgressiveWrites(prepared, { store: storage, report,
+          authority: browserAdmission() && authority ? {
+            capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority.source }), read: authority.read,
+            recheck: () => { void authorized().catch(() => {}); },
+          } : undefined });
         // @ref LLP 3000.002#browser-startup-loading — ordinary app/auth imports do not load local execution.
         const { createLocalClient } = await import("./local.ts");
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
@@ -768,7 +775,7 @@ function createAppInner(options: AppOptions): App {
           return cancelled();
         }
       }
-      custody = options.device || readOnly ? undefined : await onlineCustody(raw, url, storage, error => {
+      custody = options.device ? progressiveWriteCustody(raw) : readOnly ? undefined : await onlineCustody(raw, url, storage, error => {
         warning = problem(error);
         if (scope.valid) report(error);
       }, false, journalSupport ? {
@@ -777,7 +784,7 @@ function createAppInner(options: AppOptions): App {
         recheck: () => { void authorized().catch(() => {}); },
       } : undefined);
       recoverStore();
-      const baseClient = custody?.client ?? raw;
+      const baseClient = options.device ? raw : custody?.client ?? raw;
       function replaceOnline() {
         const notify = scope.online?.fence();
         const token = raw!.session()?.token;

@@ -32,12 +32,12 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 38,
-    "sha256": "1707c7ae5e6a2470444146343a914833219864b94cb2054c91375bc27fe21181"
+    "count": 39,
+    "sha256": "5b5384beab13b74d1fc16fdaa1ac36a07d5e92aa8373140520ce8050525e7b47"
   },
   "app-persona.ts": {
-    "count": 20,
-    "sha256": "e2df353d9c1c3b0d7b5dc16fbca30ac68ed591d829b8d4a3e5f466d4dbcda801"
+    "count": 23,
+    "sha256": "3959844a2a9520d114e96141305304fb8c6dc6ced7562645a93036745ed13be1"
   },
   "app-revocations.ts": {
     "count": 32,
@@ -268,8 +268,8 @@
     "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
   },
   "local.ts": {
-    "count": 207,
-    "sha256": "98e1cc8b11f21c92db7234b6c2ffded0ff3ff45ce8e0e80aed705920fdfde2f1"
+    "count": 228,
+    "sha256": "fbdf20f492cfa1daa82822ac570eb97283a9eea1af0e50ca53c0e4748f82a0f3"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -326,6 +326,10 @@
   "presence-refresh.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "progressive-writes.ts": {
+    "count": 15,
+    "sha256": "2b417103827c80db9a70c09a1a6bcc3faf6c6d353c9767630001c649388b762c"
   },
   "proof-accounts.ts": {
     "count": 16,
@@ -649,7 +653,7 @@
   },
   "write-settlement.ts": {
     "count": 2,
-    "sha256": "84d1f76b664d14b82a626b86ab0023730cc64511afe0dfdec89fe86bd5a054c8"
+    "sha256": "cdea7e0dcaea77cdcd0e25724672d8371aa7675ff6ad6c78e77eb93fdbb57d78"
   },
   "writes.ts": {
     "count": 11,
