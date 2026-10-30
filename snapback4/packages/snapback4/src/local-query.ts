@@ -36,6 +36,7 @@ type Outcome = Coverage & { watermark?: number; decorationExpiry?: number | null
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
+  serverCursorAffinity?: boolean;
   current?(): boolean;
   /** Captured hard evidence fence; only the whole-server route may use it. */
   serverCurrent?(cut: number, tables: ReadonlySet<string>): boolean;
@@ -90,6 +91,16 @@ export interface AnswerCache {
 
 export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown, R>, args: unknown, revision: number, authority: number, watch?: Watch): Promise<Result<R>> {
   const program = env.backend.programs.find(p => p.name === op.name);
+  // @ref LLP 3000.002.000#6 — a server continuation never enters the device interpreter.
+  const cursorPrefix = "sb4-server:";
+  const callerArgs = args;
+  let serverContinuation = false;
+  if (env.serverCursorAffinity && args && typeof args === "object") for (const [name, type] of Object.entries(program?.args ?? {})) {
+    const value = (args as Record<string, unknown>)[name];
+    if ((type === "Cursor" || (type as { Optional?: unknown })?.Optional === "Cursor") && typeof value === "string" && value.startsWith(cursorPrefix)) {
+      args = { ...args as object, [name]: value.slice(cursorPrefix.length) }; serverContinuation = true;
+    }
+  }
   const search = env.backend.schema.operations?.[op.name]?.search;
   let searchAttempt = false;
   if (search && env.link !== "online" && combinedCursor((args as Record<string, unknown>)?.[search.cursor])) {
@@ -101,7 +112,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.016#2.2 — unknown branches keep the static reads of expanded helpers; native dependencies remain opaque.
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null, valueDevice: null, valueServer: null };
-  const key = `${op.name}:${JSON.stringify(args)}`;
+  const key = `${op.name}:${JSON.stringify(serverContinuation ? callerArgs : args)}`;
   const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? [];
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
@@ -228,7 +239,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
-          : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
+          : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (env.serverCursorAffinity && typeof json.next === "string" ? cursorPrefix + json.next : json.next) as Cursor | null | undefined ?? null });
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
         return { result: { scopes: json.scopes as ReadScopes | undefined, read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, valueDevice: null, valueServer: "data" in read ? valueDeadline(json.decorationExpiry, !!env.backend.schema.operations?.[op.name]?.search_decoration) : null, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
@@ -365,6 +376,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
+    if (serverContinuation) return server();
     // @ref LLP 3000.016#2.2 — only an already server-answered cold watch may
     // bypass the busy VM. No held read, local composition or remembered fallback.
     if (env.coldRead) return held ? { result: loading, origin: "local" } : server();

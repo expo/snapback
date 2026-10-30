@@ -3,7 +3,7 @@ import type { StoreCapture } from "./local-types.ts";
 
 /** Internal host custody of a restore proved while the device is busy. */
 export const deviceRestore = Symbol.for("snapback4.deviceRestore");
-export interface RestoreEvidence { storeId: string; head: number; capture: StoreCapture }
+export interface RestoreEvidence { storeId: string; head: number; capture: StoreCapture; bindUnidentified?: boolean }
 export type RestoreValidation = { status: "obsolete" } | { status: "refused"; denied: Refusal };
 export type RestoreFence = (evidence: RestoreEvidence, validated: (outcome: RestoreValidation) => void) => Promise<void>;
 export const restoreFloor = (capture: StoreCapture): number => Math.max(capture.watermark,
@@ -48,12 +48,43 @@ export function restoreObservation(storeId: string, head: number, capture: Store
     captured_watermark: capture.watermark, send_revision: capture.send_revision } };
 }
 
+/** Deliver an already-proved shrink using current device transaction guards. */
+export async function persistRestoreObservation(call: (request: Record<string, unknown>) => Promise<{ ok?: unknown; denied?: Refusal }>, proof: RestoreEvidence): Promise<void> {
+  const capture = async () => {
+    const { ok, denied } = await call({ op: "sync_state", capture: false });
+    if (denied || !ok) throw new Error("cannot persist the captured restore observation");
+    return ok as StoreCapture & { generation: number; restore_refusal?: Refusal };
+  };
+  let state = await capture();
+  if (proof.bindUnidentified && !(state.transfer_store_id ?? state.store_id)) {
+    // First progressive sync: bind the authenticated store through the existing
+    // observation operation before recording its proven shrink. No rows apply.
+    const bound = await call(restoreObservation(proof.storeId, proof.head, state, state.generation));
+    if (bound.denied) throw new Error(bound.denied.message);
+    state = await capture();
+  }
+  if ((state.transfer_store_id ?? state.store_id) !== proof.storeId || state.restore_refusal) return;
+  const rebound = { ...proof.capture, watermark: state.watermark, send_revision: state.send_revision,
+    restore_watermark: restoreFloor(proof.capture) };
+  const result = await call(restoreObservation(proof.storeId, proof.head, rebound, state.generation));
+  if (result.denied?.code !== "E_STORE_RESTORE") throw new Error("the captured restore proof was not persisted");
+}
+
 // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — observations keep their captured private progress and image heads.
 export function restoreWitness(call: (request: Record<string, unknown>) => Promise<{ denied?: Refusal }>,
-  generation: () => number, refuse: (denied?: Refusal) => void, available: () => void) {
-  return async (storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> => {
+  generation: () => number, refuse: (denied?: Refusal) => void, available: () => void,
+  persistOnline?: (evidence: RestoreEvidence) => Promise<void>) {
+  return async (storeId: unknown, head: unknown, capture: StoreCapture, onlineHead?: number): Promise<boolean> => {
     if (!Number.isSafeInteger(head) || Number(head) < 0) return true;
     if (typeof storeId !== "string" || storeId !== (capture.transfer_store_id ?? capture.store_id)) return false;
+    // Progressive reads already witnessed this same store before dispatch.
+    // The witness must fence a proven shrink even before a device exists;
+    // a fresh device's empty watermark cannot erase that evidence.
+    if (onlineHead !== undefined && Number(head) < onlineHead) {
+      refuse(restoreRefusal());
+      await persistOnline?.({ storeId, head: Number(head), capture: { ...capture, restore_watermark: Math.max(restoreFloor(capture), onlineHead) }, bindUnidentified: true });
+      return true;
+    }
     const observed = await call(restoreObservation(storeId, Number(head), capture, generation()));
     if (observed.denied) { refuse(observed.denied); return true; }
     available(); return false;

@@ -64,7 +64,7 @@
   },
   {
     "index": 9,
-    "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, received, decode, () => !versionBlocked())))#1",
+    "id": "local.ts:sendPost:withReadSignal(!progressive && path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, received, decode, () => !onlineBlocked())))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false

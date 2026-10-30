@@ -25,6 +25,7 @@ export function usePendingWrite<A, R>(op: Mutation<A, R>, id?: string): { pendin
 export function usePendingWrites<A = unknown, R = unknown>(op?: Mutation<A, R>): readonly PendingWrite<A>[];
 export function usePendingItems<Row, M extends Mutation<any, any>>(options: PendingItemsOptions<Row, M>): readonly import("./pending-items.ts").PendingItem<Row, MutationArgs<M>>[];
 export function usePendingState<A, R, Value>(op: Mutation<A, R>, options: PendingStateOptions<A, Value>): { value: Value; intent: PendingIntent<A> | undefined; };
+export function useLocalStatus(): LocalStatus;
 export function useAcquired(): boolean;
 export function useAcquisition(): Acquisition;
 export function useAction<A, R>(op: Action<A, R>): ActionHook<A, R>;

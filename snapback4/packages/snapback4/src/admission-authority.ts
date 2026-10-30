@@ -15,6 +15,7 @@ const plans = new WeakMap<object, AdmissionAuthorityContext>();
 // Enumerable capabilities survive device adapters that forward with {...core}.
 export const admissionOwnership = Symbol("snapback4.admissionOwnership");
 export const prepareAdmissionAuthority = (options: object, context: AdmissionAuthorityContext) => { plans.set(options, context); };
+export const admissionAuthorityKey = (options: object): string | undefined => plans.get(options)?.capture().key;
 export const admissionAuthorityHost = (core: DeviceCore, configure: (context: AdmissionAuthorityContext) => void) => { core[admissionOwnership] = configure; };
 export const attachAdmissionAuthority = (core: DeviceCore, options: object) => {
   const context = plans.get(options);

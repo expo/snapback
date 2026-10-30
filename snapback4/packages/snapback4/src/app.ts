@@ -13,6 +13,7 @@ import { holdClose } from "./closing-responses.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
 import { DeviceVersionError } from "./device-version.ts";
+export { localStatus, type LocalStatus, type LocalStatusObservation } from "./local-status.ts";
 import type { DeviceOpener, LocalOptions, LocalClient } from "./local.ts";
 import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-storage.ts";
 import { sessionAuthority } from "./session-authority.ts";
@@ -142,6 +143,10 @@ export function createApp(options: AppOptions): App {
 
 function createAppInner(options: AppOptions): App {
   validateReadOptions(options);
+  if (options.startup !== undefined && (options.startup !== "progressive" || !options.device)) return refusedApp(options, {
+    code: "E_CLIENT", family: "client", site: "createApp.startup", message: 'startup: "progressive" requires a device',
+    rewrite: 'createApp({ url, device: webDevice(), startup: "progressive" }) or omit startup',
+  });
   // @ref LLP 3000.013.000#17 — refuse unwritable configuration before identity branching.
   if (options.writes !== undefined && (options.writes !== "online" || options.device || options.readOnly)) {
     return refusedApp(options, { code: "E_CLIENT", family: "client", site: "createApp.writes",
@@ -625,14 +630,16 @@ function createAppInner(options: AppOptions): App {
     const scopedFetch: typeof fetch = (input, init) => scopedRequest(input, init);
     let raw: Client | undefined, startClient: (() => Promise<void>) | undefined, commitClient: (() => Promise<void>) | undefined;
     let notifyPublished: ((published: Client) => void) | undefined;
+    let publishedClient: Client | undefined;
     // Native host observers must not adopt a restoration candidate that can
     // still be discarded when its rotated session is persisted.
-    const device = options.device && { open: async (...args: Parameters<DeviceOpener["open"]>) => {
+    const device = options.device && { ...(options.device.custody ? { custody: options.device.custody.bind(options.device) } : {}), open: async (...args: Parameters<DeviceOpener["open"]>) => {
       const core = await options.device!.open(...args);
       const notify = core.onClient?.bind(core);
       if (notify) core.onClient = (client, origin) => {
         let stop: void | (() => void);
         notifyPublished = published => { stop = notify(published as LocalClient, origin); };
+        if (publishedClient && scope.valid && current === publishedClient) notifyPublished(publishedClient);
         return () => stop?.();
       };
       return core;
@@ -642,11 +649,13 @@ function createAppInner(options: AppOptions): App {
     let recovering = false;
     let retirement: Promise<void> | undefined;
     const recoverStore = () => {
-      if (!changedStore || !custody) return;
+      if (!changedStore || !custody && !options.device) return;
       // Retire intents even when another auth operation has superseded this
       // owner. No later sign-in may replay them against the replacement.
       if (!retirement) {
-        retirement = custody.refuseStore(changedStore);
+        // A local outbox stays with its device's observe/adopt recovery. Only
+        // the online journal needs this app-owned retirement transaction.
+        retirement = custody ? custody.refuseStore(changedStore) : Promise.resolve();
         void retirement.catch(error => { if (scope.valid && owner === scope) report(error); });
       }
       if (!["E_STORE_REPLACED", "E_DEV_RESET"].includes(changedStore.code) || recovering || owner !== scope || !scope.valid || closed || revision !== expected) return;
@@ -682,7 +691,7 @@ function createAppInner(options: AppOptions): App {
         // Preserve all local tuning while retaining app-owned identity, even
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
-        const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: clock.wrap(scopedFetch) };
+        const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: clock.wrap(scopedFetch), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
         prepareAdmissionAuthority(prepared, {
           capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
           recheck: () => { void authorized().catch(() => {}); },
@@ -843,7 +852,7 @@ function createAppInner(options: AppOptions): App {
       // identity commit: a transport/startup error reports why, never rollback.
       if (startClient) try { await startClient(); } catch (error) { if (scope.valid) report(error); }
       recoverStore();
-      if (scope.valid && current === client) notifyPublished?.(client);
+      if (scope.valid && current === client) { publishedClient = client; notifyPublished?.(client); }
       drainRevocations();
       return warning?.code === "E_ADMISSION" ? { ok: false, why: warning } : { ok: true, session: raw.session() ?? next };
     } catch (error) {

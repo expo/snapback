@@ -101,6 +101,83 @@ values. Password accounts use `--email EMAIL --password-env ENV_VAR`, with
 `--url URL` for an existing backend. See `guide testing` for lifecycle and
 idempotence limits; add `--field Task --value "Browser proof" --button Add` for the starter's visible form. The observer arms before clicking and requires that write's sent receipt.
 
+## Progressive web startup
+
+Opt in with `createApp({ url, sessionStore: localStorageSessionStore(),
+device: webDevice({ worker: true }), startup: "progressive" })`. Omitting
+`startup` keeps the awaited device startup. Supplying it without a device
+returns an `E_CLIENT` configuration refusal with a rewrite. Native/Expo openers
+without a custody probe accept the option and keep ordinary awaited startup.
+
+The browser first reads existing device custody without loading WASM. Only a
+proven first-device scope can publish online before the engine: an existing
+database, live claim, admission journal or orphan, an unreadable probe, and
+custom persistence without the required evidence all take ordinary device
+recovery. Existing pending writes therefore retain their recovery owner.
+
+In progressive mode `app.ready` means the current identity has a usable client;
+`auth.state` can be `signed-in` while the engine loads. It does not mean the
+replica is acquired. Observe `localStatus(app.client)` from `snapback4/app`
+(`getSnapshot()` and `subscribe(listener)`), or use `useLocalStatus()` from
+`snapback4/react` inside `AppProvider`. Its states are `loading` (scheduled),
+`opening` (preparation/open/recovery), `syncing` (executable engine), `ready`
+(acquired replica), and `unavailable` with typed `why`. The `executable` and
+`acquired` booleans distinguish those milestones; `client.acquired` retains
+its existing replica meaning. Hold the observation for the current client;
+an account change retires it just like a query observation.
+
+Preparation starts after the first foreground answer, or after client
+publication if no read is pending. A private 1,500 ms fallback prevents a
+stalled read from starving it; an operation needing the device can accelerate
+preparation. Worker configuration uses the existing worker host. Attachment
+keeps the client and mounted queries: each query's normal publication procedure
+checks its displayed server cut before replacing it with local data. Server
+page continuations retain server affinity across attachment. `sb4-server:`-prefixed
+cursors are session-scoped opaque values: an app must not persist them across
+sessions or modes. Retention and
+expiry deadlines are not renewed by the handoff.
+
+**Writes still wait for the engine in this increment.** Before attachment,
+ordinary mutations enter the existing bounded identity/admission wait (15
+seconds), then use ordinary device admission or return its typed refusal.
+They are not durable while waiting; this lane does not route them to the
+online write journal. Device-dependent media, upload and residency calls can
+report typed device unavailability until the engine is usable.
+
+An engine download, open or version failure reports local `unavailable` while
+authorized server-route reads continue. It does not sign out the app. Logout,
+account/epoch changes, backend replacement and rollback still fence publication
+and any late core attachment.
+
+Observe the current client's engine status without delaying its queries:
+
+```ts
+import { createApp, localStatus } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { webDevice } from "snapback4/web";
+
+const app = createApp({ url: "https://your-backend", sessionStore: localStorageSessionStore(),
+  device: webDevice({ worker: true }), startup: "progressive" });
+const opened = await app.ready;
+if (!opened.ok) throw new Error(opened.why.message);
+const status = localStatus(app.client);
+const stop = status.subscribe(() => console.log(status.getSnapshot()));
+console.log(status.getSnapshot());
+// When the owner is disposed:
+stop();
+await app.close();
+```
+
+A component inside the current signed-in `AppProvider` scope can observe the same status:
+
+```tsx
+import { useLocalStatus } from "snapback4/react";
+export function EngineStatus() {
+  const local = useLocalStatus();
+  return <p>{local.state === "unavailable" ? local.why.message : local.state}</p>;
+}
+```
+
 ## 4. The client
 
 **Constructor compatibility:** ready `Read<T>` values now require `existence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.
@@ -1643,6 +1720,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useViewer()`, `useSignedInViewer()` | `Principal \| null`; `Principal`, throwing `E_AUTH` outside a signed-in gate |
 | `usePersonaApp(persona, open)` | the `App` for a development persona, or null: opens it with `open(persona)`, closes it on switch and unmount |
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
+| `useLocalStatus()` | executable engine, acquired replica, and typed local unavailability |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`, a file's `name`), `denied` or `error` (`why`) |
 | `useUpload(op, argument, id?)` | durable capture, typed upload progress, retry and cancellation; see guide package-reference offline-uploads |

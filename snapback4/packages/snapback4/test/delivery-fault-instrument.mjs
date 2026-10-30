@@ -75,6 +75,34 @@ export function census() {
       if (ts.isFunctionLike(node)) owner = name(node) ?? owner;
       if (ts.isAwaitExpression(node) && (functions === '*' || functions.includes(owner) || (file === 'local-assets.ts' && owner === 'remove'))) {
         const expression = node.expression.getText(tree).replace(/\s+/g, ' ');
+        // A1: this branch only polls read invalidations before core readiness or
+        // after a core failure. It cannot admit, send, settle or persist writes;
+        // progressive-start covers its logout/store/rollback fences. The full
+        // boundary seal below still includes it. Preserve all delivery recipes.
+        if (file === 'local.ts' && owner === 'follow' && expression === 'waitOnlineChange()') return;
+        // A1d: these progressive-only fences can persist a proved rollback via
+        // observe_store or the host's existing restore queue. The refusal
+        // retires reads/replay before I/O; no write is admitted or acknowledged.
+        // progressive-start proves first-sync and acquired-device persistence;
+        // web-start injects a failed restore RPC and proves transaction retry
+        // and close drain survive refill/reopen. Existing delivery recipes stay
+        // below; these dedicated tests cover the new restore custody boundary.
+        if (file === 'local.ts' && (owner === 'sendPost' && expression === 'onlineEvidence(json, onlineCapture)'
+          || owner === 'syncRound' && expression === 'witnessRestore(page.store_id, head, onlineCapture, onlineCapture.watermark)')) return;
+        // A1 review rounds 3-4: the same progressive-only restore custody, now also
+        // fenced on post-attachment /changes and /probe against the head witnessed
+        // online, and a direct host's retained restore proof retried before the next
+        // device transaction (a failed retry fails that transaction; close rejects).
+        // progressive-start proves both fences; web-start injects one and two failed
+        // restore saves on a direct host. No ordinary delivery recipe changes.
+        if (file === 'local.ts' && ((owner === 'waitForChange' || owner === 'probe')
+            && expression === 'witnessRestore(json.store_id, Number(json.seq), onlineCapture, onlineCapture.watermark)'
+          || owner === 'call' && expression === 'persistPendingProof()')) return;
+        // The same dedicated restore tests own the helper's current-guard reads,
+        // initial identity binding and refusal commit. The complete boundary
+        // seal still records all six awaits; no ordinary delivery site is removed.
+        if (file === 'device-restore.ts' && (owner === 'persistRestoreObservation' || owner === 'capture'
+          || owner === 'restoreWitness' && expression.startsWith('persistOnline?.('))) return;
         const key = `${file}:${owner}:${expression}`;
         const n = (counts.get(key) ?? 0) + 1; counts.set(key, n);
         (file === 'local-assets.ts' && owner === 'remove' ? additional : sites).push({ id: `${key}#${n}`, file, owner, expression, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, start: node.getStart(), end: node.end });
@@ -530,3 +558,17 @@ export function awaitBoundary() {
 // registration wait; these operate on proof pages, outside client delivery custody. Browser
 // restore/account-switch and startup/offline regressions exercise these paths.
 // @ref LLP 3000.002#browser-startup-loading — deferred runtime opening retains the existing persistence and identity lifecycle.
+
+// A1 (LLP 3000.002.000 sections 5.2, 5.3 and 6): custody reads precede
+// core opening; late attach moves the existing startup I/O behind activation,
+// with a fence after each await. Neither originates an online mutation: the
+// existing identity/admission wait owns mutations until the real core is ready.
+// The only new await in a classified helper is follow's read-only online poll,
+// explicitly classified above outside delivery. sendPost retains its exact
+// fault recipe while selecting a core-only version fence in progressive mode.
+// All 215 delivery sites, required/optional classifications and recipes remain.
+// The regenerated boundary also reconciles inherited app/persona factory waits
+// and the existing web runtime/persistence split: these preserve authority and
+// engine-opening custody above the same classified delivery I/O. Generated
+// WASM declarations and local-status contain no awaits. App/browser tests and
+// the unchanged complete delivery matrix cover those existing boundaries.

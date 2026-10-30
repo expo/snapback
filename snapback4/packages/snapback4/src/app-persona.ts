@@ -98,6 +98,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
         // @ref LLP 3000.002#browser-startup-loading — ordinary app/auth imports do not load local execution.
         const { createLocalClient } = await import("./local.ts");
         opened = await createLocalClient({ url, persona, device: options.device,
+          ...(options.startup ? { startup: options.startup } : {}),
           ...(options.onDeviceVersion ? { onDeviceVersion: options.onDeviceVersion } : {}),
           ...(fetcher ? { fetch: fetcher } : {}),
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),

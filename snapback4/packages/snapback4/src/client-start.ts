@@ -29,6 +29,11 @@ export async function prepareClient<T>(options: object, create: () => T | Promis
   } finally { plans.delete(options); }
 }
 
+// @ref LLP 3000.002.000#5.3 — app authority waits count as pending foreground reads before the raw watch exists.
+const foreground = new WeakMap<object, () => () => void>();
+export const trackForeground = (client: object, begin: () => () => void): void => { foreground.set(client, begin); };
+export const beginForeground = (client: object): (() => void) => foreground.get(client)?.() ?? (() => {});
+
 // Private lifecycle barrier: app logout-all must select the successor after
 // an already-running rotation, without starting a fresh rotation itself.
 const rotations = new WeakMap<object, () => Promise<unknown> | null>();

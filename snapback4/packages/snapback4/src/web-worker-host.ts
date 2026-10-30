@@ -3,7 +3,7 @@ import type { DeviceOpening } from "./local-device.ts";
 import type { JournalInvoke } from "./web-journal-execution.ts";
 import { indexedDbStore } from "./web-idb.ts";
 import { PageDeviceControl } from "./device-control.ts";
-import { restoreFloor, restoreObservation, type RestoreEvidence, type RestoreValidation } from "./device-restore.ts";
+import { persistRestoreObservation, type RestoreEvidence, type RestoreValidation } from "./device-restore.ts";
 
 type Reply = Record<string, any>;
 export type WorkerWasmSource = string | BufferSource | WebAssembly.Module;
@@ -56,18 +56,8 @@ export class WebWorkerHost {
 
   private async persistRestoreProof(storeId: string, pending: { evidence: RestoreEvidence; validated: ((outcome: RestoreValidation) => void)[] }): Promise<void> {
     const proof = pending.evidence;
-    const { ok: state, denied } = await this.rpc({ action: "invoke", request: { op: "sync_state", capture: false } });
-    if (denied || !state) throw new Error("cannot persist the captured restore observation");
-    if ((state.transfer_store_id ?? state.store_id) === proof.storeId && !state.restore_refusal) {
-      // @ref LLP 3000.007#20.4 — busy-Worker restore proof precedes later reads/sends.
-      // Publication may have advanced while this already-proven regression
-      // waited. Rebind only the transaction guards, retaining the ORIGINAL
-      // floor/head. This is a same-store refusal, never adoption or progress.
-      const capture = { ...proof.capture, watermark: state.watermark, send_revision: state.send_revision,
-        restore_watermark: restoreFloor(proof.capture) };
-      const result = await this.rpc({ action: "invoke", request: restoreObservation(proof.storeId, proof.head, capture, state.generation) });
-      if (result.denied?.code !== "E_STORE_RESTORE") throw new Error("the captured restore proof was not persisted");
-    }
+    // @ref LLP 3000.007#20.4 — retain the original floor/head through retry and close.
+    await persistRestoreObservation(request => this.rpc({ action: "invoke", request }), proof);
     const reply = await this.rpc({ action: "commit", extra: [] });
     this.remember(reply.journal); this.control.publish(reply.control);
     this.restores.delete(storeId); // A failed save/Worker restart must retain it.

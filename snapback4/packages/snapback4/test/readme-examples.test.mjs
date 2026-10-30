@@ -113,7 +113,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   blocks.push({ file, line: guide.slice(0, opened[0].index).split("\n").length + 1, text: opened[0][1], source: "guide.rs" });
   const config = ts.readConfigFile(join(root, "tsconfig.json"), ts.sys.readFile);
   assert.equal(config.error, undefined);
-  const { options, errors } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
+  const { options, errors } = ts.parseJsonConfigFileContent(config.config, ts.sys, root, undefined, join(root, "tsconfig.json"));
   assert.deepEqual(errors, []);
   const expoRequire = createRequire(join(root, "../../apps/chat-expo/package.json"));
   Object.assign(options, { baseUrl: root, paths: {

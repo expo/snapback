@@ -1,4 +1,6 @@
 import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
+import { guardLocalStatus } from "./local-status.ts";
+import { beginForeground } from "./client-start.ts";
 import { releaseLoading } from "./release.ts";
 import { guardUploads } from "./app-uploads.ts";
 import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
@@ -93,6 +95,8 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
     assetSource: id => valid() ? raw.assetSource(id) : { uri: "", headers: {} },
     query: settledQuery(async (op, args, signal) => {
+      const finish = beginForeground(raw);
+      try {
       const denied = await refusal();
       if (denied) return () => ({ denied });
       const publish = await queryAttempt(raw, op, args, signal);
@@ -103,10 +107,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
         return queryWaiting(read) ? { wait: async (signal: AbortSignal) => { await read.wait(signal); after = await refusal(); } }
           : read && approveDelivery(read) ? read : undefined;
       };
+      } finally { finish(); }
     }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
       session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
       validateObserveOptions(options);
+      const finishOpening = beginForeground(raw);
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
@@ -202,7 +208,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();
-      }).catch(() => { reject(denied()); emit(); });
+      }).catch(() => { reject(denied()); emit(); }).finally(finishOpening);
       const getSnapshot = (): Read<R> => {
         if (!valid()) return denied();
         // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
@@ -317,6 +323,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       } } });
   }
   guardUploads(client,raw,refusal,valid,why,listen);
+  guardLocalStatus(client, raw, valid, why, invalidations);
   guardFollowing(client, raw, refusal, () => valid() && followingAdmissions === 0);
   guardPendingIntents(client, raw, valid, refusal);
   forwardIntentObserver(client, raw, valid);

@@ -64,6 +64,28 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
     .then(({ openWebDevice }) => openWebDevice(options, persist, worker))
     .catch(error => { opening = undefined; throw error; });
   return {
+    // @ref LLP 3000.002.000#5.2 — only proven absence permits reads before device recovery.
+    async custody(name) {
+      // An injected provider has no portable read of its live claims. Refuse
+      // to infer empty custody from a missing optional method or engine.
+      if (options.persist) return "unknown";
+      try {
+        if (!globalThis.indexedDB?.databases || !globalThis.navigator?.locks?.query || !globalThis.localStorage) return "unknown";
+        const matches = (candidate: string) => candidate === name || candidate.startsWith(`${name}:tab-`);
+        const locks = await navigator.locks.query();
+        if ([...(locks.held ?? []), ...(locks.pending ?? [])].some(lock => lock.name && (matches(lock.name)
+          || lock.name.startsWith("snapback4-worker:") && matches(decodeURIComponent(lock.name.slice("snapback4-worker:".length)))))) return "present";
+        // Any device database counts, including legacy layouts, ownership,
+        // outbox and acknowledgement records. Never open/upgrade it here.
+        if ((await indexedDB.databases()).some(db => db.name && matches(db.name))) return "present";
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key?.startsWith("snapback4-admission:")) continue;
+          if (matches(decodeURIComponent(key.slice("snapback4-admission:".length).split(":")[0]!))) return "present";
+        }
+        return "none";
+      } catch { return "unknown"; }
+    },
     async engineInfo() { return (await runtime()).engineInfo!(); },
     async open(name, backend) { return (await runtime()).open(name, backend); },
   };

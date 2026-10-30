@@ -41,6 +41,131 @@ query total():
 `;
 const require = createRequire(join(root, 'apps/chat/package.json'));
 
+test('progressive worker rollback persists through restore retry and close drain before refill/reopen', {timeout:hangBudget(20)}, async t=>{
+  const witness=await launch({memory:true,entrySource:`
+import { createLocalClient } from '${join(root,'packages/snapback4/src/local.ts')}';
+import { localStatus } from '${join(root,'packages/snapback4/src/app.ts')}';
+import { deviceRestore } from '${join(root,'packages/snapback4/src/device-restore.ts')}';
+Object.assign(window,{createLocalClient,localStatus,deviceRestore});
+`});
+  t.after(()=>witness.close());
+  const results=await witness.page.evaluate(async()=>{
+    const results=[];
+    for(const retry of ['transaction','close']) {
+      const url=`https://rollback-${retry}.invalid`, inner=webDevice({worker:true});
+      const backend={generation:1,store_id:'restore-store',schema:{tables:{}},programs:[{name:'read',kind:'Query',args:{},body:[{Return:{Literal:{String:'local'}}}]}]};
+      let head=20, fail=false, attempts=0, blockCalls=false, evidence, hostCore;
+      const fetch=async(input,init)=>{
+        const path=new URL(input).pathname;
+        if(path==='/schema')return Response.json(backend);
+        if(path==='/probe')return Response.json({ok:true,store_id:backend.store_id,seq:head,generation:1});
+        if(path==='/changes')return new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true}));
+        if(path==='/sync')return Response.json({generation:1,store_id:backend.store_id,snapshot:!JSON.parse(init.body).stream,watermark:head,images_at:head,events:[],committed_above:{},more:false});
+        if(path.startsWith('/m/'))throw Error('a refused device attempted pending-write replay');
+        return Response.json({data:'server',complete:true,tables:[],seq:head,store_id:backend.store_id,generation:1});
+      };
+      const device={custody:()=>Promise.resolve('none'),async open(...args){
+        const core=hostCore=await inner.open(...args);
+        return {...core,call:(...args)=>blockCalls?Promise.resolve({denied:{code:'E_STORE_RESTORE',family:'store',message:'fenced'}}):core.call(...args),
+          [deviceRestore](proof,validated){evidence=proof;return core[deviceRestore](proof,validated);}};
+      }};
+      const post=Worker.prototype.postMessage;
+      Worker.prototype.postMessage=function(message,...rest){
+        if(message.action==='invoke'&&message.request?.op==='observe_store'&&message.request.page?.captured_restore_watermark===30){
+          attempts++; if(fail){fail=false;throw Error('injected restore persistence failure');}
+        }
+        return post.call(this,message,...rest);
+      };
+      let client,reopened;
+      try {
+        client=await createLocalClient({url,persona:'alice',startup:'progressive',device,fetch});
+        await client.query({kind:'query',name:'online'},{});
+        for(let n=0;!client.acquired&&n<1000;n++)await new Promise(resolve=>setTimeout(resolve,5));
+        if(!client.acquired)throw Error('worker acquisition timed out');
+        head=30;await client.query({kind:'query',name:'online'},{});
+        head=25;fail=true;await client.sync().catch(error=>{if(!String(error).includes('injected restore persistence failure'))throw error;});
+        const immediate=await client.query({kind:'query',name:'read'},{});
+        const failedAttempts=attempts;
+        // Deny ordinary cleanup calls so only the host close drain can retry.
+        if(retry==='close')blockCalls=true;
+        else await hostCore.call({op:'sync_state',capture:false});
+        const beforeClose=attempts;
+        await client.close(); head=40;
+        reopened=await createLocalClient({url,persona:'alice',device:webDevice({worker:true}),fetch});
+        const read=await reopened.query({kind:'query',name:'read'},{});
+        results.push({retry,immediate:immediate.denied?.code,read:read.denied?.code,failedAttempts,beforeClose,attempts,
+          head:evidence?.head,floor:evidence?.capture.restore_watermark});
+      } finally {Worker.prototype.postMessage=post;await client?.close();await reopened?.close();}
+    }
+    return results;
+  });
+  for(const result of results){
+    assert.equal(result.immediate,'E_STORE_RESTORE',JSON.stringify(result));
+    assert.equal(result.read,'E_STORE_RESTORE',JSON.stringify(result));
+    assert.equal(result.failedAttempts,1,JSON.stringify(result));
+    assert.equal(result.beforeClose,result.retry==='close'?1:2,JSON.stringify(result));
+    assert.equal(result.attempts,2,JSON.stringify(result));
+    assert.equal(result.head,25);assert.equal(result.floor,30);
+  }
+});
+
+test('progressive direct-host rollback persists through the close drain before refill/reopen', {timeout:hangBudget(20)}, async t=>{
+  const witness=await launch({memory:true,entrySource:`
+import { createLocalClient } from '${join(root,'packages/snapback4/src/local.ts')}';
+Object.assign(window,{createLocalClient});
+`});
+  t.after(()=>witness.close());
+  const result=await witness.page.evaluate(async()=>{
+    const inner=webDevice();
+    const backend={generation:1,store_id:'restore-store',schema:{tables:{}},programs:[{name:'read',kind:'Query',args:{},body:[{Return:{Literal:{String:'local'}}}]}]};
+    const results=[];
+    for(const failures of [1,2]){
+    const url=`https://rollback-direct-${failures}.invalid`;
+    let head=20, fail=0, attempts=0;
+    const fetch=async(input,init)=>{
+      const path=new URL(input).pathname;
+      if(path==='/schema')return Response.json(backend);
+      if(path==='/probe')return Response.json({ok:true,store_id:backend.store_id,seq:head,generation:1});
+      if(path==='/changes')return new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true}));
+      if(path==='/sync')return Response.json({generation:1,store_id:backend.store_id,snapshot:!JSON.parse(init.body).stream,watermark:head,images_at:head,events:[],committed_above:{},more:false});
+      if(path.startsWith('/m/'))throw Error('a refused device attempted pending-write replay');
+      return Response.json({data:'server',complete:true,tables:[],seq:head,store_id:backend.store_id,generation:1});
+    };
+    // A direct host has no restore hook of its own: the client must retain and retry the proof.
+    const device={custody:()=>Promise.resolve('none'),async open(...args){
+      const core=await inner.open(...args);
+      return {...core,call:(request,...rest)=>{
+        if(request.op==='observe_store'&&request.page?.captured_restore_watermark===30){attempts++;if(fail>0){fail--;return Promise.reject(Error('injected restore persistence failure'));}}
+        return core.call(request,...rest);}};
+    }};
+    let client,reopened,closeError;
+    try {
+      client=await createLocalClient({url,persona:'alice',startup:'progressive',device,fetch});
+      await client.query({kind:'query',name:'online'},{});
+      for(let n=0;!client.acquired&&n<1000;n++)await new Promise(resolve=>setTimeout(resolve,5));
+      if(!client.acquired)throw Error('direct acquisition timed out');
+      head=30;await client.query({kind:'query',name:'online'},{});
+      head=25;fail=failures;await client.sync().catch(error=>{if(!String(error).includes('injected restore persistence failure'))throw error;});
+      const immediate=await client.query({kind:'query',name:'read'},{});
+      const failedAttempts=attempts;
+      // With two injected failures the close-drain retry fails too: close must reject.
+      await client.close().catch(error=>{closeError=String(error);}); head=40;
+      reopened=await createLocalClient({url,persona:'alice',device:webDevice(),fetch});
+      const read=await reopened.query({kind:'query',name:'read'},{});
+      results.push({failures,immediate:immediate.denied?.code,read:read.denied?.code,failedAttempts,attempts,closeError});
+    } finally {await client?.close().catch(()=>{});await reopened?.close();}
+    }
+    return results;
+  });
+  for(const r of result){
+    assert.equal(r.immediate,'E_STORE_RESTORE',JSON.stringify(r));
+    assert.equal(r.failedAttempts,1,JSON.stringify(r));
+    assert.equal(r.attempts,2,JSON.stringify(r));
+    if(r.failures===1){assert.equal(r.read,'E_STORE_RESTORE',JSON.stringify(r));assert.equal(r.closeError,undefined,JSON.stringify(r));}
+    else assert.match(r.closeError??'',/injected restore persistence failure/,JSON.stringify(r));
+  }
+});
+
 test('web startup: immediate admin navigation, synchronous refusals and acquisition hook', { timeout: hangBudget(120) }, async t => {
   const project = mkdtempSync(join(tmpdir(), 'sb4-web-start-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
@@ -463,4 +588,127 @@ window.startStartup = (url, offline = false) => {
   assert.equal(restored.pending.length, 1);
   assert.deepEqual(errors, []);
   await page.evaluate(() => app.close());
+});
+
+// @ref LLP 3000.002.000#6 — the mounted query survives a thirty-second engine download.
+test('progressive worker startup: signed-in React data while WASM is held 30 seconds', { timeout: hangBudget(45) }, async t => {
+  const project = mkdtempSync(join(tmpdir(), 'sb4-progressive-start-'));
+  const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
+  writeFileSync(join(sourceDir, 'schema.q'), `use identity
+table notes:
+  body: text <=100
+  public 'Progressive startup witness.'
+  sync public
+query list(c: cursor?):
+  return notes first 1 after c
+`);
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
+  const witness = await launch({ sourceDir, bootstrap: false, minify: 'oxc', ready: () => typeof window.startProgressive === 'function', entrySource: `
+import { createApp, localStatus } from '${join(root, 'packages/snapback4/src/app.ts')}';
+import { createLocalClient } from '${join(root, 'packages/snapback4/src/local.ts')}';
+import { storeLock } from '${join(root, 'packages/snapback4/src/app-storage.ts')}';
+import { keepSession, localStorageSessionStore, memorySessionStore, sessionKey } from '${join(root, 'packages/snapback4/src/auth.ts')}';
+import { webDevice } from '${join(root, 'packages/snapback4/src/web.ts')}';
+import { AppProvider, useQuery, useLocalStatus } from '${join(root, 'packages/snapback4/src/react.tsx')}';
+import { createElement as h, useEffect } from '${require.resolve('react')}';
+import { createRoot } from '${require.resolve('react-dom/client')}';
+const list = {kind:'query', name:'list'};
+Object.assign(window, { webDevice, localStatus, createLocalClient, storeLock, memorySessionStore, sessionKey });
+window.startProgressive = async (url, session) => {
+  const storage = localStorageSessionStore(); await keepSession(url, session, storage);
+  window.mounts = 0; window.unmounts = 0; window.reads = [];
+  window.app = createApp({url, sessionStore:storage, device:webDevice({worker:true}), startup:'progressive', waitSeconds:1});
+  await app.ready;
+  window.firstClient = app.client;
+  function Screen() {
+    const read = useQuery(list, {c:null}), status = useLocalStatus();
+    window.reads.push(read);
+    useEffect(() => { window.mounts++; return () => { window.unmounts++; }; }, []);
+    return h('div', {}, h('p', {id:'data'}, 'data' in read ? read.data.map(row=>row.body).join(',') : 'pending'), h('p', {id:'local'}, status.state));
+  }
+  const element = document.createElement('div'); document.body.append(element);
+  window.reactRoot = createRoot(element); reactRoot.render(h(AppProvider, {app}, h(Screen)));
+};
+` });
+  teardownAfter(t, () => witness.close());
+  const { page, api } = witness;
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  const custody = await page.evaluate(async () => {
+    const device = webDevice({worker:true}), name = 'snapback4-probe';
+    const empty = await device.custody(name);
+    const journal = 'snapback4-admission:' + encodeURIComponent(name + ':tab-orphan') + ':write';
+    localStorage.setItem(journal, '{}'); const orphan = await device.custody(name); localStorage.removeItem(journal);
+    await new Promise((resolve, reject) => { const r = indexedDB.open(name); r.onsuccess = () => {r.result.close();resolve();}; r.onerror = () => reject(r.error); });
+    const existing = await device.custody(name);
+    await new Promise(resolve => {indexedDB.deleteDatabase(name).onsuccess = resolve;});
+    let free; const held = new Promise(resolve => {free=resolve;});
+    const claim = navigator.locks.request(name, async () => { await held; });
+    await new Promise(resolve => setTimeout(resolve, 20)); const busy = await device.custody(name); free(); await claim;
+    let releaseWorker, claimed; const workerHeld = new Promise(resolve=>{releaseWorker=resolve;});
+    const workerEntered = new Promise(resolve=>{claimed=resolve;});
+    const workerClaim = navigator.locks.request('snapback4-worker:'+encodeURIComponent(name),async()=>{claimed();await workerHeld;});
+    await workerEntered; const busyWorker=await device.custody(name); releaseWorker(); await workerClaim;
+    const databases=indexedDB.databases; indexedDB.databases=async()=>{throw Error('blocked storage');};
+    const unreadable=await device.custody(name); indexedDB.databases=databases;
+    return {empty, orphan, existing, busy, busyWorker, unreadable, wasm:performance.getEntriesByType('resource').some(r=>r.name.endsWith('.wasm'))};
+  });
+  assert.deepEqual(custody, {empty:'none', orphan:'present', existing:'present', busy:'present', busyWorker:'present', unreadable:'unknown', wasm:false});
+  // Two renderer contexts: the probe must wait for an admission in the
+  // session Web Lock, then enumerate journal keys again after the commit.
+  const other = await page.context().newPage();
+  teardownAfter(t, () => other.close());
+  await other.goto(page.url()); await other.waitForFunction(() => !!window.createLocalClient);
+  await page.evaluate(() => {
+    const url='https://custody-race.invalid', name='snapback4-'+encodeURIComponent(url+':alice');
+    window.raceJournal='snapback4-admission:'+encodeURIComponent(name)+':A';
+    window.raceCommit = new Promise(resolve => { window.commitRace=resolve; });
+    window.raceHeld=false;
+    window.raceAdmission=storeLock(sessionKey(url),async()=>{window.raceHeld=true;await raceCommit;localStorage.setItem(raceJournal,'{}');});
+  });
+  await page.waitForFunction(() => window.raceHeld);
+  await other.evaluate(() => {
+    window.raceProbed=false; window.raceOpened=false;
+    const probe=webDevice({worker:true});
+    window.raceOpening=createLocalClient({url:'https://custody-race.invalid',startup:'progressive',
+      session:{token:'race',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000},sessionStore:memorySessionStore(),
+      device:{custody:async name=>{window.raceProbed=true;return probe.custody(name);},open:async()=>{window.raceOpened=true;throw Error('ordinary recovery selected');}},
+      fetch:async()=>Response.json({generation:1,store_id:'race',schema:{tables:{}},programs:[]})})
+      .then(()=> 'incorrect online path',error=>error.message);
+  });
+  await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(await other.evaluate(()=>window.raceProbed),false,'probe waits for the other tab admission');
+  await page.evaluate(async()=>{commitRace();await raceAdmission;});
+  assert.match(await other.evaluate(()=>window.raceOpening),/ordinary recovery selected/);
+  assert.equal(await other.evaluate(()=>window.raceOpened),true);
+  await page.evaluate(()=>localStorage.removeItem(raceJournal));
+  await other.close();
+  const signed = await fetch(api + '/auth/guest', {method:'POST'}).then(r=>r.json());
+  assert.ok(signed.session);
+  assert.equal((await fetch(api+'/seed',{method:'POST',body:JSON.stringify([
+    {table:'notes',row:{id:'a',body:'server data before engine'}}, {table:'notes',row:{id:'b',body:'second page'}},
+  ])}).then(r=>r.json())).seeded,2);
+  const release = Promise.withResolvers(); t.after(()=>release.resolve());
+  await page.route('**/*.wasm', async route => {await release.promise; await route.continue();});
+  const requested = page.waitForRequest(r=>r.url().endsWith('.wasm'));
+  await page.evaluate(({api,session})=>startProgressive(api,session), {api,session:signed.session});
+  await page.waitForFunction(()=>document.querySelector('#data')?.textContent==='server data before engine');
+  await requested; const heldAt = Date.now();
+  assert.equal(await page.evaluate(()=>app.auth.state),'signed-in');
+  assert.equal(await page.evaluate(()=>app.client.acquired),false);
+  const cursor = await page.evaluate(()=>reads.find(r=>'data' in r)?.next);
+  assert.ok(cursor, 'first server page owns a continuation');
+  await new Promise(resolve=>setTimeout(resolve,30000));
+  assert.equal(await page.locator('#data').textContent(),'server data before engine');
+  assert.equal(await page.evaluate(()=>app.client.acquired),false);
+  release.resolve();
+  await page.waitForFunction(()=>localStatus(app.client).getSnapshot().state==='ready');
+  const result = await page.evaluate(async cursor=>{
+    const first = reads.findIndex(r=>'data' in r);
+    const page = await app.client.query({kind:'query',name:'list'},{c:cursor});
+    return {same:app.client===firstClient,mounts,unmounts,loadingAfterData:reads.slice(first).some(r=>'loading' in r),page};
+  },cursor);
+  assert.equal(result.same,true); assert.equal(result.mounts,1); assert.equal(result.unmounts,0); assert.equal(result.loadingAfterData,false);
+  assert.equal(result.page.data[0].body,'second page'); assert.deepEqual(errors,[]);
+  t.diagnostic(`progressive worker WASM hold: ${Date.now()-heldAt} ms; mounted once; status ready`);
+  await page.evaluate(async()=>{reactRoot.unmount();await app.close();});
 });

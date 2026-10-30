@@ -67,6 +67,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  /** Displayed server basis not yet reached by the published replica. */
+  displayedCut?: number;
   /** Resume at sync publication even when its final footprint is disjoint. */
   waitingForSync?: boolean;
   detachedEpoch?: number;
@@ -353,6 +355,7 @@ export class LocalReads {
   /** A resumed owner checks the actual replica, never a saved publication cut. */
   reconcile(watch: LocalWatch, watermark: number): boolean {
     if (watch.scopeCut !== undefined && watermark >= watch.scopeCut) delete watch.scopeCut;
+    if (watch.displayedCut !== undefined && watermark >= watch.displayedCut) delete watch.displayedCut;
     if (watch.changeCut === undefined || watermark < watch.changeCut || watch.scopeCut !== undefined) return false;
     delete watch.changeCut;
     const waiting = watch.waitingForSync === true;
@@ -375,12 +378,12 @@ export class LocalReads {
       return;
     }
     if (detached && watch.detachedEpoch !== this.revision) {
-      delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync;
+      delete watch.scopeCut; delete watch.changeCut; delete watch.displayedCut; delete watch.waitingForSync;
       if (!("loading" in watch.snapshot)) watch.reset({ loading: true }, false, "detached-change");
     }
   }
 
-  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined; serverOnly?: boolean; seq?: number | undefined }): boolean {
+  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables?: Set<string>; scopes?: ReadScopes | undefined; served?: boolean; serverOnly?: boolean; seq?: number | undefined }): boolean {
     // New mounts have no prior footprint: certify their evaluated dependency
     // against every unpublished removal before installing the first answer.
     const cut = this.blocked(result);
@@ -390,9 +393,23 @@ export class LocalReads {
       watch.waitingForSync = true;
     }
     return !("data" in result.read) || watch.scopeCut === undefined && (watch.changeCut === undefined
-      || (result.serverOnly === true && result.seq !== undefined && result.seq >= watch.changeCut));
+      || (result.serverOnly === true && result.seq !== undefined && result.seq >= watch.changeCut))
+      && (watch.displayedCut === undefined || result.served === true);
     // Keep the replica floor even after a qualifying server replacement: an
     // offline re-read must not reinstall its older local rows before sync.
+  }
+
+  // @ref LLP 3000.002.000#6 — the displayed basis fences older local producers independently of notified changes.
+  displayed(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; tables: Set<string>; served?: boolean; seq?: number | undefined }): void {
+    const cut = result.seq;
+    if (!result.served || !("data" in result.read) || !validCut(cut) || cut <= this.publishedWatermark) return;
+    // Record the floor without withdrawing the answer, forgetting its accepted
+    // server memory, changing scopeCut, or restarting its retention episode.
+    // A displayed basis is a floor, not a new input change. Invalidating the
+    // just-accepted composition's input proof would revoke its own publication.
+    watch.displayedCut = Math.max(watch.displayedCut ?? 0, cut);
+    // This observation's displayed basis is not a /changes notification for
+    // other watches, even when their table footprints overlap.
   }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
@@ -449,7 +466,7 @@ export class LocalReads {
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) { delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync; }
+      if (reset) { delete watch.scopeCut; delete watch.changeCut; delete watch.displayedCut; delete watch.waitingForSync; }
       if (reset) watch.reset({ loading: true }, false, cause); else watch.reload(watchCanRevoke(watch, preserved), { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);

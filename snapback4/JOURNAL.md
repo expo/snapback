@@ -110677,3 +110677,126 @@ prior three-run empty-inbox measurements. Exact cross-store transfer/version
 fences and publication evidence remain acceptance questions. Drafting is
 commissioned; implementation and independent review are not claimed. The parent
 research links the RFC, which is linked into llp/current/. No runtime code changes.
+
+### 2026-10-29 — Progressive startup A1 stopped at the publication premise
+
+The commissioned read lane found that the existing publication procedure does
+not, by itself, order a complete local candidate against the last displayed
+server answer. A diagnostic publishes server cut 20, runs the real
+LocalReads.applied bookkeeping at watermark 10, then obtains and publishes a
+complete local answer at 10. Both current() and publicationCurrent() accept it.
+An explicit change notification at 20 blocks the same candidate; accepting the
+server answer alone does not install that floor. Remembered-server ordering
+and notified-change ordering are therefore insufficient as an attach protocol.
+The lane stopped under its invariant instruction before changing the runtime.
+
+The retained diagnostic and existing publication/remembered/retained-history
+tests pass directly under Node 24.19.0: 126 tests, 126 passed, zero failures.
+The prescribed client runner could not start: sandbox process inspection
+refused ps with EPERM. Typecheck and the package build pass. The affected run
+and its limits are recorded in REPORT-A1.md; no progressive option, readiness,
+background attachment, browser proof, performance or publication is qualified.
+The diagnostic is under reports/20261029-progressive-a1 and deliberately
+characterizes a blocker, rather than adding the undesired behavior to the
+ordinary product acceptance suite. Existing writes and native/default startup
+are unchanged; there is no online-journal write routing in this increment.
+
+### 2026-10-29 — Progressive startup A1 continuation under the author rulings
+
+R1–R3 resolve the preceding stop. Accepted server/composed publications now
+record their store cut as the existing change-evidence floor. The canonical
+regression keeps displayed cut 20 over local watermark 10 and permits local
+replacement at 20 or later; neither scope-loss evidence nor retention deadlines
+are renewed. The archived diagnostic directory is removed. No existing test
+asserting the superseded behavior was found.
+
+`createApp({ startup: "progressive", device: webDevice(...) })` can publish a
+signed-in, usable client before opening its real device. A read-only web custody
+probe checks existing device/orphan databases, live ownership locks and admission
+journal keys without preparing WASM. Only proven absence admits this path;
+unknown/error/present evidence and native openers without the probe retain
+awaited opening. No new persisted record or alternate interpreter is introduced.
+Preparation follows the first published foreground read, or client publication
+with no pending read, with a private 1,500 ms fallback. Core-dependent operations
+may accelerate it. The worker option uses the existing worker opener.
+
+The existing prepare/commit/activate seam owns late handshake, version check,
+clock/media/admission attachment, used-ID recovery, restore and synchronization.
+The same client and watches continue throughout. `localStatus(client)` and
+`useLocalStatus()` distinguish executable-engine readiness from acquisition.
+Failed/incompatible engines fence local execution and writes while retaining
+online reads and the authenticated identity. Logout, account epoch, store
+replacement and rollback still fence both phases, including awaited handshakes.
+Server pagination continuations remain with the server producer. Interim writes
+wait under the existing 15-second admission bound; Lane B's durable online journal
+is not implemented here.
+
+The prescribed serial runner passes the 39-file app/publication/remembered/
+retained/web-start batch (1,171 tests). Focused regressions cover engine failure,
+custody fallback, scheduling, handshake fences and the cut floor. The production
+React worker witness holds WASM for 30 seconds while signed-in data is displayed,
+then reaches ready with one mount, unchanged client identity and no loading flash.
+The reference and generated API Markdown document the new surfaces. Full command
+summaries, final typecheck, affected receipt and any environmental failures are
+recorded in the worktree's REPORT-A1.md. This is implementation evidence, not a
+performance or publication qualification; native behavior and default startup
+remain unchanged apart from R1's publication correction.
+
+The affected pass also exercised the existing one-shot injection seam, recovered
+clock notifications and delivery await census. Foreground bookkeeping preserves
+the one-shot seam; timestamp-only outbox notifications retain actual custody;
+server continuations keep their observation identity through remembered-answer
+expiration. All corresponding focused tests pass, including the complete delivery
+fault matrix with all 215 delivery classifications and recipes preserved. The
+reference examples compile from the prescribed root runner and the updated guide
+passes 135 tests. The final report distinguishes corrected failures, unresolved
+timeouts and environment preconditions from passing evidence; the long affected
+run began before these corrections and is not a clean final-worktree qualification.
+
+
+### 2026-10-29 — Lane A1 round 2: blind-review corrections
+
+Progressive startup now routes generation discovery through incarnation fencing
+and the existing sync adoption, and store replacement through app recovery.
+The shared restore witness checks the same-store online head captured before
+query, changes and initial sync dispatch, including before a core exists; a fresh
+core cannot erase that evidence. Outbox notifications merge by ID, foreground
+reads remain independent of handshake/recovery until coreReady, and the custody
+probe enumerates journal keys under the admission session lock. Served composed
+answers may advance a displayed per-watch floor; local answers still wait for
+apply. Version refusal on changes leaves online polling available, ephemeral
+poll subscriptions continue before attachment, and dead sessions cannot report
+an executable engine. The reference documents session-scoped opaque server
+cursors. All 47 requested test files have passing evidence after correcting the
+delivery-await census (1,896 tests); the 215 delivery site IDs and recipes remain
+unchanged. Supplemental sync/version/ephemeral checks pass with the existing
+legacy-binary skip. The real two-tab admission race and held-WASM worker witness
+pass; deleting both displayed() publication calls in an isolated generated copy
+fails the new watch regression. Package build and typecheck pass. REPORT-A1c.md
+records each correction and verbatim runner summaries, including superseded
+failures. No broad affected run, git mutation, agent, remote command, Rust, wire,
+wasm-budget or native change was made.
+
+### 2026-10-29 — Lane A1 round 3: final review fixes
+
+Displayed server/composed cuts now live on a separate per-watch displayedCut; notified changes retain the whole-server requirement until apply, and the displayed floor never parks sync or renews retention. The mixed-watch regression changes the local component and keeps composition 20 through change 21 until a whole server answer or applied(21). Progressive rollback fences immediately and delivers its original evidence through observe_store or the existing worker restore queue, including first-sync identity binding, retry and close drain; refill/reopen still refuses. Engine unavailability advances the incarnation checked at final publication, so held local/mixed responses retry on the server. Terminal auth status is unavailable in ordinary and progressive startup. The no-read preparation test now requires the publication timer within 250 ms; the held-read fallback bound remains. Build and typecheck pass. All 70 selected files have passing evidence (2,282 passed tests, one optional legacy-binary skip); the final six-file pass has 539 passes, including the 445-test delivery matrix. A root-directory Node-types fixture failure passes unchanged from snapback4/. REPORT-A1d.md preserves every runner summary and the earlier corrected failures. No broad affected run, git mutation, agent, remote command, Rust, wire, wasm-budget or native-host change was made.
+
+### 2026-10-30 — Progressive startup A1: orchestrator fixes after the third blind review
+
+Both reviewers confirmed every round-2 fix on `db2f8b03f8` and raised the residue
+in the freshly written changes-channel code. Both independently hit the same
+site: the pre-attachment `/changes` poll returned on `coreReady` before using
+the reply in hand, dropping a terminal `E_AUTH` (Astra) or a witnessed same-store
+shrink (Grok). The orchestrator applied five fixes with six tests rather than
+run a fourth lane: the held poll now processes the current credential's terminal
+refusal and the reply's store/head evidence after attachment and only then
+returns; post-attachment `/changes` and `/probe` snapshot the online head before
+each fetch and fence a same-store shrink against it as the sync round does; a
+direct (non-worker) host retains a restore proof whose persistence failed and
+retries it on later device transactions and in the close drain, proven in
+Chromium through a failed persistence, close, server refill and reopen; an
+ordinary-mode version refusal publishes `unavailable`. Focused suites: 11 files,
+201 tests, all green after correcting two new tests whose fixture raised the
+witnessed head after the poll under test was dispatched (the snapshot-at-dispatch
+semantics are the correct conservative choice; a continuing regression is caught
+by the next poll). The broad affected run follows on the committed result.

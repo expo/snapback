@@ -37,7 +37,7 @@
   },
   "app-persona.ts": {
     "count": 20,
-    "sha256": "6ea0d357992a518efc58bfa906cf2ee4ea1735711c65858e8a78b79986b65774"
+    "sha256": "e2df353d9c1c3b0d7b5dc16fbca30ac68ed591d829b8d4a3e5f466d4dbcda801"
   },
   "app-revocations.ts": {
     "count": 32,
@@ -128,8 +128,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "device-restore.ts": {
-    "count": 1,
-    "sha256": "43c653c4a364e5dfdd235051baa3b0763ce5ef7c52f2a2ad391d6740e3ebb1e8"
+    "count": 7,
+    "sha256": "83dffa5d7f0c8e6f7ff6febec1886061db0c6d58374b488a7c67fdc516dff210"
   },
   "device-version.ts": {
     "count": 3,
@@ -247,6 +247,10 @@
     "count": 10,
     "sha256": "2d56f70d07082c58803b3da4b0b4446ef1e0e2b0299c3a9f63ebd4272ff46b27"
   },
+  "local-status.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "local-sync.ts": {
     "count": 5,
     "sha256": "cb8e11d2f7ce28d8ca6dbc6e81bb0da5a457b0eeb57df8c03b2c76bdf88fc49a"
@@ -264,8 +268,8 @@
     "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
   },
   "local.ts": {
-    "count": 176,
-    "sha256": "88a2351fdf3d789565edb6b2309036efd6c16bd670e9200d983c5183ecb8f931"
+    "count": 207,
+    "sha256": "98e1cc8b11f21c92db7234b6c2ffded0ff3ff45ce8e0e80aed705920fdfde2f1"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -612,8 +616,8 @@
     "sha256": "44b582042c1eaebfee68d04cc8167ea07f45203e82d2a6d2f0656a5b88778eb0"
   },
   "web-worker-host.ts": {
-    "count": 28,
-    "sha256": "e7353205a3cb168e13b5dc7f56a7fe404a89ca948dc6ac7e38228d899ede368c"
+    "count": 27,
+    "sha256": "e6cc907f054ea011bfd0aca4933c10c524f92864bffb2ce83cb83763c63e05ec"
   },
   "web-worker-orphans.ts": {
     "count": 32,
@@ -628,8 +632,8 @@
     "sha256": "0aa6f12e35330fa59a4bc004c825ed193e76f0f80c166367f0a6e0bfbc46718f"
   },
   "web.ts": {
-    "count": 2,
-    "sha256": "77c4c8c6e10e89fe39df3424048a1a0926f7b42959194eda0bd647c17b5e6e7d"
+    "count": 4,
+    "sha256": "0cf0fe61ec958a82835297a562d8cb00276de8a2edcb96f1910501d9acc389c8"
   },
   "witness-web.ts": {
     "count": 4,

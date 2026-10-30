@@ -20,6 +20,7 @@ export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Ready, Refusal, ResultOf, Write } from "./contract.ts";
+import { localStatus, type LocalStatus } from "./local-status.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot, Online } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -487,6 +488,11 @@ function usePendingIntents(client: Client, select: (write: PendingWrite) => bool
   return useSyncExternalStore(subscribe, source.getSnapshot, source.getServerSnapshot);
 }
 
+/** Local execution and replica acquisition are independent of auth readiness. */
+export function useLocalStatus(): LocalStatus {
+  const source = localStatus(useClient());
+  return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getSnapshot);
+}
 /** Durable acquisition, independent of whether the link is currently online. */
 export function useAcquired(): boolean {
   const client = useClient();
