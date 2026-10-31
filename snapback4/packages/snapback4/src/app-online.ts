@@ -21,7 +21,7 @@ import { admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./adm
 import { StorageWarning } from "./app-storage.ts";
 import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts";
 
-// @ref LLP 3000.002.000#6 — journal execution bindings stay internal.
+// @ref LLP 3000.002.000.000#2.2 — journal execution bindings stay internal.
 export function publicWrite<T extends Write | undefined>(write: T): T {
   if (write === undefined) return write;
   const { storeId: _store, store_id: _wireStore, generation: _generation, op: _op, ...value } = write as Write & {
@@ -319,7 +319,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // the transactional machine re-check below instead of this opening gate.
         if (captured && !restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
-        // @ref LLP 3000.002.000#7.2 — releasing an opening gate retires
+        // @ref LLP 3000.002.000.000#2.4 — releasing an opening gate retires
         // waiters too. Restored journal custody survives; a fresh waiter owns nothing.
         // @ref LLP 3000.013.000#4.2 — captures still need the locked authority
         // check below: commit under a live session, or cancel with E_AUTH.
@@ -418,7 +418,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const captured = identity ? capture.capture(id, op.name, snapshot, identity)
             : admissionRefusal("the backend store is not identified; the write was not admitted", "app.mutate", "retry with the same id");
           if (!("v" in captured)) { release(); return failedAdmission<R>(id, captured); }
-          // @ref LLP 3000.002.000#6 — a peer can settle before our response; keep the capture's original store for its cut.
+          // @ref LLP 3000.002.000.000#2.2 — a peer can settle before our response; keep the capture's original store for its cut.
           capturing.set(id, { id, op: op.name, args: snapshot, storeId: captured.storeId, state: "queued", predicted: [] }); pending.notify();
           return submit(release, captured);
         };
@@ -617,7 +617,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     storeRefusal = why;
     presentation.clear();
     identification.close(identityRefusal(false));
-    // @ref LLP 3000.002.000#6 — dispatcher recovery preserves adopted-store intent.
+    // @ref LLP 3000.002.000.000#2.3 — dispatcher recovery preserves adopted-store intent.
     // Fence this dispatcher synchronously. Recovery can preserve intents that
     // already belong to the adopted store; only foreign intents must retire.
     retirement = change(journal => {
