@@ -205,14 +205,14 @@ regression('S3a 0.8: raw store refusal before initialized retires despite observ
   assert.deepEqual(journal.receipts.map(w => w.id).sort(), [id, other].sort());
   assert.deepEqual(errors, []);
 });
-regression('S3a 0.7: failed-save retry after peer completion reports observed, never persisted', async t => {
+regression('S3a 0.7: failed-save retry after peer completion reports observed for the no-op', async t => {
   const memory = memorySessionStore(), id = mintId(), f = rawFixture(), events = [], errors = []; let failing = false;
   const store = { ...memory, async set(k, value) { if (failing && k === key && JSON.parse(value).receipts?.length) throw Error('held save'); return memory.set(k, value); } };
   const owner = await onlineCustody(f.raw, url, store, error => errors.push(error), false, undefined, true, true, undefined, (kind, write) => events.push([kind, write]));
   t.after(() => owner.client.close());
   await memory.set(key, JSON.stringify({ owner: 'alice', backend: url, pending: [{ owner: 'alice', id, op: 'write', args: {}, storeId: 'B' }], receipts: [] }));
   failing = true; f.emit({ state: 'sent', id, seq: 31 }); await until(() => errors.length === 1);
-  assert.deepEqual(events.map(([kind]) => kind), ['observed']);
+  assert.deepEqual(events.map(([kind]) => kind), ['persisted', 'observed'], 'T1 pending exit precedes the failed save; retain observes the same outcome');
   failing = false; events.length = 0;
   await memory.set(key, JSON.stringify({ owner: 'alice', backend: url, pending: [], receipts: [{ state: 'sent', id, seq: 31 }] }));
   f.emit({ state: 'sent', id, seq: 31 }); await owner.inspect();

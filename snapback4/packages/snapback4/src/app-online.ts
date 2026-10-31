@@ -103,6 +103,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4.2 — journal lock, then session lock, raw store only:
   // the click's session must still hold when its intent and marker commit.
   const sessionEnded = Symbol("session ended");
+  const storeRetired = Symbol("store retired");
   // One normalized comparison (MutationIds' input key) for admission and recovery.
   const sameInput = (a: { op: string; args: unknown }, b: { op: string; args: unknown }) => {
     try { return inputKey(a.op, a.args) === inputKey(b.op, b.args); } catch { return false; }
@@ -178,11 +179,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       presentation.settled(write, { id: intent.id, op: intent.op, args: intent.args, predicted: [], state: intent.dispatched ? "sent" : "queued" });
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
-      journal.receipts.push(receiptOf(write, intent));
+      const receipt = receiptOf(write, intent);
+      journal.receipts.push(receipt);
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code));
+      // @ref LLP 3000.002.000.000#2.2 — pending exit executes settle/publish
+      // before durable I/O. A rejected save retains the old durable intent;
+      // retain's observed receipt cannot publish a settled reducer again.
+      settlement?.("persisted", receipt);
       return true;
     });
-    if (persisted) settlement?.("persisted", receiptOf(write));
     presentation.release(write.id);
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
@@ -361,7 +366,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           // @ref LLP 3000.002.000.000#2.4 — re-read retirement inside the
           // transaction, after journal I/O. Captures reached this callback only
           // through admitCaptured's locked authority check (HF1).
-          if (storeRefusal || ended && !captured) return Promise.resolve({ state: "failed" as const, id, why: ended! });
+          if (storeRefusal) return storeRetired;
+          if (ended && !captured) return Promise.resolve({ state: "failed" as const, id, why: ended });
           if (identity) observeJournalStore(journal, identity);
           // A capture keeps the store it recorded, whatever the transport sees now.
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: captured?.storeId ?? identity ?? null, dispatched: false });
@@ -376,6 +382,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
               captureAuthority!.recheck();
               return { state: "failed", id, why: admissionAuthorityRefusal() };
             }
+            // Retirement needs this journal lock. Leave the transaction before
+            // awaiting it, and cancel capture only on its terminal outcome.
+            if (admitted.value === storeRetired) return refusedCapture();
             // Captured admission never waits here; its gate is above and its
             // commit always runs through admitCaptured's authority check.
             refusal = admitted.value as Write | undefined;
@@ -385,6 +394,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           } else {
             for (;;) {
               const result = await change(admission, true);
+              if (result === storeRetired) return refusedCapture();
               if (result && "wait" in result) { await result.wait; continue; }
               refusal = result; break;
             }

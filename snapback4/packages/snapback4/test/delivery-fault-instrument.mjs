@@ -833,3 +833,13 @@ export function awaitBoundary() {
 // Real raw-queue/held-save/keep, rejecting deletion, malformed observer, S3a and
 // pure reducer witnesses cover these boundaries. Regenerate the complete seal;
 // all 215 classified delivery sites, failure classes and recipes are unchanged.
+
+// Lane T1: app-online emits the existing persisted pending-exit event inside
+// settle's journal mutation, before its store.set await. The reducer's existing
+// settle/publish effects run once; rejected saves retain durable replay custody.
+// Locked admission returns a store-retired marker and routes it through the
+// existing refusedCapture/retirement wait after releasing the lock. No await is
+// added: local/progressive/app-online/app-journal stay 228/26/45/3. Only the
+// app-online inline await-expression hash changes; all 215 classified delivery
+// sites, recipes and failure classes remain. S2b's held/failing-save witnesses
+// and online-capture's session/persona retirement cases cover both boundaries.
