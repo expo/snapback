@@ -189,18 +189,25 @@ failed write does not block disjoint reads. Inspected receipts invalidate reads
 without inventing revocation evidence, so retained answers keep their deadlines.
 An own receipt with a known preservation list keeps the withdrawal bound when
 its authority or generation is obsolete: it cannot certify preserved scopes, so
-the known list becomes empty. An absent list stays unknown. Current same-store
-live preservation also reaches displayed answers after peer settlement, without
-settling the write twice; an in-flight replacement cannot defer the revocation
-bound. Receipt history evicts only evidence with no live admission, allowing
-overflow while all entries remain admitted. The completed-id history separately
+the known list becomes empty. An absent list stays unknown. Same-store live
+preservation reaches displayed answers after peer settlement even with obsolete
+credentials or generation, invalidating whole write tables (all watches if
+unknown) without settling the write twice. Qualified own receipts invalidate
+once at settlement; an in-flight replacement cannot defer the revocation
+bound. Receipt history protects the newly inserted certificate, outstanding
+responses and live admissions, allowing overflow until an older unprotected
+entry can be evicted. The completed-id history separately
 pins ids with outstanding own responses, so late peer-settled replies retain no
 extra evidence even after more than 256 newer completions.
 Public pending writes omit internal store bindings. A replacement refusal naming
 the already-adopted store recovers the retired write dispatcher without fencing
-its reads. A different store fences immediately, even for an older store's
-request. Refusal metadata records the server store, head and generation without
-a second store-change callback or comparison against the previous store's head.
+its reads, even after credential rotation or program adoption. Pending intents
+already bound to that store remain durable for the reopened dispatcher; foreign
+intents retire. A different store fences immediately, even for an older store's
+request. Accepted fences record metadata without a second store-change callback;
+only a different store skips comparison against the previous store's head.
+Same-store replacement refusals still witness a shrinking head and reset changed
+program authority. Unaccepted foreign request refusals adopt no metadata.
 An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
@@ -224,19 +231,35 @@ journal and session locks, restoring reads and writes when storage recovers.
 Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
-new actions and transport sends; cleanup waits for recovery, retaining already
-dispatched action outcomes received before public close completes. Retired
+new mutations, actions and transport sends, including through a close callback
+saved before custody recovered; cleanup waits for recovery, retaining already
+dispatched action outcomes received before public close completes. A saved close
+also shuts down custody installed since it was obtained and waits for its journal
+saves. The dispatcher closes before device close can notify, and device admission
+is fenced before custody pause can notify, so mutations submitted by either set
+of listeners are refused. Responses arriving after public close
+completes cannot return a new outcome. Retired
 recovery closes any newly opened resources and reports no storage failure,
 including when transport preparation or journal opening was still pending.
 A later mutation returns `E_AUTH` after sign-out or `E_CLOSED` after close;
 a later read cannot restart that closed lifetime. A pause during opening leaves
-the device open and the new dispatcher deferred until opening resumes. A paused opening refusal remains `E_ADMISSION`; it cannot admit
-through the device outbox.
+the device open and the new dispatcher deferred until opening resumes. A pause
+before transport preparation retains opening recovery, and start resumes it
+without reload. Mutations during that pause, including retries of opening pending
+ids, return `E_ADMISSION`; they cannot capture or enter the device outbox.
+Resuming opening permits same-id retry.
 A failed installation in an open lifetime keeps the typed
 `E_ADMISSION` refusal until custody is successfully installed. Once the live
-journal dispatcher takes over, clicks enter capture even while its first
-inspection is pending. Failed quarantine
-preservation reports once per failure streak; success reports its saved-byte key.
+journal dispatcher takes over, browser clicks enter capture even while its first
+inspection is pending. Fresh submissions wait until restored journal writes have
+been issued first, including in a non-browser client without capture authority.
+After that wait, a fresh write is refused if its lifetime ended or its viewer or
+store changed; it leaves no new intent for replay. Already owned journal or
+browser-captured intent keeps its recovery custody.
+Browser submissions also wait for surviving capture recovery. Failed quarantine
+preservation reports once per failure streak while recovery remains current,
+including during a resumable pause; success always reports its saved-byte key,
+including after close, sign-out or pause during nested opening.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and

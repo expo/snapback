@@ -38,7 +38,7 @@ function mount(t, client) {
   t.after(stop); return source;
 }
 async function custody(t, transport, store = memorySessionStore(), report = e => { throw e; }) {
-  const client = raw(t, transport), owned = (await onlineCustody(client, url, store, report, false)).client;
+  const client = raw(t, transport), owned = (await onlineCustody(client, url, store, report)).client;
   t.after(() => owned.close()); await identifyDispatch(client); return owned;
 }
 async function viewerRead(t, client, viewer) {

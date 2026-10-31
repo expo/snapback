@@ -96,8 +96,8 @@ test('round1: same-principal bearer refresh and generation reset preserve settli
 test('round1: peer journal success preserves the same settling interval and arguments', async t => {
   const transport = wire(); transport.holdWrites = true;
   const store = memorySessionStore(), a = raw(t, transport), b = raw(t, transport);
-  const A = (await onlineCustody(a, 'https://round1.invalid', store, e => { throw e; }, false)).client;
-  const B = (await onlineCustody(b, 'https://round1.invalid', store, e => { throw e; }, false)).client;
+  const A = (await onlineCustody(a, 'https://round1.invalid', store, e => { throw e; })).client;
+  const B = (await onlineCustody(b, 'https://round1.invalid', store, e => { throw e; })).client;
   t.after(() => A.close()); t.after(() => B.close());
   await identifyDispatch(a); await identifyDispatch(b);
   const sa = mount(t, A).source, sb = mount(t, B).source;
@@ -114,7 +114,7 @@ test('round1: peer journal success preserves the same settling interval and argu
 test('round1: journal A precedes pre-identification saving B', async t => {
   const transport = wire(); transport.holdWrites = true;
   const store = memorySessionStore(), a = raw(t, transport);
-  const A = (await onlineCustody(a, 'https://round1.invalid', store, e => { throw e; }, false)).client;
+  const A = (await onlineCustody(a, 'https://round1.invalid', store, e => { throw e; })).client;
   t.after(() => A.close()); await identifyDispatch(a);
   const first = await A.mutate(send, { text: 'A' }, { waitSeconds: 0 });
   const secondWire = wire(); secondWire.holdProbe = deferred();

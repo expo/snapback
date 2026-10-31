@@ -20,16 +20,17 @@ import { StorageWarning } from "./app-storage.ts";
 import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
-export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true,
+export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown, preserved?: boolean) => void, autoStart = true,
   captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   // @ref LLP 3000.013.000#4 — a device-less browser app captures each click
   // synchronously; once committed, the journal below owns it as before.
   const capture = dispatchEnabled && captureAuthority ? new OnlineCapture(url, viewer, captureAuthority) : undefined;
-  // @ref LLP 3000.013.000#4.4 — captured admissions wait behind recovery, from before signed-in.
+  // @ref LLP 3000.002.000#7.2 — fresh admissions wait for the restored prefix,
+  // including deferred non-browser custody with no synchronous capture authority.
   let recovery: Promise<void> | undefined, openGate: (() => void) | undefined;
-  if (capture) recovery = new Promise<void>(resolve => { openGate = resolve; });
+  if (capture || !autoStart) recovery = new Promise<void>(resolve => { openGate = resolve; });
   // Ids durable in the journal that this runtime replays without capturing; settled ids leave.
   const restoredIds = new Set<string>();
   let active = true;
@@ -256,8 +257,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         };
         if (storeRefusal) return refusedCapture();
         // Recovered clicks are admitted before this runtime's new ones.
-        if (captured && recovery) await recovery;
+        if (!restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
+        // @ref LLP 3000.002.000#7.2 — releasing an opening gate retires
+        // waiters too. Existing custody survives; a fresh waiter owns nothing.
+        if (!active || raw.viewer() !== viewer) {
+          if (captured || restoredIds.has(id)) return { state: "pending", id };
+          return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } };
+        }
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
@@ -438,6 +445,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
     void recovery.catch(report);
     if (capture) void recover().finally(() => { openGate?.(); openGate = undefined; });
+    else { openGate?.(); openGate = undefined; }
   }
   // @ref LLP 3000.013.000#4.4 — admit this scope's surviving captures once,
   // under the journal lock and then the session lock; replay them before this
@@ -503,17 +511,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     return recovering;
   }
   if (autoStart) start();
-  function refuseStore(why: Refusal): Promise<void> {
+  function refuseStore(why: Refusal, adoptedStore?: string): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
     presentation.clear();
     identification.close(identityRefusal(false));
-    // Fence admissions synchronously, then retire the entire durable queue
-    // before createApp can reopen. These intents must never cross stores.
+    // @ref LLP 3000.002.000#6 — dispatcher recovery preserves adopted-store intent.
+    // Fence this dispatcher synchronously. Recovery can preserve intents that
+    // already belong to the adopted store; only foreign intents must retire.
     retirement = change(journal => {
-      const failed = journal.pending.map(intent => ({ state: "failed", id: intent.id,
+      const failed = journal.pending.filter(intent => adoptedStore === undefined || intent.storeId !== adoptedStore).map(intent => ({ state: "failed", id: intent.id,
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
-      journal.pending = [];
+      journal.pending = journal.pending.filter(intent => adoptedStore !== undefined && intent.storeId === adoptedStore);
       journal.receipts.push(...failed);
       keepReceipts(journal, new Set(failed.map(write => write.id)), true);
       return failed;

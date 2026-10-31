@@ -30,16 +30,19 @@ for (const phase of ['prepare', 'journal', 'journal failure']) for (const method
   regression(`E13 ${method} during nested ${phase} preserves refusal and retires new resources`, async t => {
     const memory = memorySessionStore(), entered = gate(), release = gate(), reports = [];
     await memory.set(key, 'damaged opening');
-    let nested = false, installs = 0, reads = 0, progressive, transport, transportCloses = 0, openings = 0, subscriptions = 0;
+    let nested = false, failPreservation = false, failedSaves = 0, installs = 0, reads = 0, progressive, transport, transportCloses = 0, openings = 0, subscriptions = 0;
     const store = { ...memory, async get(k) {
       if (k === key) {
         reads++;
         if (nested && phase !== 'prepare') {
           nested = false; entered.resolve(); await release.promise;
-          if (phase === 'journal failure') throw Error('retired opening failed');
+          if (phase === 'journal failure') { failPreservation = true; return 'damaged retired opening'; }
         }
       }
       return memory.get(k);
+    }, async set(k, value) {
+      if (failPreservation && k.startsWith(`${key}.damaged.`)) { failedSaves++; throw Error('retired preservation failed'); }
+      return memory.set(k, value);
     } };
     const install = ProgressiveWrites.prototype.install;
     t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) {
@@ -85,6 +88,7 @@ for (const phase of ['prepare', 'journal', 'journal failure']) for (const method
     assert.equal(openings, phase === 'prepare' ? 0 : 1, 'retired preparation never enters custody opening');
     assert.equal(subscriptions, 0, 'new custody releases its original-client subscriptions');
     assert.deepEqual(reports, [], 'retired opening reports no storage error');
+    assert.equal(failedSaves, phase === 'journal failure' ? 1 : 0, 'the failure witness reaches preservation reporting');
     if (phase === 'prepare') assert.equal(reads, readsBefore, 'retirement during preparation opens no journal');
     const retiredReads = reads;
     await progressive.pending(); await tick();

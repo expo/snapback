@@ -741,3 +741,23 @@ export function awaitBoundary() {
 // delivery I/O is added. E14's nine witnesses cover these decisions; all 215
 // classified sites, failure classes and recipes remain unchanged. Regenerate
 // the complete await-expression seal.
+
+// Lane E round 16: local adds one onlineEvidence await in the journal response
+// (228→229); an already-adopted store's refusal now takes the existing durable
+// shrink witness and program boundary. Current-dispatch fences still guard
+// metadata; dispatcher recovery, live preservation, selective store retirement,
+// pause resumption and receipt pins are synchronous decisions. E16 holds the
+// response/opening boundaries and peer settlement, including obsolete authority.
+// progressive-writes/app-online/app-journal retain 25/40/3 awaits. Regenerate the
+// complete expression seal; all 215 delivery site identities and recipes remain.
+
+// Lane E round 17: progressive-writes adds one await (25→26) delegating a
+// retained denial-frame close to installed custody while holding response
+// custody. Both close expressions now await the already-started device fence;
+// the dispatcher flag precedes the device's own synchronous notifications,
+// and the device fence precedes custody pause notifications.
+// no admission or delivery I/O is added. E17 holds the opening gate, re-enters
+// from pause notifications, releases responses after close, and faults nested
+// quarantine across retirement/pause. app-online's retirement guard and the
+// preservation-report flag are synchronous; its 40 awaits remain unchanged.
+// Regenerate the full expression seal; all 215 delivery sites/recipes remain.

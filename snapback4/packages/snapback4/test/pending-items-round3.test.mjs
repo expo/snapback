@@ -40,7 +40,7 @@ function mount(t, client, select) {
   t.after(stop); return source;
 }
 async function custody(t, transport, store) {
-  const client = raw(t, transport), owned = (await onlineCustody(client, url, store, e => { throw e; }, false)).client;
+  const client = raw(t, transport), owned = (await onlineCustody(client, url, store, e => { throw e; })).client;
   t.after(() => owned.close()); await identifyDispatch(client); return owned;
 }
 async function viewerRead(client, transport, viewer) {

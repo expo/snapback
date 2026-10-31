@@ -73,14 +73,15 @@ export class ProgressiveWrites {
       if (!this.responding.has(id)) this.completed.delete(id);
     }
   }
-  receipt(id: string, evidence: ReceiptEvidence): void {
-    // Live preservation is applied by the caller, independently of settlement.
-    if (this.completed.has(id)) return;
+  receipt(id: string, evidence: ReceiptEvidence): boolean {
+    // Completed ids still need live preservation, but cannot settle twice.
+    if (this.completed.has(id)) return true;
     this.receipts.set(id, evidence);
     for (const key of this.receipts.keys()) {
       if (this.receipts.size <= WRITE_HISTORY_LIMIT) break;
-      if (!this.admitted.has(key)) this.receipts.delete(key);
+      if (key !== id && !this.responding.has(key) && !this.admitted.has(key)) this.receipts.delete(key);
     }
+    return false;
   }
   constructor(options: object, readonly url: string, readonly viewer: string) {
     this.plan = plans.get(options)!;
@@ -133,7 +134,7 @@ export class ProgressiveWrites {
     const reason = this.blocked();
     return unique([...this.snapshot, ...this.custody?.captures() ?? []]).map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
   }
-  refuseStore(why: Refusal): void { void this.custody?.refuseStore(why).catch(this.plan.report); }
+  refuseStore(why: Refusal, adoptedStore?: string): void { void this.custody?.refuseStore(why, adoptedStore).catch(this.plan.report); }
   async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: (op: string | undefined, committed?: number, evidence?: ReceiptEvidence) => void,
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined,
     observation: () => ReceiptEvidence | undefined = () => undefined, original: Client = { ...local }, recoveringOpening = false): Promise<void> {
@@ -152,7 +153,11 @@ export class ProgressiveWrites {
         },
       });
       // Keep the handle captured by the app's pause/store-retirement callbacks.
-      lifetimes.set(local, { client: local, start() {}, pause: () => { this.lifetimePaused = true; this.recoverOpening = undefined; },
+      lifetimes.set(local, { client: local, start: () => {
+        if (this.lifetimeClosed) return;
+        this.lifetimePaused = false;
+        if (!this.custody) void this.recoverOpening?.();
+      }, pause: () => { this.lifetimePaused = true; },
         recover: async () => {}, refuseStore: async () => {}, captures: () => [],
         captureState: async () => ({ unsettled: true, peers: [] }), inspect: async () => ({ pending: [], receipts: [] }) });
     }
@@ -178,18 +183,30 @@ export class ProgressiveWrites {
         };
       }
       const close = async (signOut: boolean) => {
-        closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
         // Fence the original client's act/sendPost now, before recovery drains.
         // @ref LLP 3000.013#6 — retain responses until both local cleanups finish.
         const finish = holdClose(local);
         try {
-          const results = await Promise.allSettled([signOut ? original.signOut() : original.close(), recovering]);
+          if (this.custody) {
+            // Published custody has already installed the steady close. Use
+            // its transport, save and inspection cleanup even from a saved callback.
+            closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
+            await (signOut ? local.signOut() : local.close());
+            return;
+          }
+          closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
+          const ending = signOut ? original.signOut() : original.close();
+          const results = await Promise.allSettled([ending, recovering]);
           for (const result of results) if (result.status === "rejected") throw result.reason;
         } finally { finish(); }
       };
       local.close = () => close(false); local.signOut = () => close(true);
-      const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, this.plan.report, false);
-      this.recoverOpening = () => recovering ??= (async () => {
+      const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, (error, preserved) => {
+        // Saved bytes still need their side-key notice after this lifetime ends.
+        if (!preserved && (closed || local.viewer() !== this.viewer)) return;
+        this.plan.report(error);
+      }, false);
+      this.recoverOpening = () => closed || this.lifetimePaused || local.viewer() !== this.viewer ? Promise.resolve() : recovering ??= (async () => {
         try {
           // Opening inspection preserves bytes. A dependent read may retry the
           // existing quarantine/recovery under the same journal/session locks.
@@ -204,7 +221,7 @@ export class ProgressiveWrites {
           // Its method snapshot must still name the device, not this denial.
           await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original, true);
           if (closed || this.lifetimePaused) {
-            this.recoverOpening = undefined;
+            if (closed || this.custody) this.recoverOpening = undefined;
             if (closed && this.custody) await local.close();
           } else if (this.custody) {
             delete this.admissionDenied; this.recoverOpening = undefined;
@@ -215,7 +232,7 @@ export class ProgressiveWrites {
         } finally {
           // A failed nested install may have installed another denial frame.
           // Closing this lifetime must retire that frame's retry as well.
-          if (closed || this.lifetimePaused) this.recoverOpening = undefined;
+          if (closed) this.recoverOpening = undefined;
         }
       })().finally(() => { recovering = undefined; });
       return;
@@ -247,10 +264,11 @@ export class ProgressiveWrites {
     inheritDispatch(raw, transport); inheritClose(raw, transport);
     // Seed the existing dispatch boundary before exposing synchronous captures.
     if (storeIdentity) seedDispatchIdentity(raw, storeIdentity);
-    const report = (error: unknown) => {
+    const report = (error: unknown, preserved = false) => {
       // Suppress only unpublished, retired openings. Installed custody keeps
-      // ordinary persistence-error reporting through its cleanup.
-      if (this.custody || !retired()) this.plan.report(error);
+      // ordinary persistence-error reporting through its cleanup; saved bytes
+      // always disclose their recovery key, even from nested opening.
+      if (preserved || this.custody || !retired()) this.plan.report(error);
     };
     let failing = false;
     const reportFailure = (error: unknown) => {
@@ -379,6 +397,9 @@ export class ProgressiveWrites {
     });
     const stopWrite = journal.onWrite(write => { this.snapshot = this.snapshot.filter(entry => entry.id !== write.id); observe(this.snapshot, [write]); void refresh(); });
     local.mutate = routeMutations(original.mutate, (op, args, options) => {
+      if (this.lifetimeClosed) return original.mutate(op, args, options);
+      if (this.lifetimePaused) return failedAdmission(options?.id ?? mintId(), this.admissionDenied ??
+        admissionRefusal("write custody is paused", "app.mutate", "retry after opening resumes"));
       // Preserve the device mutation wait bound across its journal dispatcher.
       const journalOptions = { ...options, waitSeconds: options?.waitSeconds ?? 4 };
       if (options?.id) {
@@ -392,7 +413,7 @@ export class ProgressiveWrites {
       if (this.admissionDenied) return failedAdmission(options?.id ?? mintId(), this.admissionDenied);
       return journal.mutate(op, args, journalOptions);
     });
-    if (!this.lifetimePaused) delete this.admissionDenied;
+    delete this.admissionDenied;
     local.write = async id => deviceKnown(id) ? original.write(id) : await journal.write(id) ?? original.write(id);
     local.pendingWrites = async () => unique([...(await this.pending()), ...(await devicePending())]);
     local.onPendingWrites = listener => { const a = original.onPendingWrites(listener), b = journal.onPendingWrites(listener); return () => { a(); b(); }; };
@@ -411,11 +432,15 @@ export class ProgressiveWrites {
     const deviceObserver = intentObserver(local);
     registerIntentObserver(local, ids => { deviceObserver?.(ids); observeIntents(journal, ids); });
     const close = async (signOut: boolean) => {
+      // @ref LLP 3000.002.000#7.2 — the device fence and pause both notify.
+      // Route to the device before its close callbacks, and fence it before
+      // pause callbacks; neither notification may open fresh journal custody.
       this.lifetimeClosed = this.lifetimePaused = true;
+      const ending = signOut ? original.signOut() : original.close();
       active = false; this.retryInspection = undefined;
       clearTimeout(retryTimer);
       custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true; this.receipts.clear(); this.admitted.clear();
-      await Promise.all([journal.close(), signOut ? original.signOut() : original.close()]);
+      await Promise.all([journal.close(), ending]);
     };
     local.close = () => close(false); local.signOut = () => close(true);
     combineClose(local, original, transport);
