@@ -260,10 +260,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (!restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
         // @ref LLP 3000.002.000#7.2 — releasing an opening gate retires
-        // waiters too. Existing custody survives; a fresh waiter owns nothing.
+        // waiters too. Restored journal custody survives; a fresh waiter owns nothing.
+        // @ref LLP 3000.013.000#4.2 — captures still need the locked authority
+        // check below: commit under a live session, or cancel with E_AUTH.
         if (!active || raw.viewer() !== viewer) {
-          if (captured || restoredIds.has(id)) return { state: "pending", id };
-          return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } };
+          if (restoredIds.has(id)) return { state: "pending", id };
+          if (!captured) return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } };
         }
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);

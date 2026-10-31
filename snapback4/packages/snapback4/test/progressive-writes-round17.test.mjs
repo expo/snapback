@@ -191,7 +191,7 @@ regression(5, 'pause during a failed preservation reports the streak once across
   assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_ADMISSION');
 });
 
-regression(1, 'a captured gate waiter keeps owned intent for recovery after close', async t => {
+regression(1, 'a captured gate waiter commits journal custody for recovery after close', async t => {
   const entries = browser(t), memory = memorySessionStore(), entered = gate(), id = mintId(), requests = [];
   const authority = { capture: () => ({ key: 'e17-session', epoch: '1', principal: 'dev:alice', source: 'browser' }),
     read: async requested => requested === 'e17-session' ? JSON.stringify({ principal: 'dev:alice', snapback4Epoch: '1' }) : '1', recheck() {} };
@@ -209,9 +209,59 @@ regression(1, 'a captured gate waiter keeps owned intent for recovery after clos
   const writing = first.client.mutate(mutation, {}, { id, waitSeconds: 0 }); await entered.promise;
   assert.equal([...entries.keys()].filter(k => k.startsWith('snapback4-online-admission:')).length, 1);
   await first.client.close(); assert.equal((await writing).state, 'pending', 'owned capture must not become an unadmitted refusal');
-  assert.deepEqual(JSON.parse(await memory.get(storeKey('writes', url, 'dev:alice')) ?? 'null')?.pending ?? [], []);
+  const journal = JSON.parse(await memory.get(storeKey('writes', url, 'dev:alice')));
+  assert.deepEqual(journal.pending.map(intent => intent.id), [id], 'the live session commits the captured intent even after close');
+  assert.equal(journal.captured.length, 1);
+  assert.ok(journal.captured[0].startsWith(`${id}:`), 'admitted.known leaves the capture marker in the commit');
+  assert.deepEqual([...entries.keys()].filter(k => k.startsWith('snapback4-online-admission:')), [], 'the committed capture key is removed before reopen');
+  assert.deepEqual(requests, [], 'closed custody cannot dispatch its newly committed intent');
   const next = await open(); next.start();
   await until(async () => (await next.client.write(id))?.state === 'sent');
-  assert.deepEqual(requests, [id], 'the original owned capture replays once on reopen');
+  assert.deepEqual(requests, [id], 'the committed journal intent replays once on reopen');
   assert.deepEqual([...entries.keys()].filter(k => k.startsWith('snapback4-online-admission:')), []);
+});
+
+for (const method of ['signOut', 'viewer']) regression('HF1', `${method} cancels a captured gate waiter whose session ended before admission`, async t => {
+  const entries = browser(t), memory = memorySessionStore(), entered = gate(), id = mintId(), requests = [], reads = [];
+  let session = JSON.stringify({ principal: 'dev:alice', snapback4Epoch: '1' }), epoch = '1', rechecks = 0;
+  const authority = { capture: () => ({ key: 'hf1-session', epoch: '1', principal: 'dev:alice', source: 'browser' }),
+    async read(requested) { reads.push(requested); return requested === 'hf1-session' ? session : epoch; },
+    recheck() { rechecks++; } };
+  const open = async () => {
+    const raw = createClient({ url, persona: 'alice', fetch: async (input, init) => {
+      if (new URL(input).pathname === '/probe') return Response.json({ ok: true, store_id: 'A', seq: 0 });
+      requests.push(JSON.parse(init.body).id); return Response.json({ state: 'sent', seq: 1 });
+    } });
+    await identifyDispatch(raw);
+    const custody = await onlineCustody(raw, url, memory, error => { throw error; }, false, authority);
+    t.after(() => custody.client.close()); return { raw, custody };
+  };
+  const { raw, custody: first } = await open();
+  hook(t, '__e17Gate', waiting => { if (waiting === id) entered.resolve(); });
+  const writing = first.client.mutate(mutation, {}, { id, waitSeconds: 0 }); await entered.promise;
+  const captures = () => [...entries.keys()].filter(k => k.startsWith('snapback4-online-admission:'));
+  const journal = async () => JSON.parse(await memory.get(storeKey('writes', url, 'dev:alice')) ?? 'null');
+  assert.equal(captures().length, 1, 'the click is captured before the opening gate');
+  assert.deepEqual((await journal())?.pending ?? [], [], 'the capture has not committed');
+  reads.length = 0; epoch = '2';
+  session = JSON.stringify(method === 'signOut' ? { snapback4Logout: epoch } : { principal: 'dev:bob', snapback4Epoch: epoch });
+  if (method === 'signOut') await first.client.signOut();
+  else { t.mock.method(raw, 'viewer', () => 'dev:bob'); first.pause(); }
+  const write = await writing;
+  assert.equal(write.state, 'failed', 'retirement must still check the captured admission authority');
+  assert.deepEqual(write.why, {
+    code: 'E_AUTH', family: 'auth', message: 'the session changed before this journaled write was admitted',
+    site: 'client.mutate', rewrite: 'restore the current app session; submit again only if the write is still intended', guide: 'writes',
+  });
+  assert.ok(reads.includes('hf1-session'), 'admission reads current durable authority');
+  assert.equal(rechecks, 1, 'the session-ended admission schedules a scope recheck');
+  assert.deepEqual(captures(), [], 'the unadmitted capture is cancelled');
+  assert.deepEqual((await journal())?.pending ?? [], []);
+  assert.deepEqual((await journal())?.captured ?? [], [], 'cancellation creates no admission marker');
+  assert.deepEqual(requests, []);
+  const { custody: next } = await open(); next.start();
+  await next.inspect();
+  assert.deepEqual(await next.client.pendingWrites(), []);
+  assert.equal(await next.client.write(id), undefined);
+  assert.deepEqual(requests, [], 'reopen must not replay the cancelled click');
 });

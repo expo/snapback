@@ -253,9 +253,12 @@ A failed installation in an open lifetime keeps the typed
 journal dispatcher takes over, browser clicks enter capture even while its first
 inspection is pending. Fresh submissions wait until restored journal writes have
 been issued first, including in a non-browser client without capture authority.
-After that wait, a fresh write is refused if its lifetime ended or its viewer or
-store changed; it leaves no new intent for replay. Already owned journal or
-browser-captured intent keeps its recovery custody.
+After that wait, an unowned write is refused if its lifetime ended or its viewer
+or store changed; it leaves no new intent for replay. Restored journal ids keep
+their committed custody. An uncommitted browser capture still checks its session
+authority under the lock: an ended session cancels it with `E_AUTH`; a live session
+commits it to the journal. A retired lifetime then returns `pending` without
+dispatching, and reopen replays that committed journal intent.
 Browser submissions also wait for surviving capture recovery. Failed quarantine
 preservation reports once per failure streak while recovery remains current,
 including during a resumable pause; success always reports its saved-byte key,
