@@ -761,3 +761,10 @@ export function awaitBoundary() {
 // quarantine across retirement/pause. app-online's retirement guard and the
 // preservation-report flag are synchronous; its 40 awaits remain unchanged.
 // Regenerate the full expression seal; all 215 delivery sites/recipes remain.
+
+// Lane S1: settlement-extract, settlement-reducer and refusal-decision are pure
+// additive modules with zero awaits; no executor imports them yet. receiptOf
+// whitelists storeId/generation/op inside app-online's existing settlement
+// transaction. That changes its await-expression seal, not its 40 awaits or
+// the 215 classified delivery sites/recipes. settlement-receipt witnesses old
+// reads, additive round trips and disclosure; regenerate the complete seal.

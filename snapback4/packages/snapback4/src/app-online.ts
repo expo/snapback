@@ -118,9 +118,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
   };
   // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
-  const receiptOf = (write: Terminal): Terminal => write.state === "sent"
-    ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+  const receiptOf = (write: Terminal, intent?: Intent): Terminal => {
+    // @ref LLP 3000.002.000.000#2.2 — additive execution metadata, never inferred
+    // from the observing program. Older journal readers ignore these fields.
+    const known = write as Terminal & { storeId?: string; store_id?: string; generation?: number; op?: string };
+    const storeId = known.storeId ?? known.store_id ?? intent?.storeId, op = known.op ?? intent?.op;
+    const certificate = { ...(typeof storeId === "string" && storeId ? { storeId } : {}), ...(typeof op === "string" && op ? { op } : {}),
+      ...(Number.isSafeInteger(known.generation) && known.generation! >= 0 ? { generation: known.generation } : {}) };
+    return write.state === "sent"
+      ? { ...certificate, state: "sent", id: write.id, seq: write.seq, replayed: true }
+      : { ...certificate, state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+  };
   const retain = (write: Terminal, error: unknown) => {
     const first = !unpersisted.has(write.id);
     if (active) unpersisted.set(write.id, receiptOf(write));
@@ -141,7 +149,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       presentation.settled(write, { id: intent.id, op: intent.op, args: intent.args, predicted: [], state: intent.dispatched ? "sent" : "queued" });
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
-      journal.receipts.push(receiptOf(write));
+      journal.receipts.push(receiptOf(write, intent));
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
