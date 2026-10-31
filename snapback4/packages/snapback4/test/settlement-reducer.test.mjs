@@ -17,7 +17,7 @@ function sequences() {
   function visit(prefix) {
     result.push(prefix);
     if (prefix.length === 5) return;
-    for (const event of ['dispatched', 'admitted', 'response', 'observed', 'persisted', 'evicted']) {
+    for (const event of ['dispatched', 'admitted', 'response', 'observed', 'persisted', 'transportFinished', 'evicted']) {
       if ((event === 'admitted' || event === 'persisted') && prefix.includes(event)) continue;
       visit([...prefix, event]);
     }
@@ -56,7 +56,7 @@ test('reducer: every event interleaving through length five crossed with certifi
         const before = state, beforeCopy = { ...before }, { state: next, effects } = step(state, event, type === 'observed' ? peer : facts);
         transitions++;
         if (type === 'dispatched') outstanding++;
-        if (type === 'response' && outstanding > 0) outstanding--;
+        if ((type === 'response' || type === 'transportFinished') && outstanding > 0) outstanding--;
         assert.equal(next.responseOutstanding, outstanding);
         if (outstanding > 1) overlappingPins++;
         assert.deepEqual(before, beforeCopy, 'step does not mutate its input');
@@ -106,6 +106,7 @@ test('reducer: every event interleaving through length five crossed with certifi
           const current = c === certificate && authority === 'current' && now.credentialRevision === 1 && now.incarnation === 1 && now.storeIdentity === 'A';
           const live = !now.closed && !now.sessionDead;
           assert.deepEqual(pub[0].publication, {
+            invalidate: live && sameStore,
             cut: live && sameStore && effective.state === 'sent' ? effective.seq : undefined,
             preserved: live && sameStore && c?.preserved !== undefined ? current && sameGeneration ? c.preserved : [] : undefined,
             footprint: known && (!live || !sameStore || effective.state === 'failed' || sameGeneration) ? 'qualified' : 'unknown',
@@ -141,23 +142,23 @@ test('row: stored certificate beats inspection placeholder and starts before a s
   assert.equal(episodes(first.effects).length, 1); assert.equal(publications(first.effects).length, 0);
   const placeholder = context(pin, { state: 'sent', seq: 99 }, { ...request, kind: 'observed' });
   const result = step(first.state, { type: 'observed', receipt: { ...receipt, seq: 99 } }, placeholder);
-  assert.deepEqual(publications(result.effects)[0].publication, { cut: 21, preserved: ['items'], footprint: 'qualified' });
+  assert.deepEqual(publications(result.effects)[0].publication, { invalidate: true, cut: 21, preserved: ['items'], footprint: 'qualified' });
 });
 test('row: failed receipts keep the operation footprint across generations', () => {
   const f = context(pin, { state: 'failed', why: { code: 'NO' }, store_id: 'A', generation: 2 });
   const { state } = step(initialState(), { type: 'response', certificate: f.certificate }, f);
-  assert.deepEqual(atSettlement(state, f), { cut: undefined, preserved: undefined, footprint: 'qualified' });
+  assert.deepEqual(atSettlement(state, f), { invalidate: true, cut: undefined, preserved: undefined, footprint: 'qualified' });
 });
 test('row: differing success generation publishes an unknown footprint and revokes every watch', () => {
   const f = context(pin, { ...body, generation: 2 });
   assert.deepEqual(atArrival(f.certificate, f).episode, { preserved: [], scope: 'every-watch' });
   const { state } = step(initialState(), { type: 'response', certificate: f.certificate }, f);
-  assert.deepEqual(publications(step(state, { type: 'persisted' }, f).effects)[0].publication, { cut: 21, preserved: [], footprint: 'unknown' });
+  assert.deepEqual(publications(step(state, { type: 'persisted' }, f).effects)[0].publication, { invalidate: true, cut: 21, preserved: [], footprint: 'unknown' });
 });
 test('row: inspected legacy peer installs the conservative all-table cut without an episode', () => {
   const f = context(pin, { state: 'sent', seq: 21 }, { ...request, kind: 'observed' });
   const result = step(initialState(0), { type: 'observed', receipt }, f);
-  assert.deepEqual(publications(result.effects)[0].publication, { cut: 21, preserved: undefined, footprint: 'unknown' });
+  assert.deepEqual(publications(result.effects)[0].publication, { invalidate: true, cut: 21, preserved: undefined, footprint: 'unknown' });
   assert.deepEqual(episodes(result.effects), []);
 });
 test('row: another store delivers its outcome without installing a cut', () => {
@@ -170,7 +171,7 @@ test('row: lifetime-ended still delivers the owner terminal outcome', () => {
   const f = context({ ...pin, closed: true });
   const result = step(initialState(), { type: 'response', certificate: f.certificate }, f);
   assert.deepEqual(result.effects, [{ type: 'deliverOutcome', outcome: receipt }, { type: 'retain' }]);
-  assert.deepEqual(publications(step(result.state, { type: 'persisted' }, f).effects)[0].publication, { cut: undefined, preserved: undefined, footprint: 'qualified' });
+  assert.deepEqual(publications(step(result.state, { type: 'persisted' }, f).effects)[0].publication, { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' });
 });
 test('owner delivery preserves full live success and failure details across lifetime end', () => {
   for (const json of [{ ...body, result: { value: 'owner result' } }, { state: 'failed', why: { code: 'NO', message: 'owner detail', details: [1] } }]) {
@@ -184,16 +185,16 @@ test('owner delivery preserves full live success and failure details across life
 test('observed certificate retains execution generation without preservation or retirement', () => {
   const f = context(pin, { ...receipt, storeId: 'A', generation: 1, op: 'write' }, { ...request, kind: 'observed' }), result = step(initialState(0), { type: 'observed', receipt, certificate: f.certificate }, f);
   assert.deepEqual(episodes(result.effects), []);
-  assert.deepEqual(publications(result.effects)[0].publication, { cut: 21, preserved: undefined, footprint: 'qualified' });
+  assert.deepEqual(publications(result.effects)[0].publication, { invalidate: true, cut: 21, preserved: undefined, footprint: 'qualified' });
 });
 test('second decision rechecks store, credential, incarnation, generation and lifetime independently', () => {
   const arrival = context(), { state } = step(initialState(), { type: 'response', certificate: arrival.certificate }, arrival);
   for (const [change, expected] of [
-    [{ storeIdentity: 'B' }, { cut: undefined, preserved: undefined, footprint: 'qualified' }],
-    [{ credentialRevision: 2 }, { cut: 21, preserved: [], footprint: 'qualified' }],
-    [{ incarnation: 2 }, { cut: 21, preserved: [], footprint: 'qualified' }],
-    [{ generation: 2 }, { cut: 21, preserved: [], footprint: 'unknown' }],
-    [{ sessionDead: true }, { cut: undefined, preserved: undefined, footprint: 'qualified' }],
+    [{ storeIdentity: 'B' }, { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' }],
+    [{ credentialRevision: 2 }, { invalidate: true, cut: 21, preserved: [], footprint: 'qualified' }],
+    [{ incarnation: 2 }, { invalidate: true, cut: 21, preserved: [], footprint: 'qualified' }],
+    [{ generation: 2 }, { invalidate: true, cut: 21, preserved: [], footprint: 'unknown' }],
+    [{ sessionDead: true }, { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' }],
   ]) assert.deepEqual(atSettlement(state, context({ ...pin, ...change })), expected);
 });
 
@@ -224,4 +225,37 @@ test('S2a 13: overlapping own sends pin peer completion until both replies arriv
   assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
   ({ state } = step(state, { type: 'response', certificate: f.certificate }, f));
   assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'discard' }]);
+});
+
+test('S2b: failed transports release their own pins without manufacturing an outcome', () => {
+  const f = context(); let state = initialState(0);
+  ({ state } = step(state, { type: 'dispatched' }, f));
+  ({ state } = step(state, { type: 'dispatched' }, f));
+  ({ state } = step(state, { type: 'observed', receipt }, f));
+  ({ state } = step(state, { type: 'transportFinished' }, f));
+  assert.equal(state.responseOutstanding, 1);
+  assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
+  ({ state } = step(state, { type: 'transportFinished' }, f));
+  assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'discard' }]);
+});
+test('S2b: a response not yet observed as admitted publishes exactly once at pending exit', () => {
+  const f = context(), first = step(initialState(0), { type: 'response', certificate: f.certificate }, f);
+  assert.equal(episodes(first.effects).length, 1); assert.equal(publications(first.effects).length, 0);
+  const ended = step(first.state, { type: 'persisted', receipt }, f);
+  assert.deepEqual(publications(ended.effects), [{ type: 'publish', publication: { invalidate: true, cut: 21, preserved: ['items'], footprint: 'qualified' } }]);
+  assert.deepEqual(step(ended.state, { type: 'observed', receipt }, f).effects, []);
+});
+test('S2b: a newer own certificate replaces unpublished evidence, never a peer placeholder', () => {
+  const older = context(), newer = context(pin, { ...body, preserved: [], seq: 22 });
+  const first = step(initialState(0), { type: 'response', certificate: older.certificate }, older);
+  const second = step(first.state, { type: 'response', certificate: newer.certificate }, newer);
+  const ended = step(second.state, { type: 'observed', receipt }, older);
+  assert.equal(ended.state.certificate, newer.certificate);
+  assert.deepEqual(publications(ended.effects)[0].publication, { invalidate: true, cut: 22, preserved: [], footprint: 'qualified' });
+});
+test('S2b: foreign-store completion only wakes; it cannot create even an unsequenced invalidation', () => {
+  const f = context(pin, { ...body, store_id: 'B' });
+  const arrived = step(initialState(0), { type: 'response', certificate: f.certificate }, f);
+  assert.deepEqual(publications(step(arrived.state, { type: 'persisted' }, f).effects)[0].publication,
+    { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' });
 });

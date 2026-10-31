@@ -27,3 +27,16 @@ export async function identifyDispatch(client: Client): Promise<string | undefin
   if (!state.store) await state.identify?.();
   return state.store;
 }
+
+// @ref LLP 3000.002.000.000#2.2 — execution bindings reach custody without
+// adding fields to a public live Write or substituting observation metadata.
+interface ReceiptBinding { store_id?: string; generation?: number }
+const receiptBindings = new WeakMap<object, ReceiptBinding>();
+export function bindDispatchReceipt<T extends object>(write: T, json: Record<string, unknown>): T {
+  receiptBindings.set(write, {
+    ...(typeof json.store_id === "string" && json.store_id ? { store_id: json.store_id } : {}),
+    ...(Number.isSafeInteger(json.generation) && Number(json.generation) >= 0 ? { generation: Number(json.generation) } : {}),
+  });
+  return write;
+}
+export const dispatchReceipt = (write: object): ReceiptBinding | undefined => receiptBindings.get(write);

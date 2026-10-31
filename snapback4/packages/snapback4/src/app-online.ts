@@ -1,3 +1,5 @@
+import { extract } from "./settlement-extract.ts";
+import { decideRefusal } from "./refusal-decision.ts";
 import { guardFollowing } from "./following-transport.ts";
 import { pendingIntentAccess, pendingIntent, registerPendingIntents, registerIntentObserver, OnlineIntentPresentation } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
@@ -13,7 +15,7 @@ import { journalChanges } from "./journal-changes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, capturedReceipt, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Intent, type Journal, type Terminal } from "./app-journal.ts";
-import { dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
+import { dispatchReceipt, dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
 import { admissionRefusal, failedAdmission } from "./admission.ts";
 import { admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./admission-authority.ts";
 import { StorageWarning } from "./app-storage.ts";
@@ -30,7 +32,8 @@ export function publicWrite<T extends Write | undefined>(write: T): T {
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown, preserved?: boolean) => void, autoStart = true,
-  captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report) {
+  captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report,
+  settlement?: (event: "persisted" | "observed", write: Terminal) => void) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   // @ref LLP 3000.013.000#4 — a device-less browser app captures each click
@@ -45,6 +48,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   let active = true;
   let storeRefusal: Refusal | undefined;
   let retirement: Promise<void> | undefined;
+  const keptByRefusal = new Set<string>();
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   // I13: failed receipt persistence cannot turn a known outcome back into
@@ -123,6 +127,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     dispatchRevisions.delete(write.id);
     restoredIds.delete(write.id);
     ids.finish(write.id);
+    settlement?.("observed", receiptOf(write));
     pending.notify();
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(publicWrite(write));
   };
@@ -130,7 +135,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const receiptOf = (write: Terminal, intent?: Intent): Terminal => {
     // @ref LLP 3000.002.000.000#2.2 — additive execution metadata, never inferred
     // from the observing program. Older journal readers ignore these fields.
-    const known = write as Terminal & { storeId?: string; store_id?: string; generation?: number; op?: string };
+    const known = { ...write, ...dispatchReceipt(write) } as Terminal & { storeId?: string; store_id?: string; generation?: number; op?: string };
     const storeId = known.storeId ?? known.store_id ?? intent?.storeId, op = known.op ?? intent?.op;
     const certificate = { ...(typeof storeId === "string" && storeId ? { storeId } : {}), ...(typeof op === "string" && op ? { op } : {}),
       ...(Number.isSafeInteger(known.generation) && known.generation! >= 0 ? { generation: known.generation } : {}) };
@@ -162,6 +167,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
+    settlement?.("persisted", receiptOf(write));
     presentation.release(write.id);
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
@@ -173,11 +179,20 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       // An old intent can be retired while this runtime already belongs to
       // the new store. Its refusal does not fence unrelated new-store intent.
       if (recoveredIntents.delete(write.id)) { notify(write); return; }
-      // The raw client emits one refusal per queued write. Retire that store's
-      // queue once, so all newly failed receipts share the same pinned save.
-      const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code);
-      if (retiring) void refuseStore(write.why).catch(report);
-      else void settle(write).catch(error => retain(write, error));
+      // Progressive transport has already executed its wrapper decision before
+      // the raw client emits. Standalone online custody has this single actor.
+      if (progressive) { if (!storeRefusal) void settle(write).catch(error => retain(write, error)); return; }
+      const identity = dispatchIdentity(raw);
+      const facts = extract(write, { kind: "response", source: "raw-onWrite", id: write.id,
+        op: undefined, footprintKnown: false, restoreConfirmed: false }, {
+        closed: !active, sessionDead: raw.viewer() !== viewer, credentialRevision: 0, incarnation: 0,
+        storeIdentity: identity, onlineStore: identity, generation: undefined, onlineHead: 0, onlineGeneration: undefined,
+        dispatchWatermark: 0, dispatchSendRevision: 0, dispatchStore: identity, dispatchIncarnation: 0,
+        requestRevision: 0, requestStore: undefined,
+      });
+      const decision = decideRefusal(facts);
+      if (decision.dispatcher !== "keep") void refuseStore(facts.refusal as unknown as Refusal).catch(report);
+      else if (!storeRefusal) void settle(write).catch(error => retain(write, error));
     }
   });
   // Subscribe across the opening read, when pause's journal subscription does
@@ -233,7 +248,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const refusedStore = async (id: string): Promise<Write> => {
     // UI custody may already be paused. A terminal outcome still owns its
     // durable intent until retirement commits, including admission in flight.
-    try { await retirement; return { state: "failed", id, why: storeRefusal! }; }
+    try {
+      await retirement;
+      // Selective retirement leaves this id owned by the journal for recovery.
+      return keptByRefusal.has(id) ? { state: "pending", id }
+        : { state: "failed", id, why: storeRefusal! };
+    }
     catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
   };
 
@@ -542,6 +562,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const failed = journal.pending.filter(intent => adoptedStore === undefined || intent.storeId !== adoptedStore).map(intent => ({ state: "failed", id: intent.id,
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
       journal.pending = journal.pending.filter(intent => adoptedStore !== undefined && intent.storeId === adoptedStore);
+      for (const intent of journal.pending) keptByRefusal.add(intent.id);
       journal.receipts.push(...failed);
       keepReceipts(journal, new Set(failed.map(write => write.id)), true);
       return failed;

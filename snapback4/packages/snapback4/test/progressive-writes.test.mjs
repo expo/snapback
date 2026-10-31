@@ -1,3 +1,4 @@
+import { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } from "./helpers/progressive-writes.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -876,7 +877,7 @@ regression('E4 a live receipt binding routes same-id recovery before inspection 
   const id=mintId();
   // Isolate the third positive-ownership source: dispatch has reported the
   // receipt binding, but its asynchronous journal save/inspection has not run.
-  progressive.receipt(id,{store:'A',generation:1,preserved:[],authorityCurrent:()=>true});
+  progressive.receipt(id,receiptFacts(id,{store:'A',generation:1,preserved:[],authorityCurrent:()=>true}));
   const receipt={state:'sent',id,seq:21,replayed:true};
   await f.store.set(storeKey('writes',f.url,'alice'),JSON.stringify({owner:'alice',backend:f.url,pending:[],receipts:[receipt]}));
   assert.equal(progressive.current().some(write=>write.id===id),false);
@@ -977,7 +978,7 @@ regression('E4 inspection-learned peer receipt owns an id absent from opening pe
   await storeLock(key,()=>store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[],receipts:[receipt]})));
   const events=journalChanges(key,()=>{});t.after(()=>events.close());events.notify();
   await until(()=>inspected&&!progressive.uncertain);
-  assert.equal(progressive.current().some(w=>w.id===id),false);assert.equal(progressive.receipts.has(id),false);
+  assert.equal(progressive.current().some(w=>w.id===id),false);assert.equal((unpublishedReceipt(progressive, id) !== undefined),false);
   assert.deepEqual(await f.app.mutate(mutation,{}, {id,waitSeconds:0}),receipt);
   assert.equal(f.local(),undefined);assert.deepEqual(f.requests,[]);
 });
@@ -1047,8 +1048,8 @@ regression('E5 receipt A settling inside replacement adoption cannot write its s
   f.replace('B');const syncing=f.app.client.sync();await adopting.promise;
   // Settle in the reset/adoption window: the device identity is B but
   // onlineStore is A. The store check must reject A's otherwise valid cut.
-  const current=observation(),receipt=progressive.receipts.get(id);
-  assert.equal(current.store,'B');assert.equal(receipt.store,'A');assert.equal(receipt.authorityCurrent(),false);
+  const current=observation(),receipt=unpublishedReceipt(progressive, id);
+  assert.equal(current.snapshot.storeIdentity,'B');assert.equal(receipt.storeId,'A');assert.equal(receipt.authorityCurrent(current.snapshot),false);
   assert.equal(Object.hasOwn(receipt,'incarnation'),false,'authority lives in the dispatch predicate, not an unread stamp');
   cuts.length=0;save.resolve();assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
   assert.deepEqual(cuts,[],'storeIdentity is B while onlineStore still names A');
@@ -1428,7 +1429,7 @@ regression('E9 a peer settles this tab\'s live capture before its held response 
   assert.equal((await f.app.client.write(id)).seq,21);
   assert.equal((await f.app.client.query(query,{})).data,'server','peer settlement must fence the pre-write local value at watermark 20');
   f.release.resolve();await received.promise;
-  assert.equal(progressive.receipts.has(id),false,'a late own response after peer settlement retains no orphan receipt');
+  assert.equal((unpublishedReceipt(progressive, id) !== undefined),false,'a late own response after peer settlement retains no orphan receipt');
   assert.equal((await f.app.client.query(query,{})).data,'server','the eventual original response must retain the established cut');
   assert.deepEqual(f.requests,[id]);
 });

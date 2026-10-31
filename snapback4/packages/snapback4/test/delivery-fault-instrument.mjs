@@ -768,3 +768,20 @@ export function awaitBoundary() {
 // transaction. That changes its await-expression seal, not its 40 awaits or
 // the 215 classified delivery sites/recipes. settlement-receipt witnesses old
 // reads, additive round trips and disclosure; regenerate the complete seal.
+
+// Lane S2b step 1: the journal wrapper executes extract/decideRefusal and takes
+// selective retirement before online evidence. Two conditional onlineEvidence
+// awaits become one effect executor (local 229→228). app-online retains its 40
+// awaits; raw refusal execution and kept-intent caller projection are synchronous.
+// Rounds 12/14/16 and progressive-writes-s2b exercise fences, shrink, recovery,
+// lagging online metadata and kept callers. All 215 delivery sites/recipes stay.
+
+// Lane S2b step 2: reducer effects replace the wrapper's receipt/live rules and
+// callback qualification plus progressive's four rings. Arrival starts the
+// existing watch episode; pending exit publishes the in-memory cut. app-online
+// forwards known pending exits synchronously around its existing persistence
+// and notifications. Transport bindings use a WeakMap, including close delivery.
+// These paths add no I/O await: local/progressive/app-online/app-journal remain
+// 228/26/40/3. The complete expression seal changes for existing inline bodies;
+// all 215 classified delivery sites/recipes stay. Pure pin/eviction, generation,
+// held-save, unadmitted-response, peer and close witnesses cover the new effects.

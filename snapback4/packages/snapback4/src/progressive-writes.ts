@@ -15,6 +15,8 @@ import { pendingIntentAccess, registerPendingIntents, registerIntentObserver, ob
 import { routeMutations } from "./ephemeral.ts";
 import { inheritClose, combineClose, holdClose } from "./closing-responses.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { extract, type Facts } from "./settlement-extract.ts";
+import { initialState, step, type State, type Event, type Effect } from "./settlement-reducer.ts";
 
 interface Plan {
   store: SessionStore;
@@ -23,7 +25,14 @@ interface Plan {
 }
 const plans = new WeakMap<object, Plan>();
 type Custody = Awaited<ReturnType<typeof onlineCustody>>;
-type ReceiptEvidence = { preserved: unknown; generation: unknown; store: string | undefined; authorityCurrent(): boolean };
+type Change = (op: string | undefined, effect?: Effect) => void;
+type Observation = (value?: unknown, id?: string, op?: string, store?: string) => Facts;
+const unknownObservation: Observation = (value, id = "", op, store) => extract(value,
+  { kind: "observed", source: "journal-wrapper", id, op, footprintKnown: false, restoreConfirmed: false },
+  { closed: false, sessionDead: false, credentialRevision: 0, incarnation: 0, storeIdentity: undefined,
+    onlineStore: undefined, generation: undefined, onlineHead: 0, onlineGeneration: undefined,
+    dispatchWatermark: 0, dispatchSendRevision: 0, dispatchStore: undefined, dispatchIncarnation: 0,
+    requestRevision: 0, requestStore: store });
 const lifetimes = new WeakMap<Client, Custody>();
 export const prepareProgressiveWrites = (options: object, plan: Plan): void => { plans.set(options, plan); };
 export const progressiveWriteCustody = (client: Client) => lifetimes.get(client);
@@ -53,35 +62,48 @@ export class ProgressiveWrites {
   private sessionKey?: string;
   private candidate = false;
   private admissionDenied?: Refusal;
-  private readonly receipts = new Map<string, ReceiptEvidence>();
-  private readonly admitted = new Map<string, { op: string; evidence: ReceiptEvidence | undefined }>();
-  // An id-only ring, independent of the receipt evidence cache.
-  private readonly completed = new Set<string>();
-  private readonly responding = new Map<string, number>();
-  dispatch(id: string): () => void {
-    this.responding.set(id, (this.responding.get(id) ?? 0) + 1);
-    return () => {
-      const remaining = (this.responding.get(id) ?? 1) - 1;
-      if (remaining) this.responding.set(id, remaining); else this.responding.delete(id);
-      this.trimCompleted();
+  private readonly states = new Map<string, State>();
+  private observation: Observation = unknownObservation;
+  private changed: Change = () => {};
+  private reduce(id: string, event: Event, facts = this.observation(undefined, id, this.states.get(id)?.op, this.states.get(id)?.storeId)): void {
+    const { state, effects } = step(this.states.get(id) ?? initialState(0), event, facts);
+    this.states.set(id, state);
+    for (const effect of effects) {
+      switch (effect.type) {
+        case "settle": this.snapshot = this.snapshot.filter(entry => entry.id !== id); break;
+        case "startEpisode": case "publish": this.changed(state.op ?? facts.op, effect); break;
+        case "retain": if (effect.invalidate) this.changed(state.op); break;
+        // The raw transport delivers the invocation's full live body under its
+        // response hold, including late own replies after a peer's completion.
+        // This logical owner notification must not emit a second public receipt.
+        case "deliverOutcome": break;
+        case "discard": this.states.delete(id); break;
+      }
+    }
+  }
+  dispatch(id: string): (responded?: boolean) => void {
+    this.reduce(id, { type: "dispatched" });
+    let finished = false;
+    return (responded = false) => {
+      if (finished) return;
+      finished = true;
+      if (!responded) this.reduce(id, { type: "transportFinished" });
+      this.trim();
     };
   }
-  private trimCompleted(): void {
-    for (const id of this.completed) {
-      if (this.completed.size <= WRITE_HISTORY_LIMIT) break;
-      // Peer settlement cannot evict the identity of an outstanding own reply.
-      if (!this.responding.has(id)) this.completed.delete(id);
+  private trim(inserted?: string): void {
+    let history = [...this.states.values()].filter(state => state.phase === "settled").length;
+    for (const id of this.states.keys()) {
+      if (history <= WRITE_HISTORY_LIMIT) break;
+      // The insertion itself is not an eviction candidate. Every other pin
+      // (pending, unpublished, outstanding) belongs to the reducer's row.
+      if (id !== inserted) { this.reduce(id, { type: "evicted" }); if (!this.states.has(id)) history--; }
     }
   }
-  receipt(id: string, evidence: ReceiptEvidence): boolean {
-    // Completed ids still need live preservation, but cannot settle twice.
-    if (this.completed.has(id)) return true;
-    this.receipts.set(id, evidence);
-    for (const key of this.receipts.keys()) {
-      if (this.receipts.size <= WRITE_HISTORY_LIMIT) break;
-      if (key !== id && !this.responding.has(key) && !this.admitted.has(key)) this.receipts.delete(key);
-    }
-    return false;
+  receipt(id: string, facts: Facts): void {
+    if (!facts.certificate) return;
+    this.reduce(id, { type: "response", certificate: facts.certificate }, facts);
+    this.trim(id);
   }
   constructor(options: object, readonly url: string, readonly viewer: string) {
     this.plan = plans.get(options)!;
@@ -132,14 +154,14 @@ export class ProgressiveWrites {
   }
   current(): readonly PendingWrite[] {
     const reason = this.blocked();
-    return unique([...this.snapshot, ...this.custody?.captures() ?? []]).map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
+    return unique([...this.snapshot, ...this.custody?.captures() ?? []]).filter(write => this.states.get(write.id)?.phase !== "settled").map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
   }
   refuseStore(why: Refusal, adoptedStore?: string): void { void this.custody?.refuseStore(why, adoptedStore).catch(this.plan.report); }
-  async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: (op: string | undefined, committed?: number, evidence?: ReceiptEvidence) => void,
+  async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: Change,
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined,
-    observation: () => ReceiptEvidence | undefined = () => undefined, original: Client = { ...local }, recoveringOpening = false): Promise<void> {
+    observation: Observation = unknownObservation, original: Client = { ...local }, recoveringOpening = false): Promise<void> {
     this.blocked = blocked;
-    const openingEvidence = observation();
+    this.observation = observation; this.changed = changed;
     if (!this.deviceIntents) {
       this.deviceIntents = this.intentDelegate = pendingIntentAccess(local);
       // Facades and hooks capture this provider before opening recovery succeeds.
@@ -277,7 +299,11 @@ export class ProgressiveWrites {
     let opened: Custody;
     try {
       opened = await onlineCustody(raw, this.url, this.plan.store, report, false,
-        this.plan.authority, true, true, reportFailure);
+        this.plan.authority, true, true, reportFailure, (kind, write) => {
+          const prior = this.states.get(write.id), facts = observation(write, write.id, prior?.op, prior?.storeId);
+          this.reduce(write.id, { type: kind, receipt: facts.outcome!, ...(facts.certificate ? { certificate: facts.certificate } : {}) }, facts);
+          this.trim(write.id);
+        });
     } catch (error) {
       await transport.close();
       if (retired()) return;
@@ -300,34 +326,22 @@ export class ProgressiveWrites {
     this.bridgeOpeningWrites?.(journal); this.bridgeOpeningWrites = undefined;
     const deviceIntents = this.deviceIntents!, journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
-    const binding = (evidence: ReceiptEvidence | undefined, store: string | null | undefined) => evidence && {
-      // Inspection knows the intent's store, not the peer's execution program.
-      ...evidence, store: store ?? undefined, generation: undefined, preserved: undefined,
-    };
-    const admitted = this.admitted, completed = this.completed;
-    for (const intent of this.initial?.pending ?? []) admitted.set(intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) });
-    const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], evidence = observation()) => {
+    for (const intent of this.initial?.pending ?? []) this.reduce(intent.id,
+      { type: "admitted", op: intent.op, footprintKnown: observation(undefined, intent.id, intent.op).footprintKnown, initial: true },
+      observation(undefined, intent.id, intent.op, intent.storeId ?? undefined));
+    const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[]) => {
       this.snapshot = entries;
-      for (const entry of unique([...entries, ...custody.captures()])) if (!completed.has(entry.id)) {
-        const prior = admitted.get(entry.id);
-        // Identity waits are visible before capture has an original store.
-        // Fill that binding once; never rebind an already identified intent.
-        if (!prior || prior.evidence?.store === undefined && entry.storeId != null) {
-          admitted.set(entry.id, { op: entry.op, evidence: binding(evidence, entry.storeId) });
-          if (!prior) changed(entry.op);
-        }
+      for (const entry of unique([...entries, ...custody.captures()])) {
+        const facts = observation(undefined, entry.id, entry.op, entry.storeId ?? undefined);
+        this.reduce(entry.id, { type: "admitted", op: entry.op, footprintKnown: facts.footprintKnown }, facts);
       }
       for (const write of receipts) {
-        // Inspection can learn a peer's settlement after the opening snapshot.
-        // Retain positive ownership so an unlisted device cannot refuse its retry.
         learned.set(write.id, publicWrite(write));
         if (learned.size > WRITE_HISTORY_LIMIT) learned.delete(learned.keys().next().value!);
-        const admission = admitted.get(write.id);
-        if (admission !== undefined && write.state !== "pending" && !completed.has(write.id)) {
-          const evidence = this.receipts.get(write.id) ?? admission.evidence; this.receipts.delete(write.id);
-          completed.add(write.id); admitted.delete(write.id); changed(admission.op, write.state === "sent" ? write.seq : undefined, evidence);
-          this.trimCompleted();
-        }
+        const prior = this.states.get(write.id), facts = observation(write, write.id, prior?.op, prior?.storeId);
+        if (facts.outcome) this.reduce(write.id, { type: "observed", receipt: facts.outcome,
+          ...(facts.certificate ? { certificate: facts.certificate } : {}) }, facts);
+        this.trim(write.id);
       }
     };
     let refreshing: Promise<void> | undefined, dirty = false, active = true, retryAfter = 0, retryDelay = 100, capturePending = false;
@@ -344,14 +358,13 @@ export class ProgressiveWrites {
       return refreshing ??= (async () => {
         do {
           dirty = false;
-          const observed = observation();
           // An initially live peer may have died since opening. Re-run the same
           // locked recovery (including its liveness check) before inspecting.
           let captures = await custody.captureState();
           if (knownCapture && !dirty && !captures.unsettled) {
             // Publish the live capture footprints before waiting for a held
             // journal commit; peers discovered here also keep their reads parked.
-            observe(unique([...this.snapshot, ...captures.peers]), [], observed);
+            observe(unique([...this.snapshot, ...captures.peers]), []);
             this.snapshotValid = true; changed(undefined);
           }
           // A coalesced notification owns a newer fence: only the first pass
@@ -361,7 +374,7 @@ export class ProgressiveWrites {
           const snapshot = await custody.inspect();
           captures = await custody.captureState();
           if (!active) return;
-          observe(unique([...snapshot.pending, ...captures.peers]), snapshot.receipts, observed);
+          observe(unique([...snapshot.pending, ...captures.peers]), snapshot.receipts);
           capturePending = captures.peers.length > 0 || custody.captures().length > 0;
           this.snapshotValid = !dirty && !captures.unsettled;
           if (this.snapshotValid) failing = false;
@@ -406,7 +419,7 @@ export class ProgressiveWrites {
         const known = deviceKnown(options.id);
         if (known) return original.mutate(op, args, options);
         if (this.current().some(write => write.id === options.id) || this.initial?.pending.some(write => write.id === options.id)
-          || this.receipts.has(options.id) || recorded(options.id)) return journal.mutate(op, args, journalOptions);
+          || this.states.has(options.id) || recorded(options.id)) return journal.mutate(op, args, journalOptions);
         // A timestamp cannot exclude a concurrent peer's device admission.
         if (known === undefined && !freshlyMinted(options)) return failedAdmission(options.id, admissionRefusal("device write custody has not been listed", "app.mutate", "retry this id after device custody is recovered"));
       }
@@ -439,7 +452,7 @@ export class ProgressiveWrites {
       const ending = signOut ? original.signOut() : original.close();
       active = false; this.retryInspection = undefined;
       clearTimeout(retryTimer);
-      custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true; this.receipts.clear(); this.admitted.clear();
+      custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true;
       await Promise.all([journal.close(), ending]);
     };
     local.close = () => close(false); local.signOut = () => close(true);

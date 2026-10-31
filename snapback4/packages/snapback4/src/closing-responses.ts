@@ -1,3 +1,4 @@
+import { bindDispatchReceipt } from "./online-dispatch.ts";
 import type { Refusal, Write } from "./contract.ts";
 
 // @ref LLP 3000.013#6 — each invocation owns its reply through the public close cutoff.
@@ -55,9 +56,9 @@ export class ClosingResponse {
   write<R>(pending: Write<R>): Write<R> {
     if (pending.state !== "pending") return pending;
     const json = this.take()?.json;
-    if (json?.state === "sent") return { state: "sent", id: pending.id, seq: Number(json.seq ?? 0),
-      ...(json.replayed === true ? { replayed: true } : { result: json.result as R }) };
+    if (json?.state === "sent") return bindDispatchReceipt({ state: "sent", id: pending.id, seq: Number(json.seq ?? 0),
+      ...(json.replayed === true ? { replayed: true } : { result: json.result as R }) }, json);
     const why = (json?.why ?? json?.denied) as Refusal | undefined;
-    return why && !why.retryable ? { state: "failed", id: pending.id, why } : pending;
+    return why && !why.retryable ? bindDispatchReceipt({ state: "failed", id: pending.id, why }, json!) : pending;
   }
 }

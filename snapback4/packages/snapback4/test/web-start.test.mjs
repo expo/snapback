@@ -939,7 +939,8 @@ test('B4 surviving capture fences first query and observe while another tab hold
   const waiting=await page.evaluate(()=>({done:queryDone,snapshot:watch.getSnapshot(),answers}));
   assert.equal(waiting.done,false);assert.deepEqual(waiting.snapshot,{loading:true});assert.ok(waiting.answers.every(answer=>!('data' in answer)));
   await peer.evaluate(async()=>{releaseRecovery();await locked;});
-  assert.equal((await page.evaluate(()=>reading)).data,'after');
+  const answer = await page.evaluate(()=>reading);
+  assert.equal(answer.data,'after',JSON.stringify(answer));
   await page.waitForFunction(()=>watch.getSnapshot().data==='after');assert.deepEqual(await page.evaluate(()=>sent),[click.id]);
 });
 

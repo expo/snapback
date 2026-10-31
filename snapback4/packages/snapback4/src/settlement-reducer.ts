@@ -16,11 +16,12 @@ export interface State {
   responseOutstanding: number;
 }
 export type Event = { type: "dispatched" }
-  | { type: "admitted"; op: string; footprintKnown: boolean }
+  | { type: "admitted"; op: string; footprintKnown: boolean; initial?: boolean }
   | { type: "response"; certificate: Certificate }
   | { type: "observed"; receipt: Outcome; certificate?: Certificate }
-  | { type: "persisted" } | { type: "evicted" };
+  | { type: "persisted"; receipt?: Outcome; certificate?: Certificate } | { type: "transportFinished" } | { type: "evicted" };
 export interface Publication {
+  invalidate: boolean;
   cut: number | undefined;
   preserved: readonly string[] | undefined;
   footprint: "qualified" | "unknown";
@@ -32,7 +33,7 @@ export interface Episode {
 export type Effect = ({ type: "startEpisode" } & Episode)
   | { type: "publish"; publication: Publication }
   | { type: "settle" } | { type: "deliverOutcome"; outcome: Outcome }
-  | { type: "retain" } | { type: "discard" } | { type: "refuseEviction" };
+  | { type: "retain"; invalidate?: true } | { type: "discard" } | { type: "refuseEviction" };
 
 /** Unknown response ownership pins conservatively. A peer-only owner may pass zero.
  * An observed peer completion cannot clear this pin; each own response releases one dispatch. */
@@ -58,9 +59,9 @@ export function atSettlement(state: State, facts: Facts): Publication {
   const known = facts.footprintKnown && (certificate?.op ?? state.op ?? facts.op) !== undefined;
   const sameStore = storeRelation(certificate?.storeId ?? state.storeId, now.storeIdentity) === "same";
   if (now.closed || now.sessionDead || !sameStore)
-    return { cut: undefined, preserved: undefined, footprint: known ? "qualified" : "unknown" };
+    return { invalidate: false, cut: undefined, preserved: undefined, footprint: known ? "qualified" : "unknown" };
   const sameGeneration = certificate !== undefined && generationRelation(certificate.generation, now.generation) === "same";
-  return { cut: outcome?.state === "sent" ? outcome.seq : undefined,
+  return { invalidate: true, cut: outcome?.state === "sent" ? outcome.seq : undefined,
     preserved: certificate?.preserved === undefined ? undefined : sameGeneration && certificate.authorityCurrent(now) ? certificate.preserved : [],
     footprint: known && (outcome?.state === "failed" || sameGeneration) ? "qualified" : "unknown" };
 }
@@ -89,9 +90,10 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       break;
     case "admitted":
       if (state.phase !== "settled") {
+        const first = state.op === undefined;
         state.op ??= event.op; state.footprintKnown = event.footprintKnown;
         state.storeId ??= facts.storeId;
-        effects.push({ type: "retain" });
+        effects.push({ type: "retain", ...(first && !event.initial ? { invalidate: true as const } : {}) });
       }
       break;
     case "response":
@@ -99,10 +101,8 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       arrive(event.certificate);
       // Peer completion owns settlement, but never swallows live revocation.
       if (state.phase === "settled") break;
-      if (!state.certificate) {
-        state.certificate = event.certificate; state.outcome = event.certificate.outcome;
-        state.op ??= event.certificate.op; state.storeId ??= event.certificate.storeId;
-      }
+      state.certificate = event.certificate; state.outcome = event.certificate.outcome;
+      state.op ??= event.certificate.op; state.storeId ??= event.certificate.storeId;
       state.phase = "responded";
       deliver(); effects.push({ type: "retain" });
       break;
@@ -114,8 +114,17 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       finish();
       break;
     case "persisted":
+      if (state.phase === "settled") break;
+      // An executor may know a terminal receipt before inspection saw admission.
+      if (!state.certificate && event.certificate) state.certificate = event.certificate;
+      state.outcome ??= state.certificate?.outcome ?? event.receipt;
+      state.storeId ??= facts.storeId; state.op ??= facts.op;
       // A stray acknowledgement without a known terminal receipt proves nothing.
       finish();
+      break;
+    case "transportFinished":
+      // A nonterminal or failed fetch releases only its own response pin.
+      state.responseOutstanding = Math.max(0, state.responseOutstanding - 1);
       break;
     case "evicted":
       effects.push({ type: state.phase !== "settled" || !state.published || state.responseOutstanding ? "refuseEviction" : "discard" });

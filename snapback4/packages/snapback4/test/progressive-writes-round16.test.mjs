@@ -26,6 +26,7 @@ registerHooks({ load(url, context, nextLoad) {
   }
   return result;
 } });
+const { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } = await import("./helpers/progressive-writes.mjs");
 const { memorySessionStore } = await import('../dist/auth.js');
 const { mintId } = await import('../dist/client.js');
 const { storeKey, storeLock } = await import('../dist/app-storage.js');
@@ -112,7 +113,7 @@ for (const obsolete of ['credential', 'generation']) regression(2, `peer complet
   const settledCuts = cuts.length;
   f.release.resolve(); const evidence = await received.promise;
   assert.equal(evidence.authorityCurrent(), obsolete !== 'credential');
-  assert.equal(progressive.receipts.has(id), false);
+  assert.equal((unpublishedReceipt(progressive, id) !== undefined), false);
   const deadline = episodeDeadline(displayed.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'unqualified live preservation must start the withdrawal bound after peer completion');
   await until(() => !('data' in displayed.getSnapshot())); assert.ok(Date.now() <= deadline + 250);
@@ -186,7 +187,7 @@ regression(5, 'an unadmitted own receipt survives 256 admitted certificates and 
   let progressive; const settled = [];
   const install = ProgressiveWrites.prototype.install;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(client, identity, fetch, changed, ...args) {
-    await install.call(this, client, identity, fetch, (...event) => { if (event[1] !== undefined) settled.push(event); changed(...event); }, ...args); progressive = this;
+    await install.call(this, client, identity, fetch, (...event) => { if (event[1]?.type === "publish") settled.push(event); changed(...event); }, ...args); progressive = this;
   });
   const f = await fixture(t, { raw: true, hold: false });
   const ids = Array.from({ length: WRITE_HISTORY_LIMIT }, () => mintId());
@@ -195,19 +196,19 @@ regression(5, 'an unadmitted own receipt survives 256 admitted certificates and 
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = ids.map(intent); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === ids.length);
   const evidence = { store: 'A', generation: 1, preserved: ['items'], authorityCurrent: () => true };
-  for (const id of ids) progressive.receipt(id, evidence);
-  const fresh = mintId(), certificate = { ...evidence, preserved: [] }, finish = progressive.dispatch(fresh); t.after(finish);
-  assert.equal(progressive.admitted.has(fresh), false);
+  for (const id of ids) progressive.receipt(id, receiptFacts(id, evidence));
+  const fresh = mintId(), certificate = receiptFacts(fresh, { ...evidence, preserved: [] }, 42), finish = progressive.dispatch(fresh); t.after(finish);
+  assert.equal(progressive.current().some(write => write.id === fresh), false);
   progressive.receipt(fresh, certificate);
-  assert.equal(progressive.receipts.get(fresh), certificate, 'the newly inserted pre-admission certificate cannot evict itself');
-  const other = mintId(); progressive.receipt(other, evidence);
-  assert.equal(progressive.receipts.get(other), evidence, 'even an unpinned insertion cannot evict itself');
-  assert.equal(progressive.receipts.get(fresh), certificate, 'an outstanding response stays pinned during another insertion');
+  assert.equal(unpublishedReceipt(progressive, fresh), certificate.certificate, 'the newly inserted pre-admission certificate cannot evict itself');
+  const other = mintId(); progressive.receipt(other, receiptFacts(other, evidence));
+  assert.deepEqual(unpublishedReceipt(progressive, other)?.preserved, evidence.preserved, 'even an unpinned insertion cannot evict itself');
+  assert.equal(unpublishedReceipt(progressive, fresh), certificate.certificate, 'an outstanding response stays pinned during another insertion');
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending.push(intent(fresh)); await f.store.set(key, JSON.stringify(journal)); });
-  events.notify(); await until(() => progressive.admitted.has(fresh));
+  events.notify(); await until(() => progressive.current().some(write => write.id === fresh));
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = journal.pending.filter(write => write.id !== fresh); journal.receipts.push({ state: 'sent', id: fresh, seq: 42, replayed: true }); await f.store.set(key, JSON.stringify(journal)); });
-  events.notify(); await until(() => progressive.completed.has(fresh));
-  assert.equal(settled.find(event => event[1] === 42)?.[2], certificate, 'settlement uses the actual certificate rather than its admission placeholder');
+  events.notify(); await until(() => completed(progressive, fresh));
+  assert.deepEqual(settled.find(event => event[1]?.publication?.cut === 42)?.[1].publication, {invalidate:true,cut:42,preserved:[],footprint:'qualified'}, 'settlement uses the actual certificate rather than its admission placeholder');
 });
 
 regression(7, 'recovering an A-bound dispatcher replays unsent B intent instead of failing it', async t => {
@@ -273,10 +274,10 @@ regression(8, 'a qualified own receipt schedules intersecting watches once at se
   const watch = f.app.client.observe(query, {}); watch.subscribe(() => {}); t.after(() => watch.close());
   await until(() => 'data' in watch.getSnapshot());
   const id = mintId(), writing = f.app.mutate(mutation, {}, { id, waitSeconds: 5 }); await f.posted.promise;
-  await until(() => !progressive.uncertain && progressive.admitted.has(id));
+  await until(() => !progressive.uncertain && progressive.current().some(write => write.id === id));
   schedules.length = 0; cuts.length = 0;
   f.release.resolve(); assert.equal((await writing).state, 'sent');
-  await until(() => progressive.completed.has(id) && !progressive.uncertain);
+  await until(() => completed(progressive, id) && !progressive.uncertain);
   assert.deepEqual(schedules, [{ op: 'read', cut: 21, preserved: [] }], 'ordinary certified settlement must not duplicate its live invalidation');
   assert.equal(cuts.length, 1);
 });
