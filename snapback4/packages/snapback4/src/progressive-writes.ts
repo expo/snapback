@@ -213,33 +213,42 @@ export class ProgressiveWrites {
     // This private, read-less transport reuses the shipped online retry queue.
     // The local client supplies every credential, store and rollback fence.
     // It has no refresh authority, subscriptions, interpreter or result cache.
-    if (this.lifetimePaused || local.viewer() !== this.viewer) return;
+    const retired = () => this.lifetimePaused || local.viewer() !== this.viewer;
+    if (retired()) return;
     const options = { url: this.url, ...(local.session() ? { token: local.session()!.token } : { persona: this.viewer.slice(4) }), fetch };
     const transport = (await prepareClient(options, () => sdkOwned(() => createClient(options)))).client;
+    if (retired()) { await transport.close(); return; }
     const raw: Client = { ...local, mutate: transport.mutate, write: transport.write,
       pendingWrites: transport.pendingWrites, onPendingWrites: transport.onPendingWrites, onWrite: transport.onWrite,
       close: () => transport.close(), signOut: () => transport.close() };
     inheritDispatch(raw, transport); inheritClose(raw, transport);
     // Seed the existing dispatch boundary before exposing synchronous captures.
     if (storeIdentity) seedDispatchIdentity(raw, storeIdentity);
+    const report = (error: unknown) => {
+      // Suppress only unpublished, retired openings. Installed custody keeps
+      // ordinary persistence-error reporting through its cleanup.
+      if (this.custody || !retired()) this.plan.report(error);
+    };
     let failing = false;
     const reportFailure = (error: unknown) => {
-      if (!failing) { failing = true; this.plan.report(error); }
+      if (!failing) { failing = true; report(error); }
     };
+    let opened: Custody;
     try {
-      this.custody = await onlineCustody(raw, this.url, this.plan.store, this.plan.report, false,
+      opened = await onlineCustody(raw, this.url, this.plan.store, report, false,
         this.plan.authority, true, true, reportFailure);
     } catch (error) {
       await transport.close();
+      if (retired()) return;
       this.snapshotValid = false;
       this.admissionDenied = admissionRefusal(`the write journal cannot be opened: ${String(error)}`, "app.mutate", "repair browser storage, then retry a read");
       this.plan.report(new StorageWarning(this.admissionDenied));
       return this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original);
     }
+    if (retired()) { await opened.client.close(); return; }
     // Update the existing handle, including consumers created during failure.
-    const custody = Object.assign(lifetimes.get(local)!, this.custody), journal = custody.client;
+    const custody = Object.assign(lifetimes.get(local)!, opened), journal = custody.client;
     this.custody = custody;
-    if (this.lifetimePaused) custody.pause();
     this.bridgeOpeningWrites?.(journal); this.bridgeOpeningWrites = undefined;
     const deviceIntents = this.deviceIntents!, journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
@@ -352,6 +361,7 @@ export class ProgressiveWrites {
       if (this.admissionDenied) return failedAdmission(options?.id ?? mintId(), this.admissionDenied);
       return journal.mutate(op, args, journalOptions);
     });
+    if (!this.lifetimePaused) delete this.admissionDenied;
     local.write = async id => deviceKnown(id) ? original.write(id) : await journal.write(id) ?? original.write(id);
     local.pendingWrites = async () => unique([...(await this.pending()), ...(await devicePending())]);
     local.onPendingWrites = listener => { const a = original.onPendingWrites(listener), b = journal.onPendingWrites(listener); return () => { a(); b(); }; };

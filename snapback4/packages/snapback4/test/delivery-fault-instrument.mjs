@@ -722,3 +722,11 @@ export function awaitBoundary() {
 // E12 regressions and isolated controls cover each decision; E10 keeps failed
 // peer settlement scoped. Regenerate the expression seal; all 215 classified
 // delivery sites, failure classes and recipes remain unchanged.
+
+// Lane E round 13: progressive-writes adds two retirement-only cleanup awaits
+// (23→25): close a prepared transport or newly opened custody before exposing
+// either to a retired lifetime. Rechecks after preparation/opening and failure
+// reporting suppression preserve the original refusal wrappers; clearing a live
+// dispatcher's admission refusal before refresh is synchronous. E13 holds both
+// opening boundaries and the first inspection, including a retired open failure.
+// No new admission/delivery I/O or fault recipe: all 215 classified sites remain.
