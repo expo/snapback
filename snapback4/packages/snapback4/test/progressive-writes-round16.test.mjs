@@ -21,9 +21,6 @@ registerHooks({ load(url, context, nextLoad) {
   if (url === new URL('../dist/client-start.js', import.meta.url).href) {
     patch('const client = await create();', 'const client = await create(); await globalThis.__e16Prepared?.(options, client);');
   }
-  if (url === new URL('../dist/progressive-writes.js', import.meta.url).href && process.env.E16_CONTROL === 'pause-guard') {
-    patch('if (this.lifetimePaused)\n                return failedAdmission(options?.id ?? mintId(), this.admissionDenied ??\n                    admissionRefusal("write custody is paused", "app.mutate", "retry after opening resumes"));', '');
-  }
   return result;
 } });
 const { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } = await import("./helpers/progressive-writes.mjs");
@@ -154,7 +151,8 @@ for (const kind of ['shrink', 'generation', 'foreign-reset', 'foreign-restore'])
   }
 });
 
-for (const when of ['before recovery', 'during recovery read']) regression(6, `opening pause ${when} can resume without reload`, async t => {
+// retired under LLP 3000.002.000.000 §2.4
+for (const when of ['before recovery', 'during recovery read']) regression(6, `opening pause ${when} requires a new lifetime`, async t => {
   const memory = memorySessionStore(), entered = gate(), release = gate(); await memory.set(key, 'damaged opening');
   let progressive, holding = false, installs = 0;
   const store = { ...memory, async get(k) { if (k === key && holding) { holding = false; entered.resolve(); await release.promise; } return memory.get(k); } };
@@ -174,10 +172,13 @@ for (const when of ['before recovery', 'during recovery read']) regression(6, `o
   else { holding = true; const recovering = progressive.pending(); await entered.promise; handle.pause(); release.resolve(); await recovering; }
   assert.equal(installs, 1, 'pause precedes nested transport preparation');
   assert.equal(progressive.custody, undefined);
-  const id = mintId(); assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 })).why?.code, 'E_ADMISSION');
-  handle.start();
-  await until(() => progressive.custody !== undefined);
-  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent', 'start resumes recovery and admits the refused id');
+  const id = mintId(); assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 })).why?.code, 'E_CLOSED');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined);
+  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).why?.code, 'E_CLOSED');
+  assert.deepEqual(f.requests, []);
+  const reopened = await f.reopen(); await reopened.ready;
+  assert.equal((await reopened.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent');
   assert.deepEqual(f.requests, [id]);
 });
 
@@ -237,7 +238,8 @@ regression(7, 'recovering an A-bound dispatcher replays unsent B intent instead 
   assert.equal((await f.journal()).pending.length, 0);
 });
 
-regression(3, 'a repaired paused dispatcher refuses its opening pending id until start', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression(3, 'a repaired retired dispatcher preserves its opening pending id for the next open', async t => {
   const store = memorySessionStore(), entered = gate(), release = gate(); await store.set(key, 'damaged opening');
   const id = mintId(); let progressive, installs = 0;
   const install = ProgressiveWrites.prototype.install;
@@ -251,14 +253,15 @@ regression(3, 'a repaired paused dispatcher refuses its opening pending id until
   const handle = progressiveWriteCustody(f.app.client), recovering = progressive.pending(); await entered.promise;
   assert.equal(progressive.initial.pending[0]?.id, id, 'the repaired opening snapshot owns X');
   handle.pause(); release.resolve(); await recovering;
-  assert.ok(progressive.custody);
-  assert.equal((await f.app.client.write(id))?.state, 'pending');
+  assert.equal(progressive.custody, undefined);
   assert.deepEqual(f.requests, []);
   const retry = await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 });
-  assert.equal(retry.why?.code, 'E_ADMISSION', 'same-id journal ownership cannot bypass a paused opening');
-  assert.deepEqual(f.requests, []);
-  handle.start();
-  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent');
+  assert.equal(retry.why?.code, 'E_CLOSED', 'same-id retries cannot resume a retired opening');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined);
+  assert.deepEqual(JSON.parse(await store.get(key)).pending.map(write => write.id), [id]);
+  const reopened = await f.reopen(); await reopened.ready;
+  await until(async () => (await reopened.client.write(id))?.state === 'sent');
   assert.deepEqual(f.requests, [id]);
 });
 

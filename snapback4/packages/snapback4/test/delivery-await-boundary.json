@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 40,
-    "sha256": "ea7589dcddce71323ca8f62a866f1fce2b508ecb8ccb6a9c61b101e62a1ab431"
+    "count": 43,
+    "sha256": "c44457e192ca729f5499c7964516d19bad0d4f45bb4d29dd46e3d3c78e364e74"
   },
   "app-persona.ts": {
     "count": 23,
@@ -329,7 +329,7 @@
   },
   "progressive-writes.ts": {
     "count": 26,
-    "sha256": "825fcd044b628a24eb7025e01a6960f0b442f899683e28c65403354b2f4c7a14"
+    "sha256": "93b18a12a4af5b46f4a6236ff7dba2308855aa01a85f2fcfdcdb8cdc6ea777fa"
   },
   "proof-accounts.ts": {
     "count": 16,

@@ -33,7 +33,8 @@ export function publicWrite<T extends Write | undefined>(write: T): T {
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown, preserved?: boolean) => void, autoStart = true,
   captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report,
-  settlement?: (event: "persisted" | "observed", write: Terminal) => void) {
+  settlement?: (event: "persisted" | "observed", write: Terminal) => void,
+  lifetime?: { admission(): { why?: Refusal; wait?: Promise<void> }; installed(): void; retire(): void }) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   // @ref LLP 3000.013.000#4 — a device-less browser app captures each click
@@ -46,6 +47,15 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // Ids durable in the journal that this runtime replays without capturing; settled ids leave.
   const restoredIds = new Set<string>();
   let active = true;
+  const endingRefusal = (): Refusal | undefined => !active || raw.viewer() !== viewer
+    ? { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } : undefined;
+  const work = new Set<Promise<unknown>>();
+  const admissions = new Map<string, Promise<void>>();
+  const track = <T>(task: Promise<T>): Promise<T> => {
+    work.add(task); void task.then(() => work.delete(task), () => work.delete(task)); return task;
+  };
+  const drain = async () => { while (work.size) await Promise.allSettled([...work]); await writes.catch(report); };
+  let journalEvents: ReturnType<typeof journalChanges> | undefined;
   let storeRefusal: Refusal | undefined;
   let retirement: Promise<void> | undefined;
   const keptByRefusal = new Set<string>();
@@ -79,7 +89,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const after = JSON.stringify(journal);
       // Reading an existing intent/receipt needs no new custody. A redundant
       // save must not turn that known outcome into an admission refusal.
-      if (after !== before) { await store.set(key, after); journalEvents.notify(); }
+      if (after !== before) { await store.set(key, after); journalEvents?.notify(); }
       return value;
     });
     writes = result;
@@ -106,7 +116,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (known) capture!.mark(journal, record);
       capture!.collect(journal);
       const after = JSON.stringify(journal);
-      if (after !== before) { await store.set(key, after); journalEvents.notify(); }
+      if (after !== before) { await store.set(key, after); journalEvents?.notify(); }
       return { value, known };
     }));
     writes = result;
@@ -197,9 +207,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   });
   // Subscribe across the opening read, when pause's journal subscription does
   // not exist yet. Even a complete viewer round trip retires this lifetime.
-  let viewerChanged = false, initialized = false;
+  // The opening read still owns raw terminal replies (S3a 0.8). Queue its
+  // viewer cleanup until that read has installed the subscription resources.
+  let retireAfterOpening: (() => void) | undefined;
   const stopViewer = raw.onViewer(next => {
-    if (next !== viewer) { viewerChanged = true; if (initialized) pause(); }
+    if (next !== viewer) { if (journalEvents) pause(); else retireAfterOpening = pause; }
   });
   let initial: Journal;
   try {
@@ -212,7 +224,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     await raw.close();
     throw error;
   }
-  const journalEvents = journalChanges(key, pending.notify);
+  journalEvents = journalChanges(key, pending.notify);
+  if (!active) journalEvents.close();
   for (const intent of initial.pending) restoredIds.add(intent.id);
   if (dispatchEnabled) ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
@@ -278,7 +291,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // intent expired. Every overlapping caller still owns that intent.
         return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
       }, snapshot => {
-        const submit = async (release = () => {}, captured?: CaptureRecord): Promise<Write<R>> => {
+        const submit = (release = () => {}, captured?: CaptureRecord): Promise<Write<R>> => {
+        // Admission starts before the gate. Close drains it even when no
+        // transaction has yet been queued, but never waits for a network reply.
+        let admitted!: () => void;
+        const admissionWork = track(new Promise<void>(resolve => { admitted = resolve; }));
+        admissions.set(id, admissionWork);
+        void admissionWork.then(() => { if (admissions.get(id) === admissionWork) admissions.delete(id); });
+        return (async (): Promise<Write<R>> => {
         // Identify before admitting new intent. A reopened journal can name A
         // while this runtime first connects to B; only recovered unbound
         // intent belongs to that earlier history. Existing entries keep their
@@ -294,8 +314,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           return outcome as Write<R>;
         };
         if (storeRefusal) return refusedCapture();
-        // Recovered clicks are admitted before this runtime's new ones.
-        if (!restoredIds.has(id) && recovery) await recovery;
+        // Captured clicks have durable side-key records; keep their existing
+        // recovery order and locked authority check. Uncaptured admissions use
+        // the transactional machine re-check below instead of this opening gate.
+        if (captured && !restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
         // @ref LLP 3000.002.000#7.2 — releasing an opening gate retires
         // waiters too. Restored journal custody survives; a fresh waiter owns nothing.
@@ -303,10 +325,16 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // check below: commit under a live session, or cancel with E_AUTH.
         if (!active || raw.viewer() !== viewer) {
           if (restoredIds.has(id)) return { state: "pending", id };
-          if (!captured) return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } };
         }
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);
+          // @ref LLP 3000.002.000.000#2.4 — no promise resolution grants
+          // admission. Read the machine AFTER journal I/O on every attempt.
+          // A wait is data returned out of this transaction; never hold its
+          // lock while the restored prefix needs that same lock to progress.
+          const state = lifetime?.admission(), ended = storeRefusal ?? state?.why ?? endingRefusal();
+          const wait = !captured && !restoredIds.has(id) && !ended ? state?.wait ?? recovery : undefined;
+          if (wait) return { wait };
           if (previous) {
             // MutationIds below checks normalized input without replacing its owner.
             const check = new MutationIds();
@@ -316,6 +344,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           // @ref LLP 3000.013.000#4.2 — today's precedence, then an id known only by its marker.
           const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id) ?? capturedReceipt(journal, id);
           if (receipt) return Promise.resolve(publicWrite(receipt));
+          // @ref LLP 3000.002.000.000#2.4 — re-read retirement inside the
+          // transaction, after journal I/O. Captures reached this callback only
+          // through admitCaptured's locked authority check (HF1).
+          if (storeRefusal || ended && !captured) return Promise.resolve({ state: "failed" as const, id, why: ended! });
           if (identity) observeJournalStore(journal, identity);
           // A capture keeps the store it recorded, whatever the transport sees now.
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: captured?.storeId ?? identity ?? null, dispatched: false });
@@ -330,11 +362,19 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
               captureAuthority!.recheck();
               return { state: "failed", id, why: admissionAuthorityRefusal() };
             }
-            refusal = admitted.value;
+            // Captured admission never waits here; its gate is above and its
+            // commit always runs through admitCaptured's authority check.
+            refusal = admitted.value as Write | undefined;
             capturing.delete(id);
             if (admitted.known) capture!.remove(captured);
             else capture!.cancel(captured);
-          } else refusal = await change(admission, true);
+          } else {
+            for (;;) {
+              const result = await change(admission, true);
+              if (result && "wait" in result) { await result.wait; continue; }
+              refusal = result; break;
+            }
+          }
         } catch (error) {
           // @ref LLP 3000.013.000#4.2 — the record stays durable: the call stays
           // pending and this runtime recovers it before its next admission.
@@ -348,6 +388,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (refusal?.state === "failed" || refusal?.state === "sent") { restoredIds.delete(id); return refusal as Write<R>; }
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
+        admitted();
         const dispatch = async (): Promise<Write<R>> => {
           const sending = raw.mutate(op, snapshot as A, { ...options, id });
           release();
@@ -367,6 +408,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           return { state: "pending", id };
         }
         return dispatch();
+        })().finally(admitted);
         };
         // @ref LLP 3000.013.000#4.1 — capture in the calling stack once the store is identified; a refusal admits nothing.
         const admit = (release = () => {}): Promise<Write<R>> => {
@@ -431,11 +473,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     // the shared journal supplies order and persisted dispatch status.
     async pendingWrites() { return (await inspect()).pending.map(({ storeId: _store, ...write }: import("./contract.ts").PendingWrite & { storeId?: string | null | undefined }) => write); },
     onPendingWrites: pending.subscribe,
-    async close() { pause(); await raw.close(); await writes.catch(report); },
-    async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
+    async close() { pause(); await raw.close(); await drain(); },
+    async signOut() { pause(); await raw.signOut(); await drain(); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
-  async function inspect() {
+  function inspect() { return track((async () => {
       if (!active || raw.viewer() !== viewer) return { pending: [], receipts: [] };
       const journal = await locked(key, read);
       if (!active || raw.viewer() !== viewer) return { pending: [], receipts: [] };
@@ -454,7 +496,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
             : { state: intent.dispatched ? "sent" as const : "queued" as const }),
         };
       })].map(write => [write.id, write])).values()] };
-  }
+  })()); }
   // The durable online journal is a client wrapper, not a new history owner.
   guardFollowing(client, raw, async () => (await client.pendingWrites()).length > 0,
     () => active && !storeRefusal && raw.viewer() === viewer);
@@ -472,20 +514,35 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   inheritClose(client, raw);
   // @ref LLP 3000.023#3.4 — this custody lifetime cannot reactivate after an
   // account flip, even if a later response names its original viewer again.
-  function pause() { capturing.clear(); capture?.close(); clearTimeout(recoveryTimer); openGate?.(); identification.close(); active = false; presentation.clear(); pending.notify(); pending.clear(); journalEvents.close(); stopViewer(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
-  initialized = true;
-  if (viewerChanged || raw.viewer() !== viewer) pause();
+  function pause() {
+    if (!active) return;
+    active = false;
+    // The shared machine fences the device before any custody notification.
+    lifetime?.retire();
+    capturing.clear(); capture?.close(); clearTimeout(recoveryTimer); openGate?.(); identification.close();
+    presentation.clear(); pending.notify(); pending.clear(); journalEvents?.close(); stopViewer(); stopPending?.(); stop();
+    listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear();
+  }
+  if (retireAfterOpening || raw.viewer() !== viewer) pause();
+  retireAfterOpening = undefined;
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
   function start() {
     if (started || !active || !dispatchEnabled) return;
     started = true;
-    const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
-      client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
-    void recovery.catch(report);
-    if (capture) void recover().finally(() => { openGate?.(); openGate = undefined; });
-    else { openGate?.(); openGate = undefined; }
+    const prefix = initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent => {
+      void client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id }).catch(report);
+      return admissions.get(intent.id);
+    });
+    // @ref LLP 3000.002.000.000#2.4 — publish installed only after restored
+    // admissions have reached dispatch, never after waiting for their replies.
+    // A fresh transaction queued during opening must still retry behind them.
+    void Promise.all([...prefix, capture ? recover() : undefined]).finally(() => {
+      openGate?.(); openGate = undefined;
+      if (!recovering) recovery = undefined;
+      lifetime?.installed();
+    }).catch(report);
   }
   // @ref LLP 3000.013.000#4.4 — admit this scope's surviving captures once,
   // under the journal lock and then the session lock; replay them before this
@@ -525,7 +582,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         }
         capture.collect(journal);
         const after = JSON.stringify(journal);
-        if (after !== before) { await store.set(key, after); journalEvents.notify(); }
+        if (after !== before) { await store.set(key, after); journalEvents?.notify(); }
         for (const record of admitted) capture.remove(record);
         for (const record of [...ended, ...reused]) capture.cancel(record);
         if (ended.length) console.warn(`snapback4: ${ended.length} browser write${ended.length === 1 ? "" : "s"} captured under a session that has since ended ${ended.length === 1 ? "was" : "were"} not sent (LLP 3000.013.000 §4.6).`);
@@ -547,8 +604,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (active) void client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id }).catch(report);
       }
     }, error => { capture.stale = true; reportRecovery(error); scheduleRecovery(); });
-    recovery = recovering = done.finally(() => { recovering = undefined; });
-    return recovering;
+    const completion = track(done).finally(() => {
+      recovering = undefined;
+      if (recovery === completion) recovery = undefined;
+    });
+    recovery = recovering = completion;
+    return completion;
   }
   if (autoStart) start();
   function refuseStore(why: Refusal, adoptedStore?: string): Promise<void> {

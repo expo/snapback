@@ -44,7 +44,8 @@ regression('E14 adopted-store refusal recovers the dispatcher and the next app m
   assert.equal((await f.app.client.query(query, {})).data, 'local');
 });
 
-regression('E14 pause during nested preparation leaves the device open and custody deferred until start', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression('E14 pause during nested preparation retires resources and preserves replay for the next open', async t => {
   const store = memorySessionStore(), entered = gate(), release = gate();
   await store.set(key, 'damaged opening');
   let progressive, installs = 0, transport, closes = 0;
@@ -65,17 +66,18 @@ regression('E14 pause during nested preparation leaves the device open and custo
   const replay = mintId();
   await store.set(key, JSON.stringify({ owner: 'alice', backend: url, pending: [{ owner: 'alice', id: replay, op: 'write', args: {}, storeId: 'A' }], receipts: [] }));
   handle.pause(); release.resolve(); await recovering;
-  assert.ok(transport); assert.equal(closes, 0, 'a pause must not retire the prepared transport');
+  assert.ok(transport); assert.ok(closes > 0, 'retirement closes the prepared transport');
   assert.equal(progressiveWriteCustody(f.app.client), handle);
-  assert.ok(progressive.custody, 'paused opening still installs its deferred custody');
-  const action = await f.app.client.act({ kind: 'action', name: 'perform' }, {});
-  assert.equal(action.state, 'done', 'the raw device lifetime remains open');
-  assert.deepEqual(f.requests, [], 'paused custody does not start replay');
-  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_ADMISSION');
-  handle.start(); // The existing deferred-start entry point resumes this opening.
-  await until(async () => (await f.app.client.write(replay))?.state === 'sent');
-  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 5 })).state, 'sent');
-  assert.equal(f.requests.length, 2); assert.equal(f.requests[0], replay);
+  assert.equal(progressive.custody, undefined, 'a retired opening cannot publish custody');
+  assert.equal((await f.app.client.act({ kind: 'action', name: 'perform' }, {})).denied?.code, 'E_CLOSED');
+  assert.deepEqual(f.requests, []);
+  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined, 'start after retirement is a no-op');
+  assert.deepEqual(JSON.parse(await store.get(key)).pending.map(write => write.id), [replay]);
+  const reopened = await f.reopen(); await reopened.ready;
+  await until(async () => (await reopened.client.write(replay))?.state === 'sent');
+  assert.deepEqual(f.requests, [replay], 'the next open replays committed custody');
 });
 
 regression('E14 late own empty preservation withdraws a displayed answer after peer settlement without a second cut', async t => {
@@ -177,7 +179,8 @@ for (const refusing of ['B', 'C']) regression(`E14 real replacement metadata for
   }
 });
 
-regression('E14 paused open denial frame keeps raw mutations at E_ADMISSION', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression('E14 retired open denial frame refuses raw mutations with E_CLOSED', async t => {
   const { localStatus } = await import('../dist/app.js');
   const memory = memorySessionStore(); await memory.set(key, 'damaged opening');
   // start() now attempts opening recovery too. Keep quarantine unavailable so
@@ -190,7 +193,9 @@ regression('E14 paused open denial frame keeps raw mutations at E_ADMISSION', as
   await until(() => localStatus(f.app.client).getSnapshot().state === 'ready');
   progressiveWriteCustody(f.app.client).pause();
   const write = await f.app.client.mutate(mutation, {}, { waitSeconds: 0 });
-  assert.equal(write.why?.code, 'E_ADMISSION', 'pause is not permission to admit into the device outbox');
+  assert.equal(write.why?.code, 'E_CLOSED', 'retirement cannot admit into the device outbox');
+  progressiveWriteCustody(f.app.client).start();
+  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
   assert.deepEqual(f.requests, []); assert.equal(await store.get(key), 'damaged opening');
 });
 

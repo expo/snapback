@@ -805,3 +805,20 @@ export function awaitBoundary() {
 // local/progressive-writes/app-online/app-journal stay at 228/26/40/3 awaits;
 // all 215 classified sites/recipes remain. S3a, rounds 14/16 and receipt tests
 // cover these paths; regenerate the complete seal.
+
+// Lane S3b step 3: ProgressiveWrites' one terminal machine replaces the denial,
+// paused and closed flags. Its 26 awaits now drain tracked nested installation,
+// recovery and inspection tasks under one response hold. app-online grows 40→42
+// awaits for admission/inspection/recovery drains; transaction admission rechecks
+// the shared retirement refusal after journal I/O. Captured work still uses the
+// existing locked authority check and restored ids keep committed custody.
+// The 30-edge table, 48 seeded lifetime walks and rounds 11/13/15/17 + HF1 cover
+// these boundaries. All 215 classified delivery sites and recipes stay intact.
+
+// Lane S3b step 4: fresh uncaptured admission returns a readiness wait out of
+// the journal transaction, then retries its state check after the next read.
+// start releases readiness after issuing the complete restored prefix. This
+// adds one app-online await (42→43); local/progressive/app-journal remain
+// 228/26/3. The gate witnesses, its retirement-guard removal control, rounds
+// 13/15/17 and HF1 cover ordering and retirement without adding a delivery I/O
+// site or changing any of the 215 classified sites/recipes. Regenerate the seal.

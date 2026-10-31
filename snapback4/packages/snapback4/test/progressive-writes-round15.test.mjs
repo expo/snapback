@@ -77,7 +77,8 @@ for (const target of ['dispatcher', 'custody']) regression(`E15 retained denial 
   assert.deepEqual(f.requests, []);
 });
 
-regression('E15 retained opening pause fences the installed dispatcher until start', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression('E15 retained opening pause retires the installed dispatcher permanently', async t => {
   const { entries, authority } = browser(t), memory = memorySessionStore(), entered = gate(), release = gate();
   await memory.set(key, 'damaged opening');
   let installs = 0, nestedReads = 0, progressive;
@@ -96,17 +97,17 @@ regression('E15 retained opening pause fences the installed dispatcher until sta
   assert.deepEqual(handle.captures(), []);
   assert.equal([...entries.values()].some(value => JSON.parse(value).id === id), false);
   release.resolve(); await recovering;
-  assert.equal((await writing).why?.code, 'E_ADMISSION');
+  assert.equal((await writing).why?.code, 'E_CLOSED');
   assert.deepEqual(JSON.parse(await memory.get(key)).pending, []);
   assert.deepEqual(f.requests, []);
-  assert.equal((await f.app.client.act({ kind: 'action', name: 'perform' }, {})).state, 'done', 'pause leaves the device open');
+  assert.equal((await f.app.client.act({ kind: 'action', name: 'perform' }, {})).denied?.code, 'E_CLOSED', 'pause fences the device');
   handle.start();
-  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent', 'the refused id can be retried after start');
-  assert.deepEqual(f.requests, [id]);
+  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).why?.code, 'E_CLOSED', 'start after pause is a no-op');
+  assert.deepEqual(f.requests, []);
 });
 
 for (const method of ['close', 'signOut', 'pause', 'viewer']) for (const preserves of [false, true]) {
-  regression(`E15 ${method} during opening recovery ${preserves ? 'still reports the quarantine side key' : method === 'pause' ? 'reports preservation failure for resumable custody' : 'suppresses preservation failure'}`, async t => {
+  regression(`E15 ${method} during opening recovery ${preserves ? 'still reports the quarantine side key' : method === 'pause' ? 'reports preservation failure once for retired custody' : 'suppresses preservation failure'}`, async t => {
     const memory = memorySessionStore(), entered = gate(), release = gate(), reports = [];
     const damaged = 'damaged opening recovery'; await memory.set(key, damaged);
     let hold = false, preserving = false, saves = 0, installs = 0, progressive;
@@ -140,7 +141,12 @@ for (const method of ['close', 'signOut', 'pause', 'viewer']) for (const preserv
       assert.equal(await memory.get(side), damaged);
     } else {
       if (method === 'pause') {
-        assert.equal(reports.length, 1, 'resumable pause keeps the failure-streak warning');
+        // retired under LLP 3000.002.000.000 §2.4
+        assert.equal(reports.length, 1, 'retired pause keeps the failure-streak warning');
+        progressiveWriteCustody(f.app.client).start();
+        await progressive.pending();
+        assert.equal(reports.length, 1);
+        assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
         assert.match(reports[0].why.message, /could not be preserved/);
       } else assert.deepEqual(reports, [], 'retired opening recovery reports no preservation failure');
       assert.equal(await memory.get(key), damaged, 'failed preservation keeps the original bytes');
