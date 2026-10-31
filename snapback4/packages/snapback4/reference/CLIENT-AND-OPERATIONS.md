@@ -185,7 +185,11 @@ its receipt owner. A peer tab's settlement of this tab's captured write keeps
 that same-store cut even while this tab's original response is still pending.
 Inspected success receipts cover all tables unless their recorded execution
 metadata qualifies the operation's footprint; the current program cannot supply
-missing execution evidence. A failed write does not block disjoint reads. Inspected receipts invalidate reads
+missing execution evidence. An own replay also lacks proved execution generation:
+its success installs an all-table cut and wakes every watch, including disjoint
+watches, which can cause extra reads during recovery. An observed peer success
+supersedes a retained store-refusal outcome; a legacy peer receipt still lacks
+execution metadata. A failed write does not block disjoint reads. Inspected receipts invalidate reads
 without inventing revocation evidence, so retained answers keep their deadlines.
 An own receipt with a known preservation list keeps the withdrawal bound when
 its authority or generation is obsolete: it cannot certify preserved scopes, so
@@ -203,9 +207,14 @@ same-id recovery and notifications also omit execution generation and operation
 metadata. A replacement refusal naming the already-adopted store recovers the retired write dispatcher without fencing
 its reads, even after credential rotation or program adoption. Pending intents
 already bound to that store remain durable for the reopened dispatcher and
-their callers receive `pending`; foreign intents retire. A different store fences
+their callers receive `pending`; foreign intents retire. Synthetic transport
+failures cannot remove kept intents or turn them into failed receipts, including
+while retirement storage is held. A confirmed successful invocation still returns
+`sent` with its full result through retirement. A different store fences
 immediately, even for an older store's request. Accepted fences record metadata without a second store-change callback;
 only a different store skips comparison against the previous store's head.
+Queries and the change stream also suppress duplicate store-change notifications
+when cold sync has already adopted that store but online metadata still lags.
 Same-store replacement refusals still witness a shrinking head and reset changed
 program authority. Unaccepted foreign request refusals adopt no metadata.
 A refusal arriving after lifetime retirement cannot reopen that custody or
@@ -234,7 +243,9 @@ Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
 new mutations, actions and transport sends, including through a close callback
-saved before custody recovered; cleanup waits for recovery, retaining already
+saved before custody recovered; a rejected session deletion or media clear is
+reported once and still drains retirement and releases response holds. Cleanup
+waits for recovery, retaining already
 dispatched action outcomes received before public close completes. A saved close
 also shuts down custody installed since it was obtained and waits for its journal
 saves. The dispatcher closes before device close can notify, and device admission
@@ -248,7 +259,12 @@ A later mutation returns `E_AUTH` after sign-out or viewer retirement, or
 `E_CLOSED` after close or pause of progressive custody; a later read cannot
 restart that lifetime. Pause is retirement: a paused app's custody does not
 resume, and its custody handle's `start()` after `pause()` is a no-op. This also
-applies while opening or recovering. Later same-id mutation retries receive
+applies while opening or recovering. App logout and fencing pause custody first,
+so device session/viewer listeners are cleared before session-end notifications;
+observe app auth state for those app transitions. After a device persona app's
+store-change notification, its retained `app.client` is closed and answers
+`E_CLOSED`; reopen the app to continue. Direct client sign-out keeps session
+notifications ahead of device close. Later same-id mutation retries receive
 the retirement refusal; committed intents remain durable for the next open.
 A failed installation in an open lifetime keeps the typed
 `E_ADMISSION` refusal until custody is successfully installed. Once the live

@@ -59,6 +59,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   let storeRefusal: Refusal | undefined;
   let retirement: Promise<void> | undefined;
   const keptByRefusal = new Set<string>();
+  let keepStoreQueue = false;
+  const storeFailure = (write: Write) => write.state === "failed"
+    && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code);
+  const keptFailure = (write: Write) => progressive && storeFailure(write)
+    && (keepStoreQueue || keptByRefusal.has(write.id));
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   // I13: failed receipt persistence cannot turn a known outcome back into
@@ -191,7 +196,16 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (recoveredIntents.delete(write.id)) { notify(write); return; }
       // Progressive transport has already executed its wrapper decision before
       // the raw client emits. Standalone online custody has this single actor.
-      if (progressive) { void settle(write).catch(error => retain(write, error)); return; }
+      if (progressive) {
+        // @ref LLP 3000.002.000.000#2.3 — the wrapper owns store retirement.
+        // stopForStore emits synthetic failures for the entire raw queue, even
+        // ids the wrapper kept. Its transaction must establish those ids first.
+        void (async () => {
+          if (storeFailure(write)) await retirement;
+          if (!keptFailure(write)) await settle(write).catch(error => retain(write, error));
+        })().catch(report);
+        return;
+      }
       const identity = dispatchIdentity(raw);
       const facts = extract(write, { kind: "response", source: "raw-onWrite", id: write.id,
         op: undefined, footprintKnown: false, restoreConfirmed: false }, {
@@ -393,7 +407,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const sending = raw.mutate(op, snapshot as A, { ...options, id });
           release();
           const result = await sending;
-          if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+          // @ref LLP 3000.013#6 — a confirmed invocation result survives
+          // dispatcher retirement, including an intent kept for the new store.
+          if (result.state !== "sent" && storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+          if (keptFailure(result)) return { state: "pending", id };
           if (terminal(result)) {
             try { await settle(result); }
             // Keep the durable intent for replay if receipt storage fails, but
@@ -460,6 +477,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (!journal.pending.some(intent => intent.id === id) && capture?.holding(id)) return { state: "pending", id };
       const known = await raw.write(id);
       if (journal.pending.some(intent => intent.id === id)) {
+        if (known && keptFailure(known)) return { state: "pending", id };
         if (known && terminal(known)) {
           try { await settle(known); return known; }
           catch (error) { retain(known, error); return known; }
@@ -614,6 +632,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   if (autoStart) start();
   function refuseStore(why: Refusal, adoptedStore?: string): Promise<void> {
     if (retirement) return retirement;
+    // A later explicit retirement replaces an earlier keep effect; only the
+    // transaction below determines which ids survive that retirement.
+    keepStoreQueue = false; keptByRefusal.clear();
     storeRefusal = why;
     presentation.clear();
     identification.close(identityRefusal(false));
@@ -631,7 +652,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     }).then(failed => { for (const write of failed) notify(write); });
     return retirement;
   }
-  return { client, pause, start, refuseStore, inspect, captures: () => [...capturing.values()],
+  return { client, pause, start, refuseStore, keepStore: (id: string) => {
+    // Execute the wrapper's keep decision synchronously, before the raw queue
+    // fans this refusal out to entries which never reached the wrapper.
+    if (!retirement) { keptByRefusal.add(id); keepStoreQueue = true; }
+  }, inspect, captures: () => [...capturing.values()],
     captureState: async () => {
       const state = await capture?.inspect();
       return { unsettled: !!capture?.stale || !!state?.recoverable.length,

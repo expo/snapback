@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 43,
-    "sha256": "c44457e192ca729f5499c7964516d19bad0d4f45bb4d29dd46e3d3c78e364e74"
+    "count": 45,
+    "sha256": "fe0c2f5ba96575eff0b300f4c956913b6cced427d567c088e905c297e12504c2"
   },
   "app-persona.ts": {
     "count": 23,
@@ -269,7 +269,7 @@
   },
   "local.ts": {
     "count": 228,
-    "sha256": "7030631ddefc28b3ca2e39a5dd089d9c58ffceb4263f57ddae90ee5807928cbe"
+    "sha256": "2201882db9fb8e74b72930fe24812a952d991d40d4f0a10f8c70615639c53cc2"
   },
   "mock-ephemeral.ts": {
     "count": 0,

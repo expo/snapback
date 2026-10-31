@@ -20,7 +20,9 @@ const url = 'https://progressive-writes.invalid', key = storeKey('writes', url, 
 
 for (const method of ['pause', 'close', 'signOut']) test(`S3b gate: ${method} while journal read is held refuses an unowned admission inside that transaction`, { timeout: 20_000 }, async t => {
   const memory = memorySessionStore(), entered = gate(), release = gate();
-  let hold = false;
+  let hold = false, progressive;
+  const install = ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) { progressive = this; return install.apply(this, args); });
   const store = { ...memory, async get(k) {
     if (hold && k === key) { hold = false; entered.resolve(); await release.promise; }
     return memory.get(k);
@@ -31,7 +33,7 @@ for (const method of ['pause', 'close', 'signOut']) test(`S3b gate: ${method} wh
   hold = true;
   const writing = f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 }); await entered.promise;
   let ending;
-  if (method === 'pause') { handle.pause(); ending = f.app.client.close(); }
+  if (method === 'pause') { handle.pause(); ending = progressive.closing; }
   else ending = f.app.client[method]();
   let ended = false; ending.then(() => { ended = true; });
   await tick(); assert.equal(ended, false, 'close owns this admission even before its commit');

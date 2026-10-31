@@ -12,6 +12,21 @@ const context = (snapshot = pin, json = body, input = request) => extract(json, 
 const publications = effects => effects.filter(e => e.type === 'publish');
 const episodes = effects => effects.filter(e => e.type === 'startEpisode');
 
+for (const code of ['E_STORE_REPLACED', 'E_DEV_RESET', 'E_STORE_RESTORE'])
+for (const additive of [false, true]) test(`HF2 L2: peer success supersedes stored ${code}, additive=${additive}`, () => {
+  const failure = context(pin, { state: 'failed', why: { code, family: 'store', message: 'execution unknown' }, store_id: 'A', generation: 1 });
+  const responded = step(initialState(), { type: 'response', certificate: failure.certificate }, failure).state;
+  const peer = context(pin, { state: 'sent', id: 'x', seq: 42, ...(additive ? { storeId: 'A', generation: 1, op: 'write' } : {}) }, { ...request, kind: 'observed' });
+  const observed = step(responded, { type: 'observed', receipt: peer.outcome, certificate: peer.certificate }, peer);
+  assert.equal(observed.state.outcome.state, 'sent');
+  assert.equal(observed.state.outcome.seq, 42);
+  assert.equal(publications(observed.effects)[0].publication.cut, 42);
+  assert.equal(publications(observed.effects)[0].publication.footprint, additive ? 'qualified' : 'unknown');
+  assert.equal(observed.state.certificate, peer.certificate, 'a legacy receipt cannot borrow the refused execution generation');
+  assert.equal(observed.effects.filter(e => e.type === 'settle').length, 1);
+  assert.deepEqual(step(observed.state, { type: 'observed', receipt: peer.outcome }, peer).effects, []);
+});
+
 function sequences() {
   const result = [];
   function visit(prefix) {

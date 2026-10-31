@@ -174,7 +174,8 @@ for (const progressive of [false, true]) regression(`S3a 0.6: kept B success set
   t.after(() => owner.client.close());
   const writing = owner.client.mutate(mutation, {}, { id }); await entered.promise;
   await owner.refuseStore({ code: 'E_STORE_REPLACED', family: 'store', message: 'changed' }, 'B');
-  const sent = { state: 'sent', id, seq: 31 }; f.emit(sent); result.resolve(sent); await writing;
+  const sent = { state: 'sent', id, seq: 31, result: { value: 'confirmed B result' } }; f.emit(sent); result.resolve(sent);
+  assert.deepEqual(await writing, sent, 'the invocation keeps its full confirmed success through retirement');
   const journal = await owner.inspect();
   assert.equal(journal.pending.length, 0); assert.equal(journal.receipts[0]?.seq, 31);
   assert.ok(events.some(([kind]) => kind === 'persisted'));
