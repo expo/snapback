@@ -1033,25 +1033,30 @@ regression('E8 same-store generation adoption retains an unknown receipt cut unt
 });
 
 regression('E5 receipt A settling inside replacement adoption cannot write its seq into B cuts',async t=>{
-  const memory=memorySessionStore(),saveEntered=gate(),save=gate(),adopting=gate(),adopt=gate(),id=mintId(),cuts=[];
-  let armed=false,core,progressive,observation;const change=QueryCuts.prototype.change,install=ProgressiveWrites.prototype.install;
+  const store=memorySessionStore(),settling=gate(),settle=gate(),adopting=gate(),adopt=gate(),id=mintId(),cuts=[];
+  let armed=false,core,progressive,observation;const change=QueryCuts.prototype.change,install=ProgressiveWrites.prototype.install,receipt=ProgressiveWrites.prototype.receipt;
   t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){progressive=this;observation=args[6];return install.apply(this,args);});
   t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
-  const store={...memory,async set(key,value){if(armed&&key===storeKey('writes','https://progressive-writes.invalid','alice')&&JSON.parse(value).receipts?.some(write=>write.id===id)){saveEntered.resolve();await save.promise;}return memory.set(key,value);}};
-  t.after(()=>{save.resolve();adopt.resolve();});
+  // T1 moves pending exit before receipt saving. Hold the existing journal
+  // lock after arrival instead, so this still settles inside B's adoption.
+  t.mock.method(ProgressiveWrites.prototype,'receipt',function(writeId,facts){
+    receipt.call(this,writeId,facts);
+    if(writeId===id)void storeLock(storeKey('writes','https://progressive-writes.invalid','alice'),async()=>{settling.resolve();await settle.promise;});
+  });
+  t.after(()=>{settle.resolve();adopt.resolve();});
   const f=await fixture(t,{raw:true,hold:false,store,wrapCore:opened=>{core=opened;return {...opened,async call(request,...args){
     if(armed&&request.op==='adopt'&&request.backend.store_id==='B'){adopting.resolve();await adopt.promise;}
     return opened.call(request,...args);
   }};},receiptReply:receipt=>({...receipt,store_id:'A'})});
   await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');armed=true;
-  const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await saveEntered.promise;
+  const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await settling.promise;
   f.replace('B');const syncing=f.app.client.sync();await adopting.promise;
   // Settle in the reset/adoption window: the device identity is B but
   // onlineStore is A. The store check must reject A's otherwise valid cut.
-  const current=observation(),receipt=unpublishedReceipt(progressive, id);
-  assert.equal(current.snapshot.storeIdentity,'B');assert.equal(receipt.storeId,'A');assert.equal(receipt.authorityCurrent(current.snapshot),false);
-  assert.equal(Object.hasOwn(receipt,'incarnation'),false,'authority lives in the dispatch predicate, not an unread stamp');
-  cuts.length=0;save.resolve();assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
+  const current=observation(),certificate=unpublishedReceipt(progressive, id);
+  assert.equal(current.snapshot.storeIdentity,'B');assert.equal(certificate.storeId,'A');assert.equal(certificate.authorityCurrent(current.snapshot),false);
+  assert.equal(Object.hasOwn(certificate,'incarnation'),false,'authority lives in the dispatch predicate, not an unread stamp');
+  cuts.length=0;settle.resolve();assert.equal((await writing).state,'sent');await until(async()=>!(await f.app.client.pendingWrites()).length);
   assert.deepEqual(cuts,[],'storeIdentity is B while onlineStore still names A');
   adopt.resolve();await syncing;await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');
   assert.equal((await core.call({op:'sync_state',capture:false})).ok.store_id,'B');f.offline(true);
@@ -1059,21 +1064,25 @@ regression('E5 receipt A settling inside replacement adoption cannot write its s
 });
 
 regression('E5 mismatched receipt settlement wakes a watch parked by journal intersection',async t=>{
-  const memory=memorySessionStore(),entered=gate(),save=gate(),id=mintId();let armed=false,evaluations=0,progressive;
-  const install=ProgressiveWrites.prototype.install;t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);progressive=this;
+  const store=memorySessionStore(),entered=gate(),settle=gate(),id=mintId();let armed=false,evaluations=0,progressive;
+  const install=ProgressiveWrites.prototype.install,receipt=ProgressiveWrites.prototype.receipt;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(local,...args){await install.call(this,local,...args);progressive=this;
     const custody=progressiveWriteCustody(local),inspect=custody.inspect;
-    // Keep the last committed pending snapshot readable while the receipt save
-    // is held, isolating journalIntersects from the separate uncertainty wake.
+    // Keep the last committed pending snapshot readable while settlement waits
+    // for the journal lock, isolating journalIntersects from uncertainty.
     custody.inspect=()=>armed?Promise.resolve({pending:[{id,op:'write',args:{},state:'sent',predicted:[]}],receipts:[]}):inspect();});
-  const store={...memory,async set(key,value){if(armed&&key===storeKey('writes','https://progressive-writes.invalid','alice')&&JSON.parse(value).receipts?.some(write=>write.id===id)){entered.resolve();await save.promise;}return memory.set(key,value);}};
-  t.after(()=>save.resolve());
+  t.mock.method(ProgressiveWrites.prototype,'receipt',function(writeId,facts){
+    receipt.call(this,writeId,facts);
+    if(writeId===id)void storeLock(storeKey('writes','https://progressive-writes.invalid','alice'),async()=>{entered.resolve();await settle.promise;});
+  });
+  t.after(()=>settle.resolve());
   const f=await fixture(t,{raw:true,hold:false,store,wrapCore:core=>({...core,async call(request,...args){if(request.op==='query')evaluations++;return core.call(request,...args);}})});
   await until(()=>localStatus(f.app.client).getSnapshot().state==='ready');armed=true;
   const writing=f.app.mutate(mutation,{}, {id,waitSeconds:5});await entered.promise;f.replace('B');await f.app.client.sync();
   await until(()=>localStatus(f.app.client).getSnapshot().state==='ready'&&!progressive.uncertain);
   const before=evaluations,watch=f.app.client.observe(query,{});watch.subscribe(()=>{});t.after(()=>watch.close());
   await until(()=>evaluations>before);await tick();assert.equal(watch.getSnapshot().loading,true);assert.equal(progressive.uncertain,false);
-  armed=false;save.resolve();assert.equal((await writing).state,'sent');
+  armed=false;settle.resolve();assert.equal((await writing).state,'sent');
   // Settlement must wake it now, before the unrelated five-second read poll.
   for(let n=0;n<100&&watch.getSnapshot().data!=='local';n++)await tick();
   assert.equal(watch.getSnapshot().data,'local','settlement wakes the parked watch without a later poll');

@@ -101,6 +101,51 @@ for (const identity of ["session", "persona"]) {
   const test = (name, run) => nodeTest(`${identity}: ${name}`, {
     skip: identity === "persona" && (name.startsWith("an ended session") || name.startsWith("a logout between")),
   }, run);
+for (const failRetirement of [false, true]) test(`T1: refusal during locked captured admission awaits retirement, failure=${failRetirement}`, async t => {
+  const storage = browser(t), srv = server(), memory = memorySessionStore(), { authority } = sessions();
+  const reading = Promise.withResolvers(), readRelease = Promise.withResolvers();
+  const saving = Promise.withResolvers(), saveRelease = Promise.withResolvers();
+  let holdRead = false, retiring = false;
+  const store = { ...memory, async get(key) {
+    if (key === journalKey && holdRead) { holdRead = false; reading.resolve(); await readRelease.promise; }
+    return memory.get(key);
+  }, async set(key, value) {
+    if (key === journalKey && retiring) {
+      saving.resolve(); await saveRelease.promise;
+      if (failRetirement) throw Error('T1 retirement save failed');
+    }
+    return memory.set(key, value);
+  } };
+  t.after(() => { readRelease.resolve(); saveRelease.resolve(); });
+  const owner = await open(t, srv, store, authority()); await owner.recover();
+  const id = mintId(); holdRead = true;
+  let returned = false;
+  const writing = owner.client.mutate(op, { n: 1 }, { id }).then(outcome => { returned = true; return outcome; });
+  await reading.promise;
+  assert.equal(storage.records().length, 1, 'the synchronous capture owns the click');
+  retiring = true;
+  const retirement = owner.refuseStore({ code: 'E_STORE_REPLACED', family: 'store', message: 'store changed' });
+  const retired = retirement.catch(error => error);
+  readRelease.resolve(); await saving.promise;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(returned, false, 'the locked refusal must leave the transaction before awaiting retirement');
+  assert.equal(storage.records().length, 1, 'no cancellation before retirement commits');
+  saveRelease.resolve(); await retired;
+  const outcome = await writing;
+  assert.equal(outcome.state, failRetirement ? 'pending' : 'failed');
+  if (!failRetirement) assert.equal(outcome.why.code, 'E_STORE_REPLACED');
+  assert.equal(storage.records().length, failRetirement ? 1 : 0);
+  assert.deepEqual(srv.posts, [], 'the refused admission never dispatched');
+  await owner.client.close(); retiring = false;
+  const reopened = await open(t, srv, store, authority()); await reopened.recover();
+  if (failRetirement) {
+    await waitFor(async () => (await reopened.client.write(id))?.state === 'sent');
+    assert.deepEqual(srv.posts, [id], 'the kept capture replays once on the next open');
+    assert.ok(owner.errors.some(error => String(error).includes('T1 retirement save failed')));
+  } else assert.deepEqual(srv.posts, [], 'a terminal refusal cancelled the record');
+  assert.equal(storage.records().length, 0);
+});
+
 test("failed opening releases its runtime lock and preserves surviving captures", async t => {
   const storage = browser(t), srv = server(), { authority } = sessions();
   const record = await orphan(authority(), mintId(), { n: 1 });

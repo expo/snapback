@@ -71,16 +71,26 @@ test('S2b refusal: caller of a kept intent gets pending and reopen replays it on
   assert.equal(sends, 1);
 });
 
-for (const mismatchedGeneration of [false, true]) test(`S2b settlement: arrival starts revocation before a held save, generation mismatch=${mismatchedGeneration}`, async t => {
-  const memory = memorySessionStore(), id = mintId(), entered = gate(), saved = gate(); let holding = true, progressive;
+for (const mismatchedGeneration of [false, true]) test(`S2b settlement: pending exit publishes before a held save, generation mismatch=${mismatchedGeneration}`, async t => {
+  const memory = memorySessionStore(), id = mintId(), entered = gate(), saved = gate(), readReply = gate();
+  const publications = [], readReplies = []; let holding = true, progressive;
   const store = { ...memory, async set(k, value) {
     if (holding && k === key && JSON.parse(value).receipts?.some(w => w.id === id)) { entered.resolve(); await saved.promise; }
     return memory.set(k, value);
   } };
-  t.after(() => { holding = false; saved.resolve(); });
+  t.after(() => { holding = false; saved.resolve(); readReply.resolve(); });
   const install = ProgressiveWrites.prototype.install;
-  t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) { progressive = this; return install.apply(this, args); });
-  const f = await fixture(t, { store, receiptReply: reply => ({ ...reply, preserved: mismatchedGeneration ? ['items'] : [],
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(client, identity, fetch, changed, ...args) {
+    progressive = this;
+    return install.call(this, client, identity, fetch, (op, effect) => {
+      if (effect?.type === 'publish') publications.push(effect.publication);
+      changed(op, effect);
+    }, ...args);
+  });
+  const f = await fixture(t, { store, queryReply: async (path, head) => {
+    if (head >= 21) { await readReply.promise; readReplies.push(head); }
+    return { data: `server-${head}`, complete: true, tables: path.endsWith('/other') ? ['other'] : ['items'], seq: head, store_id: 'A', generation: 1 };
+  }, receiptReply: reply => ({ ...reply, preserved: mismatchedGeneration ? ['items'] : [],
     ...(mismatchedGeneration ? { generation: 2, head: undefined, replayed: true } : {}) }) });
   await f.app.ready;
   const watched = f.app.client.observe(mismatchedGeneration ? { kind: 'query', name: 'other' } : query, {});
@@ -88,13 +98,66 @@ for (const mismatchedGeneration of [false, true]) test(`S2b settlement: arrival 
   await until(() => 'data' in watched.getSnapshot());
   await f.app.mutate(mutation, {}, { id, waitSeconds: 0 }); await f.posted.promise;
   f.release.resolve(); await entered.promise;
-  assert.equal(progressive.states.get(id)?.phase, 'responded', 'the held receipt has not left pending');
   const deadline = episodeDeadline(watched.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'arrival starts the existing non-renewing bound even on another table');
+  assert.equal(progressive.states.get(id)?.phase, 'settled', 'in-memory pending exit precedes the receipt save');
+  assert.deepEqual(publications, [{ invalidate: true, cut: 21, preserved: [], footprint: mismatchedGeneration ? 'unknown' : 'qualified' }]);
+  assert.equal(progressive.current().some(write => write.id === id), false);
+  readReply.resolve();
+  await until(() => readReplies.includes(21));
+  // Publication and its covering fetch precede persistence. A concurrent
+  // journal inspection can still withhold display until its custody fence clears.
   await until(() => !('data' in watched.getSnapshot()));
-  assert.equal(progressive.states.get(id)?.published, false);
+  const before = JSON.parse(await memory.get(key));
+  assert.ok(before.pending.some(write => write.id === id), 'durable intent remains recoverable while the save holds');
+  assert.equal(before.receipts.some(write => write.id === id), false);
   holding = false; saved.resolve();
-  await until(() => progressive.states.get(id)?.published);
+  await until(async () => JSON.parse(await memory.get(key)).receipts.some(write => write.id === id));
+  assert.equal(JSON.parse(await memory.get(key)).pending.some(write => write.id === id), false);
+  await f.app.client.write(id);
+  await until(() => watched.getSnapshot().data === 'server-21');
+  assert.equal(publications.length, 1, 'durable completion does not publish again');
+});
+
+test('T1 settlement: save failure after publication retains recoverable custody without a second publication', async t => {
+  const memory = memorySessionStore(), id = mintId(), entered = gate(), saved = gate(), errors = [], publications = [];
+  let failing = true, progressive;
+  const store = { ...memory, async set(k, value) {
+    if (failing && k === key && JSON.parse(value).receipts?.some(write => write.id === id)) {
+      entered.resolve(); await saved.promise; throw Error('T1 receipt save failed');
+    }
+    return memory.set(k, value);
+  } };
+  t.after(() => { failing = false; saved.resolve(); });
+  const install = ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(client, identity, fetch, changed, ...args) {
+    progressive = this;
+    return install.call(this, client, identity, fetch, (op, effect) => {
+      if (effect?.type === 'publish') publications.push(effect.publication);
+      changed(op, effect);
+    }, ...args);
+  });
+  const f = await fixture(t, { raw: true, store, report: error => errors.push(error), receiptReply: reply => ({ ...reply, preserved: ['items'] }) });
+  const writing = f.app.mutate(mutation, {}, { id, waitSeconds: 5 }); await f.posted.promise;
+  f.release.resolve(); await entered.promise;
+  assert.deepEqual(publications, [{ invalidate: true, cut: 21, preserved: ['items'], footprint: 'qualified' }]);
+  saved.resolve();
+  assert.equal((await writing).state, 'sent', 'the confirmed live result survives a failed receipt save');
+  await until(() => errors.some(error => String(error).includes('T1 receipt save failed')));
+  const before = JSON.parse(await memory.get(key));
+  assert.ok(before.pending.some(write => write.id === id)); assert.deepEqual(before.receipts, []);
+  assert.equal((await f.app.client.write(id)).state, 'sent', 'retain supplies the known outcome while persistence still fails');
+  assert.equal(progressive.current().some(write => write.id === id), false);
+  assert.equal(publications.length, 1, 'retain/observed and failed retries do not republish');
+  await f.app.close();
+  failing = false;
+  const reopened = await f.reopen(); await reopened.ready;
+  await until(async () => (await reopened.client.write(id))?.state === 'sent');
+  const after = JSON.parse(await memory.get(key));
+  assert.equal(after.pending.some(write => write.id === id), false);
+  assert.ok(after.receipts.some(write => write.id === id));
+  assert.equal(f.executions.size, 1, 'the recoverable intent replays without executing twice');
+  assert.equal(f.requests.filter(request => request === id).length, 2);
 });
 
 test('S2b settlement: response before any admission inspection still publishes its cut once', async t => {
