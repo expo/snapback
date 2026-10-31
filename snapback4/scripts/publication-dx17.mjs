@@ -60,8 +60,8 @@ try{
 }finally{await host.stop();}
 ` + '`' + String.raw`);
 for(let run=0;run<2;run++){
- const r=await cli(['day2-check','--deployment','./deploy','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json'),...(run===1?{DX17_FROZEN_EXIT:'1'}:{})},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
- const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(report.ok,true);assert.equal(report.phases.length,16);assert.equal(report.frozenV1Asserted,false);assert.equal(report.frozenV1NonzeroExits,run===1?5:0);assert.ok(!JSON.stringify(report).includes('private-observation-sentinel'));assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
+ const r=await cli(['day2-check','--deployment','./deploy','--up-ms','25'],{cwd,env:{DX17_EXPECTED:join(cwd,'expected.json'),...(run===1?{DX17_FROZEN_EXIT:'1'}:{})},timeoutMs:240_000});assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/18\/18 phases/);assert.ok(r.stdout.trim().split('\n').length<=3);
+ const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));assert.equal(report.ok,true);assert.equal(report.phases.length,18);assert.equal(report.frozenV1Asserted,false);assert.equal(report.frozenV1NonzeroExits,run===1?5:0);assert.ok(!JSON.stringify(report).includes('private-observation-sentinel'));assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
  assert.ok(!JSON.stringify(report).includes('"password"'));assert.equal(existsSync(join(cwd,'deploy/proof-accounts/default.json')),true);
 }
 console.log('DX17 packed: bounded packet, literal stage/roster scripts, two complete checks, v2-native rows through frozen v1, retained migration values');
@@ -70,5 +70,5 @@ export async function proveDX17(cwd){
  writeFileSync(join(cwd,'dx17.mjs'),consumer);
  const env={...process.env};delete env.SNAPBACK4_BIN;
  await runToolchainCommand(process.execPath,['dx17.mjs'],{cwd,env,timeout:600_000});
- return {status:'passed',runs:2,phasesPerRun:16,literalStageScripts:true,realAccounts:true,frozenV1ReturnsV2Rows:true};
+ return {status:'passed',runs:2,phasesPerRun:18,literalStageScripts:true,realAccounts:true,frozenV1ReturnsV2Rows:true};
 }
