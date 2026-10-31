@@ -4,7 +4,7 @@
 
 use crate::diag::Site;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TypeKind {
     Cursor,
     Text { min: Option<u32>, max: u32, format: Option<String> },
@@ -28,7 +28,7 @@ pub enum TypeKind {
     List { item: Box<ScalarType>, min: u32, max: u32 },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ScalarType {
     pub kind: TypeKind,
     pub optional: bool,
@@ -40,14 +40,14 @@ impl ScalarType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct KeyPart {
     pub column: Option<String>,
     pub value: Expr,
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ShapeField {
     Spread { site: Site },
     NamedSpread { name: String, site: Site },
@@ -55,14 +55,14 @@ pub enum ShapeField {
     Field { name: String, value: Expr, site: Site },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ShapeDecl {
     pub name: String,
     pub fields: Vec<ShapeField>,
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FunctionDecl {
     pub name: String,
     pub args: Vec<ArgDecl>,
@@ -70,13 +70,13 @@ pub struct FunctionDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum FunctionBody {
     Expression(Expr),
     Block(Vec<Stmt>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Literal {
     Str(String),
     Number(String),
@@ -84,13 +84,13 @@ pub enum Literal {
     Null,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Order {
     Asc,
     Desc,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RangeSpec {
     pub order: Order,
     pub take: u32,
@@ -98,7 +98,7 @@ pub struct RangeSpec {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SeekBound {
     pub column: String,
     pub op: String,
@@ -106,7 +106,7 @@ pub struct SeekBound {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReadExpr {
     /// Original prefix length, only for a normalized explicit cursor page.
     pub cursor_prefix: Option<usize>,
@@ -126,7 +126,7 @@ pub struct ReadExpr {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MergeLane {
     /// Original row predicate: bind before accepting an optimization that erases a probe.
     /// Compiler-only admission evidence, never emitted into the runtime plan.
@@ -144,7 +144,7 @@ pub struct MergeLane {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MergeExpr {
     pub view_order: Vec<String>,
     pub table: String,
@@ -158,7 +158,7 @@ pub struct MergeExpr {
     pub site: Site,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WriteOp {
     Insert,
     Update,
@@ -177,7 +177,7 @@ impl WriteOp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ObjectField {
     /// Spread entries carry their operand in `value` and have no field name.
     pub spread: bool,
@@ -186,7 +186,7 @@ pub struct ObjectField {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Expr {
     Name { name: String, site: Site },
     Focal { site: Site },
@@ -220,7 +220,7 @@ impl Expr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Stmt {
     As { principal: Expr, body: Vec<Stmt>, site: Site },
     Bind { names: Vec<String>, value: Expr, site: Site },
@@ -235,7 +235,7 @@ pub enum Stmt {
     Continue { site: Site },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct IndexDecl {
     pub name: String,
     /// The columns, in order, the `words(..)` component left out.
@@ -263,7 +263,7 @@ impl IndexDecl {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Effect {
     Read,
     Insert,
@@ -282,7 +282,7 @@ impl Effect {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RuleDecl {
     pub effect: Effect,
     pub bindings: Vec<String>,
@@ -290,7 +290,7 @@ pub struct RuleDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ColumnDecl {
     pub write: Option<Expr>,
     pub read: Option<Expr>,
@@ -324,7 +324,7 @@ impl OnDelete {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ColumnAggregate {
     pub source: String,
     pub of: Option<String>,
@@ -334,7 +334,7 @@ pub struct ColumnAggregate {
 }
 
 /// `sync public | to .column | to table[.a, .b] [by .principal] [last N by index]`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SyncDecl {
     pub audience: SyncAudience,
     pub horizon: Option<(u32, SyncOrder)>,
@@ -343,7 +343,7 @@ pub struct SyncDecl {
 }
 
 // @ref LLP 3000.019#3.1 — column intent resolves to the same ordinary index as a named window.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SyncOrder {
     Index(String),
     Columns(Vec<String>),
@@ -358,7 +358,7 @@ impl std::fmt::Display for SyncOrder {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SyncAudience {
     Inferred { principal: Option<String> },
     Public,
@@ -382,14 +382,14 @@ impl SyncAudience {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CapDecl {
     pub max: u32,
     pub by: Vec<String>,
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReceiptsDecl {
     pub name: String,
     pub member_group: String,
@@ -409,7 +409,7 @@ pub struct ReceiptsDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TableDecl {
     pub renamed_from: Option<String>,
     pub column_reads: Vec<(Vec<String>, RuleDecl)>,
@@ -435,13 +435,13 @@ pub struct TableDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EphemeralDecl {
     pub life_ms: u64,
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaintainDecl {
     pub row_key: Option<(String, String)>,
     pub filter: Option<Expr>,
@@ -460,7 +460,7 @@ pub struct MaintainDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ArgDecl {
     pub alias: Option<String>,
     pub default: Option<Expr>,
@@ -470,7 +470,7 @@ pub struct ArgDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActionDecl {
     pub name: String,
     pub args: Vec<ArgDecl>,
@@ -480,7 +480,7 @@ pub struct ActionDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RouteDecl {
     pub name: String,
     pub path: String,
@@ -490,7 +490,7 @@ pub struct RouteDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct WorkDecl {
     pub secrets: Vec<String>,
     pub max_attempts: Option<u32>,
@@ -499,14 +499,14 @@ pub struct WorkDecl {
     pub cancellable: Option<bool>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ProgramKind {
     Query,
     Mutation,
     Job,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DeliveryDecl {
     pub table: String,
     pub group: String,
@@ -514,7 +514,7 @@ pub struct DeliveryDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ProgramDecl {
     pub delivery: Option<DeliveryDecl>,
     pub held: bool,
@@ -534,7 +534,7 @@ pub struct ProgramDecl {
 /// `schedule name every 2m [at 08:00]: job` — the owner's clock fires a
 /// job once per period, with the period it covers as `periodStart` and
 /// `periodEnd` when the job declares them.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ScheduleDecl {
     pub name: String,
     pub every_ms: u64,
@@ -547,7 +547,7 @@ pub struct ScheduleDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EffectDecl {
     pub name: String,
     pub module: String,
@@ -555,7 +555,7 @@ pub struct EffectDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BackfillDecl {
     pub table: String,
     pub name: String,
@@ -564,9 +564,9 @@ pub struct BackfillDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ExtractionDecl {pub each:bool,pub child:String,pub parent:String,pub reference:String,pub fields:Vec<(String,String)>,pub site:Site}
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, Hash)]
 pub struct RollbackHide {pub release:u64,pub table:String,pub column:String,pub reason:String,pub site:Site}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
@@ -614,20 +614,20 @@ pub struct TimelineDecl {
 }
 
 /// Planned union branches retain their source sites for type/order diagnostics.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ViewDecl {
     pub name: String,
     pub branches: Vec<ViewBranch>,
     pub site: Site,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ViewBranch {
     pub source: String,
     pub predicate: Option<Expr>,
     pub fields: Vec<ShapeField>,
     pub site: Site,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FeedView {
     pub name: String,
     pub source: String,
@@ -637,7 +637,7 @@ pub struct FeedView {
 
 /// Independent policy intent; never used to grant runtime authority.
 // @ref LLP 3000.036.004#2-surface — intent is separate from enforcement.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InvariantDecl {
     pub table: String,
     pub target: String,

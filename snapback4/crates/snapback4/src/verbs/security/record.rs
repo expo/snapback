@@ -16,10 +16,15 @@ pub(super) fn selected_fixture(project:&Project,options:&Options)->std::path::Pa
         saved.filter(|p|p.is_dir()).unwrap_or_else(||project.root.join("fixtures"))
     })
 }
+// The running executable cannot change under one invocation, and it can be hundreds of megabytes.
+fn executable_digest()->Result<&'static [u8;32],String>{
+    static DIGEST:std::sync::OnceLock<Result<[u8;32],String>>=std::sync::OnceLock::new();
+    DIGEST.get_or_init(||{let binary=std::env::current_exe().and_then(std::fs::read).map_err(|e|e.to_string())?;Ok(Sha256::digest(binary).into())}).as_ref().map_err(Clone::clone)
+}
 pub(in crate::verbs) fn capture(sources:&[(String,String)],fixture:Option<&std::path::Path>)->Result<String,String>{
     let mut hash=Sha256::new();hash.update(b"SEC4-test-record-v2/full-default/NOW=1800000000000");
     for (name,text) in sources{hash.update((name.len()as u64).to_le_bytes());hash.update(name);hash.update((text.len()as u64).to_le_bytes());hash.update(text);}
-    let binary=std::env::current_exe().and_then(std::fs::read).map_err(|e|e.to_string())?;hash.update(Sha256::digest(binary));
+    hash.update(executable_digest()?);
     if let Some(path)=fixture.filter(|p|p.is_dir()){
         let mut files=std::fs::read_dir(path).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;files.sort_by_key(|e|e.file_name());
         for f in files{
@@ -49,7 +54,9 @@ pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&sec
     if result.is_err(){let _=std::fs::remove_file(temp);}result.map_err(|e|e.to_string())
 }
 pub(super) fn matching(project:&Project,options:&Options,sources:&[(String,String)])->Option<Record>{
-    matching_key(project,&capture(sources,Some(&selected_fixture(project,options))).ok()?)
+    // With no saved record there is nothing to match, and nothing worth hashing for.
+    let record=latest(project)?;
+    (record.fingerprint==capture(sources,Some(&selected_fixture(project,options))).ok()?).then_some(record)
 }
 pub(super) fn latest(project:&Project)->Option<Record>{
     serde_json::from_slice(&std::fs::read(path(project)).ok()?).ok()

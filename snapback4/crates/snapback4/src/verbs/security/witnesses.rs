@@ -575,6 +575,7 @@ fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:
             if selection.is_empty(){continue;}
             let times=&times;
             handles.push(scope.spawn(move||{
+                let _admission_reuse=snapback4_core::engine::admission::AdmissionReuse::new();
                 let mut questions=bound.clone();questions.invariants=selection.iter().map(|(_,inv)|inv.clone()).collect();
                 let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
                 if !enforcement{security::time_anchors::configure_campaign(&questions,times,&mut campaign);}

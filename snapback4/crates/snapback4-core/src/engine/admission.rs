@@ -79,6 +79,27 @@ pub struct Problem {
     pub rewrite: String,
 }
 
+// A security campaign replays a few programs thousands of times against one schema;
+// admission is a pure function of the two, so an exact match needs no second pass.
+// @ref LLP 3000.036.004.000.000#campaign-admission-reuse — opt-in per thread; servers still admit on every call.
+thread_local! { static ADMITTED: std::cell::RefCell<Option<Vec<(Schema, Program)>>> = const { std::cell::RefCell::new(None) }; }
+/// Opens admission reuse on this thread until dropped.
+#[doc(hidden)]
+pub struct AdmissionReuse(Option<Vec<(Schema, Program)>>);
+impl AdmissionReuse {
+    pub fn new() -> Self { Self(ADMITTED.with_borrow_mut(|slot| slot.replace(Vec::new()))) }
+}
+impl Drop for AdmissionReuse {
+    fn drop(&mut self) { let outer = self.0.take(); ADMITTED.with_borrow_mut(|slot| *slot = outer); }
+}
+pub(super) fn check_reusing(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
+    let known = ADMITTED.with_borrow(|slot| slot.as_ref().map(|seen| seen.iter().any(|(s, p)| p == program && s == schema)));
+    if known == Some(true) { return Ok(()); }
+    check(schema, program)?;
+    if known.is_some() { ADMITTED.with_borrow_mut(|slot| if let Some(seen) = slot { seen.push((schema.clone(), program.clone())); }); }
+    Ok(())
+}
+
 pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
     check_detail(schema, program).map_err(|problem| RuntimeError::Structural { code: problem.code, message: problem.message })
 }
@@ -576,4 +597,32 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
     }
     rewrite.push_str("; `: server` does not lift this: the read rule, not where the mutation runs, decides the page");
     rewrite
+}
+#[cfg(test)]
+mod reuse_tests {
+    use super::*;
+    fn program(name: &str) -> Program {
+        crate::json_codec::from_text(&format!(r#"{{"name":"{name}","kind":"Mutation","body":[]}}"#)).expect("program")
+    }
+    #[test]
+    fn only_an_exact_admitted_pair_skips_admission() {
+        let admitted = Schema::default();
+        let mut other = Schema::default(); other.legacy_receipt_prediction = true;
+        let alive = program("alive");
+        let _scope = AdmissionReuse::new();
+        assert!(check_reusing(&admitted, &alive).is_ok());
+        assert!(check_reusing(&admitted, &alive).is_ok());
+        ADMITTED.with_borrow(|slot| assert_eq!(slot.as_ref().unwrap().len(), 1, "the second call found the first"));
+        assert!(check_reusing(&other, &alive).is_ok());
+        ADMITTED.with_borrow(|slot| assert_eq!(slot.as_ref().unwrap().len(), 2, "another schema is another question"));
+        let renamed = program("renamed");
+        assert!(check_reusing(&admitted, &renamed).is_ok());
+        ADMITTED.with_borrow(|slot| assert_eq!(slot.as_ref().unwrap().len(), 3, "another program is another question"));
+    }
+    #[test]
+    fn outside_a_scope_nothing_is_remembered() {
+        let alive = program("alive");
+        assert!(check_reusing(&Schema::default(), &alive).is_ok());
+        ADMITTED.with_borrow(|slot| assert!(slot.is_none()));
+    }
 }

@@ -202,7 +202,7 @@ pub(crate) fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
 /// a caller that leaves `c` out reads page one.
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
-    super::admission::check(schema, program)?;
+    super::admission::check_reusing(schema, program)?;
     validate_arguments(schema, program, inputs)
 }
 

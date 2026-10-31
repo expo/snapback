@@ -22,6 +22,7 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     report_with_reviewed(project,bound,sources,options,&Default::default())
 }
 fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options,reviewed:&std::collections::BTreeSet<String>)->Report{
+    let _admission_reuse=snapback4_core::engine::admission::AdmissionReuse::new();
     let augmented=if options.flags.contains_key("security-deploy"){security::derived::augmented(sources,bound)}else{bound.clone()};
     let bound=&augmented;
     // Reviewed alternatives remain in the report and full-test evidence, but

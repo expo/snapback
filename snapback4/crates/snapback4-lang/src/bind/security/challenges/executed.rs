@@ -81,8 +81,14 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     if verdict==Some(false)&&super::deleted_approvals::uncertain(predicate,row,effective,rows,entry,schema,viewer,table,now,history){return None;}
     verdict
 }
+// Every intent of every replayed call holds the schema; one campaign has one schema.
+thread_local!{static SHARED_SCHEMA:std::cell::RefCell<Option<std::sync::Arc<snapback4_core::schema::Schema>>>=const{std::cell::RefCell::new(None)};}
+fn shared_schema(schema:&snapback4_core::schema::Schema)->std::sync::Arc<snapback4_core::schema::Schema>{
+    SHARED_SCHEMA.with_borrow_mut(|slot|match slot{Some(known) if **known==*schema=>known.clone(),_=>slot.insert(std::sync::Arc::new(schema.clone())).clone()})
+}
 pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     let _profile = snapback4_core::replay_profile::span("replay.trace");
+    let schema_share=shared_schema(&bound.schema);
     let entry=if bound.invariants.iter().any(|i|i.site.file.contains("/sibling-approval/")){readback(entry).ok().map(std::sync::Arc::new)}else{None};
     let inputs=std::sync::Arc::new(approved_inputs(bound));
     let mut initial=Receipts::new();if let Some(entry)=&entry{for ((owner,stamp),columns) in inputs.iter(){for row in entry.get(owner).into_iter().flatten(){if let Some((key,value))=receipt(owner,row,stamp,columns){initial.insert(key,value);}}}}
@@ -122,14 +128,14 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     Some(initial==next)
                 })))
             }else if inv.site.file.starts_with("$derived/sec13-event/") {
-                let predicate=inv.syntax.clone();let schema=bound.schema.clone();let table=inv.table.clone();
+                let predicate=inv.syntax.clone();let schema=schema_share.clone();let table=inv.table.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_,next,viewer,now,_,_|{
                     let next=next?;let mut effective=rows.clone();let population=effective.entry(table.clone()).or_default();
                     population.retain(|r|r.field("id").ok()!=next.field("id").ok());population.push(next.clone());
                     super::super::concrete::evaluate(predicate.as_ref()?,next,&effective,&schema,viewer,&table,now)
                 })))
             }else{transition.map(|(bypass,prerequisite)|{
-                let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let history=history.clone();let sibling=inv.site.file.contains("/sibling-approval/");
+                let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=schema_share.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let history=history.clone();let sibling=inv.site.file.contains("/sibling-approval/");
                 snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let (Some(old),Some(next))=(old,next)else{return None;};
                     match super::super::concrete::evaluate(&bypass,next,rows,&schema,viewer,&table,now){
@@ -142,26 +148,26 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     }
                 }))
             }).or_else(||if inv.site.file.contains("/sibling-approval/")&&word=="insert"{
-                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();let inputs=inputs.clone();let history=history.clone();
+                let predicate=inv.syntax.clone()?;let schema=schema_share.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();let inputs=inputs.clone();let history=history.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now,_,_|{
                     let row=next?;
                     let prior=entry.as_ref().map(|entry|consumed(&predicate,row,row,rows,entry,&schema,viewer,&table,now,&inputs,&receipts.lock().expect("approval receipt lock"),&history.lock().expect("population history lock")));
                     match prior{Some(result)=>result,None=>None}
                 })))
             }else if inv.site.file.contains("/parent-state/"){
-                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();
+                let predicate=inv.syntax.clone()?;let schema=schema_share.clone();let table=inv.table.clone();
                 let mut references=BTreeSet::new();let mut probe=predicate.clone();crate::bind::intent_walk::expression(&mut probe,&mut |e|if let ast::Expr::Member{base,name,..}=e&&matches!(base.as_ref(),ast::Expr::Focal{..})&&matches!(schema.tables[&table].columns.get(name).map(C::required),Some(C::Ref{..})){references.insert(name.clone());});
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let old=old?;let row=if let Some(next)=next&&references.iter().any(|reference|next.field(reference).ok().is_some_and(|id|*id!=Value::Null&&old.field(reference).ok()!=Some(id))){next}else{old};
                     super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now)
                 })))
             }else if inv.site.file.contains("/sec11-transition/"){
-                let inv=inv.clone();let schema=bound.schema.clone();
+                let inv=inv.clone();let schema=schema_share.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,site|{
                     super::super::derived::transition_question_judgment(&inv,old,next?,rows,&schema,viewer,now,site)
                 })))
             }else if inv.site.file.contains("/sec11-approval-latest/")||inv.site.file.contains("/sec11-approval-path/"){
-                let inv=inv.clone();let schema=bound.schema.clone();
+                let inv=inv.clone();let schema=schema_share.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{
                     super::super::derived::approval_question_judgment(&inv,old,next?,rows,&schema,args,viewer,now,site)
                 })))

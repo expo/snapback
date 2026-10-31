@@ -46,7 +46,8 @@ fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
     },_=>rule.clone(),
 }}
 struct CallerArguments{names:BTreeSet<String>,booleans:BTreeSet<String>}
-fn caller_names(p:&ast::ProgramDecl)->CallerArguments{CallerArguments{names:p.args.iter().map(|arg|arg.name.clone()).collect(),booleans:p.args.iter().filter(|arg|matches!(arg.type_.kind,TypeKind::Bool)&&!arg.type_.optional).map(|arg|arg.name.clone()).collect()}}
+fn caller_names(p:&ast::ProgramDecl)->CallerArguments{caller_args(&p.args)}
+fn caller_args(args:&[ast::ArgDecl])->CallerArguments{CallerArguments{names:args.iter().map(|arg|arg.name.clone()).collect(),booleans:args.iter().filter(|arg|matches!(arg.type_.kind,TypeKind::Bool)&&!arg.type_.optional).map(|arg|arg.name.clone()).collect()}}
 fn caller_predicate(expression:&Expr,names:&CallerArguments)->bool{
     let mut supported=true;walk(expression,|e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if names.names.contains(name)||matches!(name.as_str(),"viewer"|"now")=>{},Expr::Unary{..}|Expr::Binary{..}|Expr::Assert{..}=>{},_=>supported=false});supported
 }
@@ -58,6 +59,7 @@ fn predicate_fact(expression:&Expr,names:&CallerArguments)->Option<(String,bool)
     (!matches!(expression,Expr::Literal{..})).then(||(crate::print::expression(expression),value))
 }
 fn apply_facts(expression:&Expr,facts:&BTreeMap<String,bool>,names:&CallerArguments)->Expr{
+    if facts.is_empty(){return simplify_boolean(expression);}
     let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if let Some((key,positive))=predicate_fact(e,names)&&let Some(value)=facts.get(&key){*e=Expr::Literal{value:ast::Literal::Bool(*value==positive),site:e.site().clone()};});simplify_boolean(&expression)
 }
 fn private_unknown(expression:&Expr,catalog:&Catalog)->bool{let mut unknown=false;walk(expression,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>unknown=true,Expr::If{..}=>unknown=true,_=>{}});unknown}
@@ -82,16 +84,51 @@ fn condition_parts(condition:&Expr,code:&str,catalog:&Catalog)->Vec<Expr>{
     conjunction(condition).into_iter().filter_map(|condition|known_condition(condition,catalog)).collect()
 }
 pub(super) fn applicability_known(p:&ast::ProgramDecl,catalog:&Catalog)->bool{!p.body.iter().any(|stmt|matches!(stmt,Stmt::Require{condition,code,..} if code=="$advice:cut"||code=="$advice"&&private_unknown(condition,catalog)))}
-pub(super) fn known_impossible(p:&ast::ProgramDecl,catalog:&Catalog)->bool{
-    let names=caller_names(p);let mut facts=BTreeMap::new();
+pub(super) fn known_impossible(p:&ast::ProgramDecl,catalog:&Catalog)->bool{impossible_under(&p.args,&p.body,None,catalog)}
+/// What one condition contributes to `impossible_under`, in the order it contributes it.
+#[derive(Clone)]
+enum Contribution{False,Fact(String,bool)}
+fn contributions(condition:&Expr,facts:&BTreeMap<String,bool>,names:&CallerArguments,catalog:&Catalog)->Vec<Contribution>{
+    let condition=apply_facts(condition,facts,names);let mut out=Vec::new();
+    for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){out.push(Contribution::False);return out;}if private_unknown(part,catalog){continue;}
+        let mut ambient=false;walk(part,|e|if matches!(e,Expr::Name{name,..} if name=="viewer"||name=="now"){ambient=true;});if ambient{continue;}
+        if let Some((key,value))=predicate_fact(part,names){out.push(Contribution::Fact(key,value));}
+    }out
+}
+/// Each predicate inside one condition, and its contributions: one answer while no fact names any of them, else per complete fact set.
+struct ConditionFacts{keys:Vec<String>,by_facts:std::collections::HashMap<Option<BTreeMap<String,bool>>,std::rc::Rc<Vec<Contribution>>>}
+// @ref LLP 3000.036.004.000.000#walk-condition-reuse — a walk re-reads the same few conditions at every expression; apply_facts leaves a condition alone until a fact names a predicate inside it.
+thread_local!{static CONDITIONS:std::cell::RefCell<Option<std::collections::HashMap<Expr,ConditionFacts>>>=const{std::cell::RefCell::new(None)};}
+/// Opens the condition reuse of one walk, whose program arguments and catalog are fixed.
+pub(super) struct ConditionReuse(Option<std::collections::HashMap<Expr,ConditionFacts>>);
+impl ConditionReuse{pub(super) fn new()->Self{Self(CONDITIONS.with_borrow_mut(|slot|slot.replace(Default::default())))}}
+impl Drop for ConditionReuse{fn drop(&mut self){let outer=self.0.take();CONDITIONS.with_borrow_mut(|slot|*slot=outer);}}
+fn reused_contributions(condition:&Expr,facts:&BTreeMap<String,bool>,names:&CallerArguments,catalog:&Catalog)->std::rc::Rc<Vec<Contribution>>{
+    CONDITIONS.with_borrow_mut(|slot|{
+        let Some(seen)=slot else{return std::rc::Rc::new(contributions(condition,facts,names,catalog));};
+        if !seen.contains_key(condition){
+            let mut keys=Vec::new();let mut copy=condition.clone();
+            super::super::intent_walk::expression(&mut copy,&mut |e|if let Some((key,_))=predicate_fact(e,names){keys.push(key);});
+            keys.sort();keys.dedup();seen.insert(condition.clone(),ConditionFacts{keys,by_facts:Default::default()});
+        }
+        let entry=seen.get_mut(condition).unwrap();
+        // With no fact naming a predicate inside it, apply_facts rewrites nothing.
+        let relevant=entry.keys.iter().any(|key|facts.contains_key(key)).then(||facts.clone());
+        entry.by_facts.entry(relevant).or_insert_with(||std::rc::Rc::new(contributions(condition,facts,names,catalog))).clone()
+    })
+}
+/// `known_impossible` of `args` under `guards`, then `extra`, without building a program for each query.
+pub(super) fn impossible_under(args:&[ast::ArgDecl],guards:&[Stmt],extra:Option<&Expr>,catalog:&Catalog)->bool{
+    let names=caller_args(args);let mut facts=BTreeMap::new();
+    let required=guards.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).chain(extra).collect::<Vec<_>>();
     // Source applicability may depend on opaque data. Only contradictions over
     // immutable caller arguments or literal false can remove an effect.
-    for _ in 0..=p.body.len(){let before=facts.clone();
-        for condition in conditions(p){let condition=apply_facts(condition,&facts,&names);
-            for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return true;}if private_unknown(part,catalog){continue;}
-                let mut ambient=false;walk(part,|e|if matches!(e,Expr::Name{name,..} if name=="viewer"||name=="now"){ambient=true;});if ambient{continue;}
-                if let Some((key,value))=predicate_fact(part,&names)&&facts.insert(key,value).is_some_and(|old|old!=value){return true;}
-            }
+    for _ in 0..=guards.len()+usize::from(extra.is_some()){let before=facts.clone();
+        for condition in required.iter().copied(){
+            for contribution in reused_contributions(condition,&facts,&names,catalog).iter(){match contribution{
+                Contribution::False=>return true,
+                Contribution::Fact(key,value)=>if facts.insert(key.clone(),*value).is_some_and(|old|old!=*value){return true;},
+            }}
         }if facts==before{break;}
     }false
 }
@@ -413,4 +450,40 @@ fn parent_omits_argument(w:&Write<'_>,arg:&str)->bool{
   if uses(value,arg){return false;}
   if matches!(value,Expr::Write{site,..} if site==&w.site){return true;}
  }false
+}
+#[cfg(test)]mod condition_reuse{use super::*;
+// Each answer with reuse open must equal the fresh evaluation, including conditions a fact rewrites.
+fn impossible(requires:&[&str])->(bool,bool){
+    let body=requires.iter().map(|r|format!("  require {r} else NOPE\n")).collect::<String>();
+    let source=format!("table docs:\n  n: int\n  read <- allow\n  update <- allow\n  online only\nfn opaque(value: bool):\n  return value\nmutation push(a: bool, b: bool, c: int):\n{body}  return true\n");
+    let (doc,diagnostics)=crate::parse_document("schema.q",&source);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());let p=&doc.programs[0];
+    let fresh=known_impossible(p,&catalog);
+    let _reuse=ConditionReuse::new();
+    // Twice, so the second answer comes from the entries the first one left.
+    let reused=known_impossible(p,&catalog);assert_eq!(reused,known_impossible(p,&catalog));(fresh,reused)
+}
+#[test]fn reuse_answers_exactly_as_a_fresh_evaluation(){
+    for (requires,expected) in [
+        (&["a = true"][..],false),
+        (&["a = true","a = false"][..],true),
+        (&["a = true","not a = true"][..],true),
+        (&["c > 1","not (c > 1)"][..],true),
+        (&["c > 1","c > 2"][..],false),
+        (&["a = true or b = true","a = true"][..],false),
+        (&["a = true and b = true","b = false"][..],true),
+        (&["a = true","(a = true) and (c > 1)","not (c > 1)"][..],true),
+        (&["opaque(a)","not opaque(a)"][..],false),
+        (&["c = c or false"][..],false),
+        (&["false"][..],true),
+    ]{assert_eq!(impossible(requires),(expected,expected),"{requires:?}");}
+}
+#[test]fn one_condition_answers_under_different_facts_in_one_scope(){
+    let source="table docs:\n  n: int\n  read <- allow\n  online only\nmutation one(a: bool, c: int):\n  require a = true else NOPE\n  require (a = true) and (c > 1) else NOPE\n  return true\nmutation two(a: bool, c: int):\n  require a = false else NOPE\n  require (a = true) and (c > 1) else NOPE\n  return true\n";
+    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());
+    let _reuse=ConditionReuse::new();
+    assert!(!known_impossible(&doc.programs[0],&catalog));
+    assert!(known_impossible(&doc.programs[1],&catalog),"the shared condition's first answer cannot leak into the other facts");
+}
 }

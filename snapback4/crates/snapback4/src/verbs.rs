@@ -318,6 +318,8 @@ pub fn check(options: &Options) -> i32 {
     }
     let project = project_or_exit();
     let started = Instant::now();
+    let _compilation_reuse = snapback4_lang::CompilationReuse::new();
+    let _walk_reuse = snapback4_lang::security::WalkReuse::new();
     package_versions::warn(&project);
     upgrade_history::report(&project, options.json);
     if let Some(note) = project.generated_version_note("check", true) { eprintln!("{note}"); }

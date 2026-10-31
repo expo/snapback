@@ -61,10 +61,11 @@ impl Upload {
         // Only remove a file after this upload actually created it.
         self.written = true;
         file.write_all(bytes).map_err(io)?;
-        file.sync_all().map_err(io)?;
+        // A store in memory ends with this process, so its assets owe no crash durability.
+        if !self.ephemeral_directory { file.sync_all().map_err(io)?; }
         std::fs::rename(staging, &self.path).map_err(io)?;
         // A synced inode is insufficient: publish its name durably before the ledger commit.
-        if let Some(directory) = self.path.parent() { std::fs::File::open(directory).and_then(|f| f.sync_all()).map_err(io)?; }
+        if !self.ephemeral_directory && let Some(directory) = self.path.parent() { std::fs::File::open(directory).and_then(|f| f.sync_all()).map_err(io)?; }
         Ok(self)
     }
 }

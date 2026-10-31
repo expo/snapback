@@ -10,6 +10,7 @@ mod audit;
 mod presentation;
 pub use presentation::{note_priority,questionnaire_notes,gated_note,GATED_NOTE_CODES};
 mod write_intent;
+pub use authority_walk::WalkReuse;
 pub(crate) fn capture_literal_defaults(catalog:&Catalog,bound:&mut Bound){write_intent::capture(catalog,bound)}
 pub mod challenges;
 mod lints;

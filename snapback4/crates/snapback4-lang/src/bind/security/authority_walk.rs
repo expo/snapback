@@ -50,7 +50,7 @@ fn under(catalog:&Catalog,guards:&[Stmt],condition:Expr)->Option<Vec<Stmt>>{
 }
 fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],changes:&[Change],column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     let mut expr=resolve(expr,env);if evaluated(&expr){return;}
-    let mut applicability=p.clone();applicability.body=guards.to_vec();if let Expr::Write{condition:Some(condition),..}=&expr{applicability.body.push(Stmt::Require{condition:returned(catalog,condition,0),code:"$advice".into(),message:None,site:condition.site().clone()});}if super::creation_advice::known_impossible(&applicability,catalog){return;}
+    let impossible=if let Expr::Write{condition:Some(condition),..}=&expr{super::creation_advice::impossible_under(&p.args,guards,Some(&returned(catalog,condition,0)),catalog)}else{super::creation_advice::impossible_under(&p.args,guards,None,catalog)};if impossible{return;}
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
     let sequence=|values:Vec<&Expr>,out:&mut Vec<(Expr,ProgramDecl)>|{let mut prefix=guards.to_vec();for value in values{expression(catalog,p,value,env,&prefix,changes,column,depth,out);prefix.extend(helper_guards(catalog,value,env,0));}prefix};
     match &expr{
@@ -306,9 +306,34 @@ fn may_write(catalog:&Catalog,p:&ProgramDecl)->bool{
     }
     writes
 }
-fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,ProgramDecl)>{
+// @ref LLP 3000.036.004.000.000#walk-reuse — analyses re-parse the same source into equal catalogs and re-walk every program.
+// One walk reads the program, the helpers and the reference columns, so equal inputs share one result across threads.
+type Walked=Vec<(Expr,ProgramDecl)>;
+struct WalkEntry{p:ProgramDecl,functions:BTreeMap<String,ast::FunctionDecl>,columns:Vec<(String,String,ast::TypeKind)>,column:Option<String>,walked:std::sync::Arc<std::sync::OnceLock<Walked>>}
+static WALKS:std::sync::Mutex<Option<std::collections::HashMap<u64,Vec<WalkEntry>>>>=std::sync::Mutex::new(None);
+/// Opens process-wide walk reuse for one short-lived command; drop discards it.
+#[doc(hidden)]
+pub struct WalkReuse(());
+impl WalkReuse{pub fn new()->Self{*WALKS.lock().unwrap_or_else(|e|e.into_inner())=Some(Default::default());Self(())}}
+impl Drop for WalkReuse{fn drop(&mut self){*WALKS.lock().unwrap_or_else(|e|e.into_inner())=None;}}
+fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Walked{
+    let open=WALKS.lock().unwrap_or_else(|e|e.into_inner()).is_some();
+    if !open{return walk_uncached(catalog,p,column);}
+    use std::hash::{Hash,Hasher};
+    let columns=catalog.tables.iter().flat_map(|(table,info)|info.columns.iter().map(move |(name,kind)|(table,name,&kind.kind))).collect::<Vec<_>>();
+    let mut hasher=std::collections::hash_map::DefaultHasher::new();p.hash(&mut hasher);catalog.functions.hash(&mut hasher);columns.hash(&mut hasher);column.hash(&mut hasher);let key=hasher.finish();
+    let walked={
+        let mut guard=WALKS.lock().unwrap_or_else(|e|e.into_inner());let Some(walks)=guard.as_mut()else{return walk_uncached(catalog,p,column);};
+        let bucket=walks.entry(key).or_default();
+        let known=bucket.iter().find(|entry|entry.p==*p&&entry.functions==catalog.functions&&entry.column.as_deref()==column&&entry.columns.len()==columns.len()&&entry.columns.iter().zip(&columns).all(|((table,name,kind),(t,n,k))|table==*t&&name==*n&&kind==*k)).map(|entry|entry.walked.clone());
+        known.unwrap_or_else(||{let walked=std::sync::Arc::new(std::sync::OnceLock::new());bucket.push(WalkEntry{p:p.clone(),functions:catalog.functions.clone(),columns:columns.iter().map(|(t,n,k)|((*t).clone(),(*n).clone(),(*k).clone())).collect(),column:column.map(str::to_owned),walked:walked.clone()});walked})
+    };
+    walked.get_or_init(||walk_uncached(catalog,p,column)).clone()
+}
+fn walk_uncached(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Walked{
     if !may_write(catalog,p){return Vec::new();}
     let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
+    let _conditions=super::creation_advice::ConditionReuse::new();
     statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);
     statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);
     for (write,context) in &mut out{
@@ -328,6 +353,24 @@ pub(super) fn source_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<Str
     }gaps
 }
 
+#[cfg(test)]mod walk_reuse{use super::*;
+fn parsed(source:&str)->(ast::Document,Catalog){let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());(doc,catalog)}
+fn helper(body:&str)->String{format!("table docs:\n  stage: enum('draft','done') default 'draft'\n  note: text ?\n  read <- allow\n  update <- allow\n  online only\nfn change(doc: docs):\n  {body}\n  return doc\nmutation push(doc: docs):\n  change(doc)\n")}
+#[test]fn equal_inputs_share_a_walk_and_a_changed_helper_does_not(){
+    let _reuse=WalkReuse::new();
+    let (first,catalog)=parsed(&helper("update docs[doc] {stage:'done'}"));
+    let plain=walk_uncached(&catalog,&first.programs[0],None);assert!(!plain.is_empty());
+    assert_eq!(walk_writes(&catalog,&first.programs[0],None),plain);
+    let (equal,reparsed)=parsed(&helper("update docs[doc] {stage:'done'}"));
+    assert_eq!(walk_writes(&reparsed,&equal.programs[0],None),plain,"an equal reparsed catalog gets the same answer");
+    // The program text is unchanged; only the helper it calls differs.
+    let (other,changed)=parsed(&helper("update docs[doc] {note:'done'}"));
+    assert_eq!(other.programs[0],first.programs[0]);
+    assert_eq!(walk_writes(&changed,&other.programs[0],None),walk_uncached(&changed,&other.programs[0],None));
+    assert_ne!(walk_writes(&changed,&other.programs[0],None),plain,"a different helper cannot reuse the walk");
+    assert_eq!(walk_writes(&catalog,&first.programs[0],Some("stage")),walk_uncached(&catalog,&first.programs[0],Some("stage")),"the column specialization has its own entry");
+}
+}
 #[cfg(test)]mod sec10_execution_controls{use super::*;
 #[test]fn helper_only_writes_keep_the_complete_walk(){
     let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nfn change(doc: docs):\n  update docs[doc] {stage:'done'}\n  return doc\nfn relay(doc: docs):\n  return change(doc)\nmutation finish(doc: docs):\n  return relay(doc)\n";
