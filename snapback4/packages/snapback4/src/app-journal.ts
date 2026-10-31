@@ -110,7 +110,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
 /** Called inside the journal lock. Preserve damaged/foreign bytes before
  * replacing the active record. If preservation fails, sign-in still succeeds,
  * but writes remain blocked until storage can preserve those bytes. */
-export function journalReader(key: string, owner: string, backend: string, store: SessionStore, report: (error: unknown) => void, inspectOnly = false) {
+export function journalReader(key: string, owner: string, backend: string, store: SessionStore, report: (error: unknown, preserved: boolean) => void, inspectOnly = false) {
   let preservationFailed = false;
   const empty = (): Journal => ({ owner, backend, pending: [], receipts: [] });
   return async (forWrite = false): Promise<Journal> => {
@@ -131,11 +131,11 @@ export function journalReader(key: string, owner: string, backend: string, store
       preservationFailed = false;
       report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
         message: "The online write journal was damaged or belonged to another owner; its bytes were preserved and no saved intent was replayed.",
-        rewrite: `inspect the saved bytes with await sessionStore.get(${JSON.stringify(side)}); submit new intent with app.mutate(op, args)` }));
+        rewrite: `inspect the saved bytes with await sessionStore.get(${JSON.stringify(side)}); submit new intent with app.mutate(op, args)` }), true);
     } catch (error) {
       if (!preservationFailed) report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
         message: "The damaged online write journal could not be preserved; its original bytes remain and writes are blocked until storage is repaired.",
-        rewrite: "repair sessionStore, then reopen createApp({ url, sessionStore })" }));
+        rewrite: "repair sessionStore, then reopen createApp({ url, sessionStore })" }), false);
       preservationFailed = true;
       if (forWrite) throw error;
     }

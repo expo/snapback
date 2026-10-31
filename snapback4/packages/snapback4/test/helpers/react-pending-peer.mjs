@@ -23,6 +23,7 @@ window.openPendingPeer = async () => {
     throw Error(path);
   } });
   const custody = await onlineCustody(raw, "https://pending-shared.invalid", store, error => { throw error; }, false);
+  custody.start();
   custody.client.onPendingWrites(() => notices++);
   function List() { latest = usePendingWrites(); return h("div", null, latest.map(w => w.state).join(",")); }
   return {

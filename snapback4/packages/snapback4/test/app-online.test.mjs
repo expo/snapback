@@ -19,7 +19,8 @@ for (const fault of ["closing owner", "closed channel", "throwing listener"]) te
     return new Promise(() => {});
   } });
   await identifyDispatch(raw);
-  const { client } = await onlineCustody(raw, url, store, error => { throw error; }, false);
+  const { client, start } = await onlineCustody(raw, url, store, error => { throw error; }, false);
+  start();
   await client.pendingWrites(); // Finish the initial store observation before subscribing.
   const peer = new BroadcastChannel(key), messages = [];
   peer.onmessage = event => messages.push(event.data);
@@ -64,6 +65,7 @@ test("unsaved online hold stays visible through failed retries in shared journal
     } });
     await identifyDispatch(raw);
     const custody = await onlineCustody(raw, url, ownerStore, error => errors.push(error), false);
+    custody.start();
     await custody.client.pendingWrites();
     return { ...custody, raw };
   };
@@ -229,9 +231,11 @@ for (const waitSeconds of [undefined, 0]) test(`CCP existing custody is not repl
   };
   const id = mintId(), op = { kind: "mutation", name: "send" }, args = { body: "original" };
   const first = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
+  first.start();
   assert.equal((await first.client.mutate(op, args, { id, waitSeconds: 0 })).state, "pending");
   await first.client.close();
   const second = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
+  // An explicit restored-id retry bypasses deferred opening's fresh-write gate.
   t.after(() => second.client.close()); fail = true;
   assert.equal((await second.client.mutate(op, args, { id, waitSeconds })).state, "pending");
   assert.equal((await second.client.write(id)).state, "pending");

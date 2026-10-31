@@ -27,9 +27,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4 — a device-less browser app captures each click
   // synchronously; once committed, the journal below owns it as before.
   const capture = dispatchEnabled && captureAuthority ? new OnlineCapture(url, viewer, captureAuthority) : undefined;
-  // @ref LLP 3000.013.000#4.4 — captured admissions wait behind recovery, from before signed-in.
+  // @ref LLP 3000.002.000#7.2 — fresh admissions wait for the restored prefix,
+  // including deferred non-browser custody with no synchronous capture authority.
   let recovery: Promise<void> | undefined, openGate: (() => void) | undefined;
-  if (capture) recovery = new Promise<void>(resolve => { openGate = resolve; });
+  if (capture || !autoStart) recovery = new Promise<void>(resolve => { openGate = resolve; });
   // Ids durable in the journal that this runtime replays without capturing; settled ids leave.
   const restoredIds = new Set<string>();
   let active = true;
@@ -256,7 +257,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         };
         if (storeRefusal) return refusedCapture();
         // Recovered clicks are admitted before this runtime's new ones.
-        if (captured && recovery) await recovery;
+        if (!restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);
@@ -438,6 +439,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
     void recovery.catch(report);
     if (capture) void recover().finally(() => { openGate?.(); openGate = undefined; });
+    else { openGate?.(); openGate = undefined; }
   }
   // @ref LLP 3000.013.000#4.4 — admit this scope's surviving captures once,
   // under the journal lock and then the session lock; replay them before this

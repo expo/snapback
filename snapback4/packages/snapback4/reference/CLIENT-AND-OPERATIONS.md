@@ -224,19 +224,24 @@ journal and session locks, restoring reads and writes when storage recovers.
 Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
-new actions and transport sends; cleanup waits for recovery, retaining already
+new mutations, actions and transport sends, including through a close callback
+saved before custody recovered; cleanup waits for recovery, retaining already
 dispatched action outcomes received before public close completes. Retired
 recovery closes any newly opened resources and reports no storage failure,
 including when transport preparation or journal opening was still pending.
 A later mutation returns `E_AUTH` after sign-out or `E_CLOSED` after close;
 a later read cannot restart that closed lifetime. A pause during opening leaves
-the device open and the new dispatcher deferred until opening resumes. A paused opening refusal remains `E_ADMISSION`; it cannot admit
-through the device outbox.
+the device open and the new dispatcher deferred until opening resumes. Mutations
+during that pause return `E_ADMISSION`; they cannot capture or enter the device
+outbox. Resuming opening permits same-id retry.
 A failed installation in an open lifetime keeps the typed
 `E_ADMISSION` refusal until custody is successfully installed. Once the live
-journal dispatcher takes over, clicks enter capture even while its first
-inspection is pending. Failed quarantine
-preservation reports once per failure streak; success reports its saved-byte key.
+journal dispatcher takes over, browser clicks enter capture even while its first
+inspection is pending. Fresh submissions wait until restored journal writes have
+been issued first, including in a non-browser client without capture authority.
+Browser submissions also wait for surviving capture recovery. Failed quarantine
+preservation reports once per failure streak while recovery remains current;
+success always reports its saved-byte key, including after close, sign-out or pause.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and

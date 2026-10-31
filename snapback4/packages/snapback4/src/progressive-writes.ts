@@ -179,6 +179,7 @@ export class ProgressiveWrites {
       }
       const close = async (signOut: boolean) => {
         closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
+        this.custody?.pause();
         // Fence the original client's act/sendPost now, before recovery drains.
         // @ref LLP 3000.013#6 — retain responses until both local cleanups finish.
         const finish = holdClose(local);
@@ -188,7 +189,11 @@ export class ProgressiveWrites {
         } finally { finish(); }
       };
       local.close = () => close(false); local.signOut = () => close(true);
-      const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, this.plan.report, false);
+      const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, (error, preserved) => {
+        // Saved bytes still need their side-key notice after this lifetime ends.
+        if (!preserved && (closed || this.lifetimePaused || local.viewer() !== this.viewer)) return;
+        this.plan.report(error);
+      }, false);
       this.recoverOpening = () => recovering ??= (async () => {
         try {
           // Opening inspection preserves bytes. A dependent read may retry the
@@ -379,6 +384,9 @@ export class ProgressiveWrites {
     });
     const stopWrite = journal.onWrite(write => { this.snapshot = this.snapshot.filter(entry => entry.id !== write.id); observe(this.snapshot, [write]); void refresh(); });
     local.mutate = routeMutations(original.mutate, (op, args, options) => {
+      if (this.lifetimeClosed) return original.mutate(op, args, options);
+      if (this.lifetimePaused) return failedAdmission(options?.id ?? mintId(), this.admissionDenied ??
+        admissionRefusal("write custody is paused", "app.mutate", "retry after opening resumes"));
       // Preserve the device mutation wait bound across its journal dispatcher.
       const journalOptions = { ...options, waitSeconds: options?.waitSeconds ?? 4 };
       if (options?.id) {
@@ -392,7 +400,7 @@ export class ProgressiveWrites {
       if (this.admissionDenied) return failedAdmission(options?.id ?? mintId(), this.admissionDenied);
       return journal.mutate(op, args, journalOptions);
     });
-    if (!this.lifetimePaused) delete this.admissionDenied;
+    delete this.admissionDenied;
     local.write = async id => deviceKnown(id) ? original.write(id) : await journal.write(id) ?? original.write(id);
     local.pendingWrites = async () => unique([...(await this.pending()), ...(await devicePending())]);
     local.onPendingWrites = listener => { const a = original.onPendingWrites(listener), b = journal.onPendingWrites(listener); return () => { a(); b(); }; };
