@@ -183,20 +183,27 @@ export class ProgressiveWrites {
         };
       }
       const close = async (signOut: boolean) => {
-        closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
-        this.custody?.pause();
         // Fence the original client's act/sendPost now, before recovery drains.
         // @ref LLP 3000.013#6 — retain responses until both local cleanups finish.
         const finish = holdClose(local);
         try {
-          const results = await Promise.allSettled([signOut ? original.signOut() : original.close(), recovering]);
+          if (this.custody) {
+            // Published custody has already installed the steady close. Use
+            // its transport, save and inspection cleanup even from a saved callback.
+            closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
+            await (signOut ? local.signOut() : local.close());
+            return;
+          }
+          closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
+          const ending = signOut ? original.signOut() : original.close();
+          const results = await Promise.allSettled([ending, recovering]);
           for (const result of results) if (result.status === "rejected") throw result.reason;
         } finally { finish(); }
       };
       local.close = () => close(false); local.signOut = () => close(true);
       const recoverJournal = journalReader(this.key, this.viewer, this.url, this.plan.store, (error, preserved) => {
         // Saved bytes still need their side-key notice after this lifetime ends.
-        if (!preserved && (closed || this.lifetimePaused || local.viewer() !== this.viewer)) return;
+        if (!preserved && (closed || local.viewer() !== this.viewer)) return;
         this.plan.report(error);
       }, false);
       this.recoverOpening = () => closed || this.lifetimePaused || local.viewer() !== this.viewer ? Promise.resolve() : recovering ??= (async () => {
@@ -257,10 +264,11 @@ export class ProgressiveWrites {
     inheritDispatch(raw, transport); inheritClose(raw, transport);
     // Seed the existing dispatch boundary before exposing synchronous captures.
     if (storeIdentity) seedDispatchIdentity(raw, storeIdentity);
-    const report = (error: unknown) => {
+    const report = (error: unknown, preserved = false) => {
       // Suppress only unpublished, retired openings. Installed custody keeps
-      // ordinary persistence-error reporting through its cleanup.
-      if (this.custody || !retired()) this.plan.report(error);
+      // ordinary persistence-error reporting through its cleanup; saved bytes
+      // always disclose their recovery key, even from nested opening.
+      if (preserved || this.custody || !retired()) this.plan.report(error);
     };
     let failing = false;
     const reportFailure = (error: unknown) => {
@@ -424,11 +432,15 @@ export class ProgressiveWrites {
     const deviceObserver = intentObserver(local);
     registerIntentObserver(local, ids => { deviceObserver?.(ids); observeIntents(journal, ids); });
     const close = async (signOut: boolean) => {
+      // @ref LLP 3000.002.000#7.2 — the device fence and pause both notify.
+      // Route to the device before its close callbacks, and fence it before
+      // pause callbacks; neither notification may open fresh journal custody.
       this.lifetimeClosed = this.lifetimePaused = true;
+      const ending = signOut ? original.signOut() : original.close();
       active = false; this.retryInspection = undefined;
       clearTimeout(retryTimer);
       custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true; this.receipts.clear(); this.admitted.clear();
-      await Promise.all([journal.close(), signOut ? original.signOut() : original.close()]);
+      await Promise.all([journal.close(), ending]);
     };
     local.close = () => close(false); local.signOut = () => close(true);
     combineClose(local, original, transport);

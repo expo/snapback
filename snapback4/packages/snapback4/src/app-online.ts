@@ -20,7 +20,7 @@ import { StorageWarning } from "./app-storage.ts";
 import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
-export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true,
+export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown, preserved?: boolean) => void, autoStart = true,
   captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
@@ -259,6 +259,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // Recovered clicks are admitted before this runtime's new ones.
         if (!restoredIds.has(id) && recovery) await recovery;
         if (storeRefusal) return refusedCapture();
+        // @ref LLP 3000.002.000#7.2 — releasing an opening gate retires
+        // waiters too. Existing custody survives; a fresh waiter owns nothing.
+        if (!active || raw.viewer() !== viewer) {
+          if (captured || restoredIds.has(id)) return { state: "pending", id };
+          return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } };
+        }
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {

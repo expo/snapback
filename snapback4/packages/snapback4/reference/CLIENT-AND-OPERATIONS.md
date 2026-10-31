@@ -233,7 +233,12 @@ held intents and retained settlements.
 Calling `client.close()` or `client.signOut()` during recovery immediately fences
 new mutations, actions and transport sends, including through a close callback
 saved before custody recovered; cleanup waits for recovery, retaining already
-dispatched action outcomes received before public close completes. Retired
+dispatched action outcomes received before public close completes. A saved close
+also shuts down custody installed since it was obtained and waits for its journal
+saves. The dispatcher closes before device close can notify, and device admission
+is fenced before custody pause can notify, so mutations submitted by either set
+of listeners are refused. Responses arriving after public close
+completes cannot return a new outcome. Retired
 recovery closes any newly opened resources and reports no storage failure,
 including when transport preparation or journal opening was still pending.
 A later mutation returns `E_AUTH` after sign-out or `E_CLOSED` after close;
@@ -248,9 +253,13 @@ A failed installation in an open lifetime keeps the typed
 journal dispatcher takes over, browser clicks enter capture even while its first
 inspection is pending. Fresh submissions wait until restored journal writes have
 been issued first, including in a non-browser client without capture authority.
+After that wait, a fresh write is refused if its lifetime ended or its viewer or
+store changed; it leaves no new intent for replay. Already owned journal or
+browser-captured intent keeps its recovery custody.
 Browser submissions also wait for surviving capture recovery. Failed quarantine
-preservation reports once per failure streak while recovery remains current;
-success always reports its saved-byte key, including after close, sign-out or pause.
+preservation reports once per failure streak while recovery remains current,
+including during a resumable pause; success always reports its saved-byte key,
+including after close, sign-out or pause during nested opening.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and

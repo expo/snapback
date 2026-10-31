@@ -328,8 +328,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "progressive-writes.ts": {
-    "count": 25,
-    "sha256": "63c553b80b01f1fb10af238ca6b77c8d886f17694c19495028de7cd12eb8e950"
+    "count": 26,
+    "sha256": "b54420dbdff048736c36bbdc902d087bcb005e8124cc32da3eabc5c4ca222252"
   },
   "proof-accounts.ts": {
     "count": 16,

@@ -106,7 +106,7 @@ regression('E15 retained opening pause fences the installed dispatcher until sta
 });
 
 for (const method of ['close', 'signOut', 'pause', 'viewer']) for (const preserves of [false, true]) {
-  regression(`E15 ${method} during opening recovery ${preserves ? 'still reports the quarantine side key' : 'suppresses preservation failure'}`, async t => {
+  regression(`E15 ${method} during opening recovery ${preserves ? 'still reports the quarantine side key' : method === 'pause' ? 'reports preservation failure for resumable custody' : 'suppresses preservation failure'}`, async t => {
     const memory = memorySessionStore(), entered = gate(), release = gate(), reports = [];
     const damaged = 'damaged opening recovery'; await memory.set(key, damaged);
     let hold = false, preserving = false, saves = 0, installs = 0, progressive;
@@ -139,7 +139,10 @@ for (const method of ['close', 'signOut', 'pause', 'viewer']) for (const preserv
       const side = JSON.parse(reports[0].why.rewrite.match(/sessionStore\.get\(("[^"]+")\)/)[1]);
       assert.equal(await memory.get(side), damaged);
     } else {
-      assert.deepEqual(reports, [], 'retired opening recovery reports no preservation failure');
+      if (method === 'pause') {
+        assert.equal(reports.length, 1, 'resumable pause keeps the failure-streak warning');
+        assert.match(reports[0].why.message, /could not be preserved/);
+      } else assert.deepEqual(reports, [], 'retired opening recovery reports no preservation failure');
       assert.equal(await memory.get(key), damaged, 'failed preservation keeps the original bytes');
     }
     assert.equal(installs, 1, 'retirement stops recovery before nested installation');
