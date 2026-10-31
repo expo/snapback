@@ -1,0 +1,14 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {spawn,execFileSync} from 'node:child_process';
+const w='/home/ccheever/sb4-pub-0441',r='/home/ccheever/sb4-pub-0451-records';
+Object.assign(process.env,{CARGO_INCREMENTAL:'0',CARGO_PROFILE_DEV_DEBUG:'0',CARGO_PROFILE_TEST_DEBUG:'0'});
+const plan=JSON.parse(readFileSync(`${r}/release-affected-plan.json`));
+const original=readFileSync(`${r}/release-affected.log`,'utf8').split('== client-tests',2)[1];
+const passed=new Set([...original.matchAll(/^-- client file ok: (.*?) \(/gm)].map(m=>m[1]));
+const step=plan.steps.find(s=>s.id==='client-tests'),files=step.argv.slice(4).filter(f=>!passed.has(f));
+const source=execFileSync('git',['rev-parse','HEAD'],{cwd:w,encoding:'utf8'}).trim();
+writeFileSync(`${r}/client-remainder-plan.json`,JSON.stringify({source,mode:'discovery-only; not a publication receipt',basis:plan.head,previouslyPassed:[...passed],files},null,2));
+const run=async(id,args)=>{console.log(`== ${id} ${new Date().toISOString()}`);const code=await new Promise(done=>{const p=spawn('node',args,{cwd:`${w}/snapback4`,env:process.env,stdio:'inherit'});p.once('error',()=>done(1));p.once('close',code=>done(code??1))});writeFileSync(`${r}/${id}.exit`,String(code)+'\n');return code};
+const a=await run('client-remainder',['scripts/run-client-tests.mjs',step.argv[2],'files',...files]);
+const model=plan.steps.find(s=>s.id==='client-models');const b=await run('client-remainder-models',model.argv.slice(1));
+writeFileSync(`${r}/client-remainder-complete.json`,JSON.stringify({source,finished:new Date().toISOString(),files:files.length,poolExit:a,modelsExit:b},null,2));process.exitCode=a||b;

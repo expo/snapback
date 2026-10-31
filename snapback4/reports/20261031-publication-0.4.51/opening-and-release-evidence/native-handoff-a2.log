@@ -1,0 +1,4 @@
+2026-10-31T17:03:31Z Waiting for native/prepare/canonical Mac audit at final source b34992d40be5297ec42feb9aa4a29200bccfca98; this controller never publishes.
+2026-10-31T17:07:29Z Mac native/prepare/canonical audit passed; prepared client/Expo SHA256 equal on both hosts. Running Linux canonical audit before qualification.
+2026-10-31T17:07:56Z Both canonical early audits PASSED; starting Linux qualification on Mac-prepared bytes and Mac warm/pre-darwin/dry-run continuation in parallel.
+2026-10-31T17:08:01Z Qualification jobs started; controller completed reversible setup. No upload invoked.

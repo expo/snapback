@@ -1,0 +1,346 @@
+-- client file start: /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm keep=undefined: changes retire an in-flight local server body before replacement
+ok 1 - wasm keep=undefined: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 350.098983
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: changes retire an in-flight local server body before replacement
+ok 2 - wasm keep=false: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 253.284751
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: changes retire an in-flight local server body before replacement
+ok 3 - wasm keep=true: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 268.735745
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: changes retire an in-flight local server body before replacement
+ok 4 - process keep=undefined: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 245.798517
+  type: 'test'
+  ...
+# Subtest: process keep=false: changes retire an in-flight local server body before replacement
+ok 5 - process keep=false: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 253.453013
+  type: 'test'
+  ...
+# Subtest: process keep=true: changes retire an in-flight local server body before replacement
+ok 6 - process keep=true: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 243.976756
+  type: 'test'
+  ...
+# Subtest: online keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+ok 7 - online keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 247.871615
+  type: 'test'
+  ...
+# Subtest: online keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+ok 8 - online keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 241.679212
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+not ok 9 - wasm keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 297.040429
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    in-flight service is not capacity queue wait
+    + actual - expected
+    
+      {
+    +   complete: true,
+    +   cut: null,
+    +   data: {
+    +     count: 0,
+    +     row: {
+    +       id: 'r',
+    +       owner: 'dev:alice',
+    +       value: 7
+    +     }
+    +   },
+    +   existence: 'present',
+    +   fresh: true,
+    +   next: null,
+    +   revalidating: true
+    -   loading: true
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    loading: true
+  actual:
+    data:
+      count: 0
+      row:
+        id: 'r'
+        owner: 'dev:alice'
+        value: 7
+    complete: true
+    cut: ~
+    fresh: true
+    next: ~
+    existence: 'present'
+    revalidating: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:139:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: wasm keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+not ok 10 - wasm keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 301.450379
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    in-flight service is not capacity queue wait
+    + actual - expected
+    
+      {
+    +   complete: true,
+    +   cut: null,
+    +   data: {
+    +     count: 0,
+    +     row: {
+    +       id: 'r',
+    +       owner: 'dev:alice',
+    +       value: 7
+    +     }
+    +   },
+    +   existence: 'present',
+    +   fresh: true,
+    +   next: null,
+    +   revalidating: true
+    -   loading: true
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    loading: true
+  actual:
+    data:
+      count: 0
+      row:
+        id: 'r'
+        owner: 'dev:alice'
+        value: 7
+    complete: true
+    cut: ~
+    fresh: true
+    next: ~
+    existence: 'present'
+    revalidating: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:139:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: process keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+not ok 11 - process keep=undefined: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 279.252952
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    in-flight service is not capacity queue wait
+    + actual - expected
+    
+      {
+    +   complete: true,
+    +   cut: null,
+    +   data: {
+    +     count: 0,
+    +     row: {
+    +       id: 'r',
+    +       owner: 'dev:alice',
+    +       value: 7
+    +     }
+    +   },
+    +   existence: 'present',
+    +   fresh: true,
+    +   next: null,
+    +   revalidating: true
+    -   loading: true
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    loading: true
+  actual:
+    data:
+      count: 0
+      row:
+        id: 'r'
+        owner: 'dev:alice'
+        value: 7
+    complete: true
+    cut: ~
+    fresh: true
+    next: ~
+    existence: 'present'
+    revalidating: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:139:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: process keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+not ok 12 - process keep=true: revocation during an in-flight acquisition starts the withdrawal bound
+  ---
+  duration_ms: 293.733751
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    in-flight service is not capacity queue wait
+    + actual - expected
+    
+      {
+    +   complete: true,
+    +   cut: null,
+    +   data: {
+    +     count: 0,
+    +     row: {
+    +       id: 'r',
+    +       owner: 'dev:alice',
+    +       value: 7
+    +     }
+    +   },
+    +   existence: 'present',
+    +   fresh: true,
+    +   next: null,
+    +   revalidating: true
+    -   loading: true
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    loading: true
+  actual:
+    data:
+      count: 0
+      row:
+        id: 'r'
+        owner: 'dev:alice'
+        value: 7
+    complete: true
+    cut: ~
+    fresh: true
+    next: ~
+    existence: 'present'
+    revalidating: true
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs:139:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: online keep=undefined: actual capacity queue wait precedes a new local episode
+ok 13 - online keep=undefined: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 207.601643
+  type: 'test'
+  ...
+# Subtest: online keep=true: actual capacity queue wait precedes a new local episode
+ok 14 - online keep=true: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 195.390065
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: actual capacity queue wait precedes a new local episode
+ok 15 - wasm keep=undefined: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 298.365305
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: actual capacity queue wait precedes a new local episode
+ok 16 - wasm keep=true: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 309.73435
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: actual capacity queue wait precedes a new local episode
+ok 17 - process keep=undefined: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 243.402335
+  type: 'test'
+  ...
+# Subtest: process keep=true: actual capacity queue wait precedes a new local episode
+ok 18 - process keep=true: actual capacity queue wait precedes a new local episode
+  ---
+  duration_ms: 278.671881
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: the final callback checks a change version raised after evaluation
+ok 19 - wasm keep=undefined: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 287.490732
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: the final callback checks a change version raised after evaluation
+ok 20 - wasm keep=false: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 258.648181
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: the final callback checks a change version raised after evaluation
+ok 21 - wasm keep=true: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 297.547749
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: the final callback checks a change version raised after evaluation
+ok 22 - process keep=undefined: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 259.445717
+  type: 'test'
+  ...
+# Subtest: process keep=false: the final callback checks a change version raised after evaluation
+ok 23 - process keep=false: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 243.930397
+  type: 'test'
+  ...
+# Subtest: process keep=true: the final callback checks a change version raised after evaluation
+ok 24 - process keep=true: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 261.029512
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 20
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6572.957546
+-- process inspection: {"snapshots":3,"unrelatedRows":3708}
+-- client file FAIL: /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/test/per-row-fixed.test.mjs (6863 ms)
+-- client files: 1/1; failed 1; tests {"tests":24,"pass":20,"fail":4,"cancelled":0,"skipped":0,"todo":0}

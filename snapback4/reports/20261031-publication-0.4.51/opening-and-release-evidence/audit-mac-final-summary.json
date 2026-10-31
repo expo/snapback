@@ -1,0 +1,40 @@
+{
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "version": "0.4.51",
+  "host": "darwin",
+  "started": "2026-10-31T22:40:31.088Z",
+  "artifacts": {
+    "/Users/ccheever/sb4-pub-0444-wt/snapback4/target/publication/snapback4-darwin-arm64-0.4.51/snapback4-0.4.51.tgz": "62e612a81306057efa2b13a6fcb6c174e1db020b0b4273355e091b91766fe717",
+    "/Users/ccheever/sb4-pub-0444-wt/snapback4/target/publication/snapback4-darwin-arm64-0.4.51/snapback4-expo-0.4.51.tgz": "8a85c94341341a404f38c574670d5903c307db2dccbc5afb5beaf8d5d0930cf1"
+  },
+  "cases": [
+    {
+      "kind": "web",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "kind": "expo",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    }
+  ],
+  "finished": "2026-10-31T22:41:12.313Z",
+  "status": "passed"
+}

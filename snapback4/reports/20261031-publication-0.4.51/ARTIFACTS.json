@@ -1,0 +1,61 @@
+{
+  "verifiedAt": "2026-10-31T23:00:08.630073+00:00",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "status": "passed",
+  "npmViews": [
+    {
+      "package": "snapback4",
+      "version": "0.4.51",
+      "latest": "0.4.51"
+    },
+    {
+      "package": "snapback4-darwin-arm64",
+      "version": "0.4.51",
+      "latest": "0.4.51"
+    },
+    {
+      "package": "snapback4-linux-x64",
+      "version": "0.4.51",
+      "latest": "0.4.51"
+    },
+    {
+      "package": "snapback4-expo",
+      "version": "0.4.51",
+      "latest": "0.4.51"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "snapback4",
+      "filename": "snapback4-0.4.51.tgz",
+      "integrity": "sha512-VaAUhuIOYAQxpIlCgV+1Q/KkpIfOlFNSb/zXdzjWZOf9NKTJOn+tjlrqh/e69+0rSVz4CgdbDdx3GxPb+rRzkw==",
+      "sha256": "62e612a81306057efa2b13a6fcb6c174e1db020b0b4273355e091b91766fe717",
+      "bytes": 1264643
+    },
+    {
+      "name": "snapback4-expo",
+      "filename": "snapback4-expo-0.4.51.tgz",
+      "integrity": "sha512-k2+UztREYOvJLynHoF60TbD1o6oJo8HKPh7xzAix/LZkU7LsX93CgiH9Xxmbw+tMHFLrtmMKglSw/0dNQDxJHA==",
+      "sha256": "8a85c94341341a404f38c574670d5903c307db2dccbc5afb5beaf8d5d0930cf1",
+      "bytes": 7718552
+    },
+    {
+      "name": "snapback4-darwin-arm64",
+      "filename": "snapback4-darwin-arm64-0.4.51.tgz",
+      "integrity": "sha512-K40S38/g3aBU4tLkN0xrNwqpjCNFtKjm5aaYLkpiXZJwX/lgqUinfztflwXsEuOJQRdRixIy4I0sxHtzKcphcw==",
+      "sha256": "9028478db4cdf0218abdfeeff32a8cd77ddf6dce51660bc9e8e1f2012b5a4465",
+      "bytes": 16596015
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "filename": "snapback4-linux-x64-0.4.51.tgz",
+      "integrity": "sha512-0SH+cvB1wdeNv2NWAABxYNoOYJT2LxXn+x3OL4jxgyzPpWlACk6HWpM6vdznIFPNuACW1/mebBPJbQqV/RMGIA==",
+      "sha256": "1ffd2f9fd26a9199bd949e5668210649de0e41037b9600e4ca9cd0d723dc875b",
+      "bytes": 18992221
+    }
+  ],
+  "registrySmoke": {
+    "linux": "10/10 foreground ssh-tt passed",
+    "mac": "10/10 foreground ssh-tt passed"
+  }
+}

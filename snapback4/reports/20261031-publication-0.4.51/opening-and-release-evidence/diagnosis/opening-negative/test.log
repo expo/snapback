@@ -1,0 +1,219 @@
+-- client file start: packages/snapback4/test/asset-opening.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+    # Subtest: default
+    not ok 1 - default
+      ---
+      duration_ms: 699.421879
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: once
+    not ok 2 - once
+      ---
+      duration_ms: 490.583059
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: awaited
+    ok 3 - awaited
+      ---
+      duration_ms: 797.393913
+      type: 'test'
+      ...
+    # Subtest: failed
+    not ok 4 - failed
+      ---
+      duration_ms: 437.846156
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        runNextTicks (node:internal/process/task_queues:64:5)
+        process.processImmediate (node:internal/timers:472:9)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: throwing
+    not ok 5 - throwing
+      ---
+      duration_ms: 452.765852
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        runNextTicks (node:internal/process/task_queues:64:5)
+        process.processImmediate (node:internal/timers:472:9)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: download-failure
+    not ok 6 - download-failure
+      ---
+      duration_ms: 480.937072
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: unmount
+    not ok 7 - unmount
+      ---
+      duration_ms: 480.210102
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: signout
+    not ok 8 - signout
+      ---
+      duration_ms: 468.772708
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:126'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:47:14)
+        runNextTicks (node:internal/process/task_queues:64:5)
+        process.processImmediate (node:internal/timers:472:9)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:33:118)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    1..8
+not ok 1 - WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+  ---
+  duration_ms: 7203.136559
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:15:1'
+  failureType: 'subtestsFailed'
+  error: '7 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 9
+# suites 0
+# pass 1
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7330.867435
+-- process inspection: {"snapshots":3,"unrelatedRows":4469}
+-- client file FAIL: packages/snapback4/test/asset-opening.test.mjs (7657 ms)
+-- client files: 1/1; failed 1; tests {"tests":9,"pass":1,"fail":8,"cancelled":0,"skipped":0,"todo":0}

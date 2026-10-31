@@ -1,0 +1,41 @@
+{
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "version": "0.4.51",
+  "host": "linux",
+  "started": "2026-10-31T16:19:46.168Z",
+  "stockInit": "host-current-source-cli",
+  "artifacts": {
+    "/home/ccheever/sb4-pub-0451-records/preflight-publication-source-client-0.4.51/snapback4-0.4.51.tgz": "f479c5ba1dfdd819201a4bf2e15f6266dd46c600bc1fb13ae8dbdc52aff0c9ae",
+    "/home/ccheever/sb4-pub-0451-records/preflight-publication-source-client-0.4.51/snapback4-expo-0.4.51.tgz": "ce76aaf965c01fb277dd5bef289e270c289ee372343e3ca12419597a0a20d8ca"
+  },
+  "cases": [
+    {
+      "kind": "web",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "kind": "expo",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    }
+  ],
+  "finished": "2026-10-31T16:20:12.263Z",
+  "status": "passed"
+}

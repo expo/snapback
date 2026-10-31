@@ -1,0 +1,9 @@
+audit-mac-early: 0
+audit-mac-final: 0
+dry-run-2: done
+finish-2: done
+lean-2: done
+native-2: done
+prepare-2: done
+warm-2: done
+chain-a1: on battery

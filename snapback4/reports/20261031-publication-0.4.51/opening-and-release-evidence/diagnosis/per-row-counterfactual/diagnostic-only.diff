@@ -1,0 +1,11 @@
+--- /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/dist/local.js	2026-10-31 05:42:59.401304943 +0100
++++ /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-counterfactual/sdk/dist/local.js	2026-10-31 07:26:37.062832325 +0100
+@@ -1721,7 +1721,7 @@
+             }
+             // New revocation evidence cannot wait behind a replacement already in
+             // flight. Only time awaiting an actual queue slot defers the episode.
+-            watch.reload(changed && watchCanRevoke(watch, preserved), { queued: !watch.running });
++            watch.reload(changed && watchCanRevoke(watch, preserved), { queued: true });
+             notify(watch);
+             acquireRead(watch);
+         }

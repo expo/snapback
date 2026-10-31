@@ -1,0 +1,69 @@
+{
+  "recordedAt": "2026-10-31T06:27:35.747Z",
+  "packages": {
+    "snapback4": {
+      "latest": {
+        "exit": 0,
+        "result": "0.4.49"
+      },
+      "target": {
+        "exit": 1,
+        "result": {
+          "error": {
+            "code": "E404",
+            "summary": "No match found for version 0.4.51",
+            "detail": "The requested resource 'snapback4@0.4.51' could not be found or you do not have permission to access it.\n\nNote that you can also install from a\ntarball, folder, http url, or git url."
+          }
+        }
+      }
+    },
+    "snapback4-darwin-arm64": {
+      "latest": {
+        "exit": 0,
+        "result": "0.4.49"
+      },
+      "target": {
+        "exit": 1,
+        "result": {
+          "error": {
+            "code": "E404",
+            "summary": "No match found for version 0.4.51",
+            "detail": "The requested resource 'snapback4-darwin-arm64@0.4.51' could not be found or you do not have permission to access it.\n\nNote that you can also install from a\ntarball, folder, http url, or git url."
+          }
+        }
+      }
+    },
+    "snapback4-linux-x64": {
+      "latest": {
+        "exit": 0,
+        "result": "0.4.49"
+      },
+      "target": {
+        "exit": 1,
+        "result": {
+          "error": {
+            "code": "E404",
+            "summary": "No match found for version 0.4.51",
+            "detail": "The requested resource 'snapback4-linux-x64@0.4.51' could not be found or you do not have permission to access it.\n\nNote that you can also install from a\ntarball, folder, http url, or git url."
+          }
+        }
+      }
+    },
+    "snapback4-expo": {
+      "latest": {
+        "exit": 0,
+        "result": "0.4.49"
+      },
+      "target": {
+        "exit": 1,
+        "result": {
+          "error": {
+            "code": "E404",
+            "summary": "No match found for version 0.4.51",
+            "detail": "The requested resource 'snapback4-expo@0.4.51' could not be found or you do not have permission to access it.\n\nNote that you can also install from a\ntarball, folder, http url, or git url."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "base": "711bfbb9d2d5c6ef81ad9c175beecfa75a3ac76d",
+  "previousReleaseBump": "ca4be0ad4a88c736bd14f3afbc7c2e0218b9586d",
+  "crateVersions": [
+    "snapback4",
+    "snapback4-core",
+    "snapback4-device",
+    "snapback4-difftest",
+    "snapback4-lang",
+    "snapback4-native",
+    "snapback4-sim"
+  ],
+  "packageVersions": [
+    "snapback4",
+    "snapback4-darwin-arm64",
+    "snapback4-linux-x64",
+    "snapback4-expo"
+  ],
+  "changedPaths": [
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/packages/snapback4-darwin-arm64/package.json",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4-linux-x64/package.json",
+    "snapback4/packages/snapback4/package.json",
+    "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "snapback4/packages/snapback4/test/device-version.test.mjs",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "route": "fresh cut on then-current origin/main, not the stale release draft"
+}

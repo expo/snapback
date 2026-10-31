@@ -1,0 +1,23 @@
+snapback4 serve <dir> [--wait-stopped] [--port N|A-B] [--bind VALUE] [--worker path] [--i-understand-cleartext] [--trusted-proxy IP|CIDR,...] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N] [--clock-offset <duration>] [--store-url URL] [--worker-state-dir PATH] [--store PATH] [--explain] [--verbose]
+
+Attaches the active release. SQLite: a running serve adopts deploy and rollback atomically without restart. Bearer sessions only. The first stdout line is its URL; wait for SNAPBACK4_READY on stderr before requests. For a bounded ready wait use startServe(dir, { timeoutMs: 30000 }) from snapback4/proof; guide testing documents the lifecycle. On graceful stop SNAPBACK4_SOCKET_CLOSED reports socket closure. startServe().stop() waits for the store lock too. --wait-stopped waits up to five seconds for the existing store lock without starting, stopping or initializing anything; other serve flags refuse. Captured snapback/server.ts (.mts/.mjs), falling back to worker.*, starts automatically; --worker overrides it. Named snapback/workers/<service> entries run alongside it. Conventional/override entries use service:worker; named entries use service:<service>. SNAPBACK_PROJECT_DIR and cwd name the active immutable release root in serve, the working app root in dev; resolve resource paths from that variable. Node dependencies come from the host app installation (SNAPBACK_WORKER_PACKAGE_DIR overrides it). Postgres requires serve stopped for deploy and does not run automatic workers. --worker and --wait-stopped refuse E_STORE_UNSUPPORTED. Supply an absolute --worker-state-dir; stopping serve leaves its lease to expire in about three seconds. See guide release-json. The start line labels active and working schema hashes. Non-loopback cleartext requires --i-understand-cleartext. Behind a TLS proxy pass --trusted-proxy <ip|cidr,...> (or SNAPBACK4_TRUSTED_PROXY) so sign-in rate limits key the X-Forwarded-For client instead of the proxy's address. Exit 1 on refusal.
+
+Flags (validated before any project or store work):
+  --wait-stopped — command option
+  --port N|A-B — backend port (0 chooses a free port; A-B tries an inclusive range)
+  --bind VALUE — listening IP address (default 127.0.0.1)
+  --worker path — production worker entry path
+  --i-understand-cleartext — explicitly allow a non-loopback HTTP listener
+  --trusted-proxy IP|CIDR,... — proxy IPs/CIDRs whose X-Forwarded-For names the client for sign-in rate limits (or SNAPBACK4_TRUSTED_PROXY)
+  --long-waits N — held viewer request capacity (default 1024, max 4096)
+  --long-waits-per-principal N — held viewer requests per principal (default 16)
+  --claim-waits N — held worker claim capacity (default 32, max 1024)
+  --clock-offset <duration> — start dev or a classified staging clock at an offset, for example +25h
+  --store-url URL — Postgres URL with explicit schema and ha=none; overrides SNAPBACK4_STORE_URL; passwords here are visible in process arguments, so prefer the environment
+  --worker-state-dir PATH — absolute durable state directory; or SNAPBACK4_WORKER_STATE_DIR
+  --store PATH — alias an existing SQLite store into the deployment; conflicts with a store URL
+  --explain — show the complete output; default verdict names the private detail file
+  --verbose — show the complete output; default verdict names the private detail file
+  --help — print this verb's help (-h also works)
+
+snapback4 --help lists every verb.

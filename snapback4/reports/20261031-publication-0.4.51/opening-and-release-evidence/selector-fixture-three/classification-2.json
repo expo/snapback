@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "reason": "existing OPEN C2/W4 classification",
+  "findings": {
+    "lean--continuation-next--next~no-next": 5,
+    "lean--next--next~no-next": 8,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 5
+  },
+  "unclassified": []
+}

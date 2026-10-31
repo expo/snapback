@@ -1,0 +1,46 @@
+{
+  "observedAt": "2026-10-31T16:39:45.749Z",
+  "requestedVersion": "0.4.51",
+  "results": [
+    {
+      "name": "snapback4",
+      "version": "0.4.49",
+      "latest": "0.4.49",
+      "desired": {
+        "available": false,
+        "code": "E404",
+        "exitCode": 1
+      }
+    },
+    {
+      "name": "snapback4-darwin-arm64",
+      "version": "0.4.49",
+      "latest": "0.4.49",
+      "desired": {
+        "available": false,
+        "code": "E404",
+        "exitCode": 1
+      }
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.49",
+      "latest": "0.4.49",
+      "desired": {
+        "available": false,
+        "code": "E404",
+        "exitCode": 1
+      }
+    },
+    {
+      "name": "snapback4-expo",
+      "version": "0.4.49",
+      "latest": "0.4.49",
+      "desired": {
+        "available": false,
+        "code": "E404",
+        "exitCode": 1
+      }
+    }
+  ]
+}

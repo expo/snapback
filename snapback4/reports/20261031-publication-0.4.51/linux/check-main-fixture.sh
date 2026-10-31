@@ -1,0 +1,16 @@
+#!/bin/bash
+set -u
+export PATH=$HOME/.bun-1.4.2/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.elan/bin:$PATH
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_OPT_LEVEL=1
+export LIBSQLITE3_FLAGS='-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0'
+ulimit -n 65536
+R=$HOME/sb4-pub-0451-records; K=$HOME/sb4-pub-0451-kit
+until [ -s "$R/diagnosis/per-row-counterfactual/fixed-test-negative-control.exit" ]; do sleep 1; done
+cd "$HOME/sb4-pub-0441"
+node snapback4/scripts/affected.mjs --base origin/main --json > "$R/fixture-affected-plan.json"
+timeout 10800s node snapback4/scripts/affected.mjs --base origin/main --run > "$R/fixture-affected.log" 2>&1
+rc=$?; echo "$rc" > "$R/fixture-affected.exit"
+[ "$rc" = 0 ] || exit "$rc"
+FIXTURE_OUT=$R/fixture-checks-main-exact bash "$K/check-per-row-fixture.sh" > "$R/fixture-checks-main-exact.log" 2>&1
+rc=$?; echo "$rc" > "$R/fixture-checks-main-exact.exit"
+exit "$rc"

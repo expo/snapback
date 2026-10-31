@@ -1,0 +1,123 @@
+{
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "cli": "snapback4 0.4.51",
+  "wasm": [
+    {
+      "directory": "src",
+      "stamp": {
+        "format": 1,
+        "version": "0.4.51",
+        "capabilities": [
+          "argument-alias-v1",
+          "branch-membership-v1",
+          "branch-membership-v2",
+          "branch-merge-v1",
+          "branch-pages-v2",
+          "branch-pages-v3",
+          "branch-pages-v4",
+          "branch-pages-v5",
+          "calendar-month",
+          "calendar-schedule",
+          "column-read-v1",
+          "column-write-v1",
+          "declarative-receipts-v4",
+          "ephemeral",
+          "expiry-reference-actions-v1",
+          "field-authority",
+          "insert-rule-order",
+          "insert-rule-order-units",
+          "int-range",
+          "live-parent-copy-v1",
+          "maintained-column",
+          "maintained-id-sha256-v1",
+          "owner-key-coverage",
+          "read-through",
+          "receipt-derived-prediction-v1",
+          "recorded-attribution",
+          "reference-actions",
+          "row-keyed-view",
+          "rule-reference",
+          "rule-reference-v2",
+          "sequence-by",
+          "source-write-reservations-v1",
+          "source-write-reservations-v2",
+          "sync-generation-v1",
+          "time-audiences-v1",
+          "timeline",
+          "timeline-event-slots",
+          "timeline-v2",
+          "union-audience"
+        ]
+      },
+      "sha256": "5873886105af788da7a274b48d3c87341d4563dc090823406f9eae971a2571b0"
+    },
+    {
+      "directory": "dist",
+      "stamp": {
+        "format": 1,
+        "version": "0.4.51",
+        "capabilities": [
+          "argument-alias-v1",
+          "branch-membership-v1",
+          "branch-membership-v2",
+          "branch-merge-v1",
+          "branch-pages-v2",
+          "branch-pages-v3",
+          "branch-pages-v4",
+          "branch-pages-v5",
+          "calendar-month",
+          "calendar-schedule",
+          "column-read-v1",
+          "column-write-v1",
+          "declarative-receipts-v4",
+          "ephemeral",
+          "expiry-reference-actions-v1",
+          "field-authority",
+          "insert-rule-order",
+          "insert-rule-order-units",
+          "int-range",
+          "live-parent-copy-v1",
+          "maintained-column",
+          "maintained-id-sha256-v1",
+          "owner-key-coverage",
+          "read-through",
+          "receipt-derived-prediction-v1",
+          "recorded-attribution",
+          "reference-actions",
+          "row-keyed-view",
+          "rule-reference",
+          "rule-reference-v2",
+          "sequence-by",
+          "source-write-reservations-v1",
+          "source-write-reservations-v2",
+          "sync-generation-v1",
+          "time-audiences-v1",
+          "timeline",
+          "timeline-event-slots",
+          "timeline-v2",
+          "union-audience"
+        ]
+      },
+      "sha256": "5873886105af788da7a274b48d3c87341d4563dc090823406f9eae971a2571b0"
+    }
+  ],
+  "prepare": {
+    "format": 1,
+    "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+    "expo": {
+      "name": "snapback4-expo",
+      "version": "0.4.51",
+      "filename": "snapback4-expo-0.4.51.tgz",
+      "integrity": "sha512-tGfczD1s6g4yZCSZLL6dZ8yzrREKxJEfZiaJ9Nx/GldjP+MzQCgM4inIe6U6Fdce0kJw3rHq0shr7rOkvghFtg==",
+      "bytes": 24271
+    },
+    "client": {
+      "name": "snapback4",
+      "version": "0.4.51",
+      "filename": "snapback4-0.4.51.tgz",
+      "integrity": "sha512-9lNfCgRJmG7YFUGXMxlR7G9jWiLja5t5sWw2ADcyMoeuCQURrY55pFQiMwAOEA9zWhpltrJXizjnqfyATt4kfA==",
+      "bytes": 1264696,
+      "files": 382
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-31T22:41:59.588024+00:00",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "status": [
+    " M snapback4/metrics/publish.jsonl"
+  ],
+  "power": "AC",
+  "lid": "open",
+  "dryRun": "passed",
+  "finalAuditExit": 0,
+  "darwinProof": "passed",
+  "artifacts": [
+    {
+      "name": "snapback4-darwin-arm64",
+      "integrity": "sha512-K40S38/g3aBU4tLkN0xrNwqpjCNFtKjm5aaYLkpiXZJwX/lgqUinfztflwXsEuOJQRdRixIy4I0sxHtzKcphcw=="
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "integrity": "sha512-0SH+cvB1wdeNv2NWAABxYNoOYJT2LxXn+x3OL4jxgyzPpWlACk6HWpM6vdznIFPNuACW1/mebBPJbQqV/RMGIA=="
+    },
+    {
+      "name": "snapback4",
+      "integrity": "sha512-VaAUhuIOYAQxpIlCgV+1Q/KkpIfOlFNSb/zXdzjWZOf9NKTJOn+tjlrqh/e69+0rSVz4CgdbDdx3GxPb+rRzkw=="
+    }
+  ]
+}

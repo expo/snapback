@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: social recipes in React/browser: real online signals and media, controlled read interleavings
+    # Subtest: route, history and decorations revalidate independently without draft/focus loss
+    ok 1 - route, history and decorations revalidate independently without draft/focus loss
+      ---
+      duration_ms: 125.408069
+      type: 'test'
+      ...
+    # Subtest: loading, revalidating and offline membership allow custody and eventual server delivery
+    ok 2 - loading, revalidating and offline membership allow custody and eventual server delivery
+      ---
+      duration_ms: 2571.026388
+      type: 'test'
+      ...
+    # Subtest: older bubbles recover receipts after withdrawal without losing history
+    ok 3 - older bubbles recover receipts after withdrawal without losing history
+      ---
+      duration_ms: 68.608239
+      type: 'test'
+      ...
+    # Subtest: renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+    ok 4 - renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+      ---
+      duration_ms: 351.149493
+      type: 'test'
+      ...
+    # Subtest: a late failed renewal cannot stop a newer successful typing lease
+    ok 5 - a late failed renewal cannot stop a newer successful typing lease
+      ---
+      duration_ms: 111.851759
+      type: 'test'
+      ...
+    # Subtest: typing expires, drops on disconnect, needs a fresh keystroke and never queues
+    not ok 6 - typing expires, drops on disconnect, needs a fresh keystroke and never queues
+      ---
+      duration_ms: 122118.89928
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/async-wait-probe.test.mjs:259:11'
+      failureType: 'testCodeFailure'
+      error: 'TEST_HANG: async browser predicate; 1 work unit(s), 122000 ms elapsed, 122000 ms guard'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        Timeout.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+        listOnTimeout (node:internal/timers:605:17)
+        process.processTimers (node:internal/timers:541:7)
+      ...
+    # Subtest: one handle survives list remount, closes, rejects second open and cleans a late result
+    ok 7 - one handle survives list remount, closes, rejects second open and cleans a late result
+      ---
+      duration_ms: 451.923796
+      type: 'test'
+      ...
+    # Subtest: the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+    ok 8 - the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+      ---
+      duration_ms: 249.333172
+      type: 'test'
+      ...
+    # Subtest: two offline sends keep independent failures and attachment arguments after another session leaves
+    ok 9 - two offline sends keep independent failures and attachment arguments after another session leaves
+      ---
+      duration_ms: 1179.262117
+      type: 'test'
+      ...
+    # Subtest: observations make retention explicit
+    ok 10 - observations make retention explicit
+      ---
+      duration_ms: 5.028311
+      type: 'test'
+      ...
+    # Subtest: account reset clears draft and stops the prior typing owner
+    ok 11 - account reset clears draft and stops the prior typing owner
+      ---
+      duration_ms: 4188.814244
+      type: 'test'
+      ...
+    1..11
+not ok 1 - social recipes in React/browser: real online signals and media, controlled read interleavings
+  ---
+  duration_ms: 137440.794521
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/async-wait-probe.test.mjs:18:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 12
+# suites 0
+# pass 10
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 137895.009538

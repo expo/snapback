@@ -1,0 +1,2 @@
+23026d54a54aaeb450a5859aa4c77d8ad3479a1e issues(sb4): track remaining async quote-jump polling barriers
+32881d4973a8c0b6b17630219f26308a81d9254b test(sb4): classify existing Lean open questions in affected receipts

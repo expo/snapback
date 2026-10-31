@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-31T09:28:25.577092+00:00",
+  "draftSource": "6c95ba698ebbf3e1a3798b4e0d85f0adeca2ade6",
+  "moved": [
+    "release-affected-plan.json",
+    "release-affected.log",
+    "release-checks-controller.log"
+  ],
+  "note": "Initial unqualified draft evidence archived before reusing release-check filenames for a fresh cut."
+}

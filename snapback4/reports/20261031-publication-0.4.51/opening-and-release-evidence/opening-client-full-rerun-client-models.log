@@ -1,0 +1,637 @@
+-- client file start: packages/snapback4/test/app-session-model.test.mjs; stall bound 12500000 ms
+TAP version 13
+# Subtest: online session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences
+ok 1 - online session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences
+  ---
+  duration_ms: 94902.319315
+  type: 'test'
+  ...
+# tier=online sequences=5000 seed=1..5000 coverage={"open.online":33089,"storage.get.epoch":150057,"storage.get.session":570255,"storage.get.retirement":238918,"op.guest":9709,"wire./auth/guest":8489,"storage.get.writes":31221,"storage.set.session":48671,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2738,"op.handleMutate":5977,"wire./probe":2026,"storage.set.writes":11450,"wire./m/write":1817,"wire.handleWrite":1802,"write.failed":888,"consistent.onWrite.failed":845,"handle.resultSettled":14567,"write.outcome":1785,"write.outcome.failed":879,"write.knownAtDelivery":1715,"consistent.mutate.failed":842,"op.handleWrite":7227,"consistent.write.failed":1459,"op.handleQuery":4794,"wire./q/viewer":3158,"op.query":4891,"op.close":4772,"handle.hidden":6560,"handle.sessionNotification":7504,"handle.viewerNotification":6560,"storage.set.retirement":31000,"fault.set":323,"fault.set.1":159,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":30257,"wire.retirementOffline":2603,"op.reopenOffline":4957,"storage.delete.retirement":14412,"retirement.removed":22053,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3523,"wire.offline":5434,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":4064,"held./auth/refresh":397,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/guest":500,"held./auth/logout":1620,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":6041,"held.storage.set":2650,"interleaving.storage.peer":17210,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":4151,"op.login":4790,"op.receiptOffline":1250,"write.sent":914,"fault.receiptSave":3750,"consistent.onWrite.sent":862,"write.outcome.sent":906,"consistent.mutate.sent":859,"consistent.write.sent":1450,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3599,"wire./changes":744,"fault.get":2958,"fault.get.9":191,"fault.set.3":44,"handle.hidden.handleQuery":1008,"fault.get.5":269,"held./q/viewer":416,"wire./auth/logout-all":5624,"global.attempt":4803,"global.acknowledged":837,"fault.set.5":10,"global.publicAcknowledgement":632,"fault.rotationSave":549,"handle.hidden.handleRefresh":991,"held.dispatch/auth/guest":431,"held./auth/signup":459,"observation.data":6149,"fault.get.3":338,"observation.hidden":483,"fault.get.7":252,"global.externalSiblingRevoked":173,"fault.get.2":342,"held./m/write":524,"fault.get.11":166,"fault.set.2":94,"global.attemptRefused":3966,"fault.get.8":191,"handle.hidden.handleMutate":997,"handle.hidden.handleWrite":1341,"held.dispatch/auth/login":463,"global.peerHeldRotation":30,"global.rotatedBearer":184,"fault.get.10":190,"held./auth/logout-all":129,"fault.get.6":224,"fault.get.12":151,"fault.get.4":288,"fault.get.1":356,"held.dispatch/auth/signup":414,"held./auth/login":46,"global.peerPersistedRotation":79,"write.outcomeAfterFence":84,"write.outcomeAfterFence.failed":37,"write.unknownAtClose":70,"write.outcomeAfterFence.sent":47,"fault.delete":63,"fault.delete.1":63,"fault.set.4":15,"global.newerAccountEpoch":7,"global.ackWithLaterToken":2,"fault.set.9":1}
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# snapback4: the server refused the partition: E_AUTH: refused
+# Subtest: local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences
+ok 2 - local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences
+  ---
+  duration_ms: 169729.822064
+  type: 'test'
+  ...
+# tier=local sequences=5000 seed=1..5000 coverage={"open.local":32998,"storage.get.epoch":257228,"storage.get.session":684301,"storage.get.retirement":231652,"op.guest":9709,"wire./auth/guest":8487,"storage.get.writes":36360,"wire./schema":18576,"storage.set.session":49245,"wire./sync":42114,"wire./changes":22255,"op.reopen":9838,"op.readObservation":4932,"handle.captured":15909,"op.release":5988,"op.sibling":4806,"server.externalSibling":2683,"wire./probe":8584,"op.handleMutate":5977,"wire./m/write":2122,"wire.handleWrite":1867,"write.failed":922,"consistent.onWrite.failed":874,"handle.resultSettled":14036,"write.outcome":1731,"write.outcome.failed":842,"write.knownAtDelivery":1663,"consistent.mutate.failed":800,"op.handleWrite":7227,"consistent.write.failed":1485,"op.handleQuery":4794,"op.query":4891,"op.close":4772,"handle.hidden":5763,"handle.sessionNotification":6597,"handle.viewerNotification":5763,"storage.set.retirement":30549,"fault.set":302,"fault.set.1":153,"op.retireOffline":4890,"op.logout":4873,"wire./auth/logout":28996,"wire.retirementOffline":2377,"op.reopenOffline":4957,"storage.delete.retirement":15774,"retirement.removed":22638,"op.refreshFault":4771,"op.signup":4743,"wire./auth/signup":3522,"wire.offline":11306,"op.handleRefresh":4847,"op.capture":4726,"op.refresh":4737,"op.closeClient":4728,"wire./auth/refresh":3616,"held./auth/refresh":396,"op.logoutEverywhere":4786,"op.revokeCurrent":4726,"held./auth/logout":1259,"held./auth/guest":491,"op.holdStore":4786,"op.observeHandle":4792,"observation.created":4792,"observation.notification":7247,"held./m/write":546,"held.storage.set":2545,"interleaving.storage.peer":16617,"op.retireOnline":4799,"op.revoke":4842,"server.revoke":3820,"op.login":4790,"op.receiptOffline":1250,"write.sent":945,"fault.receiptSave":9168,"consistent.onWrite.sent":893,"write.outcome.sent":889,"consistent.mutate.sent":844,"consistent.write.sent":1489,"consistent.writeDuringReceiptFailure":1250,"op.receiptOnline":1250,"wire./auth/login":3589,"fault.get":2973,"fault.get.6":203,"wire./q/viewer":2011,"fault.set.3":41,"handle.hidden.handleQuery":930,"fault.get.5":255,"held./q/viewer":246,"wire./auth/logout-all":3795,"global.attempt":3308,"global.acknowledged":782,"fault.set.5":8,"global.publicAcknowledgement":612,"fault.rotationSave":543,"handle.hidden.handleRefresh":952,"held.dispatch/auth/guest":425,"held./auth/signup":464,"observation.data":7838,"fault.get.3":337,"observation.hidden":515,"fault.get.9":185,"global.externalSiblingRevoked":156,"fault.get.11":169,"write.outcomeAfterFence":87,"write.outcomeAfterFence.failed":42,"write.unknownAtClose":68,"fault.set.2":89,"global.attemptRefused":2526,"fault.get.7":226,"fault.get.8":189,"held.dispatch/auth/login":457,"global.peerHeldRotation":25,"wire.obsoleteAuth":60,"handle.hidden.handleWrite":1170,"global.rotatedBearer":143,"fault.get.10":192,"held./auth/logout-all":115,"handle.hidden.handleMutate":947,"fault.get.12":161,"fault.get.4":300,"fault.get.1":377,"held.dispatch/auth/signup":411,"held./auth/login":46,"fault.get.2":379,"fault.delete":77,"fault.delete.1":68,"global.peerPersistedRotation":71,"fault.delete.2":9,"storage.set.writes":5,"write.outcomeAfterFence.sent":45,"fault.set.4":10,"global.newerAccountEpoch":6,"global.ackWithLaterToken":1,"fault.set.8":1}
+# Subtest: I13 online: sent stays known through receipt-store failure and repair
+ok 3 - I13 online: sent stays known through receipt-store failure and repair
+  ---
+  duration_ms: 53.843795
+  type: 'test'
+  ...
+# Subtest: I13 online: failed stays known through receipt-store failure and repair
+ok 4 - I13 online: failed stays known through receipt-store failure and repair
+  ---
+  duration_ms: 5.651322
+  type: 'test'
+  ...
+# Subtest: I13 local: sent stays known through receipt-store failure and repair
+ok 5 - I13 local: sent stays known through receipt-store failure and repair
+  ---
+  duration_ms: 13.945638
+  type: 'test'
+  ...
+# Subtest: I13 local: failed stays known through receipt-store failure and repair
+ok 6 - I13 local: failed stays known through receipt-store failure and repair
+  ---
+  duration_ms: 11.702975
+  type: 'test'
+  ...
+# Subtest: model regression: a peer-fenced provisional local opener cannot leave auth restoring
+ok 7 - model regression: a peer-fenced provisional local opener cannot leave auth restoring
+  ---
+  duration_ms: 27.032529
+  type: 'test'
+  ...
+# Subtest: model regression: online held commit remains pending with its id across close
+ok 8 - model regression: online held commit remains pending with its id across close
+  ---
+  duration_ms: 4.364373
+  type: 'test'
+  ...
+# Subtest: model regression: online held commit remains pending with its id across logout
+ok 9 - model regression: online held commit remains pending with its id across logout
+  ---
+  duration_ms: 4.427488
+  type: 'test'
+  ...
+# Subtest: model regression: online held refusal remains pending with its id across close
+ok 10 - model regression: online held refusal remains pending with its id across close
+  ---
+  duration_ms: 4.315711
+  type: 'test'
+  ...
+# Subtest: model regression: online held refusal remains pending with its id across logout
+ok 11 - model regression: online held refusal remains pending with its id across logout
+  ---
+  duration_ms: 4.399606
+  type: 'test'
+  ...
+# Subtest: model regression: local held commit remains pending with its id across close
+ok 12 - model regression: local held commit remains pending with its id across close
+  ---
+  duration_ms: 8.651581
+  type: 'test'
+  ...
+# Subtest: model regression: local held commit remains pending with its id across logout
+ok 13 - model regression: local held commit remains pending with its id across logout
+  ---
+  duration_ms: 8.61745
+  type: 'test'
+  ...
+# Subtest: model regression: local held refusal remains pending with its id across close
+ok 14 - model regression: local held refusal remains pending with its id across close
+  ---
+  duration_ms: 8.216719
+  type: 'test'
+  ...
+# Subtest: model regression: local held refusal remains pending with its id across logout
+ok 15 - model regression: local held refusal remains pending with its id across logout
+  ---
+  duration_ms: 8.429518
+  type: 'test'
+  ...
+# Subtest: model regression: failed local rotation persistence cannot be committed by a second notification save
+ok 16 - model regression: failed local rotation persistence cannot be committed by a second notification save
+  ---
+  duration_ms: 9.394845
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_AUTH: refused
+# Subtest: model regression: obsolete predecessor refusal waits for the held local rotation
+ok 17 - model regression: obsolete predecessor refusal waits for the held local rotation
+  ---
+  duration_ms: 18.983131
+  type: 'test'
+  ...
+# Subtest: model regression: a global caller waiting for rotation cannot select an intervening replacement
+ok 18 - model regression: a global caller waiting for rotation cannot select an intervening replacement
+  ---
+  duration_ms: 6.07609
+  type: 'test'
+  ...
+# Subtest: model regression: receipt storage failure retains custody without replacing a dispatched outcome
+ok 19 - model regression: receipt storage failure retains custody without replacing a dispatched outcome
+  ---
+  duration_ms: 51.216236
+  type: 'test'
+  ...
+# Subtest: model regression: an undelivered write remains pending with its id across logout
+ok 20 - model regression: an undelivered write remains pending with its id across logout
+  ---
+  duration_ms: 4.749511
+  type: 'test'
+  ...
+# Subtest: model regression: a facade hidden after dispatch preserves the raw rotation outcome
+ok 21 - model regression: a facade hidden after dispatch preserves the raw rotation outcome
+  ---
+  duration_ms: 4.583321
+  type: 'test'
+  ...
+# Subtest: model regression: a refresh result fulfilled before hiding is not a new disclosure by its later handler
+ok 22 - model regression: a refresh result fulfilled before hiding is not a new disclosure by its later handler
+  ---
+  duration_ms: 6.640376
+  type: 'test'
+  ...
+# Subtest: model regression: storage observation follows delivery, not entry into the backing adapter
+ok 23 - model regression: storage observation follows delivery, not entry into the backing adapter
+  ---
+  duration_ms: 7.601176
+  type: 'test'
+  ...
+# Subtest: model regression: an acknowledgement cannot retire a login minted after its attempt
+ok 24 - model regression: an acknowledgement cannot retire a login minted after its attempt
+  ---
+  duration_ms: 8.599183
+  type: 'test'
+  ...
+# Subtest: model regression: a dormant global caller cannot adopt a later login's account epoch
+ok 25 - model regression: a dormant global caller cannot adopt a later login's account epoch
+  ---
+  duration_ms: 7.135348
+  type: 'test'
+  ...
+# Subtest: model regression: a queued login cannot suppress the committed global logout's publication
+ok 26 - model regression: a queued login cannot suppress the committed global logout's publication
+  ---
+  duration_ms: 4.232726
+  type: 'test'
+  ...
+# Subtest: model regression: a stale global retry does not recreate an acknowledged retirement
+ok 27 - model regression: a stale global retry does not recreate an acknowledged retirement
+  ---
+  duration_ms: 5.559265
+  type: 'test'
+  ...
+# Subtest: model regression: global logout selects a peer's persisted successor
+ok 28 - model regression: global logout selects a peer's persisted successor
+  ---
+  duration_ms: 6.170341
+  type: 'test'
+  ...
+# Subtest: model regression: a late successor inherits a closed peer's global fence
+ok 29 - model regression: a late successor inherits a closed peer's global fence
+  ---
+  duration_ms: 6.748367
+  type: 'test'
+  ...
+# Subtest: model regression: offline reopening starts after close commits the owned rotation
+ok 30 - model regression: offline reopening starts after close commits the owned rotation
+  ---
+  duration_ms: 6.50344
+  type: 'test'
+  ...
+# Subtest: model regression: refusal after a failed rotation save also excludes its consumed predecessor
+ok 31 - model regression: refusal after a failed rotation save also excludes its consumed predecessor
+  ---
+  duration_ms: 4.961839
+  type: 'test'
+  ...
+# Subtest: model regression: failed global fencing keeps retained handles and observations usable
+ok 32 - model regression: failed global fencing keeps retained handles and observations usable
+  ---
+  duration_ms: 6.5762
+  type: 'test'
+  ...
+# Subtest: model regression: a failed read during signup cannot revoke the saved session
+ok 33 - model regression: a failed read during signup cannot revoke the saved session
+  ---
+  duration_ms: 3.663843
+  type: 'test'
+  ...
+# Subtest: model regression: close retains custody of a late guest response
+ok 34 - model regression: close retains custody of a late guest response
+  ---
+  duration_ms: 2.749111
+  type: 'test'
+  ...
+# Subtest: model regression: replacement retires a rotation whose persistence read failed
+ok 35 - model regression: replacement retires a rotation whose persistence read failed
+  ---
+  duration_ms: 5.369681
+  type: 'test'
+  ...
+# Subtest: model regression: a closed runtime cannot return to restoring after a peer's replacement
+ok 36 - model regression: a closed runtime cannot return to restoring after a peer's replacement
+  ---
+  duration_ms: 7.574326
+  type: 'test'
+  ...
+# Subtest: model regression: refusal fencing retries a transient tombstone failure before offline reopen
+ok 37 - model regression: refusal fencing retries a transient tombstone failure before offline reopen
+  ---
+  duration_ms: 5.458754
+  type: 'test'
+  ...
+# Subtest: model regression: refusal cleanup cannot wait behind a held sign-in
+ok 38 - model regression: refusal cleanup cannot wait behind a held sign-in
+  ---
+  duration_ms: 5.312074
+  type: 'test'
+  ...
+# Subtest: model regression: an older queued global logout cannot suppress a newer logout's completion
+ok 39 - model regression: an older queued global logout cannot suppress a newer logout's completion
+  ---
+  duration_ms: 2.736522
+  type: 'test'
+  ...
+# Subtest: model regression: closed auth actions cannot leave a held logout restoring
+ok 40 - model regression: closed auth actions cannot leave a held logout restoring
+  ---
+  duration_ms: 2.571596
+  type: 'test'
+  ...
+# Subtest: model regression: a queued global retry completes the signed-out public view
+ok 41 - model regression: a queued global retry completes the signed-out public view
+  ---
+  duration_ms: 48.403679
+  type: 'test'
+  ...
+# Subtest: model regression: late refusal cannot republish restoring after close
+ok 42 - model regression: late refusal cannot republish restoring after close
+  ---
+  duration_ms: 6.220496
+  type: 'test'
+  ...
+# Subtest: model regression: acknowledged global revocation retries cleanup after a failed deletion
+ok 43 - model regression: acknowledged global revocation retries cleanup after a failed deletion
+  ---
+  duration_ms: 4.087439
+  type: 'test'
+  ...
+# Subtest: model regression: epoch fencing hides the public client before retirement notifications
+ok 44 - model regression: epoch fencing hides the public client before retirement notifications
+  ---
+  duration_ms: 4.299026
+  type: 'test'
+  ...
+# Subtest: model regression: a retiring runtime clears its acknowledged global tombstone after a read failure
+ok 45 - model regression: a retiring runtime clears its acknowledged global tombstone after a read failure
+  ---
+  duration_ms: 6.975197
+  type: 'test'
+  ...
+# Subtest: session model sweeps 120 failure points after an unpersisted rotation
+ok 46 - session model sweeps 120 failure points after an unpersisted rotation
+  ---
+  duration_ms: 774.477366
+  type: 'test'
+  ...
+# Subtest: I12 local close retains a body delivered while cleanup awaits another runtime
+ok 47 - I12 local close retains a body delivered while cleanup awaits another runtime
+  ---
+  duration_ms: 16.367018
+  type: 'test'
+  ...
+# Subtest: I12 online: implicit retirement retains a body parsed during session cleanup
+ok 48 - I12 online: implicit retirement retains a body parsed during session cleanup
+  ---
+  duration_ms: 6.07636
+  type: 'test'
+  ...
+# Subtest: I12 local: implicit retirement retains a body parsed during session cleanup
+ok 49 - I12 local: implicit retirement retains a body parsed during session cleanup
+  ---
+  duration_ms: 13.415513
+  type: 'test'
+  ...
+# Subtest: I12 online: peer fencing retains a body through overlapping credential cleanup
+ok 50 - I12 online: peer fencing retains a body through overlapping credential cleanup
+  ---
+  duration_ms: 6.989729
+  type: 'test'
+  ...
+# Subtest: I12 local: peer fencing retains a body through overlapping credential cleanup
+ok 51 - I12 local: peer fencing retains a body through overlapping credential cleanup
+  ---
+  duration_ms: 17.597333
+  type: 'test'
+  ...
+# Subtest: I12 online: validated body capture precedes a logout cleanup continuation
+ok 52 - I12 online: validated body capture precedes a logout cleanup continuation
+  ---
+  duration_ms: 50.421315
+  type: 'test'
+  ...
+# Subtest: I12 local: validated body capture precedes a logout cleanup continuation
+ok 53 - I12 local: validated body capture precedes a logout cleanup continuation
+  ---
+  duration_ms: 19.81655
+  type: 'test'
+  ...
+# Subtest: I12 online: a live validated body survives a peer replacement before settlement
+ok 54 - I12 online: a live validated body survives a peer replacement before settlement
+  ---
+  duration_ms: 7.768357
+  type: 'test'
+  ...
+# Subtest: I12 local: a live validated body survives a peer replacement before settlement
+ok 55 - I12 local: a live validated body survives a peer replacement before settlement
+  ---
+  duration_ms: 20.756178
+  type: 'test'
+  ...
+# Subtest: I12 online: the full terminal oracle catches an in-memory refusal-message corruption
+ok 56 - I12 online: the full terminal oracle catches an in-memory refusal-message corruption
+  ---
+  duration_ms: 8.036229
+  type: 'test'
+  ...
+# Subtest: I12 local: the full terminal oracle catches an in-memory refusal-message corruption
+ok 57 - I12 local: the full terminal oracle catches an in-memory refusal-message corruption
+  ---
+  duration_ms: 15.786348
+  type: 'test'
+  ...
+# Subtest: I12 online: full refusal equality also holds after the caller is fenced
+ok 58 - I12 online: full refusal equality also holds after the caller is fenced
+  ---
+  duration_ms: 13.246119
+  type: 'test'
+  ...
+# Subtest: I12 local: full refusal equality also holds after the caller is fenced
+ok 59 - I12 local: full refusal equality also holds after the caller is fenced
+  ---
+  duration_ms: 29.817083
+  type: 'test'
+  ...
+# Subtest: publication seed 11: fair recovery waits for overlapping model work before owning its clock
+ok 60 - publication seed 11: fair recovery waits for overlapping model work before owning its clock
+  ---
+  duration_ms: 1165.693928
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 268506.799904
+-- process inspection: {"snapshots":3,"unrelatedRows":3255}
+-- client file ok: packages/snapback4/test/app-session-model.test.mjs (268767 ms)
+-- client file start: packages/snapback4/test/online-client-model.test.mjs; stall bound 7500000 ms
+TAP version 13
+# Subtest: model replay seed 1615: round-9 direct-read schedule
+ok 1 - model replay seed 1615: round-9 direct-read schedule
+  ---
+  duration_ms: 42.790173
+  type: 'test'
+  ...
+# Subtest: model replay seed 142: a paused durable owner cannot report an unpersisted failure
+ok 2 - model replay seed 142: a paused durable owner cannot report an unpersisted failure
+  ---
+  duration_ms: 37.913983
+  type: 'test'
+  ...
+# Subtest: model scheduled replay: replacement fences an accepted direct return
+ok 3 - model scheduled replay: replacement fences an accepted direct return
+  ---
+  duration_ms: 11.446682
+  type: 'test'
+  ...
+# Subtest: model scheduled replay: revocation fences an accepted direct return
+ok 4 - model scheduled replay: revocation fences an accepted direct return
+  ---
+  duration_ms: 3.626898
+  type: 'test'
+  ...
+# Subtest: SN replay seed 563: loading candidates spend rounds even with pending custody
+ok 5 - SN replay seed 563: loading candidates spend rounds even with pending custody
+  ---
+  duration_ms: 18.022561
+  type: 'test'
+  ...
+# Subtest: SN replay seed 2718: a commit after custody wait still spends a publication round
+ok 6 - SN replay seed 2718: a commit after custody wait still spends a publication round
+  ---
+  duration_ms: 38.696766
+  type: 'test'
+  ...
+# Subtest: expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal
+ok 7 - expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal
+  ---
+  duration_ms: 7.915587
+  type: 'test'
+  ...
+# Subtest: expanded model replay seed 16: overlapping callers keep paused durable intent pending
+ok 8 - expanded model replay seed 16: overlapping callers keep paused durable intent pending
+  ---
+  duration_ms: 20.103941
+  type: 'test'
+  ...
+# Subtest: model replay seed 1278: store refusal during discovery cannot admit intent after retirement
+ok 9 - model replay seed 1278: store refusal during discovery cannot admit intent after retirement
+  ---
+  duration_ms: 21.442578
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: a signed-out refresh still revokes its committed successor
+ok 10 - R5 scheduled replay: a signed-out refresh still revokes its committed successor
+  ---
+  duration_ms: 9.430519
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: terminal refusal still owns the unread refresh successor
+ok 11 - R5 scheduled replay: terminal refusal still owns the unread refresh successor
+  ---
+  duration_ms: 3.667759
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: login completes after signOut without orphaning its bearer
+ok 12 - R5 scheduled replay: login completes after signOut without orphaning its bearer
+  ---
+  duration_ms: 13.178628
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: login completes after close without orphaning its bearer
+ok 13 - R5 scheduled replay: login completes after close without orphaning its bearer
+  ---
+  duration_ms: 6.113286
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: guest completes after signOut without orphaning its bearer
+ok 14 - R5 scheduled replay: guest completes after signOut without orphaning its bearer
+  ---
+  duration_ms: 13.048443
+  type: 'test'
+  ...
+# Subtest: R5 scheduled replay: guest completes after close without orphaning its bearer
+ok 15 - R5 scheduled replay: guest completes after close without orphaning its bearer
+  ---
+  duration_ms: 6.372413
+  type: 'test'
+  ...
+# Subtest: R1 replay seed 2345: the immediate-revocation model explicitly withdraws during a read
+ok 16 - R1 replay seed 2345: the immediate-revocation model explicitly withdraws during a read
+  ---
+  duration_ms: 10.099682
+  type: 'test'
+  ...
+# Subtest: online clients preserve R1–R6 across 3,000 seeded interleavings
+ok 17 - online clients preserve R1–R6 across 3,000 seeded interleavings
+  ---
+  duration_ms: 61998.71157
+  type: 'test'
+  ...
+# sequences=3000, seeds=1..3000, coverage={"op.query":7152,"wire./q/page":8756,"held.body":22290,"op.release":7356,"released.body":9392,"read.direct":7152,"op.observe":7007,"wire./changes":4371,"read.observed":14870,"op.close":4183,"body.aborted":9536,"op.refreshUnreached":3943,"op.signOut":3987,"wire./auth/logout":7502,"released.reordered":3343,"op.asset":3916,"op.act":4008,"op.upload":3955,"op.regress":4012,"op.refresh":4016,"op.duplicate":4000,"op.login":3983,"op.guest":3944,"op.poll":4011,"op.tick":4054,"op.unavailable":3943,"check.bearer-custody":8575,"journal.preloaded.255":750,"op.failStorage":4165,"op.write":4092,"check.retirement-admission":1138,"wire./m/charge":1138,"failed.storage":205,"write.emitted":3885,"check.durable-terminal":3222,"check.unpersisted-terminal":193,"op.reopen":4030,"wire./probe":1099,"write.deduped":299,"write.unpersisted-replayed":102,"wire./a/charge":1217,"op.recoverPending":4257,"check.admitted-pending":270,"op.revoke":4061,"wire./assets/photo":1208,"write.duplicate":2643,"wire./auth/refresh":2222,"refresh.committed":1003,"op.holdStorage":4004,"wire./auth/guest":1284,"wire./auth/login":1318,"journal.full":3387,"wire./m/revoke":831,"journal.compact":1054,"retirement.displaced.sent":52,"write.retired-retry":1433,"write.displaced-retry":216,"journal.preloaded.256":750,"journal.preloaded.ordinary-failure":375,"op.replace":3917,"refresh.unreached":1203,"held.transport":1203,"write.store-fenced":148,"terminal.E_STORE_REPLACED":595,"wire./assets":1238,"ack.revocation":175,"journal.saturated":150,"probe.unrotated":186,"retirement.displaced.failed":187,"retirement.displaced.ordinary-failure":57,"write.displaced-ordinary-retry":48,"released.transport":223,"query.refetch":190,"held.return":17,"released.return":2,"terminal.E_STORE_RESTORE":200,"held.storage":35,"asset.released":210,"refresh.retired":11,"released.storage":4}
+# Subtest: full-journal model: replacement never replays retirement (0 old failures)
+ok 18 - full-journal model: replacement never replays retirement (0 old failures)
+  ---
+  duration_ms: 32.142109
+  type: 'test'
+  ...
+# Subtest: full-journal model: replacement never replays retirement (8 old failures)
+ok 19 - full-journal model: replacement never replays retirement (8 old failures)
+  ---
+  duration_ms: 22.002737
+  type: 'test'
+  ...
+# Subtest: R6 scheduled replay: saturation preserves admitted pending recovery
+ok 20 - R6 scheduled replay: saturation preserves admitted pending recovery
+  ---
+  duration_ms: 26.104568
+  type: 'test'
+  ...
+# Subtest: R6 scheduled replay: retry a sent id displaced by retirement after reopening
+ok 21 - R6 scheduled replay: retry a sent id displaced by retirement after reopening
+  ---
+  duration_ms: 13.390976
+  type: 'test'
+  ...
+# Subtest: R6 scheduled replay: retry an E_UNIQUE id displaced by retirement after reopening
+ok 22 - R6 scheduled replay: retry an E_UNIQUE id displaced by retirement after reopening
+  ---
+  duration_ms: 13.348633
+  type: 'test'
+  ...
+# Subtest: R6 scheduled replay: retry an E_CONFLICT id displaced by retirement after reopening
+ok 23 - R6 scheduled replay: retry an E_CONFLICT id displaced by retirement after reopening
+  ---
+  duration_ms: 12.818648
+  type: 'test'
+  ...
+# Subtest: session recovery replay: replacement keeps a refresh that never reached the server
+ok 24 - session recovery replay: replacement keeps a refresh that never reached the server
+  ---
+  duration_ms: 10.355786
+  type: 'test'
+  ...
+# Subtest: session recovery replay: sign-out still cleans up an unreached refresh
+ok 25 - session recovery replay: sign-out still cleans up an unreached refresh
+  ---
+  duration_ms: 4.252255
+  type: 'test'
+  ...
+# Subtest: integrated store fence survives an awaited epoch check: seed 774
+ok 26 - integrated store fence survives an awaited epoch check: seed 774
+  ---
+  duration_ms: 69.116222
+  type: 'test'
+  ...
+# Subtest: integrated store fence survives an awaited epoch check: seed 2592
+ok 27 - integrated store fence survives an awaited epoch check: seed 2592
+  ---
+  duration_ms: 38.193241
+  type: 'test'
+  ...
+# Subtest: R3 concurrent settlement retains the dispatch's previously persisted store binding
+ok 28 - R3 concurrent settlement retains the dispatch's previously persisted store binding
+  ---
+  duration_ms: 44.487699
+  type: 'test'
+  ...
+# Subtest: R3 scheduled replay: a known terminal with a failed receipt save dedupes after same-store reopen
+ok 29 - R3 scheduled replay: a known terminal with a failed receipt save dedupes after same-store reopen
+  ---
+  duration_ms: 11.116307
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 62831.058397
+-- process inspection: {"snapshots":3,"unrelatedRows":3435}
+-- client file ok: packages/snapback4/test/online-client-model.test.mjs (63093 ms)
+-- client files: 2/2; failed 0; tests {"tests":89,"pass":89,"fail":0,"cancelled":0,"skipped":0,"todo":0}

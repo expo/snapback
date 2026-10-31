@@ -1,0 +1,221 @@
+-- client file start: packages/snapback4/test/social-browser.test.mjs; stall bound 907500 ms
+TAP version 13
+# Subtest: social recipes in React/browser: real online signals and media, controlled read interleavings
+    # Subtest: route, history and decorations revalidate independently without draft/focus loss
+    ok 1 - route, history and decorations revalidate independently without draft/focus loss
+      ---
+      duration_ms: 93.775018
+      type: 'test'
+      ...
+    # Subtest: loading, revalidating and offline membership allow custody and eventual server delivery
+    ok 2 - loading, revalidating and offline membership allow custody and eventual server delivery
+      ---
+      duration_ms: 2740.391176
+      type: 'test'
+      ...
+    # Subtest: older bubbles recover receipts after withdrawal without losing history
+    ok 3 - older bubbles recover receipts after withdrawal without losing history
+      ---
+      duration_ms: 76.026942
+      type: 'test'
+      ...
+    # Subtest: renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+    not ok 4 - renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+      ---
+      duration_ms: 140.03512
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/social-browser.test.mjs:194:11'
+      failureType: 'testCodeFailure'
+      error: |-
+        The expression evaluated to a falsy value:
+        
+          assert.ok((await page.evaluate(() => window.outboxes())).every(box => box.length === 0))
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        quietAfter (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/social-browser.test.mjs:192:12)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/social-browser.test.mjs:206:5)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/social-browser.test.mjs:194:3)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: a late failed renewal cannot stop a newer successful typing lease
+    ok 5 - a late failed renewal cannot stop a newer successful typing lease
+      ---
+      duration_ms: 135.668792
+      type: 'test'
+      ...
+    # Subtest: typing expires, drops on disconnect, needs a fresh keystroke and never queues
+    ok 6 - typing expires, drops on disconnect, needs a fresh keystroke and never queues
+      ---
+      duration_ms: 351.498165
+      type: 'test'
+      ...
+    # Subtest: one handle survives list remount, closes, rejects second open and cleans a late result
+    ok 7 - one handle survives list remount, closes, rejects second open and cleans a late result
+      ---
+      duration_ms: 443.286142
+      type: 'test'
+      ...
+    # Subtest: the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+    ok 8 - the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+      ---
+      duration_ms: 204.956698
+      type: 'test'
+      ...
+    # Subtest: two offline sends keep independent failures and attachment arguments after another session leaves
+    ok 9 - two offline sends keep independent failures and attachment arguments after another session leaves
+      ---
+      duration_ms: 1168.478078
+      type: 'test'
+      ...
+    # Subtest: observations make retention explicit
+    ok 10 - observations make retention explicit
+      ---
+      duration_ms: 6.791665
+      type: 'test'
+      ...
+    # Subtest: account reset clears draft and stops the prior typing owner
+    ok 11 - account reset clears draft and stops the prior typing owner
+      ---
+      duration_ms: 4190.133053
+      type: 'test'
+      ...
+    1..11
+not ok 1 - social recipes in React/browser: real online signals and media, controlled read interleavings
+  ---
+  duration_ms: 15356.754146
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/social-browser.test.mjs:20:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: social search in React/browser uses current server and retained device pages
+    # Subtest: search spans a live and a departed conversation
+    ok 1 - search spans a live and a departed conversation
+      ---
+      duration_ms: 975.895165
+      type: 'test'
+      ...
+    # Subtest: leave followed by a search
+    ok 2 - leave followed by a search
+      ---
+      duration_ms: 850.985908
+      type: 'test'
+      ...
+    # Subtest: pagination accumulates both domains with no duplicate
+    ok 3 - pagination accumulates both domains with no duplicate
+      ---
+      duration_ms: 962.966227
+      type: 'test'
+      ...
+    1..3
+ok 2 - social search in React/browser uses current server and retained device pages
+  ---
+  duration_ms: 7333.700731
+  type: 'test'
+  ...
+# Subtest: social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+    # Subtest: failed provisional sends survive Profile reopen and a full reload
+    ok 1 - failed provisional sends survive Profile reopen and a full reload
+      ---
+      duration_ms: 504.662173
+      type: 'test'
+      ...
+    # Subtest: a sent receipt without result recovers the route from its replicated key
+    ok 2 - a sent receipt without result recovers the route from its replicated key
+      ---
+      duration_ms: 72.622206
+      type: 'test'
+      ...
+    # Subtest: real stale negative membership after leave, sync, disconnect and re-invite permits Send
+    ok 3 - real stale negative membership after leave, sync, disconnect and re-invite permits Send
+      ---
+      duration_ms: 284.19167
+      type: 'test'
+      ...
+    # Subtest: stale absent membership queues offline and server refuses at sync without re-invitation
+    ok 4 - stale absent membership queues offline and server refuses at sync without re-invitation
+      ---
+      duration_ms: 293.14011
+      type: 'test'
+      ...
+    # Subtest: leaving before settlement recovers failed sends on a bare canonical route
+    ok 5 - leaving before settlement recovers failed sends on a bare canonical route
+      ---
+      duration_ms: 715.607262
+      type: 'test'
+      ...
+    # Subtest: failed and abandoned openings without sends leave no associations
+    ok 6 - failed and abandoned openings without sends leave no associations
+      ---
+      duration_ms: 135.748912
+      type: 'test'
+      ...
+    # Subtest: a bare route recovers its sends with one lookup despite 100 unresolved peers
+    ok 7 - a bare route recovers its sends with one lookup despite 100 unresolved peers
+      ---
+      duration_ms: 483.429252
+      type: 'test'
+      ...
+    1..7
+ok 3 - social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ---
+  duration_ms: 9315.735856
+  type: 'test'
+  ...
+1..3
+# tests 24
+# suites 0
+# pass 22
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32467.086402
+-- process inspection: {"snapshots":3,"unrelatedRows":4427}
+-- client file FAIL: packages/snapback4/test/social-browser.test.mjs (32796 ms)
+-- client file start: packages/snapback4/test/maintained-column-adoption.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: column activation: sqlite, server watch
+ok 1 - column activation: sqlite, server watch
+  ---
+  duration_ms: 1035.654321
+  type: 'test'
+  ...
+# Subtest: column activation: sqlite, device watch
+ok 2 - column activation: sqlite, device watch
+  ---
+  duration_ms: 1036.728662
+  type: 'test'
+  ...
+# Subtest: column activation: wasm, server watch
+ok 3 - column activation: wasm, server watch
+  ---
+  duration_ms: 1082.539031
+  type: 'test'
+  ...
+# Subtest: column activation: wasm, device watch
+ok 4 - column activation: wasm, device watch
+  ---
+  duration_ms: 1027.033593
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4327.569765
+-- process inspection: {"snapshots":3,"unrelatedRows":4440}
+-- client file ok: packages/snapback4/test/maintained-column-adoption.test.mjs (4656 ms)
+-- client files: 2/2; failed 1; tests {"tests":28,"pass":26,"fail":2,"cancelled":0,"skipped":0,"todo":0}

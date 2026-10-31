@@ -1,0 +1,20 @@
+killing:       19 pids
+32645 /bin/bash
+32651 node
+36115 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
+36296 /Applications/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildServic
+37959 sleep
+38917 sleep
+39138 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+39605 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+40287 /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend
+94106 bash
+94107 bash
+94108 caffeinate
+94109 caffeinate
+94133 bash
+94135 caffeinate
+94137 bash
+remaining:
+status:
+b34992d40be5297ec42feb9aa4a29200bccfca98

@@ -1,0 +1,12 @@
+{
+  "releaseSelectorOrdinary": 487,
+  "officialSuiteFlatOrdinary": 482,
+  "additionalReleaseSelectorFiles": [
+    "packages/snapback4/test/fixtures/identity-recipe/crash-cut-plan.test.mjs",
+    "packages/snapback4/test/fixtures/identity-recipe/deadline-sequence.test.mjs",
+    "packages/snapback4/test/fixtures/identity-recipe/diagnostic-secrecy.test.mjs",
+    "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs",
+    "packages/snapback4/test/fixtures/identity-recipe/proxy-phase.test.mjs"
+  ],
+  "officialFilesNotInReleaseSelector": []
+}

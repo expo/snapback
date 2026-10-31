@@ -1,0 +1,5 @@
+HEAD is now at b34992d40b chore(sb4): prepare snapback4 0.4.51 release
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+Switched to branch 'sb4-publish-0.4.51'
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+source setup complete; native held for both-host audit

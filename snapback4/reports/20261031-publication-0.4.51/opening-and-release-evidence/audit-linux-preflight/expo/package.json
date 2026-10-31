@@ -1,0 +1,66 @@
+{
+  "dependencies": {
+    "expo": "57.0.30",
+    "expo-dev-client": "~57.0.19",
+    "expo-image-picker": "57.0.20",
+    "expo-secure-store": "~57.0.4",
+    "expo-sqlite": "57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-web": "~0.21.0",
+    "snapback4": "file:/home/ccheever/sb4-pub-0451-records/preflight-client-0.4.51/snapback4-0.4.51.tgz",
+    "snapback4-expo": "file:/home/ccheever/sb4-pub-0451-records/preflight-client-0.4.51/snapback4-expo-0.4.51.tgz"
+  },
+  "devDependencies": {
+    "@expo/fingerprint": "0.20.14",
+    "@types/node": "24.19.2",
+    "@types/react": "~19.2.4",
+    "babel-preset-expo": "57.0.16",
+    "playwright-core": "1.55.1",
+    "typescript": "~6.0.3"
+  },
+  "main": "index.js",
+  "name": "snapback4-expo-starter",
+  "overrides": {
+    "decode-uri-component": "0.5.1",
+    "deepmerge": "file:./toolchain/deepmerge",
+    "glob": "14.0.2",
+    "minimatch": "11.0.1",
+    "node-forge": "1.4.1",
+    "xcode": {
+      "uuid": "11.1.1"
+    },
+    "zod": "4.6.7"
+  },
+  "private": true,
+  "scripts": {
+    "acceptance": "snapback4 test",
+    "backend": "node scripts/launch.mjs backend",
+    "build:web": "expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist",
+    "check": "snapback4 check && npm run --silent typecheck && echo \"Next: wire app assertions, then npm run verify (all four phases). Codex: yield_time_ms=30000.\"",
+    "export:ios": "snapback4-export-ios",
+    "frontend:proof": "node scripts/frontend-proof.mjs",
+    "ios": "expo run:ios",
+    "ios:dev": "expo run:ios",
+    "native:smoke": "node scripts/launch.mjs native-smoke",
+    "postacceptance": "node scripts/verify-cache.mjs after acceptance",
+    "postfrontend:proof": "node scripts/verify-cache.mjs after frontend:proof",
+    "preacceptance": "node scripts/verify-cache.mjs before acceptance",
+    "prefrontend:proof": "node scripts/verify-cache.mjs before frontend:proof",
+    "probe:check": "node scripts/probe-check.mjs",
+    "probe:serve": "exec node scripts/probe-serve.mjs",
+    "proof:web": "node scripts/frontend-proof.mjs",
+    "start": "node scripts/launch.mjs expo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "node scripts/verify.mjs",
+    "web": "node scripts/launch.mjs expo-web"
+  },
+  "snapback4": {
+    "starter": {
+      "day2": false
+    }
+  },
+  "version": "0.0.1"
+}

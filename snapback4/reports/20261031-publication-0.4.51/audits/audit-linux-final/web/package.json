@@ -1,0 +1,43 @@
+{
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "snapback4": "file:/home/ccheever/sb4-pub-0451-records/staged-0.4.51/snapback4-0.4.51.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "playwright-core": "1.55.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.5"
+  },
+  "name": "snapback4-web-starter",
+  "private": true,
+  "scripts": {
+    "acceptance": "snapback4 test",
+    "backend": "node scripts/launch.mjs backend",
+    "build": "vite build && snapback4 web-shell dist",
+    "build:web": "vite build && snapback4 web-shell dist",
+    "check": "snapback4 check && npm run --silent typecheck && echo \"Next: wire app assertions, then npm run verify (all four phases). Codex: yield_time_ms=30000.\"",
+    "dev": "node scripts/launch.mjs vite",
+    "frontend:proof": "node scripts/frontend-proof.mjs",
+    "postacceptance": "node scripts/verify-cache.mjs after acceptance",
+    "postfrontend:proof": "node scripts/verify-cache.mjs after frontend:proof",
+    "preacceptance": "node scripts/verify-cache.mjs before acceptance",
+    "prefrontend:proof": "node scripts/verify-cache.mjs before frontend:proof",
+    "preview": "node scripts/launch.mjs vite-preview",
+    "probe:check": "node scripts/probe-check.mjs",
+    "probe:serve": "exec node scripts/probe-serve.mjs",
+    "proof:web": "node scripts/frontend-proof.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "node scripts/verify.mjs"
+  },
+  "snapback4": {
+    "starter": {
+      "day2": false
+    }
+  },
+  "version": "0.1.0"
+}

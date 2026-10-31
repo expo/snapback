@@ -1,0 +1,62 @@
+2026-10-31T17:28:03Z waiting load=353
+2026-10-31T17:29:03Z waiting load=182
+2026-10-31T17:30:03Z waiting load=114
+2026-10-31T17:31:03Z waiting load=76
+2026-10-31T17:32:03Z waiting load=110
+2026-10-31T17:33:03Z waiting load=87
+2026-10-31T17:34:03Z waiting load=77
+2026-10-31T17:35:03Z waiting load=64
+2026-10-31T17:36:03Z waiting load=63
+2026-10-31T17:37:03Z waiting load=96
+2026-10-31T17:38:03Z waiting load=84
+2026-10-31T17:39:03Z waiting load=71
+2026-10-31T17:40:03Z waiting load=81
+2026-10-31T17:41:03Z waiting load=89
+2026-10-31T17:42:03Z waiting load=71
+2026-10-31T17:43:03Z waiting load=158
+2026-10-31T17:44:03Z waiting load=158
+2026-10-31T17:45:03Z waiting load=226
+2026-10-31T17:46:03Z waiting load=221
+2026-10-31T17:47:04Z waiting load=194
+2026-10-31T17:48:04Z waiting load=163
+2026-10-31T17:49:04Z waiting load=170
+2026-10-31T17:50:04Z waiting load=153
+2026-10-31T17:51:04Z waiting load=193
+2026-10-31T17:52:04Z waiting load=201
+2026-10-31T17:53:04Z waiting load=147
+2026-10-31T17:54:04Z waiting load=115
+2026-10-31T17:55:04Z waiting load=95
+2026-10-31T17:56:04Z pre-darwin start load={ 50.07 121.45 127.63 }
+2026-10-31T18:28:49Z pre-darwin rc=0: -- client files: 49/49; failed 0; tests {"tests":947,"pass":928,"fail":0,"cancelled":0,"skipped":19,"todo":0}
+2026-10-31T18:28:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:29:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:29:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:30:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:30:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:31:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:31:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:32:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:32:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:33:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:33:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:34:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:34:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:35:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:35:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:36:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:36:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:37:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:37:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:38:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:38:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:39:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:39:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:40:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:40:49Z waiting for completed Linux qualification transfer
+2026-10-31T18:41:19Z waiting for completed Linux qualification transfer
+2026-10-31T18:41:50Z Linux handoff validated; refresh immediately before dry run
+2026-10-31T18:41:50Z refresh start load={ 47.27 39.13 31.34 }
+2026-10-31T18:43:29Z refresh: 6/6 ok; 
+2026-10-31T18:43:37Z starting gate-tolerant ATT=2 RUSTPROCS=2
+2026-10-31T18:43:37Z gate pid 66296
+2026-10-31T18:43:37Z post-suite refresh pid 66299

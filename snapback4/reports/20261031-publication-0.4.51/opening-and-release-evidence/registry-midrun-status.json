@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-31T11:06:50.382Z",
+  "packages": [
+    {
+      "name": "snapback4",
+      "exit": 0,
+      "version": "0.4.49",
+      "dist-tags.latest": "0.4.49"
+    },
+    {
+      "name": "snapback4-darwin-arm64",
+      "exit": 0,
+      "version": "0.4.49",
+      "dist-tags.latest": "0.4.49"
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "exit": 0,
+      "version": "0.4.49",
+      "dist-tags.latest": "0.4.49"
+    },
+    {
+      "name": "snapback4-expo",
+      "exit": 0,
+      "version": "0.4.49",
+      "dist-tags.latest": "0.4.49"
+    }
+  ],
+  "npmPublishInvoked": false
+}

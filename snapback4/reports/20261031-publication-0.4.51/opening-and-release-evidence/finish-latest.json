@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-31T22:59:10.607380+00:00",
+  "power": "AC",
+  "percent": "100",
+  "freeGiB": 85,
+  "steps": [
+    {
+      "step": "publication-resume",
+      "exit": 0,
+      "seconds": 825.356
+    },
+    {
+      "step": "registry-cli",
+      "exit": 0,
+      "seconds": 1.852
+    },
+    {
+      "step": "expo-pack",
+      "exit": 0,
+      "seconds": 1.244
+    },
+    {
+      "step": "expo-pack-verification",
+      "exit": 0,
+      "seconds": 0.105
+    },
+    {
+      "step": "expo-proof-bytes",
+      "exit": 0,
+      "seconds": 0.039
+    },
+    {
+      "step": "expo-publish",
+      "exit": 0,
+      "seconds": 2.735
+    },
+    {
+      "step": "expo-registry-wait",
+      "exit": 0,
+      "seconds": 122.756
+    },
+    {
+      "step": "registry-expo",
+      "exit": 0,
+      "seconds": 0.669
+    }
+  ],
+  "finishExit": "done",
+  "finishSummary": [
+    "publication-resume exit=0 seconds=825.4",
+    "registry-cli exit=0 seconds=1.9",
+    "expo-pack exit=0 seconds=1.2",
+    "expo-pack-verification exit=0 seconds=0.1",
+    "expo-proof-bytes exit=0 seconds=0.0",
+    "expo-publish exit=0 seconds=2.7",
+    "expo-registry-wait exit=0 seconds=122.8",
+    "registry-expo exit=0 seconds=0.7",
+    "FINISH DONE"
+  ],
+  "registryMessages": [
+    "publish: waiting for snapback4@0.4.51 to become readable",
+    "publish: waiting for snapback4@0.4.51 to become readable",
+    "publish: waiting for snapback4@0.4.51 to become readable",
+    "publish: waiting for snapback4@0.4.51 to become readable",
+    "publish: waiting for snapback4@0.4.51 to become readable"
+  ]
+}

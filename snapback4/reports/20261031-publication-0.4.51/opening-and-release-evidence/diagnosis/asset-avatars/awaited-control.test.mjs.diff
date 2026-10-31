@@ -1,0 +1,91 @@
+--- source/asset-avatars.test.mjs
++++ awaited-control.test.mjs
+@@ -1,5 +1,5 @@
+-import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
+-import { hangBudget } from './helpers/wait.mjs';
++import { createBrowserServer, loadBrowserPage } from 'file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/browser-server.mjs';
++import { hangBudget } from 'file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/wait.mjs';
+ // Calibration #26's exact Quarry program and query/useAsset patterns, on the public package entries.
+ // @ref LLP 3000.008.002.000#6 — author avatars keep profile authority across message/feed observations.
+ import test from "node:test";
+@@ -8,20 +8,20 @@
+ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join, resolve } from "node:path";
+-import { processDevice } from "../dist/native.js";
+-import { createClient, mintId } from "../dist/client.js";
+-import { login } from "../dist/auth.js";
+-import { createLocalClient } from "../dist/local.js";
+-import { webDevice, memoryPersistence } from "../dist/web.js";
+-import { chromiumExecutable } from "../../../witness/lib.mjs";
+-import { binary } from "./helpers/app-server.mjs";
+-import { avatarFixture } from "./helpers/avatar-fixture.mjs";
+-
+-const root = resolve(import.meta.dirname, "../../..");
++import { processDevice } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/dist/native.js";
++import { createClient, mintId } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/dist/client.js";
++import { login } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/dist/auth.js";
++import { createLocalClient } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/dist/local.js";
++import { webDevice, memoryPersistence } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/dist/web.js";
++import { chromiumExecutable } from "file:///home/ccheever/sb4-pub-0441/snapback4/witness/lib.mjs";
++import { binary } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/app-server.mjs";
++import { avatarFixture } from "file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/avatar-fixture.mjs";
++
++const root = "/home/ccheever/sb4-pub-0441/snapback4";
+ const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
+ 
+ for (const duplicate of [false, true]) for (const shape of ['mutable', 'sealed', 'frozen']) test(`Expo conversion refusal keeps the local client online (${duplicate ? 'duplicate Blob' : 'native store'}, ${shape})`, async t => {
+-  const { nativeBlobHost, expoBlobResponse } = await import('./helpers/native-blob.mjs');
++  const { nativeBlobHost, expoBlobResponse } = await import('file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/native-blob.mjs');
+   const f = await avatarFixture(t), host = nativeBlobHost(), links = [];
+   const expo = expoBlobResponse(host, { duplicate, convert: async () => { throw Error('native conversion unavailable'); } });
+   let requests = 0;
+@@ -206,7 +206,7 @@
+     ] } });
+   await server.listen();
+   browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+-  for (const tier of ["online", "process", "wasm"]) await t.test(tier, async t => {
++  for (const tier of ["wasm"]) await t.test(tier, async t => {
+     const page = await browser.newPage();
+   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget());
+     const devices = [], errors = [];
+@@ -221,7 +221,7 @@
+     const signedIn = await login(fixture.url, "bob@avatars.test", "password-avatars"); assert.equal(signedIn.ok, true);
+     await page.evaluate(options => window.start(options), { tier, url: fixture.url, session: signedIn.session, dm: fixture.dm, group: fixture.group, faultControl: !!process.env.AV_FAULT_CONTROL });
+     {
+-      await page.waitForFunction(() => ["dm", "group", "feed", "inbox"].every(scope => window.diagnostics().counts.find(c => c.scope === scope).ready === (scope === "inbox" ? 2 : 20)));
++      try { await page.waitForFunction(() => ["dm", "group", "feed", "inbox"].every(scope => window.diagnostics().counts.find(c => c.scope === scope).ready === (scope === "inbox" ? 2 : 20))); } catch (error) { console.log("AVATAR_STARTUP_DIAGNOSTIC "+JSON.stringify({tier,errors,state:await page.evaluate(()=>window.diagnostics())})); throw error; }
+       const faultId = await page.evaluate(principal => window.images(principal).id, fixture.users.alice.session.principal);
+       for (const mode of ["reset", "overload", "timeout", "burst", ...(process.env.AV_FAULT_CONTROL ? [] : ["exhaust"])]) {
+         const state = await page.evaluate(({ id, mode }) => window.faultProbe(id, mode), { id: faultId, mode });
+@@ -287,10 +287,10 @@
+ 
+ const harness = `
+ import React, { useState } from "react";
+-import { waitFor as awaitState } from '/@fs/${new URL('./helpers/wait.mjs', import.meta.url).pathname}';
++import { waitFor as awaitState } from '/@fs/${'/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/wait.mjs'}';
+ import { createRoot } from "react-dom/client";
+ import { AppProvider, SnapbackProvider, useQuery, usePage, useAsset, useViewer } from "snapback4/react";
+-import { createApp } from "snapback4/app";
++import { createApp, localStatus } from "snapback4/app";
+ import { createLocalClient } from "snapback4/local";
+ import { keepSession, localStorageSessionStore } from "snapback4/auth";
+ import { webDevice } from "snapback4/web";
+@@ -349,7 +349,7 @@
+     const client = await createLocalClient({ ...clientOptions, session: options.session });
+     app = { client, close: () => client.close() };
+   } else {
+-    app = createApp(clientOptions);
++    app = createApp({...clientOptions,startup:"awaited"});
+     const result = await app.ready; if (!result.ok) throw Error(JSON.stringify(result));
+   }
+   root = createRoot(document.getElementById("root"));
+@@ -378,7 +378,7 @@
+   await awaitState(() => window.probeState.status === "ready", "asset recovery");
+   const state = window.probeState; window.probe(null); return state;
+ };
+-window.diagnostics = () => ({ tier: config.tier, requests, snapshots, counts: ["dm", "group", "feed", "inbox"].map(scope => ({ scope, ready: [...document.querySelectorAll('[data-scope="' + scope + '"]')].filter(n => n.dataset.status === "ready").length })) });
++window.diagnostics = () => ({ tier: config.tier, localStatus: localStatus(app.client).getSnapshot(), requests, snapshots, counts: ["dm", "group", "feed", "inbox"].map(scope => ({ scope, ready: [...document.querySelectorAll('[data-scope="' + scope + '"]')].filter(n => n.dataset.status === "ready").length })) });
+ window.images = principal => {
+   const nodes = [...document.querySelectorAll('[data-principal="' + principal + '"]')];
+   return { id: nodes[0]?.dataset.asset, ready: nodes.every(n => n.dataset.asset === nodes[0].dataset.asset && n.dataset.status === "ready" && n.querySelector("img")?.naturalWidth > 0), urls: nodes.map(n => n.querySelector("img")?.src).filter(Boolean) };

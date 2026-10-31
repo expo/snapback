@@ -1,0 +1,7 @@
+{
+  "scope": "Diagnostic counterfactual only; NOT a proposed fix and NOT in publication source",
+  "change": "Only dist/local.js scheduleRead queued: !watch.running -> queued: true",
+  "originalSha256": "12bf1aa6a6a2de895ec99c92a132a3844c952cc5687d290842da0a8d6ab76fb9",
+  "counterfactualSha256": "a463488f97cfafb39e8873290b2d472a9e10ddc8b24a4c320e6d0f19b4bda821",
+  "source": "6c95ba698ebbf3e1a3798b4e0d85f0adeca2ade6"
+}

@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-31T17:53:45.456252+00:00",
+  "reason": "observed sustained high host load; bounded pre wrapper would fall through after30min",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "originalSha256": "b1b0ecebc24b9b6fbc4000cd540ea5bcf78396b7cb51cc3da4d9f197d80ec09e",
+  "updatedSha256": "30e82cac398d8685e67e6c4bc515987f74aadc476d376181e7606f0e568f320e",
+  "testBodyUnchanged": true,
+  "conditions": "AC, lid open, load<60, free>=45GiB",
+  "wait": "600s battery;60s otherwise",
+  "scope": "own kit entry only; no source/tests/timeouts/selection changed; no job stopped/restarted",
+  "remoteVerifiedAt": "2026-10-31T17:57:28.374429+00:00",
+  "remoteSha256": "30e82cac398d8685e67e6c4bc515987f74aadc476d376181e7606f0e568f320e"
+}

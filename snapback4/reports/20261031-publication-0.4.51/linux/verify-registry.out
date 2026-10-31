@@ -1,0 +1,5 @@
+snapback4 view=0.4.51 latest=0.4.51 tgz=snapback4-0.4.51.tgz sha256=62e612a81306057e... want=62e612a81306057e... EQUAL
+snapback4-darwin-arm64 view=0.4.51 latest=0.4.51 tgz=snapback4-darwin-arm64-0.4.51.tgz sha256=9028478db4cdf021... want=9028478db4cdf021... EQUAL
+snapback4-linux-x64 view=0.4.51 latest=0.4.51 tgz=snapback4-linux-x64-0.4.51.tgz sha256=1ffd2f9fd26a9199... want=1ffd2f9fd26a9199... EQUAL
+snapback4-expo view=0.4.51 latest=0.4.51 tgz=snapback4-expo-0.4.51.tgz sha256=8a85c94341341a40... want=8a85c94341341a40... EQUAL
+verify ok=1

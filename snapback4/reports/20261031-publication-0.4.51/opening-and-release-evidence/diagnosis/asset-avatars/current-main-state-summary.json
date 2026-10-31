@@ -1,0 +1,30 @@
+{
+  "tier": "wasm",
+  "errors": [],
+  "localStatus": {
+    "state": "ready",
+    "executable": true,
+    "acquired": true
+  },
+  "counts": [
+    {
+      "scope": "dm",
+      "ready": 0
+    },
+    {
+      "scope": "group",
+      "ready": 0
+    },
+    {
+      "scope": "feed",
+      "ready": 0
+    },
+    {
+      "scope": "inbox",
+      "ready": 0
+    }
+  ],
+  "assetStates": {
+    "E_STORE": 62
+  }
+}

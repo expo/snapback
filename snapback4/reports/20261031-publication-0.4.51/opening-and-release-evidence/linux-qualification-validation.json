@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-31T18:42:00.339Z",
+  "status": "passed",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "route": "proot",
+  "suite": {
+    "status": "passed",
+    "exitCode": 0,
+    "summary": "== 0 failure(s) in 2980 s"
+  },
+  "clientIntegrity": "sha512-VaAUhuIOYAQxpIlCgV+1Q/KkpIfOlFNSb/zXdzjWZOf9NKTJOn+tjlrqh/e69+0rSVz4CgdbDdx3GxPb+rRzkw==",
+  "expoIntegrity": "sha512-k2+UztREYOvJLynHoF60TbD1o6oJo8HKPh7xzAix/LZkU7LsX93CgiH9Xxmbw+tMHFLrtmMKglSw/0dNQDxJHA==",
+  "platformIntegrity": "sha512-0SH+cvB1wdeNv2NWAABxYNoOYJT2LxXn+x3OL4jxgyzPpWlACk6HWpM6vdznIFPNuACW1/mebBPJbQqV/RMGIA==",
+  "platformSha256": "1ffd2f9fd26a9199bd949e5668210649de0e41037b9600e4ca9cd0d723dc875b",
+  "receiptSha256": "ab0c2417b847b8773f41d04d7c3e4aebe79bbc5e2f62d5c11310055f3f2e5eb4"
+}

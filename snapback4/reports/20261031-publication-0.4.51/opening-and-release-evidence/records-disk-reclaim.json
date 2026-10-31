@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-31T23:07:45.710923+00:00",
+  "removed": "/home/ccheever/sb4-pub-0441/snapback4/target/debug",
+  "reclaimedBytes": 100742864896,
+  "reason": "inactive post-publication build cache; final records broad selector needs space",
+  "noOpenFiles": true,
+  "registryVerification": "passed",
+  "preserved": "all prepared/staged/registry tarballs and qualification records, source checkout, other sessions"
+}

@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "pub051.affected-requalification.v1",
+  "head": "711bfbb9d2d5c6ef81ad9c175beecfa75a3ac76d",
+  "inputDigest": "3794c0855377f9494fe2a698aaa55a1443853b4861ef5a84ecca981a93f6f59d",
+  "parentSha256": "b7991891a9171927c537e8b8f4946abbddf3734894c9d34bcc84d1995382b2e0",
+  "originalReceipt": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json",
+  "rerunReceipt": "/home/ccheever/sb4-pub-0451-records/opening-client-full-rerun-receipt.json",
+  "rerunSha256": "89d1d7f853d0c2ff3f6a382f1b6267240e364b445a44abf09a96c2702c27f31f",
+  "classification": "live-margin-settlement passed alone6/6; one full client check rerun including both models",
+  "checks": [
+    {
+      "id": "install-client",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "build-cli",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "build-wasm",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "build-client",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "typecheck:snapback4",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-core",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-device",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-difftest",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-lang",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-native",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "rust:snapback4-sim",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "fixture-tests",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "client-tests",
+      "originalStatus": 1,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0451-records/opening-client-full-rerun-receipt.json"
+    },
+    {
+      "id": "client-models",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "chat-check",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "chat-typecheck",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "diagnostics",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "docs-budget",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "expo-typecheck",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "generated",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "guide",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "inventories",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "packaged-docs",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "ref-check",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "release-guard",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "selector-tests",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "wasm-measurement",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "lean-build",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "difftest:run-lean",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    },
+    {
+      "id": "difftest:run",
+      "originalStatus": 0,
+      "status": 0,
+      "evidence": "/home/ccheever/sb4-pub-0441/target/affected/711bfbb9d2d5-1793444607637.json"
+    }
+  ],
+  "ok": true
+}

@@ -1,0 +1,2389 @@
+{
+  "tier": "wasm",
+  "errors": [],
+  "state": {
+    "tier": "wasm",
+    "localStatus": {
+      "state": "ready",
+      "executable": true,
+      "acquired": true
+    },
+    "requests": [],
+    "snapshots": {
+      "dm:01M68EAW3JP9AX3G1A9C0MM67F": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW35DNC15FZM52NRS75S": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW2QERPETHA49Z3SDJ9E": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW2A0BGQXRRDVPWGZ0DG": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW1X5ZJQHF079Z7TGNXA": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW1F7B3XQPFQ1620YBFF": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW13DDEBSNCQQ8BYJ148": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW0PPYW01PC79BBVWNF5": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAW09283V98FR7HPRV8YC": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVZV7B7Y8S7JGVGNMXGJ": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVZA7A8AXNSJ06DETG8D": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVYXAY4D5BVKKFQ8J8QD": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVYJ0GQ55X185ZZESR8W": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVY88VGX45Y2RD2TX8XY": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVXVVE43HAQC9BEW6P4Q": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVXHJF10JTBTMV23QPXV": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVX5NN04NMEBTSRS5BV8": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVWS7R0VCG4A8J5BD803": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVWEC6DCY4E0H5883B69": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "dm:01M68EAVW0FC0JK0T1MYJ9Q340": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EBH17RVS0H2RCT6X15E8D": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EBH12CC3CJ1MX12ZDTX3W": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EB6V7QH5V7PHS5C15Y8EF": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EB6TZ0K0F8MPF9RHKBHGZ": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW3QW2T64S2D222FGX29": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW3A2MVWB5V1XS0625F6": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW2W5H5W0AF30M2AQY0W": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW2EZ6A360VJ322RN2NW": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW2293AAXTSW6EG0AATQ": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW1MZM8R0N0K3VB84XEY": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW17HEJ1D2F5SH0Z51XY": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW0TK491N3ACKTBHW1X5": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW0DD280FDH9Z82A2PMP": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAW006QEY35S76340CFZ6": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVZFJPZ98AAWN1ZVGXDX": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVZ1TMT7Y27ERASZN4SQ": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVYPSWYABDPQ7F6SSJPT": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVYC8B7NHH8NWFEMK275": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVXZG338NPFA73JT8PPK": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "group:01M68EAVXNT8KY0F4THGM5Q0YE": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "inbox:01M68EAVVNM5F31CKT7BN4J656": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "inbox:01M68EAVVSZ030D75SKST6X87Z": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW3VA79STN2X7K28E7GQ": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW3FFHP7VXA7K1EH04A4": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW31VZK9ZY28MQ534E8C": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW2M0RM2YEDH7D79MJZF": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW26C62WPHCWM18898ST": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW1SXW0PJN95ZR8D5RMV": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW1CM1S75RB1WS60CY9X": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW0ZQMG76X3G7ZFQN7V3": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW0JPET9K568SC7CQB28": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAW0509PJJFK40STBR0RS": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVZNCGEEX77Q9PXPD0BW": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVZ6FZTXZD6Z8ATJ4TGQ": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVYTCPBHRV1Y7722DHNF": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVYGTAQQ02NJZHR9SK13": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVY4PPPSNC66FXFQ0VA7": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVXSBR7V683X2Z2MBAXQ": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVXEP21A6ERJKTS6W1GF": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVX1QH6SE1B3GM6FB05G": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVWPSRF8HREC873PNAFS": {
+        "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EAVVF76EHEKQPJV3H75BH",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "carol",
+            "handle": "carol",
+            "id": "01M68EAVV9CJSVA88SY1RZQHC5",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVV53TPWCT5FNJ5NREZ3"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EAVVF76EHEKQPJV3H75BH",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      },
+      "feed:01M68EAVWASNTHMPACPA76DM3P": {
+        "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN",
+        "profile": {
+          "data": {
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M68EBGVR46S5P1Y6DBVQRHXA",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "",
+            "displayName": "alice",
+            "handle": "alice",
+            "id": "01M68EAVRTK3KSVYP4DFZ8SVH1",
+            "link": "",
+            "location": "",
+            "principal": "user:01M68EAVRAZCH99F6ZCVE7QVFN"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "existence": "present"
+        },
+        "assetId": "01M68EBGVR46S5P1Y6DBVQRHXA",
+        "avatar": {
+          "status": "denied",
+          "why": {
+            "code": "E_STORE",
+            "family": "store",
+            "retryable": true,
+            "message": "the local device is not available yet",
+            "rewrite": "wait for localStatus(client) to report an executable device, then retry"
+          }
+        }
+      }
+    },
+    "counts": [
+      {
+        "scope": "dm",
+        "ready": 0
+      },
+      {
+        "scope": "group",
+        "ready": 0
+      },
+      {
+        "scope": "feed",
+        "ready": 0
+      },
+      {
+        "scope": "inbox",
+        "ready": 0
+      }
+    ]
+  }
+}

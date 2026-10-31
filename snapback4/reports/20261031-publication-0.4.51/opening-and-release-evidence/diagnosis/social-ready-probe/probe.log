@@ -1,0 +1,116 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (111.328817ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (746.607217ms)
+  ✔ older bubbles recover receipts after withdrawal without losing history (87.953782ms)
+  ✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (93.032128ms)
+  ✖ a late failed renewal cannot stop a newer successful typing lease (100.377724ms)
+  ✖ typing expires, drops on disconnect, needs a fresh keystroke and never queues (92.314442ms)
+  ✖ one handle survives list remount, closes, rejects second open and cleans a late result (122067.185365ms)
+  ✖ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (122075.7427ms)
+  ✖ two offline sends keep independent failures and attachment arguments after another session leaves (6626.025237ms)
+  ✔ observations make retention explicit (2.023795ms)
+✖ /home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs (372066.553054ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 4
+ℹ fail 6
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 372071.655006
+
+✖ failing tests:
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:192:11
+✖ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (93.032128ms)
+  AssertionError [ERR_ASSERTION]: [[{"id":"01M68FP240G2303Q6AMPS1KT79","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7B","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7D","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7F","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP42JXJ8HN0B87H3DT5AM","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+      at quietAfter (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:190:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:204:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:192:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:220:11
+✖ a late failed renewal cannot stop a newer successful typing lease (100.377724ms)
+  AssertionError [ERR_ASSERTION]: [[{"id":"01M68FP240G2303Q6AMPS1KT79","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7B","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7D","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7F","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP42JXJ8HN0B87H3DT5AM","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:242:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:220:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:259:11
+✖ typing expires, drops on disconnect, needs a fresh keystroke and never queues (92.314442ms)
+  AssertionError [ERR_ASSERTION]: [[{"id":"01M68FP240G2303Q6AMPS1KT79","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7B","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7D","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP240G2303Q6AMPS1KT7F","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FP42JXJ8HN0B87H3DT5AM","op":"send","args":{"conversation":"01M68FP11FEHZTZRH8F2YEXNTE","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:271:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:259:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:291:11
+✖ one handle survives list remount, closes, rejects second open and cleans a late result (122067.185365ms)
+  locator.waitFor: Timeout 122000ms exceeded.
+  Call log:
+    - waiting for getByAltText('Once photo') to be visible
+  
+      at TestContext.<anonymous> (/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:294:43)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:291:3) {
+    name: 'TimeoutError'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:317:11
+✖ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (122075.7427ms)
+  locator.waitFor: Timeout 122000ms exceeded.
+  Call log:
+    - waiting for getByAltText('Once photo') to be visible
+  
+      at TestContext.<anonymous> (/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:324:50)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:317:3) {
+    name: 'TimeoutError'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:342:11
+✖ two offline sends keep independent failures and attachment arguments after another session leaves (6626.025237ms)
+  AssertionError [ERR_ASSERTION]: ["Not sent: the program refused with NOT_MEMBERqueued with loading membershipEdit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERqueued with revalidating membershipEdit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERqueued with offline membershipEdit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERqueued with incomplete membershipEdit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERactivity 3Edit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERfirst offline messageEdit unsent messageDismiss","Not sent: the program refused with NOT_MEMBERsecond offline message · Attached once photoEdit unsent messageDismiss"]
+  
+  7 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:361:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:342:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 7,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs:1:1
+✖ /home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/social-browser.test.mjs (372066.553054ms)
+  'Promise resolution is still pending but the event loop has already resolved'

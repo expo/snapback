@@ -1,0 +1,18 @@
+source_matches True
+clean True
+native-final-started.sha True True
+native-a1-power-cleanup.sha True True
+native-audits-green.sha True True
+preflight-publication-source/audit.exit True True
+chain-a1.env-invalid EXISTS
+native-2.exit absent
+chain-a2.log absent
+chain-a2.env-invalid absent
+audit-mac-early.exit absent
+native-a2-started.sha absent
+reports/20261031-expo-0.4.51/qualified.json True
+target/publication/client-0.4.51/prepare.json False
+2026-10-31T16:59:11Z
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=23134307)	83%; charging; 0:43 remaining present: true
+  |   "AppleClamshellState" = No

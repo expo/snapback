@@ -1,0 +1,21 @@
+{
+  "publicationSource": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "releaseChecksSource": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "base": "711bfbb9d2d5c6ef81ad9c175beecfa75a3ac76d",
+  "commits": [
+    "b34992d40be5297ec42feb9aa4a29200bccfca98 chore(sb4): prepare snapback4 0.4.51 release"
+  ],
+  "changedPaths": [
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/packages/snapback4-darwin-arm64/package.json",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4-linux-x64/package.json",
+    "snapback4/packages/snapback4/package.json",
+    "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "snapback4/packages/snapback4/test/device-version.test.mjs",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "releaseDeltaPatchId": "a9882033fa020c0b3c945911cffbebfb95ccf9af",
+  "route": "fresh then-current origin/main after authorized opening and fixture repairs, plus one fresh release commit; stable release delta preserved across optimistic rebase"
+}

@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-31T22:37:58.647832+00:00",
+  "freeGiB": 108,
+  "power": "AC",
+  "percent": 100,
+  "phases": [
+    "== fixture wrapper tests",
+    "== client tests",
+    "== client models",
+    "== 0 failure(s) in 13107 s"
+  ],
+  "outputs": [
+    {
+      "log": "suite",
+      "rustCompleted": 1207,
+      "recentRust": [
+        "-- rust target: snapback4::witness (553.4 s): test result: ok. 79 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 553.20s",
+        "-- rust target: workspace doctests (5.3 s)"
+      ],
+      "inventory": [
+        "-- rust inventory: 488 test binaries, 1206 executions; at most 2 concurrent processes"
+      ],
+      "clientFilesCompleted": 485,
+      "recentClients": [
+        "-- client file ok: packages/snapback4/test/app-session-model.test.mjs (206819 ms)",
+        "-- client file ok: packages/snapback4/test/online-client-model.test.mjs (40795 ms)"
+      ],
+      "openingAndSocial": [
+        "-- client file ok: packages/snapback4/test/asset-avatars.test.mjs (47273 ms)",
+        "-- client file ok: packages/snapback4/test/asset-opening.test.mjs (13429 ms)",
+        "-- client file ok: packages/snapback4/test/maintained-column-adoption.test.mjs (4926 ms)",
+        "-- client file ok: packages/snapback4/test/social-browser.test.mjs (21416 ms)",
+        "-- client file ok: packages/snapback4/test/upload-hooks.test.mjs (2788 ms)"
+      ],
+      "failures": [],
+      "summaries": [
+        "-- client files: 482/482; failed 0; tests {\"tests\":8647,\"pass\":8615,\"fail\":0,\"cancelled\":0,\"skipped\":32,\"todo\":0}",
+        "-- client files: 2/2; failed 0; tests {\"tests\":89,\"pass\":89,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}",
+        "== 0 failure(s) in 13107 s"
+      ]
+    }
+  ],
+  "activeOwnedChildren": [],
+  "dry-run-2.exit": "done",
+  "dry-run-2.env-invalid": null,
+  "gate": [
+    "2026-10-31T18:43:39Z starting dry run attempt 2 (100%;)",
+    "2026-10-31T22:37:40Z attempt 2 finished: done after 14041 s"
+  ],
+  "stageExists": true,
+  "postSuiteRefreshCases": 6,
+  "consumerMessages": [
+    "consumer ok: query complete+fresh, online write sent, offline write pending"
+  ]
+}

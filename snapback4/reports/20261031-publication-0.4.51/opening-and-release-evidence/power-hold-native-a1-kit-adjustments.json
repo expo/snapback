@@ -1,0 +1,18 @@
+{
+  "updated": "2026-10-31T16:33:57.262240+00:00",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "reason": "native attempt1 environment invalid before witness; coordinator power rule",
+  "retry": "one source-bound native attempt2 after AC check; fresh complete native/witness/prepare",
+  "retainedEvidence": "same-source preflight audits zero findings and exact same candidate tarballs; all source release checks unchanged; no native/Darwin proof reuse",
+  "kitChanges": [
+    "attempt2 chains mirror corrected attempt1 route and preserve audit fence before warm/pre",
+    "attempt2 AC resource waits600s on battery; no native auto-retry",
+    "post-native provenance correctly names attempt2",
+    "single dry-run ATT2/MAXATT2; Linux qualification still attempt1",
+    "refresh2 copies INIT_INSTALL0 variant",
+    "source-bound duplicate-start and scoped simulator cleanup guards",
+    "record collectors retain power hold and attempt2 source markers"
+  ],
+  "checks": "all changed shell scripts bash -n; collector py_compile; fixed-source/attempt assertions PASS",
+  "uploadsStarted": false
+}

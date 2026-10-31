@@ -1,0 +1,38 @@
+TAP version 13
+# ADOPTION_COUNT {"tier":"sqlite","synced":false,"between":0,"reads":[]}
+# Subtest: column activation: sqlite, server watch
+ok 1 - column activation: sqlite, server watch
+  ---
+  duration_ms: 1006.905746
+  type: 'test'
+  ...
+# ADOPTION_COUNT {"tier":"sqlite","synced":true,"between":2,"reads":[{"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true,"watermark":0}},{"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true,"watermark":0}}]}
+# Subtest: column activation: sqlite, device watch
+ok 2 - column activation: sqlite, device watch
+  ---
+  duration_ms: 988.636188
+  type: 'test'
+  ...
+# ADOPTION_COUNT {"tier":"wasm","synced":false,"between":0,"reads":[]}
+# Subtest: column activation: wasm, server watch
+ok 3 - column activation: wasm, server watch
+  ---
+  duration_ms: 1098.974445
+  type: 'test'
+  ...
+# ADOPTION_COUNT {"tier":"wasm","synced":true,"between":2,"reads":[{"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true,"watermark":0}},{"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true,"watermark":0}}]}
+# Subtest: column activation: wasm, device watch
+ok 4 - column activation: wasm, device watch
+  ---
+  duration_ms: 997.078439
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4239.891669

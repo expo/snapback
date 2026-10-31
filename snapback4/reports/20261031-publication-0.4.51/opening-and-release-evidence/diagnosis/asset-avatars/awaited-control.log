@@ -1,0 +1,18 @@
+▶ message authors and feed avatars share ordinary home-row authority
+  ✔ wasm (10935.882669ms)
+  ℹ {"tier":"wasm","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:42343/bf1939ba-e7e7-48b3-a69b-a5969cda439b","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:42343/00d3378d-7071-4926-8433-2a2d0ac4b5d1","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:42343/fc4b4aaf-b425-4a00-807a-b80fb4e07dad","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"wasm","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+✔ message authors and feed avatars share ordinary home-row authority (13800.170654ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13946.72258

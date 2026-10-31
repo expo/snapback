@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-31T22:42:39.078537+00:00",
+  "status": "guard-refused-before-identity-and-upload",
+  "exit": 1,
+  "error": "start-finish-guarded.sh line14: ioreg: command not found",
+  "cause": "guard PATH omitted /usr/sbin and /sbin",
+  "fix": "add standard macOS utility paths; preserve every source/smoke/audit/AC/lid assertion"
+}

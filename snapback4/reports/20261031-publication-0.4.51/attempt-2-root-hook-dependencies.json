@@ -1,0 +1,13 @@
+{
+  "step": "root-hook-dependencies",
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0444-wt",
+  "start": 1793466309.956653,
+  "end": 1793466310.3424351,
+  "seconds": 0.386,
+  "exit": 0
+}

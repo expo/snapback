@@ -1,0 +1,33 @@
+{
+  "observed": "2026-10-31T16:27:28Z",
+  "reason": "watchdog environment invalid while still on battery",
+  "nextPowerCheck": "2026-10-31T17:07:44.000231+00:00",
+  "cleanupLog": "power-hold-native-a1-cleanup.log",
+  "witnessCompleted": false,
+  "uploadsStarted": false,
+  "checks": [
+    {
+      "at": "2026-10-31T16:37:44Z",
+      "power": "battery",
+      "percent": 94,
+      "lid": "open",
+      "evidence": "power-hold-native-a1-check-1.log"
+    },
+    {
+      "at": "2026-10-31T16:47:44.000117+00:00",
+      "power": "battery",
+      "percent": 86,
+      "lid": "open",
+      "evidence": "power-hold-native-a1-check-2.log",
+      "source": "b34992d40be5297ec42feb9aa4a29200bccfca98"
+    },
+    {
+      "at": "2026-10-31T16:57:44.000231+00:00",
+      "power": "AC",
+      "percent": 82,
+      "lid": "open",
+      "evidence": "power-hold-native-a1-check-3.log",
+      "source": "b34992d40be5297ec42feb9aa4a29200bccfca98"
+    }
+  ]
+}

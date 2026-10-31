@@ -1,0 +1,59 @@
+TAP version 13
+# Subtest: social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+    # Subtest: failed provisional sends survive Profile reopen and a full reload
+    ok 1 - failed provisional sends survive Profile reopen and a full reload
+      ---
+      duration_ms: 473.711741
+      type: 'test'
+      ...
+    # Subtest: a sent receipt without result recovers the route from its replicated key
+    ok 2 - a sent receipt without result recovers the route from its replicated key
+      ---
+      duration_ms: 45.519022
+      type: 'test'
+      ...
+    # Subtest: real stale negative membership after leave, sync, disconnect and re-invite permits Send
+    ok 3 - real stale negative membership after leave, sync, disconnect and re-invite permits Send
+      ---
+      duration_ms: 281.858122
+      type: 'test'
+      ...
+    # Subtest: stale absent membership queues offline and server refuses at sync without re-invitation
+    ok 4 - stale absent membership queues offline and server refuses at sync without re-invitation
+      ---
+      duration_ms: 268.270996
+      type: 'test'
+      ...
+    # Subtest: leaving before settlement recovers failed sends on a bare canonical route
+    ok 5 - leaving before settlement recovers failed sends on a bare canonical route
+      ---
+      duration_ms: 666.969676
+      type: 'test'
+      ...
+    # Subtest: failed and abandoned openings without sends leave no associations
+    ok 6 - failed and abandoned openings without sends leave no associations
+      ---
+      duration_ms: 138.232086
+      type: 'test'
+      ...
+    # Subtest: a bare route recovers its sends with one lookup despite 100 unresolved peers
+    ok 7 - a bare route recovers its sends with one lookup despite 100 unresolved peers
+      ---
+      duration_ms: 433.464025
+      type: 'test'
+      ...
+    1..7
+ok 1 - social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ---
+  duration_ms: 9637.401833
+  type: 'test'
+  ...
+1..1
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10079.804001

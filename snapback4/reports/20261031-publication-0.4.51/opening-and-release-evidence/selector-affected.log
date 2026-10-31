@@ -1,0 +1,158 @@
+# issues/20261031-social-quote-jump-async-browser-polling.md: filesystem issue record
+# snapback4/scripts/affected.mjs: selector implementation/fixtures
+# snapback4/scripts/affected.test.mjs: selector implementation/fixtures
+(cd '.' && timeout 300s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 './ref-check')
+(cd '.' && timeout 300s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 'node' '--test' 'snapback4/scripts/affected.test.mjs' 'tests/local_proof_selection_v0.mjs' 'tests/local_proof_inventory_v0.mjs' 'tests/ci_workflows_v0.mjs')
+# 2 commands, 0 whole Rust packages, 0 client files; broad=false
+== ref-check
+(cd '.' && timeout 300s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 './ref-check')
+ref-check: ok — 582 LLP docs, 12955 refs in 50946 files, 0 errors, 0 unchecked
+== selector-tests
+(cd '.' && timeout 300s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 'node' '--test' 'snapback4/scripts/affected.test.mjs' 'tests/local_proof_selection_v0.mjs' 'tests/local_proof_inventory_v0.mjs' 'tests/ci_workflows_v0.mjs')
+== difftest:run-lean
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'require('\''node:fs'\'').mkdirSync("target/lean", {recursive:true}); require('\''node:fs'\'').writeFileSync("target/lean/report.json", "{\"cases\":3,\"seed\":0,\"generated\":3,\"compiled\":3,\"binder_refused_unexpected\":0,\"generator_errors\":{},\"runtime_refused_unexpected\":{},\"by_oracle\":{\"lean\":{\"attempted\":3,\"passed\":1,\"unsupported\":{\"shape\":1},\"disagreeing\":1,\"signatures\":{\"lean--next--next~no-next\":1}}}}"); process.exit(1)' '--' '--cases' '3' '--seed' '0' '--out' 'target/lean')
+✔ Lean campaign classification uses exactly the existing integration-test policy (1.957485ms)
+✔ Lean campaign keeps new signature fatal (0.132739ms)
+✔ Lean campaign keeps resolved security regression fatal (0.146811ms)
+✔ Lean campaign keeps generator failure fatal (0.104197ms)
+✔ Lean campaign keeps binder refusal fatal (0.088112ms)
+✔ Lean campaign keeps runtime refusal fatal (0.079239ms)
+✔ Lean campaign keeps partial campaign fatal (0.094211ms)
+✔ Lean campaign keeps wrong seed fatal (0.084556ms)
+✔ Lean campaign keeps missing report fields fatal (0.114642ms)
+✔ Lean campaign keeps unaccounted disagreement fatal (0.171908ms)
+✔ Lean campaign keeps bad signature count fatal (0.099449ms)
+✔ Lean campaign keeps unexpected oracle fatal (0.076555ms)
+✔ Lean campaign keeps zero comparisons fatal (0.0735ms)
+Lean campaign: existing OPEN C2/W4 classification; raw exit 1; findings {"lean--next--next~no-next":1}
+Receipt: /tmp/sb4-affected-lean-X9M7g5/target/affected/541d50eb2ec2-1793444189420.json; PASS
+== difftest:run-lean
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'require('\''node:fs'\'').mkdirSync("target/lean", {recursive:true}); require('\''node:fs'\'').writeFileSync("target/lean/report.json", "{\"cases\":3,\"seed\":0,\"generated\":3,\"compiled\":3,\"binder_refused_unexpected\":0,\"generator_errors\":{},\"runtime_refused_unexpected\":{},\"by_oracle\":{\"lean\":{\"attempted\":3,\"passed\":1,\"unsupported\":{\"shape\":1},\"disagreeing\":1,\"signatures\":{\"lean--data--changed\":1}}}}"); process.exit(1)' '--' '--cases' '3' '--seed' '0' '--out' 'target/lean')
+Lean campaign: unclassified Lean finding; raw exit 1; findings {"lean--data--changed":1}
+Receipt: /tmp/sb4-affected-lean-X9M7g5/target/affected/541d50eb2ec2-1793444189472.json; FAIL
+== difftest:run-lean
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(1)' '--' '--cases' '3' '--seed' '0' '--out' 'target/lean')
+Receipt: /tmp/sb4-affected-lean-X9M7g5/target/affected/541d50eb2ec2-1793444189526.json; FAIL
+== difftest:run-lean
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(2)' '--' '--cases' '3' '--seed' '0' '--out' 'target/lean')
+Receipt: /tmp/sb4-affected-lean-X9M7g5/target/affected/541d50eb2ec2-1793444189573.json; FAIL
+== fails
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(7)')
+✔ Lean execution retains raw exit/report digest, rejects unknown findings and cannot reuse a stale report (232.919222ms)
+✔ lang source closes over reverse dependencies and CLI consumers (1.675432ms)
+✔ integration test-only change selects one cargo target and no reverse dependents (0.535033ms)
+✔ a source change overrides test-only narrowing (0.375953ms)
+✔ client source selects package pool and reverse package dependents (0.45373ms)
+✔ client test-only change selects only that file (0.258688ms)
+✔ guide-only change selects guide, budget and packaged docs, not Rust source closure (0.425258ms)
+✔ snapback4/Cargo.lock fails broad with a per-file reason (0.350696ms)
+✔ snapback4/Cargo.toml fails broad with a per-file reason (0.256635ms)
+✔ snapback4/crates/snapback4-lang/build.rs fails broad with a per-file reason (0.243365ms)
+✔ snapback4/crates/snapback4-lang/tests/support/mod.rs fails broad with a per-file reason (0.212028ms)
+✔ snapback4/packages/snapback4/test/helpers/server.mjs fails broad with a per-file reason (0.200561ms)
+✔ snapback4/surprise/input.bin fails broad with a per-file reason (0.231397ms)
+✔ proc macro fails broad (0.284316ms)
+✔ reverse closure handles chains, optional/dev cycles and isolated nodes (0.085809ms)
+✔ root delegates Snapback 4 and preserves unknown root fallback (9.071611ms)
+✔ real cargo graph and transitive test imports catch maintained-column regression (4958.658419ms)
+✔ known-red snapshot needs the originating range, not a docs-only red HEAD diff (4159.014827ms)
+✔ worktree includes staged, unstaged, deletes, rename old/new and untracked paths (70.020952ms)
+✔ known-red selection contains every failing target in the archived complete suite (4189.472883ms)
+== passes
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(0)')
+== blocked
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(0)')
+BLOCKED: blocked by fails
+Receipt: /tmp/sb4-affected-run-8hEHIm/target/affected/51cc62857662-1793444203077.json; FAIL
+== mutates-input
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'require('\''node:fs'\'').writeFileSync('\''input'\'', '\''after'\'')')
+✔ execution keeps going after failures and persists the complete failing receipt (155.906688ms)
+✔ root fail-closed and complete receipts delegate a broad Snapback 4 set (0.599809ms)
+✔ broad set includes every test.sh non-Rust/client obligation (0.263745ms)
+✔ real bare workspace imports rebuild the client and docs select executable consumers (4816.71185ms)
+Receipt: /tmp/sb4-affected-mutation-suSwzZ/target/affected/dc24a26bb98e-1793444208052.json; FAIL
+== build-cli
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(0)')
+✔ committed execution refuses success if an initially unchanged tracked input changes (120.65744ms)
+✔ required target features, diagnostics movement and wasm measurement are selected (0.912228ms)
+✔ packages without owned tests widen to cover sibling consumers (0.418267ms)
+✔ measurement changes run their executable contract without mutating tracked metrology (0.308753ms)
+✔ client pool prerequisites are derived per file rather than unioned across the pool (0.396875ms)
+== build-wasm
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(9)')
+BLOCKED: wasm-only by build-wasm
+== pool
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'require('\''node:fs'\'').writeFileSync('\''target/runnable.json'\'', JSON.stringify(process.argv.slice(1)))' '--' 'cli-only' 'product-free')
+== after
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node' '-e' 'process.exit(0)')
+Receipt: /tmp/sb4-affected-pool-5Ti1oQ/target/affected/ce76f01d8d72-1793444208154.json; FAIL
+✔ a failed wasm producer blocks only its consumers and independent pool files still run (178.691108ms)
+✔ documentation-shaped shared input snapback4/fixtures/input.md still fails broad (0.409384ms)
+✔ documentation-shaped shared input snapback4/packages/snapback4/test/helpers/input.md still fails broad (0.191857ms)
+✔ documentation-shaped shared input snapback4/crates/snapback4-lang/tests/fixtures/input.md still fails broad (0.182023ms)
+✔ documentation-shaped shared input snapback4/scripts/helpers/input.md still fails broad (0.163165ms)
+✔ documentation-shaped shared input snapback4/unknown/input.md still fails broad (0.206319ms)
+✔ computed and unresolved imports conservatively require a client dist rebuild (0.341632ms)
+✔ CI attempts independent setup and retains failure after verification (0.311527ms)
+✔ Rust guide implementation snapback4/crates/snapback4-lang/src/guide.rs retains reverse dependencies (0.258147ms)
+✔ Rust guide implementation snapback4/crates/snapback4-lang/src/guide/codes.rs retains reverse dependencies (0.207091ms)
+✔ embedded init template day2-proof.mjs selects its binary source and consumers (0.222864ms)
+✔ embedded init template previous/day2-proof-0.4.40.mjs selects its binary source and consumers (0.174913ms)
+✔ guide integration modules and named fixtures select their compiled consumer (0.549664ms)
+✔ filesystem issue records require reference validation without widening product scope (0.173019ms)
+CI workflow tests: PASS (13 workflows, 56 immutable action pins)
+✔ tests/ci_workflows_v0.mjs (543.471688ms)
+✔ versioned-seed total-failure diagnostics understand real Node error shapes (68.103987ms)
+✔ versioned-seed Rust witnesses are counted from exact executed test records (0.799499ms)
+✔ the canonical proof has named gates and its producer edges are closed (19.590952ms)
+✔ the cargo-nextest launcher refuses a missing runner without fallback (4.229271ms)
+✔ host inapplicability declarations are literal, known gate/predicate pairs (12.128394ms)
+✔ a newly inventoried real-server test without the binary prerequisite fails closed (10.436697ms)
+✔ browser availability is a strict producer, not an ambient skip (10.036627ms)
+✔ the policy classifies every canonical gate and keeps docs/guide fast (2.174621ms)
+✔ affected groups retain mandatory Contract/Exact and admin behavior (0.956504ms)
+✔ single-gate re-entry closes over declared prerequisites (0.741412ms)
+✔ required Exact mode reaches clean surface installs before availability sentinels (7.125774ms)
+✔ package owners select their direct package and harness fixtures (13.584688ms)
+✔ scripts test subjects select their bound fixture gates (1.076614ms)
+✔ root production audit selection does not depend on Exact/admin baseline gates (1.286949ms)
+✔ a new Rust source file selects the rustfmt gate (0.529354ms)
+✔ published package READMEs retain their fast funnel outside source-extension coverage (1.365257ms)
+✔ every selected shell-out gate provisions its narrow workflow dependency (0.721041ms)
+✔ Rust modules and graph authorities select the workspace boundary gate (0.503835ms)
+✔ docs-only pushes still select the always-run migration drift gates (0.323485ms)
+✔ diagnostic production sources select registry fixtures and Guide drift (3.85494ms)
+✔ manifest-only package source additions and removals select registry fixtures (0.311437ms)
+✔ known-red LLP 0284 product gates stay scheduled while their evasion harness stays always-on (0.253019ms)
+✔ native, Cloudflare, seed, and carrier changes select their unique claims (0.729304ms)
+✔ committed demo distribution leaves select artifact path hygiene and its fixture (0.5605ms)
+✔ shared authorities and unknown paths fail closed into the complete inventory (0.733059ms)
+✔ selected gates are transitively closed over static and dynamic prerequisites (0.593109ms)
+✔ historical defect diffs replay to the gates that caught them (127.361581ms)
+✔ selection receipts bind the exact policy, inventory, diff, and current HEAD (75.123681ms)
+✔ worktree union: a clean tree selects nothing (35.146965ms)
+✔ worktree union: staged-only changes participate (39.504989ms)
+✔ worktree union: unstaged-only changes participate (37.992522ms)
+✔ worktree union: untracked files participate (39.016857ms)
+✔ worktree union: ignored files do not participate (32.360157ms)
+✔ worktree union: deletions participate (39.223087ms)
+✔ worktree union: a rename selects both sides (48.961668ms)
+✔ worktree union: intent-to-add participates (41.590807ms)
+✔ worktree union: a path in several views is classified once (48.343721ms)
+✔ worktree union: a dirty submodule selects its root, ignored byproducts do not (135.828845ms)
+✔ worktree digests: selection and content digests are stable and change-sensitive (114.526297ms)
+✔ worktree digests: a file replaced by a symlink is not the same state (64.829598ms)
+✔ worktree digests: paths are recorded, contents never are (49.251732ms)
+✔ committed-only --affected keeps its exact commit-bound shape (19.469561ms)
+✔ complete cadence refuses --include-worktree (6.433125ms)
+✔ worktree recheck detects a mid-run change and passes an unchanged tree (71.58113ms)
+✔ worktree recheck is inert for a committed-only receipt (0.272939ms)
+ℹ tests 102
+ℹ suites 0
+ℹ pass 102
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18987.874464
+Receipt: /home/ccheever/sb4-pub-0441/target/affected/23026d54a54a-1793444184022.json; PASS

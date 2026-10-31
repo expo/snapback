@@ -1,0 +1,25 @@
+-- client file start: packages/snapback4/test/asset-opening.test.mjs; stall bound 900000 ms
+
+TEST_FILE_ABORT: packages/snapback4/test/asset-opening.test.mjs; 22676 ms elapsed; stall bound 900000 ms; 17324 ms without progress; last progress test:dequeue: delayed
+last output:
+TAP version 13
+# Subtest: WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+    # Subtest: default
+    ok 1 - default
+      ---
+      duration_ms: 975.568031
+      type: 'test'
+      ...
+    # Subtest: once
+    ok 2 - once
+      ---
+      duration_ms: 789.303307
+      type: 'test'
+      ...
+    # Subtest: awaited
+    ok 3 - awaited
+      ---
+      duration_ms: 805.303283
+      type: 'test'
+      ...
+

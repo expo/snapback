@@ -1,0 +1,2 @@
+native gate pid=94106; source b34992d40be5297ec42feb9aa4a29200bccfca98; resource/AC/lid watch active
+canonical audit waiter pid=94107

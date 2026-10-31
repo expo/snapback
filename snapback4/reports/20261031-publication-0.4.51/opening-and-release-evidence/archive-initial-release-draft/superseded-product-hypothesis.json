@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-31T06:30:00.574151+00:00",
+  "status": "STOPPED",
+  "candidate": "6c95ba698ebbf3e1a3798b4e0d85f0adeca2ade6",
+  "candidateParent": "5e30a60e70069e69962572c7e503f7ce68709d80",
+  "candidatePushedToOriginMain": false,
+  "publicationSource": null,
+  "recordsCommit": null,
+  "introducedBy": "bdbd1e55161808d9f5bd60f4abe09a12b2a81b78",
+  "sourceFile": "snapback4/packages/snapback4/src/local.ts",
+  "sourceLine": 1251,
+  "unchangedTest": true,
+  "oldPreparedSource": "66487786e15d1a23686c059be0a6d2f531d21881",
+  "oldPreparedClientSha256": "5bc247309b9c6d6b85aff1951cabada21f5ff694ef9bd135559cb08a75e5fe3f",
+  "currentCliSha256": "67893142e11361e8bacc7df72d14c0957917d15ad89284a4756c95382f297ca3",
+  "currentWasmSha256": "5873886105af788da7a274b48d3c87341d4563dc090823406f9eae971a2571b0",
+  "isolatedCurrent": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "oldSdkControl": [
+    0,
+    0,
+    0
+  ],
+  "diagnosticOnlyCounterfactual": [
+    0,
+    0,
+    0
+  ],
+  "pooledPassFilesBeforeStop": 247,
+  "pooledFailedFiles": [
+    "packages/snapback4/test/per-row-inflight.test.mjs (5357 ms)"
+  ],
+  "rustCoreTreesIdentical": true,
+  "rustDeviceTreesIdentical": true,
+  "classificationSupersededAt": "2026-10-31T06:34:55.308750+00:00",
+  "finalClassification": "test-fixture red: intentional in-flight revocation bound under LLP 3000.002.000 section 7.2",
+  "notFinalStopReport": true
+}

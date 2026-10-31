@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "runs": 2,
+  "phasesPerRun": 18,
+  "literalStageScripts": true,
+  "realAccounts": true,
+  "frozenV1ReturnsV2Rows": true
+}

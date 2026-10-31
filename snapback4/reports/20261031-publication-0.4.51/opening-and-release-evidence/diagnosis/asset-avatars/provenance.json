@@ -1,0 +1,12 @@
+{
+  "source": "48ec7dd370cb473a7c08417d00042143e515858d",
+  "at": "2026-10-31T07:42:10.397470+00:00",
+  "command": "node --test --test-name-pattern=\"message authors and feed avatars\" <probe>",
+  "probeChanges": "Relocated imports/root to source worktree; added localStatus and failure diagnostics. No behavior change in default probe. Awaited control additionally restricts to wasm and passes startup:\"awaited\".",
+  "sha256": {
+    "startup-probe.test.mjs": "fdb8a265b34b77ebf5fb60e39846bfe8dacad03440fc4d94e9e74646f9b6c9b1",
+    "awaited-control.test.mjs": "2282044b523b37d09279a8789c28f5dd5aa84282b15cd4972ae2cc9471e080d7",
+    "current-main-probe.log": "5dfe7e642fe217025f9c31c02cec5bc3c6df8a94dd816601753e465f18f07a35",
+    "awaited-control.log": "07b926f8a463a460e10614cfe65ee4259b9734ca56eed8cb6bfbd849d8d1604c"
+  }
+}

@@ -1,0 +1,36 @@
+bun install v1.4.2 (744846f84)
+
++ binaryen@132.0.0
++ expo-image-picker@57.0.20
++ expo-linking@57.0.11
++ expo-router@57.0.23
++ playwright-core@1.55.1
++ react-native-safe-area-context@5.7.0
++ react-native-screens@4.26.2
++ react-native-web@0.21.2
+
+603 packages installed [612.00ms]
+✔ [2/24] Built Quarry.Order (945ms)
+✔ [3/24] Built Quarry.Order:c.o (150ms)
+✔ [4/24] Built Quarry.Value (976ms)
+✔ [5/24] Built Quarry.Calendar (2.4s)
+✔ [6/24] Built Quarry.Value:c.o (511ms)
+✔ [7/24] Built Quarry.Calendar:c.o (163ms)
+✔ [8/24] Built Quarry.Syntax (1.5s)
+✔ [9/24] Built Quarry.Store (479ms)
+✔ [10/24] Built Quarry.Store:c.o (523ms)
+✔ [11/24] Built Quarry.Syntax:c.o (1.2s)
+✔ [12/24] Built Quarry.Eval (1.8s)
+✔ [13/24] Built Quarry.Write (875ms)
+✔ [14/24] Built Quarry.Run (438ms)
+✔ [15/24] Built Quarry.Json (379ms)
+✔ [16/24] Built Quarry.Run:c.o (295ms)
+✔ [17/24] Built Quarry.Json:c.o (128ms)
+✔ [18/24] Built Quarry.Write:c.o (1.2s)
+✔ [19/24] Built Quarry.CaseJson (950ms)
+✔ [20/24] Built Oracle (269ms)
+✔ [21/24] Built Oracle:c.o (82ms)
+✔ [22/24] Built Quarry.Eval:c.o (3.5s)
+✔ [23/24] Built Quarry.CaseJson:c.o (1.6s)
+✔ [24/24] Built «quarry-oracle»:exe (1.0s)
+Build completed successfully (24 jobs).

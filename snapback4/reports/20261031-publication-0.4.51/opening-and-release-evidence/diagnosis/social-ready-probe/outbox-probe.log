@@ -1,0 +1,103 @@
+TAP version 13
+# Subtest: social recipes in React/browser: real online signals and media, controlled read interleavings
+    # Subtest: route, history and decorations revalidate independently without draft/focus loss
+    ok 1 - route, history and decorations revalidate independently without draft/focus loss
+      ---
+      duration_ms: 136.486554
+      type: 'test'
+      ...
+    # Subtest: loading, revalidating and offline membership allow custody and eventual server delivery
+    ok 2 - loading, revalidating and offline membership allow custody and eventual server delivery
+      ---
+      duration_ms: 794.233875
+      type: 'test'
+      ...
+    # Subtest: older bubbles recover receipts after withdrawal without losing history
+    ok 3 - older bubbles recover receipts after withdrawal without losing history
+      ---
+      duration_ms: 69.034879
+      type: 'test'
+      ...
+# OUTBOX_DIAGNOSTIC [[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+    # Subtest: renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+    not ok 4 - renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+      ---
+      duration_ms: 101.649961
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:192:11'
+      failureType: 'testCodeFailure'
+      error: '[[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        quietAfter (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:190:107)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:204:5)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:192:3)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+# OUTBOX_DIAGNOSTIC [[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+    # Subtest: a late failed renewal cannot stop a newer successful typing lease
+    not ok 5 - a late failed renewal cannot stop a newer successful typing lease
+      ---
+      duration_ms: 91.551086
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:220:11'
+      failureType: 'testCodeFailure'
+      error: '[[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:242:107)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:220:3)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+# OUTBOX_DIAGNOSTIC [[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]
+    # Subtest: typing expires, drops on disconnect, needs a fresh keystroke and never queues
+    not ok 6 - typing expires, drops on disconnect, needs a fresh keystroke and never queues
+      ---
+      duration_ms: 58.193771
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:259:11'
+      failureType: 'testCodeFailure'
+      error: '[[{"id":"01M68FRAEJFCB51QRFY7EC5P2K","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with loading membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2N","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with revalidating membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2Q","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with offline membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRAEJFCB51QRFY7EC5P2S","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"queued with incomplete membership","photo":null,"replyTo":null},"predicted":[],"state":"queued"},{"id":"01M68FRCD4RK753F31JZXVHKA6","op":"send","args":{"conversation":"01M68FR9CMR3B6FX0D9K0RTZ6P","text":"activity 3","photo":null,"replyTo":null},"predicted":[],"state":"queued"}]]'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:271:107)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:259:3)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    1..6
+not ok 1 - social recipes in React/browser: real online signals and media, controlled read interleavings
+  ---
+  duration_ms: 7252.769267
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/outbox-probe.test.mjs:18:1'
+  failureType: 'subtestsFailed'
+  error: '3 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 7
+# suites 0
+# pass 3
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7693.277663

@@ -1,0 +1,251 @@
+-- client file start: packages/snapback4/test/asset-opening.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+    # Subtest: default
+    ok 1 - default
+      ---
+      duration_ms: 983.171534
+      type: 'test'
+      ...
+    # Subtest: once
+    ok 2 - once
+      ---
+      duration_ms: 766.622047
+      type: 'test'
+      ...
+    # Subtest: awaited
+    ok 3 - awaited
+      ---
+      duration_ms: 774.199621
+      type: 'test'
+      ...
+    # Subtest: delayed
+    ok 4 - delayed
+      ---
+      duration_ms: 5783.989687
+      type: 'test'
+      ...
+    # Subtest: late-refusal
+    ok 5 - late-refusal
+      ---
+      duration_ms: 769.13926
+      type: 'test'
+      ...
+    # Subtest: late-failure
+    ok 6 - late-failure
+      ---
+      duration_ms: 487.955512
+      type: 'test'
+      ...
+    # Subtest: failed
+    ok 7 - failed
+      ---
+      duration_ms: 471.543079
+      type: 'test'
+      ...
+    # Subtest: throwing
+    ok 8 - throwing
+      ---
+      duration_ms: 690.439776
+      type: 'test'
+      ...
+    # Subtest: download-failure
+    ok 9 - download-failure
+      ---
+      duration_ms: 848.954809
+      type: 'test'
+      ...
+    # Subtest: kept-upload
+    ok 10 - kept-upload
+      ---
+      duration_ms: 850.664804
+      type: 'test'
+      ...
+    # Subtest: unmount
+    ok 11 - unmount
+      ---
+      duration_ms: 463.078374
+      type: 'test'
+      ...
+    # Subtest: signout
+    ok 12 - signout
+      ---
+      duration_ms: 467.841998
+      type: 'test'
+      ...
+    1..12
+ok 1 - WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+  ---
+  duration_ms: 16180.722322
+  type: 'test'
+  ...
+1..1
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16320.386035
+-- process inspection: {"snapshots":3,"unrelatedRows":4389}
+-- client file ok: packages/snapback4/test/asset-opening.test.mjs (16641 ms)
+-- client file start: packages/snapback4/test/asset-avatars.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Expo conversion refusal keeps the local client online (native store, mutable)
+ok 1 - Expo conversion refusal keeps the local client online (native store, mutable)
+  ---
+  duration_ms: 3762.575134
+  type: 'test'
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (native store, sealed)
+ok 2 - Expo conversion refusal keeps the local client online (native store, sealed)
+  ---
+  duration_ms: 2269.351311
+  type: 'test'
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (native store, frozen)
+ok 3 - Expo conversion refusal keeps the local client online (native store, frozen)
+  ---
+  duration_ms: 3314.572776
+  type: 'test'
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, mutable)
+ok 4 - Expo conversion refusal keeps the local client online (duplicate Blob, mutable)
+  ---
+  duration_ms: 2244.691777
+  type: 'test'
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, sealed)
+ok 5 - Expo conversion refusal keeps the local client online (duplicate Blob, sealed)
+  ---
+  duration_ms: 2277.96783
+  type: 'test'
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, frozen)
+ok 6 - Expo conversion refusal keeps the local client online (duplicate Blob, frozen)
+  ---
+  duration_ms: 2274.339087
+  type: 'test'
+  ...
+# Subtest: completed ordinary and once bytes survive rotation; new local downloads await its bearer
+    # Subtest: online
+    ok 1 - online
+      ---
+      duration_ms: 54.592522
+      type: 'test'
+      ...
+    # Subtest: process
+    ok 2 - process
+      ---
+      duration_ms: 1183.60078
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 3 - wasm
+      ---
+      duration_ms: 1391.055407
+      type: 'test'
+      ...
+    1..3
+ok 7 - completed ordinary and once bytes survive rotation; new local downloads await its bearer
+  ---
+  duration_ms: 4775.692352
+  type: 'test'
+  ...
+# Subtest: local queue saturation keeps link and retained media live
+    # Subtest: process
+    ok 1 - process
+      ---
+      duration_ms: 2138.132217
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 2 - wasm
+      ---
+      duration_ms: 2252.417318
+      type: 'test'
+      ...
+    1..2
+ok 8 - local queue saturation keeps link and retained media live
+  ---
+  duration_ms: 6539.201399
+  type: 'test'
+  ...
+# Subtest: queued local avatars survive credential rotation without invalidating retained handles
+    # Subtest: process
+    ok 1 - process
+      ---
+      duration_ms: 303.297801
+      type: 'test'
+      ...
+    # Subtest: wasm
+    ok 2 - wasm
+      ---
+      duration_ms: 299.787487
+      type: 'test'
+      ...
+    1..2
+ok 9 - queued local avatars survive credential rotation without invalidating retained handles
+  ---
+  duration_ms: 2726.357789
+  type: 'test'
+  ...
+# Subtest: message authors and feed avatars share ordinary home-row authority
+    # Subtest: online
+    ok 1 - online
+      ---
+      duration_ms: 10427.355158
+      type: 'test'
+      ...
+    # {"tier":"online","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/b3b1d049-7b96-4282-9484-2683c3d4d2e5","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/8db03a4b-3f11-40b6-b3ae-229eccb24055","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/3a1bb969-443e-4d06-8d65-03e1f179ee3b","type":"image/png"},"calls":2}
+    # {"tier":"online","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"online","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    # Subtest: process
+    ok 2 - process
+      ---
+      duration_ms: 11916.974187
+      type: 'test'
+      ...
+    # {"tier":"process","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/bcccaab0-8a7f-43d2-baf0-6e54b817b654","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/e7669726-8351-4d8b-9e61-34b2b0f95e0e","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/931b5931-731b-42d9-a7a0-0ee426162ce0","type":"image/png"},"calls":2}
+    # {"tier":"process","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"process","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    # Subtest: wasm
+    ok 3 - wasm
+      ---
+      duration_ms: 10664.614509
+      type: 'test'
+      ...
+    # {"tier":"wasm","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/749a4cff-d47f-4d22-b7fb-e86b24036617","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/b804efc8-2b32-4881-807e-fc6e1399a145","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:36931/041a1bb0-3ea0-4f8d-aef4-515f93931ace","type":"image/png"},"calls":2}
+    # {"tier":"wasm","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+    # {"tier":"wasm","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+    # [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+    # replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+    1..3
+ok 10 - message authors and feed avatars share ordinary home-row authority
+  ---
+  duration_ms: 35698.277386
+  type: 'test'
+  ...
+1..10
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 66064.711222
+-- process inspection: {"snapshots":3,"unrelatedRows":4252}
+-- client file ok: packages/snapback4/test/asset-avatars.test.mjs (66381 ms)
+-- client files: 2/2; failed 0; tests {"tests":33,"pass":33,"fail":0,"cancelled":0,"skipped":0,"todo":0}

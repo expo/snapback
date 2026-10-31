@@ -1,0 +1,148 @@
+-- client file start: packages/snapback4/test/asset-opening.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+    # Subtest: default
+    not ok 1 - default
+      ---
+      duration_ms: 597.465022
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:86'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:45:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:78)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+# The request id "/home/ccheever/sb4-pub-0451-records/diagnosis/opening-negative/sdk/dist/wasm/snapback4_device_bg.wasm" is outside of Vite serving allow list.
+    # Subtest: awaited
+    not ok 2 - awaited
+      ---
+      duration_ms: 444.02272
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:86'
+      failureType: 'testCodeFailure'
+      error: |-
+        page.evaluate: Error: {"ok":false,"why":{"code":"E_CLIENT","family":"client","message":"wasm: HTTP 403","site":"app.auth","rewrite":"await app.auth.login(email, password)"}}
+            at window.boot (http://127.0.0.1:39723/harness.jsx:35:23)
+            at async <anonymous>:317:30
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        window.boot (http://127.0.0.1:39723/harness.jsx:35:23)
+        async <anonymous>:317:30
+        TestContext.<anonymous> (/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:41:63)
+        async TestContext.<anonymous> (/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:78)
+      ...
+    # Subtest: failed
+    not ok 3 - failed
+      ---
+      duration_ms: 473.956935
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:86'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:45:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:78)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: unmount
+    not ok 4 - unmount
+      ---
+      duration_ms: 499.00335
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:86'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:45:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:78)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    # Subtest: signout
+    not ok 5 - signout
+      ---
+      duration_ms: 467.201673
+      type: 'test'
+      location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:86'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'denied'
+        - 'loading'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'loading'
+      actual: 'denied'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:45:14)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:31:78)
+        async Test.run (node:internal/test_runner/test:1110:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+      ...
+    1..5
+not ok 1 - WASM assets wait for default progressive opening, recover once, and expose permanent opening failure
+  ---
+  duration_ms: 5360.80501
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/asset-opening.test.mjs:15:1'
+  failureType: 'subtestsFailed'
+  error: '5 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5511.322596
+-- process inspection: {"snapshots":3,"unrelatedRows":4434}
+-- client file FAIL: packages/snapback4/test/asset-opening.test.mjs (5841 ms)
+-- client files: 1/1; failed 1; tests {"tests":6,"pass":0,"fail":6,"cancelled":0,"skipped":0,"todo":0}

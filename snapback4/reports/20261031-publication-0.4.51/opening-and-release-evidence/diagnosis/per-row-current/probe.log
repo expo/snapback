@@ -1,0 +1,198 @@
+-- client file start: /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm keep=undefined: changes retire an in-flight local server body before replacement
+ok 1 - wasm keep=undefined: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 382.76967
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: changes retire an in-flight local server body before replacement
+ok 2 - wasm keep=false: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 304.383236
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: changes retire an in-flight local server body before replacement
+ok 3 - wasm keep=true: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 301.240593
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: changes retire an in-flight local server body before replacement
+ok 4 - process keep=undefined: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 254.775037
+  type: 'test'
+  ...
+# Subtest: process keep=false: changes retire an in-flight local server body before replacement
+ok 5 - process keep=false: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 245.264265
+  type: 'test'
+  ...
+# Subtest: process keep=true: changes retire an in-flight local server body before replacement
+ok 6 - process keep=true: changes retire an in-flight local server body before replacement
+  ---
+  duration_ms: 249.533787
+  type: 'test'
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"online","reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":104,"probes":0,"rowsWritten":0,"steps":7},"existence":"present","revalidating":true},"deadline":1793427910049,"queuePaused":false,"dirty":true}
+# PUB51_AFTER_CLOCK {"tier":"online","reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"dirty":true}
+# Subtest: online keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+ok 7 - online keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 254.89749
+  type: 'test'
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"online","keep":true,"reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":104,"probes":0,"rowsWritten":0,"steps":7},"existence":"present","revalidating":true},"deadline":1793427910284,"queuePaused":false,"dirty":true}
+# PUB51_AFTER_CLOCK {"tier":"online","keep":true,"reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"dirty":true}
+# Subtest: online keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+ok 8 - online keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 233.430149
+  type: 'test'
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"wasm","reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present","revalidating":true},"deadline":1793427910660,"queuePaused":false,"running":true,"dirty":true,"serverRead":true}
+# PUB51_AFTER_CLOCK {"tier":"wasm","reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"running":true,"dirty":true}
+# Subtest: wasm keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+not ok 9 - wasm keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 336.605144
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    the replacement has not received a slot
+    
+    undefined !== 7
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 7
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:141:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"wasm","keep":true,"reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present","revalidating":true},"deadline":1793427910963,"queuePaused":false,"running":true,"dirty":true,"serverRead":true}
+# PUB51_AFTER_CLOCK {"tier":"wasm","keep":true,"reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"running":true,"dirty":true}
+# Subtest: wasm keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+not ok 10 - wasm keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 322.335977
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    the replacement has not received a slot
+    
+    undefined !== 7
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 7
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:141:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"process","reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present","revalidating":true},"deadline":1793427911276,"queuePaused":false,"running":true,"dirty":true,"serverRead":true}
+# PUB51_AFTER_CLOCK {"tier":"process","reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"running":true,"dirty":true}
+# Subtest: process keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+not ok 11 - process keep=undefined: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 290.971915
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    the replacement has not received a slot
+    
+    undefined !== 7
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 7
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:141:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# PUB51_BEFORE_CLOCK {"tier":"process","keep":true,"reads":1,"blocked":7,"snapshot":{"data":{"count":0,"row":{"id":"r","owner":"dev:alice","value":7}},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present","revalidating":true},"deadline":1793427911550,"queuePaused":false,"running":true,"dirty":true,"serverRead":true}
+# PUB51_AFTER_CLOCK {"tier":"process","keep":true,"reads":1,"blocked":7,"snapshot":{"loading":true},"queuePaused":false,"running":true,"dirty":true}
+# Subtest: process keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+not ok 12 - process keep=true: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence
+  ---
+  duration_ms: 279.574003
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:124:89'
+  failureType: 'testCodeFailure'
+  error: |-
+    the replacement has not received a slot
+    
+    undefined !== 7
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 7
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs:141:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: wasm keep=undefined: the final callback checks a change version raised after evaluation
+ok 13 - wasm keep=undefined: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 280.616326
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: the final callback checks a change version raised after evaluation
+ok 14 - wasm keep=false: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 282.658518
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: the final callback checks a change version raised after evaluation
+ok 15 - wasm keep=true: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 261.383867
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: the final callback checks a change version raised after evaluation
+ok 16 - process keep=undefined: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 284.170676
+  type: 'test'
+  ...
+# Subtest: process keep=false: the final callback checks a change version raised after evaluation
+ok 17 - process keep=false: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 308.333689
+  type: 'test'
+  ...
+# Subtest: process keep=true: the final callback checks a change version raised after evaluation
+ok 18 - process keep=true: the final callback checks a change version raised after evaluation
+  ---
+  duration_ms: 278.89877
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 14
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5328.218862
+-- process inspection: {"snapshots":3,"unrelatedRows":4143}
+-- client file FAIL: /home/ccheever/sb4-pub-0451-records/diagnosis/per-row-current/sdk/test/per-row-inflight-probe.mjs (5630 ms)
+-- client files: 1/1; failed 1; tests {"tests":18,"pass":14,"fail":4,"cancelled":0,"skipped":0,"todo":0}

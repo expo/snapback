@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-31T23:12:58.534887+00:00",
+  "source": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "reason": "missing ignored root guide inputs in fresh records checkout",
+  "rootSourceInputsUnchanged": true,
+  "files": [
+    {
+      "path": "demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json",
+      "sha256": "6fe53b8754d2134a2ac8fc5dc9289a894245acd209114d85776ea3b66ef5adda"
+    },
+    {
+      "path": "demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts",
+      "sha256": "371ed3bbafe795ad44f24fb351dd30947721a2b05fb8126d46819be571dc4e5a"
+    },
+    {
+      "path": "demos/todo-v2/snapback/generated/contract/runtime-links.ts",
+      "sha256": "481e8fdb6f3dbd9b2f8893f411d41d583b5fae193a02a8857b07e678aaa7233f"
+    }
+  ]
+}

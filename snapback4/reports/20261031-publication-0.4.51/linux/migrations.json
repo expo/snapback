@@ -1,0 +1,60 @@
+{
+  "roll": {
+    "status": "passed",
+    "visibleRollback": true,
+    "currentGuards": true,
+    "currentIntentWorkflow": true,
+    "guardedCurrentClosure": true,
+    "invariantRenameSplitRequired": true,
+    "executableOnlyRefusal": true,
+    "editedOutputs": true,
+    "referenceRename": true,
+    "privateFileExtraction": true,
+    "cycles": 2
+  },
+  "rel3": {
+    "status": "passed",
+    "lanes": [
+      "041",
+      "012",
+      "024",
+      "005",
+      "023"
+    ],
+    "frozenReads": true,
+    "wideNativeRows": true,
+    "explicitNull": true,
+    "idempotent": true,
+    "cycles": 2
+  },
+  "rel4": {
+    "status": "passed",
+    "nullWrites": true,
+    "invariants": true,
+    "globalCap": true,
+    "adoptionBeforeSecurity": true,
+    "extractDefaultCheck": true,
+    "cycles": 2
+  },
+  "promotion": {
+    "status": "passed",
+    "realPasswordAccounts": true,
+    "oldTokensRefused": true,
+    "freshStoreIdentity": true,
+    "assetBytesAndHomes": true,
+    "releaseHistory": true,
+    "sourceUnchanged": true,
+    "cycles": 2
+  },
+  "status": "passed",
+  "guide": "deploy",
+  "recipe": "verbatim installed card",
+  "runs": 2,
+  "persistentProduction": true,
+  "realUsers": true,
+  "backfill": true,
+  "privacyInvariant": true,
+  "rollback": true,
+  "forwardCatchup": true,
+  "fullPopulationAssertions": true
+}

@@ -1,0 +1,26 @@
+-- client file start: packages/snapback4/test/overload-browser.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: the overload socket bank replaces refused and expired admission leases
+ok 1 - the overload socket bank replaces refused and expired admission leases
+  ---
+  duration_ms: 132.327462
+  type: 'test'
+  ...
+# Subtest: Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times
+ok 2 - Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times
+  ---
+  duration_ms: 2293.136951
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2673.995968
+-- process inspection: {"snapshots":3,"unrelatedRows":4925}
+-- client file ok: packages/snapback4/test/overload-browser.test.mjs (3039 ms)
+-- client files: 1/1; failed 0; tests {"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0}

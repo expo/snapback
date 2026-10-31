@@ -1,0 +1,46 @@
+-- client file start: packages/snapback4/test/maintained-column-adoption.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: column activation: sqlite, server watch
+ok 1 - column activation: sqlite, server watch
+  ---
+  duration_ms: 1137.081809
+  type: 'test'
+  ...
+# Subtest: column activation: sqlite, device watch
+ok 2 - column activation: sqlite, device watch
+  ---
+  duration_ms: 1045.034162
+  type: 'test'
+  ...
+# Subtest: column activation: wasm, server watch
+ok 3 - column activation: wasm, server watch
+  ---
+  duration_ms: 1074.575002
+  type: 'test'
+  ...
+# Subtest: column activation: wasm, device watch
+not ok 4 - column activation: wasm, device watch
+  ---
+  duration_ms: 123089.432668
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/maintained-column-adoption.test.mjs:31:3'
+  failureType: 'testCodeFailure'
+  error: 'TEST_HANG: ()=>between.length===2; 1 work unit(s), 122000 ms elapsed, 122000 ms guard'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (file:///home/ccheever/sb4-pub-0441/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+    listOnTimeout (node:internal/timers:605:17)
+    process.processTimers (node:internal/timers:541:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 126493.308625
+-- process inspection: {"snapshots":3,"unrelatedRows":5106}
+-- client file FAIL: packages/snapback4/test/maintained-column-adoption.test.mjs (126880 ms)
+-- client files: 1/1; failed 1; tests {"tests":4,"pass":3,"fail":1,"cancelled":0,"skipped":0,"todo":0}

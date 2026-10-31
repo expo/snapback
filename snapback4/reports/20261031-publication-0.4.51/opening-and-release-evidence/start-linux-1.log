@@ -1,0 +1,5 @@
+free 105G load 6.01 7.95 10.35
+  sb4-pub51-disklog-1.service         loaded active running /bin/bash -c "bash ./disklog.sh 1"
+  sb4-pub51-linux-1.service           loaded active running /bin/bash -c "ATTEMPT=1 bash ./linux.sh > linux-1.out 2>&1"
+  sb4-pub51-native-handoff-a2.service loaded active running /bin/bash -c "bash ./qualify-after-native-a2.sh > /home/ccheever/sb4-pub-0451-records/native-handoff-a2.log 2>&1"
+  sb4-pub51-onpass-1.service          loaded active running /bin/bash -c "./on-linux-pass.sh 1 > on-linux-pass-1.out 2>&1"

@@ -1,0 +1,125 @@
+TAP version 13
+# Subtest: social recipes in React/browser: real online signals and media, controlled read interleavings
+    # Subtest: route, history and decorations revalidate independently without draft/focus loss
+    ok 1 - route, history and decorations revalidate independently without draft/focus loss
+      ---
+      duration_ms: 128.157179
+      type: 'test'
+      ...
+    # Subtest: loading, revalidating and offline membership allow custody and eventual server delivery
+    ok 2 - loading, revalidating and offline membership allow custody and eventual server delivery
+      ---
+      duration_ms: 2489.944743
+      type: 'test'
+      ...
+    # Subtest: older bubbles recover receipts after withdrawal without losing history
+    ok 3 - older bubbles recover receipts after withdrawal without losing history
+      ---
+      duration_ms: 62.749622
+      type: 'test'
+      ...
+    # Subtest: renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+    ok 4 - renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+      ---
+      duration_ms: 433.98524
+      type: 'test'
+      ...
+    # Subtest: a late failed renewal cannot stop a newer successful typing lease
+    ok 5 - a late failed renewal cannot stop a newer successful typing lease
+      ---
+      duration_ms: 125.989779
+      type: 'test'
+      ...
+    # Subtest: typing expires, drops on disconnect, needs a fresh keystroke and never queues
+    ok 6 - typing expires, drops on disconnect, needs a fresh keystroke and never queues
+      ---
+      duration_ms: 1468.67527
+      type: 'test'
+      ...
+    # Subtest: one handle survives list remount, closes, rejects second open and cleans a late result
+    ok 7 - one handle survives list remount, closes, rejects second open and cleans a late result
+      ---
+      duration_ms: 498.188151
+      type: 'test'
+      ...
+    # Subtest: the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+    ok 8 - the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+      ---
+      duration_ms: 258.010562
+      type: 'test'
+      ...
+    # Subtest: two offline sends keep independent failures and attachment arguments after another session leaves
+    ok 9 - two offline sends keep independent failures and attachment arguments after another session leaves
+      ---
+      duration_ms: 1170.302519
+      type: 'test'
+      ...
+    # Subtest: observations make retention explicit
+    ok 10 - observations make retention explicit
+      ---
+      duration_ms: 3.18058
+      type: 'test'
+      ...
+    # Subtest: account reset clears draft and stops the prior typing owner
+    ok 11 - account reset clears draft and stops the prior typing owner
+      ---
+      duration_ms: 4205.077488
+      type: 'test'
+      ...
+    1..11
+ok 1 - social recipes in React/browser: real online signals and media, controlled read interleavings
+  ---
+  duration_ms: 20229.505227
+  type: 'test'
+  ...
+# Subtest: social search in React/browser uses current server and retained device pages
+    # Subtest: search spans a live and a departed conversation
+    ok 1 - search spans a live and a departed conversation
+      ---
+      duration_ms: 960.200492
+      type: 'test'
+      ...
+    # Subtest: leave followed by a search
+    ok 2 - leave followed by a search
+      ---
+      duration_ms: 857.006447
+      type: 'test'
+      ...
+    # Subtest: pagination accumulates both domains with no duplicate
+    ok 3 - pagination accumulates both domains with no duplicate
+      ---
+      duration_ms: 1085.897291
+      type: 'test'
+      ...
+    1..3
+ok 2 - social search in React/browser uses current server and retained device pages
+  ---
+  duration_ms: 7669.16519
+  type: 'test'
+  ...
+# Subtest: social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+not ok 3 - social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ---
+  duration_ms: 129665.693782
+  type: 'test'
+  location: '/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/fixed-fixture-probe.test.mjs:527:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    locator.waitFor: Timeout 122000ms exceeded.
+    Call log:
+      - waiting for getByTestId('composer') to be visible
+    
+  code: 'ERR_TEST_FAILURE'
+  name: 'TimeoutError'
+  stack: |-
+    TestContext.<anonymous> (/home/ccheever/sb4-pub-0451-records/diagnosis/social-ready-probe/fixed-fixture-probe.test.mjs:622:38)
+  ...
+1..3
+# tests 17
+# suites 0
+# pass 16
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 158186.986014

@@ -1,0 +1,7 @@
+2026-10-31T16:57:46Z
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=23134307)	82%; charging; 0:41 remaining present: true
+  |   "AppleClamshellState" = No
+Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on
+/dev/disk3s5   3.6Ti   3.3Ti   227Gi    94%     34M  2.4G    1%   /System/Volumes/Data
+{ 6.71 9.75 9.76 }

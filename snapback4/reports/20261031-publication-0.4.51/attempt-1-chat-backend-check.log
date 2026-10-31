@@ -1,0 +1,19 @@
+runtime changes: 0.4.50 → 0.4.51
+## 0.4.51
+
+- **Behavior change:** `createApp` with `webDevice()` now defaults to progressive startup. `app.ready` establishes a usable client and write custody, not an open/acquired replica; observe `localStatus` / `useLocalStatus` for local readiness. `startup: "awaited"` restores the old opening barrier. Openers without a custody probe (native/Expo) still await.
+- Includes the changes listed under 0.4.50 below; that version was not published.
+- Progressive web asset hooks keep opening refusals in loading and recover when the local device becomes executable; permanent opening failures remain visible. Restored upload cards refresh on local readiness. Asset ownership, one-view consumption and revocation rules are unchanged.
+- `day2-check` gives each production client call a fresh serve session on the same store, avoiding a shared identity-rate window across repeated callers. Call order, repeats and shutdown checks remain.
+- New Expo starters pin patched glob 14.0.2 and minimatch 11.0.1 for the Expo 57 CLI/configuration/fingerprint toolchain. Development dependencies remain audited with no new exceptions; existing apps can adopt these two npm overrides and reinstall.
+History begins at 0.4.26; earlier changes are not recorded.
+check: snapback/generated/ was written by snapback4 0.4.50; this is 0.4.51: regenerating them now
+upgrade delta: 0.4.50 → 0.4.51 for snapback/*.q
+  new notes: none
+  new compiler refusals: none
+  pending security review gates: none
+  generated/api.ts types: unchanged
+  query completeness: unchanged
+  release card: snapback4 guide changes
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`); 6112.1 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)

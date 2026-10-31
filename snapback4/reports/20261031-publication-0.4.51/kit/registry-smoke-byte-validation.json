@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-31T22:59:33.348199+00:00",
+  "status": "passed",
+  "artifacts": [
+    {
+      "name": "snapback4",
+      "filename": "snapback4-0.4.51.tgz",
+      "sha256": "62e612a81306057efa2b13a6fcb6c174e1db020b0b4273355e091b91766fe717"
+    },
+    {
+      "name": "snapback4-darwin-arm64",
+      "filename": "snapback4-darwin-arm64-0.4.51.tgz",
+      "sha256": "9028478db4cdf0218abdfeeff32a8cd77ddf6dce51660bc9e8e1f2012b5a4465"
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "filename": "snapback4-linux-x64-0.4.51.tgz",
+      "sha256": "1ffd2f9fd26a9199bd949e5668210649de0e41037b9600e4ca9cd0d723dc875b"
+    },
+    {
+      "name": "snapback4-expo",
+      "filename": "snapback4-expo-0.4.51.tgz",
+      "sha256": "8a85c94341341a404f38c574670d5903c307db2dccbc5afb5beaf8d5d0930cf1"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+Review the PUB051 product fix and its small governing RFC update for correctness. Read AGENTS.md and relevant current code. The coordinator requires: default startup remains progressive; retryable local opening E_STORE must leave useAsset loading and retry on local status executable/acquired; permanent opening failure must surface; preserve all other asset lifetimes/refusals, one-view behavior, signout and download retry semantics. Audit the useUpload sibling change and regression coverage. Review the exact working diff plus new test asset-opening.test.mjs. Do not edit any file. Return actionable defects with source locations and an overall verdict. Source worktree: /home/ccheever/sb4-pub-0441. Focus on races, permanent failures and replaying successful one-view reads. The current diff is appended below.
+
+diff --git a/llp/3000.002.000-progressive-web-startup.rfc.md b/llp/3000.002.000-progressive-web-startup.rfc.md
+index ca977d97a7..5997d145f1 100644
+--- a/llp/3000.002.000-progressive-web-startup.rfc.md
++++ b/llp/3000.002.000-progressive-web-startup.rfc.md
+@@ -5,7 +5,7 @@
+ **Systems:** Snapback 4 web client, app identity and readiness, online and local observations, durable browser writes, WASM loading, React, SSR
+ **Author:** Codex, requested by Charlie Cheever
+ **Date:** 2026-10-29
+-**Revised:** 2026-10-31 (Lane S3c: §6 decision/executor split, §7.2 terminal lifetime and transactional gate, §13 implementation and open intermittency); 2026-10-31 (§7.2: HF1 review-found hotfix, captured gate waiters retain the locked session-authority check before admission); 2026-10-31 (§13: rounds 15–17 landed as 8d50e2baea; fix loop stopped; residue inventoried in LLP 3000.002.000.000); 2026-10-30 (Lane E round 17: retired gate waiters, device-first close fences, installed-custody teardown and preservation notices across nested retirement/resumable pause); 2026-10-30 (Lane E round 16: authority-independent dispatcher recovery and live revocation, accepted refusal metadata, resumable opening pause and pinned pre-admission evidence); 2026-10-30 (Lane E round 15: restored-prefix opening gate, retained-close fences and retired quarantine reporting); 2026-10-30 (Lane E round 14: pause versus close, dispatcher recovery and independent live preservation, pinned receipt evidence); 2026-10-30 (Lane E round 13: retirement across asynchronous nested opening and immediate repaired-dispatcher admission); 2026-10-30 (Lane E round 12: unknown inspected execution generations, current own preservation bounds and refusing-store replacement fences); 2026-10-30 (Lane E round 11: public-close response custody, retired recovery, identity-wait store binding and bounded receipt evidence); 2026-10-30 (Lane E round 10: scoped peer receipts, non-revoking inspection, request-bound refusals and failed recovery lifetimes); 2026-10-30 (Lane E round 9: preserve live-capture store evidence for peer settlement; fence original close/sign-out before recovery cleanup); 2026-10-30 (Lane E round 8: same-store generation cuts, foreign-store wakeups and awaited replacement identity); 2026-10-30 (Lane E round 7: fenced opening recovery, generation-qualified cuts, inspected receipt epochs and coalesced recovery); 2026-10-30 (Lane E round 6: coalesced journal fences, opening replay cuts and stable recovery consumers); 2026-10-30 (Lane E round 5: inspected terminal reservations, recovery backoff and incarnation-bound receipt cuts); 2026-10-30 (Lane E round 4: publication watermark provenance, complete journal ownership, scoped capture fences and recoverable inspection); 2026-10-30 (Lane E round 3: credential refusal, store-bound settlement, learned journal ownership and live-peer recovery); 2026-10-30 (§4 and §13: Lane D, author-ruled progressive web default before Lane C qualification); 2026-10-30 (implementation record §13: lane B, one dispatcher per document, landed); 2026-10-30 (implementation record §13: lane A1, progressive reads, landed; four blind two-family code-review rounds recorded under `reviews/3000.002.000-lane-a1-r*`); 2026-10-29 (revision 1, after a three-seat blind panel on the Draft at `8113683571`: [Astra](./reviews/3000.002.000-progressive-web-startup.panel.astra.md) no fundamental concerns, DIRECTION RIGHT 0.90; [Fable](./reviews/3000.002.000-progressive-web-startup.panel.fable.md) and [Grok](./reviews/3000.002.000-progressive-web-startup.panel.grok.md) DIRECTION RIGHT WITH ONE CHANGE, 0.80 and 0.78, both against §7.2's mid-session cross-store ownership transfer. §7.2 now states one dispatcher per document under a monotonic drain-then-cutover rule with no new ownership record and no import; §6 prefers a late-bound core inside the existing local client, whose publication procedure already arbitrates local, server, remembered and composed answers, over a new app-level coordinator; §5.2 decides the owner at open instead of racing two clients; §9's cold target is derived from the fixture's transfer floor, which the Draft's 1 s median was below. Dispositions in §12. Muse did not sit: quota exhausted until 2026-11-02); 2026-10-29 (draft)
++**Revised:** 2026-10-31 (PUB051: opening asset refusals and restored upload observations recover on local status, §4); 2026-10-31 (Lane S3c: §6 decision/executor split, §7.2 terminal lifetime and transactional gate, §13 implementation and open intermittency); 2026-10-31 (§7.2: HF1 review-found hotfix, captured gate waiters retain the locked session-authority check before admission); 2026-10-31 (§13: rounds 15–17 landed as 8d50e2baea; fix loop stopped; residue inventoried in LLP 3000.002.000.000); 2026-10-30 (Lane E round 17: retired gate waiters, device-first close fences, installed-custody teardown and preservation notices across nested retirement/resumable pause); 2026-10-30 (Lane E round 16: authority-independent dispatcher recovery and live revocation, accepted refusal metadata, resumable opening pause and pinned pre-admission evidence); 2026-10-30 (Lane E round 15: restored-prefix opening gate, retained-close fences and retired quarantine reporting); 2026-10-30 (Lane E round 14: pause versus close, dispatcher recovery and independent live preservation, pinned receipt evidence); 2026-10-30 (Lane E round 13: retirement across asynchronous nested opening and immediate repaired-dispatcher admission); 2026-10-30 (Lane E round 12: unknown inspected execution generations, current own preservation bounds and refusing-store replacement fences); 2026-10-30 (Lane E round 11: public-close response custody, retired recovery, identity-wait store binding and bounded receipt evidence); 2026-10-30 (Lane E round 10: scoped peer receipts, non-revoking inspection, request-bound refusals and failed recovery lifetimes); 2026-10-30 (Lane E round 9: preserve live-capture store evidence for peer settlement; fence original close/sign-out before recovery cleanup); 2026-10-30 (Lane E round 8: same-store generation cuts, foreign-store wakeups and awaited replacement identity); 2026-10-30 (Lane E round 7: fenced opening recovery, generation-qualified cuts, inspected receipt epochs and coalesced recovery); 2026-10-30 (Lane E round 6: coalesced journal fences, opening replay cuts and stable recovery consumers); 2026-10-30 (Lane E round 5: inspected terminal reservations, recovery backoff and incarnation-bound receipt cuts); 2026-10-30 (Lane E round 4: publication watermark provenance, complete journal ownership, scoped capture fences and recoverable inspection); 2026-10-30 (Lane E round 3: credential refusal, store-bound settlement, learned journal ownership and live-peer recovery); 2026-10-30 (§4 and §13: Lane D, author-ruled progressive web default before Lane C qualification); 2026-10-30 (implementation record §13: lane B, one dispatcher per document, landed); 2026-10-30 (implementation record §13: lane A1, progressive reads, landed; four blind two-family code-review rounds recorded under `reviews/3000.002.000-lane-a1-r*`); 2026-10-29 (revision 1, after a three-seat blind panel on the Draft at `8113683571`: [Astra](./reviews/3000.002.000-progressive-web-startup.panel.astra.md) no fundamental concerns, DIRECTION RIGHT 0.90; [Fable](./reviews/3000.002.000-progressive-web-startup.panel.fable.md) and [Grok](./reviews/3000.002.000-progressive-web-startup.panel.grok.md) DIRECTION RIGHT WITH ONE CHANGE, 0.80 and 0.78, both against §7.2's mid-session cross-store ownership transfer. §7.2 now states one dispatcher per document under a monotonic drain-then-cutover rule with no new ownership record and no import; §6 prefers a late-bound core inside the existing local client, whose publication procedure already arbitrates local, server, remembered and composed answers, over a new app-level coordinator; §5.2 decides the owner at open instead of racing two clients; §9's cold target is derived from the fixture's transfer floor, which the Draft's 1 s median was below. Dispositions in §12. Muse did not sit: quota exhausted until 2026-11-02); 2026-10-29 (draft)
+ **Related:** [LLP 3000.002](./3000.002-end-to-end-resource-bounds.research.md#browser-startup-loading), [LLP 3000.013](./3000.013-quarry-states-intent.rfc.md#6-a-paved-client), [LLP 3000.013.000](./3000.013.000-a-browser-write-journal-without-the-device.rfc.md), [LLP 3000.001](./3000.001-durable-replica-and-write-lifecycle.research.md), [LLP 3000.001.000](./3000.001.000-device-engine-handshake.rfc.md), [LLP 3000.023](./3000.023-answers-stay-on-screen.rfc.md), [LLP 3000.028](./3000.028-one-query-online-or-offline.rfc.md), [LLP 3000.038.000](./3000.038.000-durable-offline-media-intents.rfc.md)
+ 
+ ## 1. Proposal
+@@ -154,6 +154,13 @@ The local-status API distinguishes an executable engine from an acquired
+ replica; write ownership follows §7.2. Compilation alone is not full offline
+ readiness. These observations work in both startup modes.
+ 
++Asset hooks keep a retryable opening `E_STORE` in loading and subscribe to
++local status as well as link changes. Executable/acquired notifications retry
++only that unresolved opening read; a permanent opening failure surfaces its
++typed refusal. Successful handles and all other asset outcomes retain their
++existing lifetime and retry rules. Kept upload observations likewise refresh
++when local storage becomes executable; no user action is automatically replayed.
++
+ Callers needing `app.ready` as the old local-opening barrier explicitly select
+ `startup: "awaited"`. Both modes inspect and recover existing journal custody;
+ only the engine-opening barrier differs. An awaited compatible opening with an
+diff --git a/snapback4/packages/snapback4/reference/CHANGELOG.md b/snapback4/packages/snapback4/reference/CHANGELOG.md
+index c31a26c903..229d874804 100644
+--- a/snapback4/packages/snapback4/reference/CHANGELOG.md
++++ b/snapback4/packages/snapback4/reference/CHANGELOG.md
+@@ -11,6 +11,7 @@
+ 
+ ### Guide changes
+ 
++- Progressive web asset hooks keep opening refusals in loading and recover when the local device becomes executable; permanent opening failures remain visible. Restored upload cards refresh on local readiness. Asset ownership, one-view consumption and revocation rules are unchanged.
+ - New Expo starters pin patched glob 14.0.2 and minimatch 11.0.1 for the Expo 57 CLI/configuration/fingerprint toolchain. Development dependencies remain audited with no new exceptions; existing apps can adopt these two npm overrides and reinstall.
+ 
+ ## 0.4.50
+diff --git a/snapback4/packages/snapback4/src/react.tsx b/snapback4/packages/snapback4/src/react.tsx
+index 6e042f504d..0a6777dcc0 100644
+--- a/snapback4/packages/snapback4/src/react.tsx
++++ b/snapback4/packages/snapback4/src/react.tsx
+@@ -645,7 +645,8 @@ export function useAsset(id: string | null | undefined): AssetState {
+   useEffect(() => {
+     const { client, signedOut, id } = owner;
+     if (!id || signedOut) return;
+-    let live = true, busy = false, recoveryRequested = false;
++    let live = true, busy = false, recoveryRequested = false, openingRefused = false;
++    const local = localStatus(client);
+     let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+     let stage: AssetStage = "scheduled", since = owner.since;
+@@ -679,6 +680,8 @@ export function useAsset(id: string | null | undefined): AssetState {
+       if (!live || busy || client.link() === "signed-out") return;
+       clearTimeout(recoveryTimer); recoveryTimer = undefined;
+       busy = true;
++      const before = local.getSnapshot();
++      const wasOpening = before.state !== "unavailable" && !before.executable;
+       since = Date.now(); progress("client");
+       try {
+         const result = await readAsset(client, id, progress);
+@@ -687,7 +690,14 @@ export function useAsset(id: string | null | undefined): AssetState {
+           if ("url" in result) result.revoke();
+           return;
+         }
+-        publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
++        const status = local.getSnapshot();
++        // @ref LLP 3000.002.000#4 — opening is loading; engine readiness retries without consuming another asset view.
++        openingRefused = "denied" in result && result.denied.code === "E_STORE" && result.denied.retryable === true
++          && (wasOpening || status.state !== "unavailable" && !status.executable);
++        if (openingRefused) {
++          if (status.state === "unavailable") { openingRefused = false; read = { denied: status.why }; publish({ status: "denied", why: status.why }); }
++          else { publishWaiting(); if (status.executable || status.acquired) recoveryRequested = true; }
++        } else publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
+           : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
+       } catch (error) {
+         read = null;
+@@ -701,6 +711,12 @@ export function useAsset(id: string | null | undefined): AssetState {
+     const recover = () => {
+       if (!live) return;
+       if (busy) { recoveryRequested = true; return; }
++      if (openingRefused) {
++        const status = local.getSnapshot();
++        if (status.state === "unavailable") { openingRefused = false; read = { denied: status.why }; publish({ status: "denied", why: status.why }); }
++        else if (status.executable || status.acquired) void load();
++        return;
++      }
+       if (read && "denied" in read && assetError(read.denied) && read.denied.retryable === true) {
+         if (Date.now() >= assetRetryAt(read.denied)) load();
+         else if (recoveryTimer === undefined) recoveryTimer = setTimeout(() => {
+@@ -710,6 +726,7 @@ export function useAsset(id: string | null | undefined): AssetState {
+     };
+     let link = client.link();
+     const unsubscribe = client.onLink(next => { const before = link; link = next; if (next === "online" && before !== "online") recover(); });
++    const stopLocal = local.subscribe(recover);
+     const visible = () => { if (globalThis.document?.visibilityState === "visible") recover(); };
+     globalThis.addEventListener?.("focus", recover);
+     globalThis.addEventListener?.("online", recover);
+@@ -721,6 +738,7 @@ export function useAsset(id: string | null | undefined): AssetState {
+       clearTimeout(recoveryTimer);
+       clearTimeout(diagnosticTimer);
+       unsubscribe();
++      stopLocal();
+       globalThis.removeEventListener?.("focus", recover);
+       globalThis.removeEventListener?.("online", recover);
+       globalThis.document?.removeEventListener?.("visibilitychange", visible);
+@@ -798,8 +816,9 @@ export function useUpload<A, R, K extends Extract<keyof A, string>>(op: Mutation
+     let alive = true, version = 0;
+     const refresh = () => { const captured = ++version; if (!id) { setState(undefined); return; }
+       void uploads.uploadIntent(id).then(next => { if (alive && captured === version) setState(next); }).catch(() => {}); };
+-    const stop = uploads.onUploads(refresh); refresh();
+-    return () => { alive = false; stop(); };
++    // @ref LLP 3000.002.000#4 — a kept upload's first device read can precede executable local storage.
++    const stop = uploads.onUploads(refresh), stopLocal = localStatus(client).subscribe(refresh); refresh();
++    return () => { alive = false; stop(); stopLocal(); };
+   }, [uploads, id, available]);
+   const uploadAndPlace = useCallback(async (args: Omit<A, K>, bytes: Blob | ArrayBuffer | Uint8Array, options?: Omit<import("./uploads.ts").UploadAndPlaceOptions<K>, "argument">) => {
+     const next:import("./uploads.ts").UploadIntent = available ? await uploads.uploadAndPlace(op, args, bytes, { ...options, argument }) :

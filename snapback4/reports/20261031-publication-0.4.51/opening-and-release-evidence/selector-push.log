@@ -1,0 +1,11 @@
+Current branch sb4-pub051-selector-fix is up to date.
+[snapback-drift] WARNING: pinned Node 24.18.0 is unavailable; using ambient v24.13.1
+[visibility-governance] ALLOWED: 1 governed ref update(s); 0 exempt
+[snapback-drift] 23026d54a54a: 3 committed path(s) across 1 ref update(s) selected 2 gate(s): path-migration-stragglers, workspace-graph
+[snapback-drift] DEFERRED BY DEFAULT: 3 origin/main committed path(s) selected 2 origin/main drift-prone gate(s); no gate commands ran: path-migration-stragglers, workspace-graph
+[snapback-drift] scheduled authority: node scripts/drift-prone-gates.mjs backstop; strict opt-in: SNAPBACK_DRIFT_GATES_STRICT=1 git push ...
+[snapback-drift] ALLOWED: origin/main frozen-record checks deferred to the scheduled backstop (66 ms)
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/expo/snapback.git        
+To https://github.com/ccheever/snapback.git
+   7821c3e9f7..23026d54a5  HEAD -> main
