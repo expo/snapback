@@ -156,7 +156,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       ...(reason ? { state: "held" as const, reason } : { state: intent.dispatched ? "sent" as const : "queued" as const }) };
   });
   const settle = async (write: Terminal) => {
-    await change(journal => {
+    const persisted = await change(journal => {
       const intent = journal.pending.find(intent => intent.id === write.id);
       if (!intent) return false;
       presentation.sync(journalEntries(journal), journal.receipts);
@@ -167,11 +167,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
-    settlement?.("persisted", receiptOf(write));
+    if (persisted) settlement?.("persisted", receiptOf(write));
     presentation.release(write.id);
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
-    if (unpersisted.delete(write.id)) ids.finish(write.id);
+    if (unpersisted.delete(write.id) && persisted) ids.finish(write.id);
     else notify(write);
   };
   const stop = raw.onWrite(write => {
@@ -181,18 +181,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (recoveredIntents.delete(write.id)) { notify(write); return; }
       // Progressive transport has already executed its wrapper decision before
       // the raw client emits. Standalone online custody has this single actor.
-      if (progressive) { if (!storeRefusal) void settle(write).catch(error => retain(write, error)); return; }
+      if (progressive) { void settle(write).catch(error => retain(write, error)); return; }
       const identity = dispatchIdentity(raw);
       const facts = extract(write, { kind: "response", source: "raw-onWrite", id: write.id,
         op: undefined, footprintKnown: false, restoreConfirmed: false }, {
-        closed: !active, sessionDead: raw.viewer() !== viewer, credentialRevision: 0, incarnation: 0,
+        closed: !active, sessionDead: false, credentialRevision: 0, incarnation: 0,
         storeIdentity: identity, onlineStore: identity, generation: undefined, onlineHead: 0, onlineGeneration: undefined,
         dispatchWatermark: 0, dispatchSendRevision: 0, dispatchStore: identity, dispatchIncarnation: 0,
         requestRevision: 0, requestStore: undefined,
       });
       const decision = decideRefusal(facts);
       if (decision.dispatcher !== "keep") void refuseStore(facts.refusal as unknown as Refusal).catch(report);
-      else if (!storeRefusal) void settle(write).catch(error => retain(write, error));
+      else void settle(write).catch(error => retain(write, error));
     }
   });
   // Subscribe across the opening read, when pause's journal subscription does

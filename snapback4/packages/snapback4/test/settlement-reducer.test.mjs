@@ -277,3 +277,12 @@ test('S2c 8: step carries the arrival refusal decision even with contradictory r
   });
   assert.equal(result.effects.filter(effect => effect.type === 'deliverOutcome').length, 1);
 });
+
+test('S3a 0.5: overlapping own responses 22 then 21 keep the newer cut and preservation', () => {
+  const newer = context(pin, { ...body, seq: 22, preserved: [] }), older = context();
+  const first = step(initialState(), { type: 'response', certificate: newer.certificate }, newer);
+  const second = step(first.state, { type: 'response', certificate: older.certificate }, older);
+  assert.equal(second.state.certificate, newer.certificate);
+  const ended = step(second.state, { type: 'observed', receipt }, older);
+  assert.deepEqual(publications(ended.effects)[0].publication, { invalidate: true, cut: 22, preserved: [], footprint: 'qualified' });
+});

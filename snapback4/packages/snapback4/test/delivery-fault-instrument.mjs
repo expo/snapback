@@ -795,3 +795,13 @@ export function awaitBoundary() {
 // site or recipe changes: 215; local/progressive/app-online/app-journal await
 // counts stay 228/26/40/3. Regenerate the complete expression seal; S2c witnesses
 // cover retries/errors, malformed replies, replay, metadata and projection.
+
+// Lane S3a: tracked-only receipt reduction, retained-snapshot eviction pins,
+// arrival read acquisition, wake-only foreign publication, store-bound capture,
+// and raw settlement execution add no await. The reducer's response ordering
+// remains pure. app-online emits persisted only after an actual pending exit;
+// a no-op failed-save retry still reports observed. Existing inline executor
+// bodies change the complete expression seal, not delivery I/O or recipes.
+// local/progressive-writes/app-online/app-journal stay at 228/26/40/3 awaits;
+// all 215 classified sites/recipes remain. S3a, rounds 14/16 and receipt tests
+// cover these paths; regenerate the complete seal.

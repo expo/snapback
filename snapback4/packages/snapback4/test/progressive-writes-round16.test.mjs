@@ -262,7 +262,7 @@ regression(3, 'a repaired paused dispatcher refuses its opening pending id until
   assert.deepEqual(f.requests, [id]);
 });
 
-regression(8, 'a qualified own receipt schedules intersecting watches once at settlement', async t => {
+regression(8, 'a qualified own receipt parks its arrival read and publishes one settlement cut', async t => {
   const schedules = [], cuts = []; let progressive;
   const install = ProgressiveWrites.prototype.install;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
@@ -275,9 +275,10 @@ regression(8, 'a qualified own receipt schedules intersecting watches once at se
   await until(() => 'data' in watch.getSnapshot());
   const id = mintId(), writing = f.app.mutate(mutation, {}, { id, waitSeconds: 5 }); await f.posted.promise;
   await until(() => !progressive.uncertain && progressive.current().some(write => write.id === id));
-  schedules.length = 0; cuts.length = 0;
+  schedules.length = 0; cuts.length = 0; const reads = f.reads();
   f.release.resolve(); assert.equal((await writing).state, 'sent');
   await until(() => completed(progressive, id) && !progressive.uncertain);
-  assert.deepEqual(schedules, [{ op: 'read', cut: 21, preserved: [] }], 'ordinary certified settlement must not duplicate its live invalidation');
+  assert.deepEqual(schedules, [{ op: 'read', cut: undefined, preserved: [] }, { op: 'read', cut: 21, preserved: [] }], 'arrival acquires a read; pending exit supplies the only publishing cut');
+  assert.equal(f.reads(), reads + 1, 'pending arrival and settlement coalesce into one replacement fetch');
   assert.equal(cuts.length, 1);
 });

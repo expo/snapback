@@ -63,6 +63,7 @@ export class ProgressiveWrites {
   private candidate = false;
   private admissionDenied?: Refusal;
   private readonly states = new Map<string, State>();
+  private retainedReceipts = new Set<string>();
   private observation: Observation = unknownObservation;
   private changed: Change = () => {};
   private reduce(id: string, event: Event, facts = this.observation(undefined, id, this.states.get(id)?.op, this.states.get(id)?.storeId)): void {
@@ -98,9 +99,10 @@ export class ProgressiveWrites {
     let history = [...this.states.values()].filter(state => state.phase === "settled").length;
     for (const id of this.states.keys()) {
       if (history <= WRITE_HISTORY_LIMIT) break;
-      // The insertion itself is not an eviction candidate. Every other pin
-      // (pending, unpublished, outstanding) belongs to the reducer's row.
-      if (id !== inserted) { this.reduce(id, { type: "evicted" }); if (!this.states.has(id)) history--; }
+      // A retained receipt must keep its completed state: journal compaction
+      // evicts unknown outcomes first, independently of state insertion order.
+      // Pending/unpublished/outstanding pins still belong to the reducer's row.
+      if (id !== inserted && !this.retainedReceipts.has(id)) { this.reduce(id, { type: "evicted" }); if (!this.states.has(id)) history--; }
     }
   }
   receipt(id: string, facts: Facts): void {
@@ -303,6 +305,7 @@ export class ProgressiveWrites {
     try {
       opened = await onlineCustody(raw, this.url, this.plan.store, report, false,
         this.plan.authority, true, true, reportFailure, (kind, write) => {
+          if (!this.states.has(write.id)) return;
           const prior = this.states.get(write.id), facts = observation(write, write.id, prior?.op, prior?.storeId);
           this.reduce(write.id, { type: kind, receipt: facts.outcome!, ...(facts.certificate ? { certificate: facts.certificate } : {}) }, facts);
           this.trim(write.id);
@@ -332,8 +335,9 @@ export class ProgressiveWrites {
     for (const intent of this.initial?.pending ?? []) this.reduce(intent.id,
       { type: "admitted", op: intent.op, footprintKnown: observation(undefined, intent.id, intent.op).footprintKnown, initial: true },
       observation(undefined, intent.id, intent.op, intent.storeId ?? undefined));
-    const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[]) => {
+    const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], complete = false) => {
       this.snapshot = entries;
+      if (complete) this.retainedReceipts = new Set(receipts.map(write => write.id));
       for (const entry of unique([...entries, ...custody.captures()])) {
         const facts = observation(undefined, entry.id, entry.op, entry.storeId ?? undefined);
         this.reduce(entry.id, { type: "admitted", op: entry.op, footprintKnown: facts.footprintKnown }, facts);
@@ -341,11 +345,12 @@ export class ProgressiveWrites {
       for (const write of receipts) {
         learned.set(write.id, write);
         if (learned.size > WRITE_HISTORY_LIMIT) learned.delete(learned.keys().next().value!);
+        if (!this.states.has(write.id)) continue;
         const prior = this.states.get(write.id), facts = observation(write, write.id, prior?.op, prior?.storeId);
         if (facts.outcome) this.reduce(write.id, { type: "observed", receipt: facts.outcome,
           ...(facts.certificate ? { certificate: facts.certificate } : {}) }, facts);
-        this.trim(write.id);
       }
+      if (complete) this.trim();
     };
     let refreshing: Promise<void> | undefined, dirty = false, active = true, retryAfter = 0, retryDelay = 100, capturePending = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -377,7 +382,7 @@ export class ProgressiveWrites {
           const snapshot = await custody.inspect();
           captures = await custody.captureState();
           if (!active) return;
-          observe(unique([...snapshot.pending, ...captures.peers]), snapshot.receipts);
+          observe(unique([...snapshot.pending, ...captures.peers]), snapshot.receipts, true);
           capturePending = captures.peers.length > 0 || custody.captures().length > 0;
           this.snapshotValid = !dirty && !captures.unsettled;
           if (this.snapshotValid) failing = false;

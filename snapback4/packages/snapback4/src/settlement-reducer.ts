@@ -102,7 +102,12 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       arrive(event.certificate);
       // Peer completion owns settlement, but never swallows live revocation.
       if (state.phase === "settled") break;
-      state.certificate = event.certificate; state.outcome = event.certificate.outcome;
+      // Overlapping sends can arrive out of order. Equal-sequence updates may
+      // refine preservation, but older responses cannot lower pending evidence.
+      if (!state.certificate || event.certificate.outcome.state === "sent"
+        && (state.certificate.outcome.state !== "sent" || event.certificate.outcome.seq >= state.certificate.outcome.seq)) {
+        state.certificate = event.certificate; state.outcome = event.certificate.outcome;
+      }
       state.op ??= event.certificate.op; state.storeId ??= event.certificate.storeId;
       state.phase = "responded";
       deliver(); effects.push({ type: "retain" });

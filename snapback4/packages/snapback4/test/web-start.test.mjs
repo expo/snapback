@@ -827,7 +827,8 @@ window.pendingScreen=()=>{
   await page.reload();response.resolve();await page.waitForFunction(()=>!!window.openProgressive);
   await page.evaluate(async api=>{await openProgressive(api);window.receipts=[];app.client.onWrite(w=>receipts.push(w));},api);
   await until(()=>page.evaluate(async id=>(await app.client.write(id))?.state==='sent',lostId),'same-id lost-response recovery');
-  assert.equal((await page.evaluate(()=>app.client.query({kind:'query',name:'total'},{}))).data,4);
+  const totalAfterReplay = await page.evaluate(()=>app.client.query({kind:'query',name:'total'},{}));
+  assert.equal(totalAfterReplay.data,4,JSON.stringify(totalAfterReplay));
   assert.equal(posted.filter(w=>w.id===lostId).length,2);
   assert.deepEqual(await page.evaluate(()=>receipts.map(w=>w.id)),[lostId]);
   await page.evaluate(()=>app.close());await page.unroute('**/m/removeMember');await page.unroute('**/*.wasm');

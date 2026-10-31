@@ -987,6 +987,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
     onlineGeneration = nextGeneration;
+    if (id !== onlineStore && id === storeIdentity) onlineHead = 0;
     onlineStore = id; storeIdentity = id; onlineHead = Math.max(onlineHead, head); identityChecked = true;
     // Capture the adopted epoch before the caller's await can yield to another
     // adoption. Authority stays epoch-bound; same-store cuts survive adoption.
@@ -1931,7 +1932,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const request = requestCredentials(); delete request.headers["x-snapback-device"];
     const dispatchIncarnation = incarnation, dispatchStore = storeIdentity ?? onlineStore;
     const requestStore = init?.body ? (JSON.parse(String(init.body)) as { store_id?: string }).store_id : undefined;
-    const capture = { store_id: dispatchStore ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
+    const capture = { store_id: dispatchStore ?? null, watermark: Math.max(dispatchStore === onlineStore ? onlineHead : 0, seq), send_revision: 0 };
     const dispatchId = init?.body ? (JSON.parse(String(init.body)) as { id?: string }).id : undefined;
     const finishReceipt = dispatchId ? journalWrites.dispatch(dispatchId) : () => {};
     try {
@@ -1982,20 +1983,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes)) {
         // Start the non-renewing deadline immediately; pending custody may park
         // the replacement read, but cannot defer arrival's withdrawal bound.
-        watch.reload(watchCanRevoke(watch, effect.preserved)); notify(watch);
+        void scheduleRead(watch, true, undefined, effect.preserved, writes);
       }
       return;
     }
     if (effect?.type === "publish") {
-      const { cut, preserved } = effect.publication;
+      const { cut, preserved, invalidate } = effect.publication;
       const writes = effect.publication.footprint === "qualified" ? footprint : undefined, tables = writes && Object.keys(writes);
       if (cut !== undefined) {
         journalCuts.change(cut, writes);
         answers.notified(tables, cut, !!tables?.length || writes === undefined, writes, true);
-      } else if (effect.publication.invalidate) answers.evidence(undefined, tables, writes, writes, true);
+      } else if (invalidate) answers.evidence(undefined, tables, writes, writes, true);
       pending.notify();
-      for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
-        void scheduleRead(watch, true, cut, preserved, writes);
+      for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes)) {
+        if (cut === undefined && !invalidate) void scheduleRead(watch);
+        else void scheduleRead(watch, true, cut, preserved, writes);
+      }
       return;
     }
     pending.notify();

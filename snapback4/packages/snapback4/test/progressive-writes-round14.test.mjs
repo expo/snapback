@@ -112,7 +112,8 @@ regression('E14 late own empty preservation withdraws a displayed answer after p
   assert.equal(episodeDeadline(watch.getSnapshot()), undefined, 'inspection has unknown preservation');
   const settledCuts = cuts.length;
   f.release.resolve(); await received.promise;
-  assert.equal((unpublishedReceipt(progressive, id) !== undefined), false, 'late own evidence is not retained');
+  assert.equal(progressive.states.get(id)?.phase, 'settled');
+  assert.equal(progressive.states.get(id)?.certificate, undefined, 'late own evidence is not retained after settlement');
   const deadline = episodeDeadline(watch.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'late live revocation starts the withdrawal bound');
   await until(() => !('data' in watch.getSnapshot()));
@@ -209,10 +210,10 @@ async function peerAdmissions(t, count) {
 regression('E14 an own receipt after 257 peer completions retains no orphan evidence', async t => {
   const { WRITE_HISTORY_LIMIT } = await import('../dist/writes.js');
   const { journalChanges } = await import('../dist/journal-changes.js');
-  let progressive; const received = gate();
+  let progressive, lateState; const received = gate();
   const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
-  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); received.resolve(); return completed; });
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); lateState = this.states.get(args[0]); received.resolve(); return completed; });
   const f = await fixture(t, { raw: true });
   const ids = Array.from({ length: WRITE_HISTORY_LIMIT + 1 }, () => mintId());
   const writing = f.app.client.mutate(mutation, {}, { id: ids[0], waitSeconds: 0 });
@@ -229,11 +230,15 @@ regression('E14 an own receipt after 257 peer completions retains no orphan evid
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = []; journal.receipts = journal.receipts.slice(1); journal.receipts.push({ state: 'sent', id: ids.at(-1), seq: 21 + WRITE_HISTORY_LIMIT, replayed: true }); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === 0);
   assert.equal(completed(progressive, ids[0]), true, 'the completed-id ring pins the still-outstanding own response');
-  assert.equal(completed(progressive, ids[1]), false, 'the ring evicts the oldest unpinned completion');
+  assert.equal(completed(progressive, ids[1]), true, 'retained receipt history remains represented alongside the outstanding response');
+  assert.equal(progressive.states.size, WRITE_HISTORY_LIMIT + 1, 'the response pin permits completed-history overflow');
   f.release.resolve(); await received.promise;
-  assert.equal((unpublishedReceipt(progressive, ids[0]) !== undefined), false, 'late own evidence cannot resurrect a settled id after history eviction');
+  assert.equal(lateState?.phase, 'settled');
+  assert.equal(lateState?.certificate, undefined, 'late own evidence cannot resurrect a settled id after history eviction');
   await until(() => outstandingCount(progressive) === 0);
   assert.equal(unpublishedCount(progressive), 0); assert.deepEqual(f.requests, [ids[0]]);
+  assert.equal(progressive.states.size, WRITE_HISTORY_LIMIT);
+  assert.equal(progressive.states.has(ids[0]), false, 'released response outside the retained receipt set is now evictable');
 });
 
 regression('E14 all 257 admitted receipts survive the evidence cap including an updated oldest entry', async t => {
