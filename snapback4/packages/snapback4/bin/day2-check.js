@@ -81,12 +81,12 @@ export async function day2Check(args) {
   const npm = (name, prefix) => runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', name], {
     timeoutMs: options.timeoutMs, processGroup: true,
   });
-  async function serve(script, currentClient, stage = 'probe') {
+  async function serve(script, prefix, stage = 'probe') {
     let active;
     try {
     const receipt = await serveCheck({ deployment: options.deployment, script, upMs: script === 'probe:serve' ? options.upMs : 1,
       // Each client gets its own deadline plus the helper's bounded cleanup.
-      timeoutMs: options.timeoutMs, thenTimeoutMs: options.timeoutMs * (currentClient ? 3 : 1) + 45_000,
+      timeoutMs: options.timeoutMs, thenTimeoutMs: options.timeoutMs + 45_000,
       then: (ready, signal) => active = (async () => {
         const users = ready.users ?? ready.accounts ?? ready.sessions;
         if (typeof ready.backendUrl !== 'string' || !users || typeof users !== 'object' || Array.isArray(users)
@@ -98,22 +98,19 @@ export async function day2Check(args) {
         const path = join(temporary, 'users.json');
         writeFileSync(path, JSON.stringify(users), { mode: 0o600, flag: 'wx' });
         const env = { ...process.env, BACKEND_URL: ready.backendUrl, CALLS_USERS: path };
-        // Match the harness: two v2 callers after the first forward, before
-        // the second rollback measures their rows through the frozen client.
-        for (const prefix of currentClient ? ['v1', null, null] : ['v1']) {
-          signal.throwIfAborted();
-          const result = await runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
-            env, timeoutMs: options.timeoutMs, processGroup: true, secret: true,
-          });
-          report.clientCalls.push({ caller: prefix ? 'v1' : 'v2', stage, exitCode: result.code,
-            calls: clientSummary(result.stdout), stderr: result.logs.stderr });
-          // The exact day-two task records how frozen clients fared, rather than
-          // asserting that tighter intended rules still admit every legacy call.
-          // Observable signals, shell signal-statuses (128+) and timeouts fail;
-          // arbitrary app wrappers remain responsible for truthful process status.
-          if (prefix && Number.isInteger(result.code) && result.code >= 0 && result.code < 128) continue;
-          if (result.code !== 0) throw Object.assign(Error(`${prefix ?? 'v2'} client:calls failed (exit ${result.code}); stderr: ${result.logs.stderr}; inspect authored call assertions`), { code: result.code ?? 1, logs: result.logs });
-        } } finally { rmSync(temporary, { recursive: true, force: true }); }
+        signal.throwIfAborted();
+        const result = await runCommand('npm', [...(prefix ? ['--prefix', prefix] : []), 'run', '--silent', 'client:calls'], {
+          env, timeoutMs: options.timeoutMs, processGroup: true, secret: true,
+        });
+        report.clientCalls.push({ caller: prefix ? 'v1' : 'v2', stage, exitCode: result.code,
+          calls: clientSummary(result.stdout), stderr: result.logs.stderr });
+        // The exact day-two task records how frozen clients fared, rather than
+        // asserting that tighter intended rules still admit every legacy call.
+        // Observable signals, shell signal-statuses (128+) and timeouts fail;
+        // arbitrary app wrappers remain responsible for truthful process status.
+        if (prefix && Number.isInteger(result.code) && result.code >= 0 && result.code < 128) return;
+        if (result.code !== 0) throw Object.assign(Error(`${prefix ?? 'v2'} client:calls failed (exit ${result.code}); stderr: ${result.logs.stderr}; inspect authored call assertions`), { code: result.code ?? 1, logs: result.logs });
+        } finally { rmSync(temporary, { recursive: true, force: true }); }
       })(),
     });
     return { code: receipt.ok ? 0 : receipt.commandCode || 1, receipt: safeReceipt(receipt), stderr: receipt.failures.map(f => `${f.code}: ${f.message}`).join('\n') };
@@ -145,11 +142,19 @@ export async function day2Check(args) {
     for (const direction of ['rollback', 'forward']) {
       if (!await phase(`day2:${direction} ${cycle}/2`, () => npm(`day2:${direction}`))) break;
       const currentClient = direction === 'forward' && cycle === 1;
-      if (!await phase(`prod:serve + ${currentClient ? 'v1/v2' : 'v1'} calls ${cycle}/2`, () => serve('prod:serve', currentClient, `${direction} ${cycle}/2`))) break;
+      // Match the harness: two v2 callers after the first forward, before
+      // the second rollback measures their rows through the frozen client.
+      // A fresh serve process per caller keeps provisioning + repeated logins
+      // from exhausting one in-memory identity window. Keep the same store.
+      for (const [index, prefix] of (currentClient ? ['v1', null, null] : ['v1']).entries()) {
+        const label = prefix ? `v1 calls ${cycle}/2` : `v2 calls ${index}/2`;
+        if (!await phase(`prod:serve + ${label}`, () => serve('prod:serve', prefix, `${direction} ${cycle}/2`))) break;
+      }
+      if (code) break;
     }
     if (code) break;
   }
-  if (!code) await phase('probe:serve + frozen v1 calls', () => serve('probe:serve', false));
+  if (!code) await phase('probe:serve + frozen v1 calls', () => serve('probe:serve', 'v1'));
   report.ok = code === 0; report.frozenV1NonzeroExits = report.clientCalls.filter(c => c.caller === 'v1' && c.exitCode !== 0).length; report.elapsedMs = Date.now() - started;
   const path = join(directory, 'day2-check.json'), temp = `${path}.${randomUUID()}.tmp`;
   try {
@@ -164,7 +169,7 @@ export async function day2Check(args) {
   if (args.includes('--json')) console.log(JSON.stringify(report));
   else if (args.includes('--explain') || args.includes('--verbose')) console.log(JSON.stringify(report, null, 2));
   else {
-    console.log(`day2-check: ${report.ok ? 'passed orchestration' : `FAIL ${report.failed}; exit ${code}`}; ${report.phases.filter(p => p.code === 0).length}/16 phases; ${report.elapsedMs}ms${report.frozenV1NonzeroExits ? `; frozen v1: ${report.frozenV1NonzeroExits} nonzero exits recorded (not assertions)` : ''}`);
+    console.log(`day2-check: ${report.ok ? 'passed orchestration' : `FAIL ${report.failed}; exit ${code}`}; ${report.phases.filter(p => p.code === 0).length}/18 phases; ${report.elapsedMs}ms${report.frozenV1NonzeroExits ? `; frozen v1: ${report.frozenV1NonzeroExits} nonzero exits recorded (not assertions)` : ''}`);
     if (code) console.log(failureOutput.split('\n').filter(line => /Error|E_[A-Z_]+|error TS\d|proof refusal|likely fix:|failed/i.test(line)).slice(0, 6).map(line => line.slice(0, 500)).join('\n') || 'Inspect the failed phase in the private report.');
     console.log(`details: ${path} (read without rerunning); --explain/--json rerun checks with full output`);
   }

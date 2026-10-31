@@ -54,9 +54,9 @@ test('day2 checker runs literal stage/roster recipes, repeat requirements and fr
  await deploy('deploy','snapback',{cwd,env});
  const before=JSON.parse((await cli(['releases','deploy','--json'],{cwd,env})).stdout);
  for(let i=0;i<2;i++){
-  const r=await check(cwd);assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/16\/16 phases/);assert.ok(r.stdout.trim().split('\n').length<=3,r.stdout);
+  const r=await check(cwd);assert.equal(r.code,0,r.stdout+r.stderr);assert.match(r.stdout,/18\/18 phases/);assert.ok(r.stdout.trim().split('\n').length<=3,r.stdout);
   const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
-  assert.equal(report.phases.length,16);assert.equal(report.ok,true);assert.equal(report.failed,null);
+  assert.equal(report.phases.length,18);assert.equal(report.ok,true);assert.equal(report.failed,null);
   assert.equal(statSync(join(cwd,'.snapback4/last/day2-check.json')).mode&511,384);
   assert.ok(!JSON.stringify(report).includes('private-client-output-sentinel'));
   assert.ok(!JSON.stringify(report).includes('"password"'));
@@ -76,13 +76,13 @@ test('day2 checker runs literal stage/roster recipes, repeat requirements and fr
  assert.ok(signalReport.clientCalls.at(-1).exitCode===null||signalReport.clientCalls.at(-1).exitCode>=128);assert.equal(readFileSync(join(cwd,'v1/.snapback4-frozen-run.mjs'),'utf8'),adapter,'never edits frozen adapter');
  const observed=await check(cwd,[],{FAIL_FROZEN:'1'});assert.equal(observed.code,0,observed.stdout+observed.stderr);assert.match(observed.stdout,/5 nonzero exits recorded/);
  const observations=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
- assert.equal(observations.frozenV1Asserted,false);assert.match(observations.frozenV1Boundary,/wrappers may mask nested signals/);assert.equal(observations.frozenV1NonzeroExits,5);assert.equal(observations.phases.length,16);
+ assert.equal(observations.frozenV1Asserted,false);assert.match(observations.frozenV1Boundary,/wrappers may mask nested signals/);assert.equal(observations.frozenV1NonzeroExits,5);assert.equal(observations.phases.length,18);
  assert.equal(observations.clientCalls.length,7);assert.equal(observations.clientCalls.filter(c=>c.caller==='v2'&&c.exitCode===0).length,2);
  assert.deepEqual(observations.clientCalls.find(c=>c.caller==='v1').calls,[{op:'tightened',role:'member',ok:false,expected:'E_RULE',errorCode:'E_RULE'}]);
  assert.ok(!JSON.stringify(observations).includes('private-denial-sentinel'));assert.ok(!JSON.stringify(observations).includes('private-password-sentinel'));assert.ok(!JSON.stringify(observations).includes('private-token-sentinel'));
  const failed=await check(cwd,[],{FAIL_CLIENT:'1'});assert.equal(failed.code,7,failed.stdout+failed.stderr);
  const failure=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
- assert.equal(failure.phases.length,11);assert.equal(failure.phases.at(-1).code,7);
+ assert.equal(failure.phases.length,12);assert.equal(failure.phases.at(-1).code,7);
  assert.equal(failure.phases.at(-1).receipt.lockReleased,true,'cleanup receipt retained on client failure');
  assert.match(failure.phases.at(-1).logs.stderr,/stderr.log$/);
  // Execute the actual shipped temporary scaffold; it is deliberately not a
@@ -129,4 +129,37 @@ test('a timed-out authored proof stops later phases and reaps its descendants',{
  assert.throws(()=>process.kill(pid,0),error=>error.code==='ESRCH');
  const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
  assert.ok(existsSync(join(cwd,report.phases.at(-1).logsDirectory)),'timeout diagnostics remain locatable');
+});
+
+test('each caller gets a fresh identity window while all sessions keep the same store', {skip:process.platform==='win32',timeout:180_000}, async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'snapback'));
+ const schema=readFileSync(join(root,'crates/snapback4-lang/src/guide/staging.md'),'utf8').match(/```quarry\n([\s\S]*?)```/)[1]
+  .replaceAll("enum('admin', 'member')", "enum('admin', 'member', 'editor', 'reader')");
+ writeFileSync(join(cwd,'snapback/schema.q'),schema);
+ assert.equal((await cli(['check'],{cwd,env})).code,0);
+ await deploy('deploy','snapback',{cwd,env});
+ writeFileSync(join(cwd,'snapback/schema.q'),schema.replace('  body: text 1..200\n',"  body: text 1..200\n  label: text <=20 default 'new'\n"));
+ await deploy('deploy','snapback',{cwd,env});
+ const servePath=join(cwd,'scripts/prod-serve.mjs');
+ writeFileSync(servePath,readFileSync(servePath,'utf8').replace('member:2, admin:2','member:2, admin:2, editor:2, reader:2'));
+ writeFileSync(join(cwd,'calls.mjs'),`import assert from 'node:assert/strict';import{readFileSync}from'node:fs';
+ const users=JSON.parse(readFileSync(process.env.CALLS_USERS));assert.equal(Object.keys(users).length,4);
+ for(const account of Object.values(users).flat()){
+  const reply=await fetch(process.env.BACKEND_URL+'/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:account.email,password:account.password})});
+  assert.equal(reply.status,200,'no 429 wait: provisioning and caller fit one real identity window');
+  const {session}=await reply.json();assert.equal(session.principal,account.principal);
+ }
+ const headers={'content-type':'application/json',authorization:'Bearer '+users.member[0].token};
+ const write=await fetch(process.env.BACKEND_URL+'/m/add',{method:'POST',headers,body:JSON.stringify({id:crypto.randomUUID(),args:{body:'persistent caller'}})});
+ assert.equal((await write.json()).state,'sent');
+ `);
+ const result=await check(cwd);assert.equal(result.code,0,result.stdout+result.stderr);
+ const report=JSON.parse(readFileSync(join(cwd,'.snapback4/last/day2-check.json')));
+ assert.deepEqual(report.clientCalls.map(({caller,stage})=>[caller,stage]),[
+  ['v1','rollback 1/2'],['v1','forward 1/2'],['v2','forward 1/2'],['v2','forward 1/2'],['v1','rollback 2/2'],['v1','forward 2/2'],['v1','probe']]);
+ assert.ok(report.clientCalls.every(c=>c.exitCode===0));
+ assert.equal(report.phases.length,18);assert.ok(report.phases.filter(p=>p.receipt).every(p=>p.elapsedMs<60_000),'no phase incurs a 60-second Retry-After wait');
+ assert.ok(report.phases.filter(p=>p.receipt).every(p=>p.receipt.lockReleased));
+ const stored=await cli(['data','notes','--release','deploy','--all','--json'],{cwd,env});
+ assert.equal(stored.code,0);assert.equal(JSON.parse(stored.stdout).rows.length,7,'all caller writes survive serve restarts and release moves');
 });

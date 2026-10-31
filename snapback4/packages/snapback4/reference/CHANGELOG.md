@@ -11,6 +11,8 @@
 
 ### Guide changes
 
+- `day2-check` gives each production client call a fresh serve session on the same store, avoiding a shared identity-rate window across repeated callers. Call order, repeats and shutdown checks remain.
+
 - New Expo starters pin patched glob 14.0.2 and minimatch 11.0.1 for the Expo 57 CLI/configuration/fingerprint toolchain. Development dependencies remain audited with no new exceptions; existing apps can adopt these two npm overrides and reinstall.
 
 ## 0.4.50
