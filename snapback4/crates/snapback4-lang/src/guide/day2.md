@@ -98,7 +98,7 @@ Adapted day2:proof uses a TEMPORARY store, no business assertions; existing dest
 npx snapback4 day2-check --deployment ./deploy
 ```
 
-This runs check once; acceptance, frontend:proof and day2:proof twice each; rollback/forward twice each, with bounded prod:serve and frozen calls after EVERY move (v2 calls twice after first forward); finally bounded probe:serve + frozen calls. It deletes dist before each frontend proof and stale day2-proof.json before each day-two proof. Stage hosts restart per call; probe is observed for 30s; shutdown/store release is checked. Authored/current-client/infrastructure reds stop. Frozen v1 exits/call codes are observations in private .snapback4/last/day2-check.json; ordinary exits do not stop it. Observable signals/timeouts/cleanup fail. Read without rerunning. --explain/--json rerun the drill. Rerun after a repair/relevant edit, not for reassurance. Authored assertions decide coverage.
+This runs check once; acceptance, frontend:proof and day2:proof twice each; rollback/forward twice each, with bounded prod:serve and frozen calls after EVERY move (v2 calls twice after first forward); finally bounded probe:serve + frozen calls. It deletes dist before each frontend proof and stale day2-proof.json before each day-two proof. Stage host per caller; probe is observed for 30s; shutdown/store release is checked. Authored/current-client/infrastructure reds stop. Frozen v1 exits/call codes are observations in private .snapback4/last/day2-check.json; ordinary exits do not stop it. Observable signals/timeouts/cleanup fail. Read without rerunning. --explain/--json rerun the drill. Rerun after a repair/relevant edit, not for reassurance. Authored assertions decide coverage.
 
 ## Frozen callers
 
