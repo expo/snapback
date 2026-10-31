@@ -1,5 +1,6 @@
 //! HTTP identity admission. Password work owns a bounded KDF slot, never
-//! the engine guard. Rate keys use the socket peer, never forwarded headers.
+//! the engine guard. Rate keys use the socket peer; behind a declared
+//! `--trusted-proxy` they use the forwarded client instead (trusted_proxies.rs).
 use crate::serve::{Shared, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
 use sha2::{Digest, Sha256};
@@ -105,10 +106,8 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     let email = payload.get("email").and_then(Json::as_str).unwrap_or("");
     let password = payload.get("password").and_then(Json::as_str).unwrap_or("");
     let password_route = matches!(path, "/auth/login" | "/auth/signup");
-    let peer = request
-        .remote_addr()
-        .map(|a| a.ip().to_string())
-        .unwrap_or_else(|| "unknown".into());
+    // @ref LLP 3000.007#8 — the rate key names the client: the socket peer, or behind a declared proxy the forwarded hop
+    let peer = shared.trusted_proxies.rate_key(&request);
     let rate_route = matches!(path, "/auth/login" | "/auth/signup" | "/auth/guest");
     // @ref LLP 3000.007#8 — dev loopback has no minute counters; KDF slots remain
     let dev_loopback = shared.personas && request.remote_addr().is_some_and(|peer| peer.ip().is_loopback());

@@ -38,6 +38,7 @@ fn a_request_after_engine_poison_still_serves() {
         asset_transfers: AssetTransfers::default(),
         native: Mutex::new(None),
         auth: crate::auth::Admission::default(),
+        trusted_proxies: Default::default(),
         uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: None,
         release_committed: Mutex::new(None),

@@ -22,6 +22,7 @@ mod note_rank;
 mod persona_principals;
 mod assets;
 mod host_limits;
+mod trusted_proxies;
 mod auth;
 mod native;
 mod release_control;
@@ -269,7 +270,10 @@ fn main() -> ExitCode {
             let bind = development_bind(&options)?;
             let (port, inherited) = port_flag::listen("dev", port_flag::parse("dev", options.flags.get("port").map(String::as_str))?, bind, inherited)?;
             let capacity = host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
-            serve::serve(project, port, serve::Mode::Dev { unsafe_dev_doors: options.flags.contains_key("unsafe-dev-doors"), trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
+            if options.flags.contains_key(trusted_proxies::FLAG) {
+                return Err(format!("E_INPUT: --{} applies to serve: dev rate keys lift for loopback peers and its development doors never read forwarded headers", trusted_proxies::FLAG));
+            }
+            serve::serve(project, port, serve::Mode::Dev { unsafe_dev_doors: options.flags.contains_key("unsafe-dev-doors"), trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity, trusted_proxies::TrustedProxies::default())
         }),
         // @ref LLP 3000.007#20.1 — wave 7 (060): resolveBinary() runs the platform binary; web-shell lives in the npm wrapper.
         "day2-check" => {

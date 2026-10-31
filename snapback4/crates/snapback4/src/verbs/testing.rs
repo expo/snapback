@@ -43,6 +43,8 @@ fn case_count(path: &std::path::Path) -> Result<usize, String> {
 pub fn test(options: &Options) -> i32 {
     let project = match proof_source::project(options, "source") { Ok(project) => project, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let sources = match proof_source::sources(&project, options, "source") { Ok(sources) => sources, Err(e) => { eprintln!("test: {e}"); return 2; } };
+    // Before compile: a working-source compile rewrites snapback/generated/ and its stamp.
+    if !options.flags.contains_key("source") { if let Some(note) = project.generated_version_note("test", true) { eprintln!("{note}"); } }
     let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
     let bound=snapback4_lang::security::derived::augmented(&sources,&bound);
     let mut defaults = options.clone();

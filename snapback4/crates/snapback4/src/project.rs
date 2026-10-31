@@ -306,6 +306,27 @@ pub fn persona_principal(name: &str) -> String {
     format!("dev:{name}")
 }
 
-/// The lines `.gitignore` needs for a project.
+impl Project {
+    /// The version that wrote `snapback/generated/`, when the stamp is present.
+    pub fn generated_version(&self) -> Option<String> {
+        let text = std::fs::read_to_string(self.generated_dir().join("package.json")).ok()?;
+        let json: serde_json::Value = serde_json::from_str(&text).ok()?;
+        json.get("snapback4Version")?.as_str().map(str::to_owned)
+    }
+
+    /// One line when another snapback4 version wrote the generated files: a
+    /// type error against the installed `snapback4` package then means
+    /// "regenerate", not a schema problem. `regenerates` says whether the
+    /// calling verb rewrites them itself.
+    pub fn generated_version_note(&self, verb: &str, regenerates: bool) -> Option<String> {
+        let written = self.generated_version()?;
+        let current = env!("CARGO_PKG_VERSION");
+        if written == current { return None; }
+        let action = if regenerates { "regenerating them now" } else { "run snapback4 check to regenerate them" };
+        Some(format!("{verb}: snapback/generated/ was written by snapback4 {written}; this is {current}: {action}"))
+    }
+}
+
+/// The ESM marker and version stamp of `snapback/generated/package.json`.
 pub const GENERATED_PACKAGE: &str = concat!("{\"type\":\"module\",\"snapback4Version\":\"", env!("CARGO_PKG_VERSION"), "\"}\n");
 pub const GITIGNORE: &str = "# snapback4\n.snapback4/\n";

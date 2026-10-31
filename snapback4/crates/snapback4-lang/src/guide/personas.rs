@@ -74,14 +74,14 @@ development only: password-only apps close fixture, clock and persona doors by d
 `--unsafe-dev-doors` explicitly enables the unauthenticated local tools. Other development schemas keep
 the declared cast and `POST /seed` system door. For real-user staging run `guide staging`; deploy with `snapback4 deploy` + `snapback4 serve`. A deployed server (`snapback4 serve`) refuses personas and
 seed, defaults to `127.0.0.1`, and requires `--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS
-terminator in front, preserve `Authorization` and `Origin`, strip persona headers, and rate-limit there by the
-actual client address; the binary trusts only its socket peer.
+terminator in front, preserve `Authorization` and `Origin`, strip persona headers, and pass `--trusted-proxy <ip|cidr>`
+so the sign-in counter keys the `X-Forwarded-For` client, not the proxy; identity trusts only bearer tokens.
 
 `GET /auth/config` is the small public advertisement for guest/password support. Catalog, schema, generated API,
 native module and changes require a live principal. Signup requires at least 8 characters (Unicode scalar
 values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024 UTF-8 bytes. Password hashing runs in bounded
-concurrent slots outside the engine mutex. Under `serve`, guest, login and signup share 30 attempts per socket
-peer per minute, while login and signup also share 10 per normalized email per minute (E_RATE_LIMIT). Under
+concurrent slots outside the engine mutex. Under `serve`, guest, login and signup share 30 attempts per client
+address per minute (the socket peer, or behind `--trusted-proxy` the forwarded client), while login and signup also share 10 per normalized email per minute (E_RATE_LIMIT). Under
 `dev`, loopback peers have neither minute counter; their Argon2 slots equal the host's available cores, capped
 at 16 and never below 2. Startup prints the slot count and the lifted counters once. `serve` and non-loopback
 peers keep two slots and the minute counters; full slots refuse with retryable E_RATE_LIMIT. Connection/worker

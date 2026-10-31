@@ -7,6 +7,7 @@ pub fn serve(
     bind: &str,
     inherited: Option<std::net::TcpListener>,
     capacity: crate::host_limits::Capacity,
+    trusted_proxies: crate::trusted_proxies::TrustedProxies,
 ) -> Result<(), String> {
     trace::install_parser_clock();
     let dev = matches!(mode, Mode::Dev { .. });
@@ -15,7 +16,9 @@ pub fn serve(
     crate::host_limits::initialize_with(|text|startup.line(text));
     let capacity = capacity.fit()?;
     crate::host_limits::install_with(capacity, |text|startup.line(text));
+    if let Some(line) = trusted_proxies.startup_line() { startup_note!("{line}"); }
     let mut source_stamp = project.sources_stamp();
+    if dev { if let Some(note) = project.generated_version_note("dev", true) { startup_note!("{note}"); } }
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
         let verbose = !matches!(mode, Mode::Dev { verbose: false, .. });
@@ -269,6 +272,7 @@ pub fn serve(
         asset_transfers: AssetTransfers::default(),
         native: Mutex::new(installed),
         auth: crate::auth::Admission::default(),
+        trusted_proxies,
         uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(),
         owner: host_owner.clone(),

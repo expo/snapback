@@ -18,11 +18,40 @@ especially tailored for **Expo and React**. Idle apps cost almost nothing; the
 same system is built to carry a realistically popular one. MIT licensed: host
 it anywhere, including for other people.
 
-- **Build an app on Snapback** → [`guide/index.md`](./guide/index.md) (start
+## Which Snapback
+
+This repository holds several generations side by side. **Snapback 4 is the
+current product**: the npm package [`snapback4`](https://www.npmjs.com/package/snapback4)
+(Quarry schema language, one Rust engine, SQLite by default, web/Expo/Exact
+clients over a replicated device). New apps start there:
+
+```sh
+npm i snapback4
+npx snapback4 guide start      # then: npx snapback4 guide workflow
+```
+
+- **Build an app on Snapback 4** → [`snapback4/README.md`](./snapback4/README.md);
+  the guide is in the package: `npx snapback4 guide <card>`.
+- **Work on Snapback 4 itself** → [`snapback4/AGENTS.md`](./snapback4/AGENTS.md)
+  and [LLP 3000](./llp/3000-snapback4.explainer.md).
+
+Everything below this section describes **Snapback 1** (`@expo/snapback-cli`,
+JavaScript schema/functions, the Ibex/Hermes runtime), which remains published
+and documented but is not where new work lands. Snapback 2 and 3 live under
+[`snapback2/`](./snapback2/README.md) and [`snapback3/`](./snapback3/README.md)
+as shelved candidates; Snapback 5's shelved proposals are under
+[`snapback5/`](./snapback5/README.md). [`AGENTS.md`](./AGENTS.md) routes
+engineers to each fence.
+
+---
+
+# Snapback 1
+
+- **Build an app on Snapback 1** → [`guide/index.md`](./guide/index.md) (start
   with a [start packet](./guide/start/index.md) or
   [Snapback in one screen](./guide/start/mental-model.md))
 - **Understand the design** → [`llp/0000-snapback.explainer.md`](./llp/0000-snapback.explainer.md)
-- **Work on Snapback itself** → [`AGENTS.md`](./AGENTS.md) and
+- **Work on Snapback 1 itself** → [`AGENTS.md`](./AGENTS.md) and
   [Repository layout](#repository-layout) below
 
 ---
@@ -48,9 +77,10 @@ hidden — see [What's done and what isn't](#whats-done-and-what-isnt).
 
 ---
 
-## Quick start
+## Quick start (Snapback 1)
 
-Application authors need no repository checkout and no submodules — just the
+For Snapback 4, see [Which Snapback](#which-snapback) above. Snapback 1
+application authors need no repository checkout and no submodules — just the
 published CLI:
 
 ```sh

@@ -159,6 +159,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "web-port") => " — frontend port, overriding the next-port default",
             (_, "bind") => " — listening IP address (default 127.0.0.1)",
             (_, "i-understand-cleartext") => " — explicitly allow a non-loopback HTTP listener",
+            ("serve", "trusted-proxy") => " — proxy IPs/CIDRs whose X-Forwarded-For names the client for sign-in rate limits (or SNAPBACK4_TRUSTED_PROXY)",
             (_, "worker") => " — production worker entry path",
             (_, "long-waits") => " — held viewer request capacity (default 1024, max 4096)",
             (_, "long-waits-per-principal") => " — held viewer requests per principal (default 16)",

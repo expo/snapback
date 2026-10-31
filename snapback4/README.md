@@ -45,9 +45,13 @@ the public **https** URL. Preserve `Authorization` and `Origin`, strip
 `x-snapback-persona`, and restrict direct access to the backend socket.
 The backend always uses bearer tokens in `serve`; a proxy's loopback peer
 address never grants developer identity. It does not trust forwarded IP or
-scheme headers for identity or transport protection. A nonloopback literal
-`--bind` needs `--i-understand-cleartext` and prints a warning; use it only
-for a protected private hop to a TLS terminator.
+scheme headers for identity or transport protection. The one thing a
+forwarded header may decide is the per-client sign-in rate key: pass
+`serve --trusted-proxy 127.0.0.1` (IPs or CIDRs; or `SNAPBACK4_TRUSTED_PROXY`)
+and connections from those proxies are keyed by the `X-Forwarded-For` client
+instead of sharing the proxy's single 30-per-minute budget. A nonloopback
+literal `--bind` needs `--i-understand-cleartext` and prints a warning; use
+it only for a protected private hop to a TLS terminator.
 
 The catalog (`/`, `/schema`, `/api.ts`) and `/changes` require a live bearer
 session, or a local development persona. Public `GET /auth/config` returns

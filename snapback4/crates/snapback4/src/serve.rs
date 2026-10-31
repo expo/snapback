@@ -127,6 +127,8 @@ pub struct Shared {
     /// `/schema` (LLP 3000.005 §9); none when the schema declares nothing native.
     pub native: Mutex<Option<crate::native::Installed>>,
     pub auth: crate::auth::Admission,
+    /// `--trusted-proxy`: whose `X-Forwarded-For` names the client for identity rate keys.
+    pub trusted_proxies: crate::trusted_proxies::TrustedProxies,
     pub uploads: AtomicUsize,
     route_verification: routes::Verification,
     // Drop after every SQLite connection; worker/request Arcs keep it alive.

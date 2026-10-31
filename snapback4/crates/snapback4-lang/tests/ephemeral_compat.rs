@@ -347,7 +347,8 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     assert!(!packet.contains("*/"));
     assert_eq!(packet.matches("\n## ").count(), bound.programs.iter().filter(|p| p.program.kind != snapback4_core::ProgramKind::Job).count());
     let types = types.replacen(&format!("{start}{packet}{end}\n\n"), "", 1)
-        .replacen("// Client usage: search for `Client usage` below, or run snapback4 guide api generated.\n", "", 1);
+        .replacen("// Client usage: search for `Client usage` below, or run snapback4 guide api generated.\n", "", 1)
+        .replacen(snapback4_lang::emit::VERSION_STAMP_LINE, "", 1);
     let types = types.as_str();
     use snapback4_core::ProgramKind;
     const IMPORTS: &str = include_str!("../src/emit/availability.ts");

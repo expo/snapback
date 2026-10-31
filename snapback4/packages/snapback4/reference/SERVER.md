@@ -1159,6 +1159,18 @@ one pool worker for its duration. Three bounds size them:
 
 A flag wins over its variable. The HTTP connection cap is derived: 128 for
 everything else plus `--long-waits` plus `--claim-waits` (1,184 by default).
+
+Identity admission (`/auth/guest`, `/auth/login`, `/auth/signup`) also shares
+30 attempts per client address per minute (plus 10 per normalized email).
+The client address is the socket peer, so behind a TLS proxy every client
+would share the proxy's one budget: `serve --trusted-proxy 127.0.0.1` (IPs
+or CIDRs, comma-separated; or `SNAPBACK4_TRUSTED_PROXY`) keys a connection
+from a listed proxy by the rightmost `X-Forwarded-For` hop that is not itself
+listed. An untrusted peer's header is ignored, a missing or unparseable header
+keys the peer, and nothing but the rate key reads it — personas, dev doors and
+token minting keep the socket peer. `dev` refuses the flag. The startup facts
+(`.snapback4/last/serve.txt`, or stderr under `--explain`) carry one line,
+`proxies   trusted for identity rate keys (X-Forwarded-For): ...`.
 Startup prints both on one line, for example
 `snapback4 host: long waits: 1024 viewer (≤16 change polls per principal),
 32 worker claim; HTTP connections=1184; descriptors needed ≈5248`. Against

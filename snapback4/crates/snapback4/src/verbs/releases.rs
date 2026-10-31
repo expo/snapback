@@ -874,6 +874,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {
         std::env::var(name).ok()
     })?;
+    let trusted_proxies = crate::trusted_proxies::TrustedProxies::from_options(&options.flags, |name| std::env::var(name).ok())?;
     let dir = existing_deployment(&directory(options)?)?;
     let _early_output=crate::serve_output::Early;
     crate::host_limits::initialize_with(crate::serve_output::early);
@@ -911,6 +912,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         &bind.to_string(),
         listener,
         capacity,
+        trusted_proxies,
     )
 }
 

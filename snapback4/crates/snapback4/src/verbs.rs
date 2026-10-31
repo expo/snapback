@@ -320,6 +320,7 @@ pub fn check(options: &Options) -> i32 {
     let started = Instant::now();
     package_versions::warn(&project);
     upgrade_history::report(&project, options.json);
+    if let Some(note) = project.generated_version_note("check", true) { eprintln!("{note}"); }
     if options.flags.contains_key("fix") {
         if let Err(code) = fix::checked(fix::compile(&project)) { return code; }
     }

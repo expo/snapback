@@ -273,6 +273,7 @@ pub(super) fn serve(options: &Options, config: StoreConfig) -> Result<(), String
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {
         std::env::var(name).ok()
     })?;
+    let trusted_proxies = crate::trusted_proxies::TrustedProxies::from_options(&options.flags, |name| std::env::var(name).ok())?;
     // Ownership, source and state validation all precede binding the listener.
     let (port, listener) = crate::port_flag::listen("serve", requested_port, bind, None)?;
     crate::serve::serve(
@@ -285,6 +286,7 @@ pub(super) fn serve(options: &Options, config: StoreConfig) -> Result<(), String
         &bind.to_string(),
         listener,
         capacity,
+        trusted_proxies,
     )
 }
 
