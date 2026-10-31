@@ -505,17 +505,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     return recovering;
   }
   if (autoStart) start();
-  function refuseStore(why: Refusal): Promise<void> {
+  function refuseStore(why: Refusal, adoptedStore?: string): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
     presentation.clear();
     identification.close(identityRefusal(false));
-    // Fence admissions synchronously, then retire the entire durable queue
-    // before createApp can reopen. These intents must never cross stores.
+    // @ref LLP 3000.002.000#6 — dispatcher recovery preserves adopted-store intent.
+    // Fence this dispatcher synchronously. Recovery can preserve intents that
+    // already belong to the adopted store; only foreign intents must retire.
     retirement = change(journal => {
-      const failed = journal.pending.map(intent => ({ state: "failed", id: intent.id,
+      const failed = journal.pending.filter(intent => adoptedStore === undefined || intent.storeId !== adoptedStore).map(intent => ({ state: "failed", id: intent.id,
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
-      journal.pending = [];
+      journal.pending = journal.pending.filter(intent => adoptedStore !== undefined && intent.storeId === adoptedStore);
       journal.receipts.push(...failed);
       keepReceipts(journal, new Set(failed.map(write => write.id)), true);
       return failed;

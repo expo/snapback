@@ -1941,44 +1941,55 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         && dispatchIncarnation === incarnation && dispatchStore === (storeIdentity ?? onlineStore);
       // Revocation belongs to the credential, even across a store/schema adoption.
       await refusedSession(denied, request.revision);
+      let storeFenced = false;
       if (current()) {
         if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)
           && (denied.code === "E_STORE_REPLACED" ? typeof json.store_id !== "string" || json.store_id !== dispatchStore : requestStore === undefined || requestStore === dispatchStore)) {
+          storeFenced = true;
           if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
           else {
             partitionDenied = denied; observeIncarnation(typeof json.store_id === "string" ? json.store_id : storeIdentity, true);
             answers.refuse(watches.values(), denied); confirmedJournalRefusal = denied; journalWrites.refuseStore(denied);
             options.onStoreChange?.(denied);
           }
-        } else if (denied?.code === "E_STORE_REPLACED" && !denied.retryable) {
-          // Sync already adopted this store, but the old private transport is
-          // permanently retired. Reopen its dispatcher without fencing B's reads.
-          journalWrites.refuseStore(denied); options.onStoreChange?.(denied);
         }
         if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)) {
-          // The refusal above already made the store decision. Its metadata is
-          // observational: do not fence/callback twice or compare the old head.
-          if (typeof json.store_id === "string") onlineStore = json.store_id;
-          if (Number.isSafeInteger(json.head) && Number(json.head) >= 0) onlineHead = Number(json.head);
-          if (Number.isSafeInteger(json.generation)) onlineGeneration = Number(json.generation);
+          if (storeFenced) {
+            // Only an accepted fence has already decided this metadata. A new
+            // store's head cannot be compared with the previous store's head.
+            if (typeof json.store_id === "string") onlineStore = json.store_id;
+            if (Number.isSafeInteger(json.head) && Number(json.head) >= 0) onlineHead = Number(json.head);
+            if (Number.isSafeInteger(json.generation)) onlineGeneration = Number(json.generation);
+          } else if (denied.code === "E_STORE_REPLACED" && json.store_id === dispatchStore) {
+            // Already-adopted stores still owe shrink and program checks.
+            await onlineEvidence(json, capture);
+          }
         } else await onlineEvidence(json, capture);
+      }
+      if (!storeFenced && !closed && !sessionDead && denied && !denied.retryable
+        && ["E_STORE_REPLACED", "E_DEV_RESET"].includes(denied.code)) {
+        // Dispatcher retirement outlives its dispatch authority. Recovery does
+        // not authorize metadata or fence the already-adopted store's reads.
+        journalWrites.refuseStore(denied, storeIdentity); options.onStoreChange?.(denied);
       }
       // @ref LLP 3000.002.000#6 — settlement cuts survive credential rotation.
       // Keep the store binding
       // across the asynchronous receipt save; metadata adoption stays fenced above.
       if (json.state === "sent" && init?.body) {
         const receiptStore = typeof json.store_id === "string" ? json.store_id : dispatchStore;
-        // Live preservation can revoke displayed scopes even after a peer settled
-        // this id. It neither installs another cut nor repeats custody settlement.
-        if (current() && receiptStore === storeIdentity && json.generation === backend?.generation && json.preserved != null) {
-          const op = decodeURIComponent(new URL(String(input)).pathname.split("/").pop()!);
-          const writes = dependencies(backend, op)?.writes;
-          for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
-            void scheduleRead(watch, true, undefined, json.preserved, writes);
-        }
-        journalWrites.receipt(JSON.parse(String(init.body)).id, {
+        const completed = journalWrites.receipt(JSON.parse(String(init.body)).id, {
           preserved: json.preserved, generation: json.generation, store: receiptStore, authorityCurrent: current,
         });
+        // Live preservation can revoke displayed scopes even after a peer settled
+        // this id. It neither installs another cut nor repeats custody settlement.
+        const qualified = current() && json.generation === backend?.generation;
+        if ((completed || !qualified) && !closed && !sessionDead && receiptStore === storeIdentity && json.preserved != null) {
+          const op = decodeURIComponent(new URL(String(input)).pathname.split("/").pop()!);
+          const footprint = dependencies(backend, op)?.writes;
+          const writes = qualified ? footprint : footprint && tableFootprint(Object.keys(footprint));
+          for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
+            void scheduleRead(watch, true, undefined, qualified ? json.preserved : [], writes);
+        }
       }
       return response;
     } finally { finishReceipt(); }

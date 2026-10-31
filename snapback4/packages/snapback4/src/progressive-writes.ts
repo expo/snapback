@@ -73,14 +73,15 @@ export class ProgressiveWrites {
       if (!this.responding.has(id)) this.completed.delete(id);
     }
   }
-  receipt(id: string, evidence: ReceiptEvidence): void {
-    // Live preservation is applied by the caller, independently of settlement.
-    if (this.completed.has(id)) return;
+  receipt(id: string, evidence: ReceiptEvidence): boolean {
+    // Completed ids still need live preservation, but cannot settle twice.
+    if (this.completed.has(id)) return true;
     this.receipts.set(id, evidence);
     for (const key of this.receipts.keys()) {
       if (this.receipts.size <= WRITE_HISTORY_LIMIT) break;
-      if (!this.admitted.has(key)) this.receipts.delete(key);
+      if (key !== id && !this.responding.has(key) && !this.admitted.has(key)) this.receipts.delete(key);
     }
+    return false;
   }
   constructor(options: object, readonly url: string, readonly viewer: string) {
     this.plan = plans.get(options)!;
@@ -133,7 +134,7 @@ export class ProgressiveWrites {
     const reason = this.blocked();
     return unique([...this.snapshot, ...this.custody?.captures() ?? []]).map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
   }
-  refuseStore(why: Refusal): void { void this.custody?.refuseStore(why).catch(this.plan.report); }
+  refuseStore(why: Refusal, adoptedStore?: string): void { void this.custody?.refuseStore(why, adoptedStore).catch(this.plan.report); }
   async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: (op: string | undefined, committed?: number, evidence?: ReceiptEvidence) => void,
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined,
     observation: () => ReceiptEvidence | undefined = () => undefined, original: Client = { ...local }, recoveringOpening = false): Promise<void> {
@@ -152,7 +153,11 @@ export class ProgressiveWrites {
         },
       });
       // Keep the handle captured by the app's pause/store-retirement callbacks.
-      lifetimes.set(local, { client: local, start() {}, pause: () => { this.lifetimePaused = true; this.recoverOpening = undefined; },
+      lifetimes.set(local, { client: local, start: () => {
+        if (this.lifetimeClosed) return;
+        this.lifetimePaused = false;
+        if (!this.custody) void this.recoverOpening?.();
+      }, pause: () => { this.lifetimePaused = true; },
         recover: async () => {}, refuseStore: async () => {}, captures: () => [],
         captureState: async () => ({ unsettled: true, peers: [] }), inspect: async () => ({ pending: [], receipts: [] }) });
     }
@@ -194,7 +199,7 @@ export class ProgressiveWrites {
         if (!preserved && (closed || this.lifetimePaused || local.viewer() !== this.viewer)) return;
         this.plan.report(error);
       }, false);
-      this.recoverOpening = () => recovering ??= (async () => {
+      this.recoverOpening = () => closed || this.lifetimePaused || local.viewer() !== this.viewer ? Promise.resolve() : recovering ??= (async () => {
         try {
           // Opening inspection preserves bytes. A dependent read may retry the
           // existing quarantine/recovery under the same journal/session locks.
@@ -209,7 +214,7 @@ export class ProgressiveWrites {
           // Its method snapshot must still name the device, not this denial.
           await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original, true);
           if (closed || this.lifetimePaused) {
-            this.recoverOpening = undefined;
+            if (closed || this.custody) this.recoverOpening = undefined;
             if (closed && this.custody) await local.close();
           } else if (this.custody) {
             delete this.admissionDenied; this.recoverOpening = undefined;
@@ -220,7 +225,7 @@ export class ProgressiveWrites {
         } finally {
           // A failed nested install may have installed another denial frame.
           // Closing this lifetime must retire that frame's retry as well.
-          if (closed || this.lifetimePaused) this.recoverOpening = undefined;
+          if (closed) this.recoverOpening = undefined;
         }
       })().finally(() => { recovering = undefined; });
       return;

@@ -271,10 +271,16 @@ for(const failure of ['damaged','read','capture'])regression(`journal ${failure}
   const memory=memorySessionStore(),key=storeKey('writes','https://progressive-writes.invalid','alice'),warnings=[];let changes=0;
   if(failure==='damaged')await memory.set(key,'broken journal');
   const store={...memory,get:async keyIn=>{if(failure==='read'&&keyIn===key)throw Error('storage disabled');return memory.get(keyIn);},set:async(keyIn,value)=>{if(keyIn.startsWith(key)){changes++;throw Error('cannot preserve');}return memory.set(keyIn,value);}};
+  let openingChanges; const install=ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype,'install',async function(...args){
+    await install.apply(this,args); openingChanges??=changes;
+  });
   const f=await fixture(t,{store,custody:'present',raw:true,authority:failure==='capture'?{capture:()=>({key:'session',epoch:'epoch',principal:'alice',source:'browser'}),recheck(){}}:undefined,report:error=>warnings.push(error)});
-  assert.equal(changes,0,'opening decision is non-mutating');
+  assert.equal(openingChanges,0,'opening inspection is non-mutating before start retries recovery');
   assert.equal((await f.app.client.query(query,{})).denied?.code,'E_ADMISSION');assert.equal((await f.app.mutate(mutation,{})).why.code,'E_ADMISSION');assert.ok(warnings.length);
-  assert.equal(changes,failure==='damaged'?1:0,'dependent read attempts recovery without replacing unpreserved bytes');assert.deepEqual(f.requests,[]);
+  if(failure==='damaged'){assert.ok(changes>=1,'start and dependent reads attempt recovery');assert.equal(await memory.get(key),'broken journal','failed preservation never replaces the original bytes');}
+  else assert.equal(changes,0);
+  assert.deepEqual(f.requests,[]);
 });
 
 regression('outbox-owned reads do not perform journal I/O or start a journal transport',async t=>{
@@ -945,13 +951,14 @@ regression('E4 inspection storage failures back off, report once per streak and 
 
 for(const raw of [true,false])regression(`E4 opening damage retries quarantine under both locks and recovers without reload (raw=${raw})`,async t=>{
   const memory=memorySessionStore(),url='https://progressive-writes.invalid',key=storeKey('writes',url,'alice'),warnings=[];
-  await memory.set(key,'damaged journal bytes');let failures=0,quarantined,held;
-  const store={...memory,async set(k,value){if(k.startsWith(`${key}.damaged.`)){held=await navigator.locks.query();if(failures++===0)throw Error('quarantine unavailable once');quarantined=value;}return memory.set(k,value);}};
+  await memory.set(key,'damaged journal bytes');let repaired=false,quarantined,held;
+  const store={...memory,async set(k,value){if(k.startsWith(`${key}.damaged.`)){held=await navigator.locks.query();if(!repaired)throw Error('quarantine unavailable until repaired');quarantined=value;}return memory.set(k,value);}};
   const f=await fixture(t,{raw,store,report:error=>warnings.push(error),hold:false});await f.app.ready;
   const receipts=[];const stop=f.app.client.onWrite(write=>receipts.push(write));t.after(stop);
   assert.equal((await f.app.client.query(query,{})).denied?.code,'E_ADMISSION');
   assert.equal(await memory.get(key),'damaged journal bytes');
   assert.equal((await f.app.client.mutate(mutation,{})).why?.code,'E_ADMISSION');
+  repaired=true;
   const recovered=await f.app.client.query(query,{});assert.ok('data' in recovered,JSON.stringify(recovered));
   assert.equal(quarantined,'damaged journal bytes');
   assert.ok(held.held.some(lock=>lock.name.includes(key)));assert.ok(held.held.some(lock=>lock.name.includes(sessionKey(url))));

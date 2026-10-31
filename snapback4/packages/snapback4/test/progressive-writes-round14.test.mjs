@@ -83,7 +83,7 @@ regression('E14 late own empty preservation withdraws a displayed answer after p
   const cover = gate(), queried = gate(), received = gate(); let progressive, replacing = false;
   const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
-  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { receipt.apply(this, args); assert.equal(args[1].authorityCurrent(), true); received.resolve(); });
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); assert.equal(args[1].authorityCurrent(), true); received.resolve(); return completed; });
   const cuts = [];
   globalThis.__e14Cuts = owner => {
     const change = owner.change;
@@ -177,7 +177,13 @@ for (const refusing of ['B', 'C']) regression(`E14 real replacement metadata for
 
 regression('E14 paused open denial frame keeps raw mutations at E_ADMISSION', async t => {
   const { localStatus } = await import('../dist/app.js');
-  const store = memorySessionStore(); await store.set(key, 'damaged opening');
+  const memory = memorySessionStore(); await memory.set(key, 'damaged opening');
+  // start() now attempts opening recovery too. Keep quarantine unavailable so
+  // this witness reaches pause with an actual denial frame, not installed custody.
+  const store = { ...memory, async set(k, value) {
+    if (k.startsWith(`${key}.damaged.`)) throw Error('quarantine unavailable');
+    return memory.set(k, value);
+  } };
   const f = await fixture(t, { raw: true, custody: 'present', store, report: () => {} });
   await until(() => localStatus(f.app.client).getSnapshot().state === 'ready');
   progressiveWriteCustody(f.app.client).pause();
@@ -205,7 +211,7 @@ regression('E14 an own receipt after 257 peer completions retains no orphan evid
   let progressive; const received = gate();
   const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
-  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { receipt.apply(this, args); received.resolve(); });
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); received.resolve(); return completed; });
   const f = await fixture(t, { raw: true });
   const ids = Array.from({ length: WRITE_HISTORY_LIMIT + 1 }, () => mintId());
   const writing = f.app.client.mutate(mutation, {}, { id: ids[0], waitSeconds: 0 });
