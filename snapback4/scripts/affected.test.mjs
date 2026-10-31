@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { changedPaths, loadModel, modelAtRevision, reverseClosure, selectAffected, runPlan, proofReceiptOptions, ROOT } from './affected.mjs';
+import { changedPaths, loadModel, modelAtRevision, reverseClosure, selectAffected, runPlan, proofReceiptOptions, ROOT, CLASSIFIED_LEAN_FINDINGS, classifyLeanCampaign } from './affected.mjs';
 import { selectChangedPaths } from '../../scripts/select-local-proof.mjs';
 
 const crate = (name, dependencies = []) => ({ name, dependencies, dir: `snapback4/crates/${name}`, targets: [
@@ -21,6 +21,65 @@ const model = {
 };
 const select = files => selectAffected(files, model);
 const ids = plan => plan.steps.map(step => step.id);
+
+const leanReport = () => ({ cases: 3, seed: 0, generated: 3, compiled: 3, binder_refused_unexpected: 0,
+  generator_errors: {}, runtime_refused_unexpected: {},
+  by_oracle: { lean: { attempted: 3, passed: 1, unsupported: { shape: 1 }, disagreeing: 1,
+    signatures: { 'lean--next--next~no-next': 1 } } } });
+test('Lean campaign classification uses exactly the existing integration-test policy', () => {
+  const rust = readFileSync(join(ROOT, 'snapback4/crates/snapback4-difftest/tests/lean.rs'), 'utf8');
+  const block = rust.match(/const CLASSIFIED:[\s\S]*?= \[([\s\S]*?)\];/)[1];
+  assert.deepEqual([...CLASSIFIED_LEAN_FINDINGS].sort(), [...block.matchAll(/"([^"]+)"/g)].map(match => match[1]).sort());
+  for (const signature of CLASSIFIED_LEAN_FINDINGS) {
+    const report = leanReport(); report.by_oracle.lean.signatures = { [signature]: 1 };
+    assert.equal(classifyLeanCampaign(report, 3, 0, 1).ok, true);
+  }
+  const green = leanReport(); Object.assign(green.by_oracle.lean, { passed: 2, disagreeing: 0, signatures: {} });
+  assert.equal(classifyLeanCampaign(green, 3, 0, 0).ok, true);
+  assert.equal(classifyLeanCampaign(green, 3, 0, 1).ok, false, 'unexplained nonzero exit stays red');
+});
+for (const [name, change] of [
+  ['new signature', r => { r.by_oracle.lean.signatures = { 'lean--data--changed': 1 }; }],
+  ['resolved security regression', r => { r.by_oracle.lean.signatures = { 'lean--kind--committed~E_RULE': 1 }; }],
+  ['generator failure', r => { r.generator_errors = { failure: 1 }; }],
+  ['binder refusal', r => { r.binder_refused_unexpected = 1; }],
+  ['runtime refusal', r => { r.runtime_refused_unexpected = { failure: 1 }; }],
+  ['partial campaign', r => { r.generated = 2; }],
+  ['wrong seed', r => { r.seed = 1; }],
+  ['missing report fields', r => { delete r.compiled; }],
+  ['unaccounted disagreement', r => { r.by_oracle.lean.signatures = {}; }],
+  ['bad signature count', r => { r.by_oracle.lean.signatures['lean--next--next~no-next'] = -1; }],
+  ['unexpected oracle', r => { r.by_oracle.other = {}; }],
+  ['zero comparisons', r => { Object.assign(r.by_oracle.lean, { passed: 0, disagreeing: 0, signatures: {}, unsupported: { shape: 3 } }); }],
+]) test(`Lean campaign keeps ${name} fatal`, () => {
+  const report = leanReport(); change(report); assert.equal(classifyLeanCampaign(report, 3, 0, 1).ok, false);
+});
+test('Lean execution retains raw exit/report digest, rejects unknown findings and cannot reuse a stale report', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-affected-lean-'));
+  const git = (...args) => execFileSync('timeout', ['20s', 'git', ...args], { cwd: dir, encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q'); writeFileSync(join(dir, '.gitignore'), 'target/\n'); git('add', '.');
+    git('-c', 'user.name=Test', '-c', 'user.email=test@example.org', 'commit', '-qm', 'fixture');
+    const head = git('rev-parse', 'HEAD'), report = leanReport(), out = 'target/lean';
+    const plan = { ...selectAffected([], model), base: head, head, worktree: false, observedFiles: [], inputDigest: createHash('sha256').update('[]').digest('hex'), steps: [] };
+    const step = code => ({ id: 'difftest:run-lean', cwd: '.', timeoutSeconds: 10,
+      argv: [process.execPath, '-e', code, '--', '--cases', '3', '--seed', '0', '--out', out] });
+    const emit = value => `require('node:fs').mkdirSync(${JSON.stringify(out)}, {recursive:true}); require('node:fs').writeFileSync(${JSON.stringify(out + '/report.json')}, ${JSON.stringify(JSON.stringify(value))}); process.exit(1)`;
+    plan.steps = [step(emit(report))];
+    let result = (await runPlan(plan, { root: dir })).receipt;
+    assert.equal(result.ok, true); assert.equal(result.results[0].executedStatus, 1);
+    assert.equal(result.results[0].leanClassification.reportSha256, createHash('sha256').update(JSON.stringify(report)).digest('hex'));
+    report.by_oracle.lean.signatures = { 'lean--data--changed': 1 }; plan.steps = [step(emit(report))];
+    result = (await runPlan(plan, { root: dir })).receipt;
+    assert.equal(result.ok, false); assert.equal(result.results[0].status, 1);
+    plan.steps = [step('process.exit(1)')];
+    result = (await runPlan(plan, { root: dir })).receipt;
+    assert.equal(result.ok, false); assert.match(result.results[0].leanClassification.reason, /ENOENT/);
+    plan.steps = [step('process.exit(2)')];
+    result = (await runPlan(plan, { root: dir })).receipt;
+    assert.equal(result.results[0].status, 2);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 
 test('lang source closes over reverse dependencies and CLI consumers', () => {
   const plan = select(['snapback4/crates/snapback4-lang/src/bind.rs']);

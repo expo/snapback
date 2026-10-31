@@ -16,6 +16,34 @@ const TIMEOUT = 10800;
 const sorted = values => [...new Set(values)].sort();
 const slash = path => path.split('\\').join('/');
 const hash = text => createHash('sha256').update(text).digest('hex');
+// @ref LLP 3000.035#5.2 — retain the existing Lean integration test's OPEN C2/W4 classification, not a new language ruling.
+export const CLASSIFIED_LEAN_FINDINGS = [
+  'lean--continuation-next--next~no-next', 'lean--next--next~no-next',
+  'lean--code--E_RULE~NOT_FOUND', 'lean--prelude-code--E_RULE~NOT_FOUND',
+];
+export function classifyLeanCampaign(report, cases, seed, exitStatus) {
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const count = value => Number.isSafeInteger(value) && value >= 0;
+  const counts = value => object(value) && Object.values(value).every(count);
+  const empty = value => object(value) && Object.keys(value).length === 0;
+  if (!count(cases) || !cases || !count(seed) || !object(report)
+    || report.cases !== cases || report.generated !== cases || report.compiled !== cases || report.seed !== seed
+    || report.binder_refused_unexpected !== 0 || !empty(report.generator_errors) || !empty(report.runtime_refused_unexpected)
+    || !object(report.by_oracle) || Object.keys(report.by_oracle).join() !== 'lean')
+    return { ok: false, reason: 'incomplete or failed Lean campaign' };
+  const lean = report.by_oracle.lean;
+  if (!object(lean) || lean.attempted !== cases || !count(lean.passed) || !count(lean.disagreeing)
+    || !counts(lean.unsupported) || !counts(lean.signatures)
+    || lean.passed + lean.disagreeing === 0
+    || lean.passed + lean.disagreeing + Object.values(lean.unsupported).reduce((a, b) => a + b, 0) !== cases
+    || Object.values(lean.signatures).some(value => value === 0)
+    || Object.values(lean.signatures).reduce((a, b) => a + b, 0) !== lean.disagreeing)
+    return { ok: false, reason: 'inconsistent Lean campaign accounting' };
+  const unclassified = Object.keys(lean.signatures).filter(signature => !CLASSIFIED_LEAN_FINDINGS.includes(signature));
+  if (exitStatus !== (lean.disagreeing > 0 ? 1 : 0)) return { ok: false, reason: 'Lean exit disagrees with report' };
+  return { ok: unclassified.length === 0, reason: unclassified.length ? 'unclassified Lean finding' : 'existing OPEN C2/W4 classification',
+    findings: lean.signatures, unclassified };
+}
 function command(root, executable, args, options = {}) {
   return execFileSync('timeout', ['120s', executable, ...args], {
     cwd: root, env: { ...process.env, ...CARGO_ENV }, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024, ...options,
@@ -423,6 +451,9 @@ export async function runPlan(plan, { root = ROOT } = {}) {
     console.error(`== ${step.id}\n${formatStep(executionStep)}`);
     const blockedBy = (step.requires ?? []).filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
     if (blockedBy.length) { receipt.results.push({ id: step.id, status: null, blockedBy, elapsedMs: 0 }); persist(); console.error(`BLOCKED: ${step.id} by ${blockedBy.join(', ')}`); continue; }
+    // A failed child must never inherit a report from an earlier invocation.
+    if (step.id === 'difftest:run-lean' && executionStep.argv.includes('--out'))
+      rmSync(resolve(root, step.cwd, executionStep.argv[executionStep.argv.indexOf('--out') + 1], 'report.json'), { force: true });
     const before = Date.now();
     const result = await new Promise(resolveResult => {
       const child = spawn('timeout', ['--kill-after=10s', `${step.timeoutSeconds}s`, ...executionStep.argv], {
@@ -431,6 +462,25 @@ export async function runPlan(plan, { root = ROOT } = {}) {
       child.on('error', error => resolveResult({ status: null, error: error.message }));
       child.on('close', (status, signal) => resolveResult({ status, signal }));
     });
+    // The raw CLI intentionally exits 1 for every disagreement, including the
+    // already classified open questions that tests/lean.rs permits. Preserve
+    // that exit and the report digest; unknown findings and broken runs stay red.
+    if (step.id === 'difftest:run-lean' && !result.signal && !result.error && [0, 1].includes(result.status)) {
+      try {
+        const option = name => executionStep.argv[executionStep.argv.indexOf(name) + 1];
+        if (!['--out', '--cases', '--seed'].every(name => executionStep.argv.includes(name))) throw new Error('missing Lean campaign arguments');
+        const reportPath = resolve(root, step.cwd, option('--out'), 'report.json');
+        const bytes = readFileSync(reportPath);
+        const classification = classifyLeanCampaign(JSON.parse(bytes), Number(option('--cases')), Number(option('--seed')), result.status);
+        result.executedStatus = result.status;
+        result.leanClassification = { ...classification, reportPath: relative(root, reportPath), reportSha256: hash(bytes), policy: CLASSIFIED_LEAN_FINDINGS };
+        result.status = classification.ok ? 0 : result.status || 1;
+        console.error(`Lean campaign: ${classification.reason}; raw exit ${result.executedStatus}; findings ${JSON.stringify(classification.findings ?? {})}`);
+      } catch (error) {
+        result.executedStatus = result.status; result.status = result.status || 1;
+        result.leanClassification = { ok: false, reason: String(error) };
+      }
+    }
     receipt.results.push({ id: step.id, ...result, ...(blockedFiles.length ? { executedStatus: result.status, status: result.status === 0 ? null : result.status, blockedFiles } : {}), elapsedMs: Date.now() - before }); persist();
   }
   receipt.complete = true;
