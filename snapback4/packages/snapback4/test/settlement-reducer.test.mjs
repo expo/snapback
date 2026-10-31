@@ -36,11 +36,11 @@ test('reducer: every event interleaving through length five crossed with certifi
   for (const outcome of ['sent', 'failed']) for (const known of [true, false]) {
     const arrivalPin = { ...pin, credentialRevision: authority === 'current' ? 1 : 2 };
     const json = { ...body, state: outcome, store_id: store, generation, preserved,
-      ...(outcome === 'failed' ? { why: { code: 'NOT_ALLOWED', retryable: false } } : {}) };
+      ...(outcome === 'failed' ? { why: { family: 'input', message: 'refused', code: 'NOT_ALLOWED', retryable: false } } : {}) };
     const arrival = context(arrivalPin, json, { ...request, footprintKnown: known }), certificate = arrival.certificate;
     for (const path of paths) {
       traces++;
-      let state = initialState(), outstanding = 1, published = 0, settled = 0, delivered = 0;
+      let state = initialState(), outstanding = 0, published = 0, settled = 0, delivered = 0;
       for (const [index, type] of path.entries()) {
         // Qualification changes between the two decision points. Cover each
         // boundary across the generated traces without a random seed.
@@ -56,11 +56,12 @@ test('reducer: every event interleaving through length five crossed with certifi
         const before = state, beforeCopy = { ...before }, { state: next, effects } = step(state, event, type === 'observed' ? peer : facts);
         transitions++;
         if (type === 'dispatched') outstanding++;
-        if ((type === 'response' || type === 'transportFinished') && outstanding > 0) outstanding--;
+        if (type === 'transportFinished' && outstanding > 0) outstanding--;
         assert.equal(next.responseOutstanding, outstanding);
         if (outstanding > 1) overlappingPins++;
         assert.deepEqual(before, beforeCopy, 'step does not mutate its input');
         const ep = episodes(effects), pub = publications(effects);
+        assert.equal(effects.filter(e => e.type === 'retire').length, type === 'response' && outcome === 'failed' ? 1 : 0);
         // P1: each live same-store known arrival starts revocation now, even
         // with no persistence in the prefix; unknown evidence never invents it.
         checks[0]++;
@@ -93,7 +94,7 @@ test('reducer: every event interleaving through length five crossed with certifi
         }
         // P4: no outcome/settlement/publication/retention after peer completion.
         checks[3]++;
-        if (type === 'response' && before.phase === 'settled') { hits[3]++; assert.ok(effects.every(e => e.type === 'startEpisode')); assert.equal(next.certificate, before.certificate); }
+        if (type === 'response' && before.phase === 'settled') { hits[3]++; assert.ok(effects.every(e => e.type === 'startEpisode' || e.type === 'retire')); assert.equal(next.certificate, before.certificate); }
         // P5: independently derive the publication from the *current* pin and
         // stored receipt, never reuse arrival qualification or inspection generation.
         checks[4]++;
@@ -128,14 +129,16 @@ test('reducer: every event interleaving through length five crossed with certifi
   t.diagnostic(`property non-vacuity counts P1..P6: ${JSON.stringify(hits)}`);
 });
 
-test('row: late own response after peer completion revokes only and releases the eviction pin', () => {
-  const f = context(); let state = initialState();
+test('row: late own response after peer completion revokes only; transport completion releases its pin', () => {
+  const f = context(); let state = step(initialState(), { type: 'dispatched' }, f).state;
   ({ state } = step(state, { type: 'admitted', op: 'write', footprintKnown: true }, f));
   ({ state } = step(state, { type: 'observed', receipt }, f));
   assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
   const late = step(state, { type: 'response', certificate: f.certificate }, f);
   assert.deepEqual(late.effects, [{ type: 'startEpisode', preserved: ['items'], scope: 'qualified' }]);
-  assert.deepEqual(step(late.state, { type: 'evicted' }, f).effects, [{ type: 'discard' }]);
+  assert.deepEqual(step(late.state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
+  const finished = step(late.state, { type: 'transportFinished' }, f);
+  assert.deepEqual(step(finished.state, { type: 'evicted' }, f).effects, [{ type: 'discard' }]);
 });
 test('row: stored certificate beats inspection placeholder and starts before a stalled save', () => {
   const f = context(), first = step(initialState(), { type: 'response', certificate: f.certificate }, f);
@@ -145,7 +148,7 @@ test('row: stored certificate beats inspection placeholder and starts before a s
   assert.deepEqual(publications(result.effects)[0].publication, { invalidate: true, cut: 21, preserved: ['items'], footprint: 'qualified' });
 });
 test('row: failed receipts keep the operation footprint across generations', () => {
-  const f = context(pin, { state: 'failed', why: { code: 'NO' }, store_id: 'A', generation: 2 });
+  const f = context(pin, { state: 'failed', why: { family: 'input', message: 'refused', code: 'NO' }, store_id: 'A', generation: 2 });
   const { state } = step(initialState(), { type: 'response', certificate: f.certificate }, f);
   assert.deepEqual(atSettlement(state, f), { invalidate: true, cut: undefined, preserved: undefined, footprint: 'qualified' });
 });
@@ -174,7 +177,7 @@ test('row: lifetime-ended still delivers the owner terminal outcome', () => {
   assert.deepEqual(publications(step(result.state, { type: 'persisted' }, f).effects)[0].publication, { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' });
 });
 test('owner delivery preserves full live success and failure details across lifetime end', () => {
-  for (const json of [{ ...body, result: { value: 'owner result' } }, { state: 'failed', why: { code: 'NO', message: 'owner detail', details: [1] } }]) {
+  for (const json of [{ ...body, result: { value: 'owner result' } }, { state: 'failed', why: { family: 'input', message: 'refused', code: 'NO', message: 'owner detail', details: [1] } }]) {
     const f = context({ ...pin, sessionDead: true }, json);
     const delivered = step(initialState(), { type: 'response', certificate: f.certificate }, f).effects.find(e => e.type === 'deliverOutcome');
     assert.deepEqual(delivered.outcome, f.outcome);
@@ -199,14 +202,14 @@ test('second decision rechecks store, credential, incarnation, generation and li
 });
 
 test('S2a 4: inconsistent restore confirmation never throws out of owner delivery', () => {
-  for (const code of ['NO', 'E_AUTH', 'E_DEV_RESET', 'E_STORE_REPLACED']) {
-    const f = context(pin, { state: 'failed', why: { code, details: [1] } }, { ...request, restoreConfirmed: true });
+  for (const code of ['NO', 'E_DEV_RESET', 'E_STORE_REPLACED']) {
+    const f = context(pin, { state: 'failed', why: { family: 'input', message: 'refused', code, details: [1] } }, { ...request, restoreConfirmed: true });
     const result = step(initialState(), { type: 'response', certificate: f.certificate }, f);
     assert.deepEqual(result.effects.find(e => e.type === 'deliverOutcome').outcome, f.outcome);
   }
 });
 test('S2a 6: extraction to reducer never settles or delivers overload', () => {
-  const f = context(pin, { state: 'failed', why: { code: 'E_OVERLOADED', retryable: true } });
+  const f = context(pin, { state: 'failed', why: { family: 'input', message: 'refused', code: 'E_OVERLOADED', retryable: true } });
   let state = initialState(), effects = [];
   if (f.certificate) ({ state, effects } = step(state, { type: 'response', certificate: f.certificate }, f));
   effects.push(...step(state, { type: 'persisted' }, f).effects);
@@ -214,16 +217,21 @@ test('S2a 6: extraction to reducer never settles or delivers overload', () => {
   assert.equal(state.phase, 'admitted');
 });
 test('S2a 9: inspected peer failure never retires this document', () => {
-  const f = context(pin, { state: 'failed', why: { code: 'E_STORE_REPLACED' }, storeId: 'A', generation: 1, op: 'write' }, { ...request, kind: 'observed' });
+  const f = context(pin, { state: 'failed', why: { family: 'input', message: 'refused', code: 'E_STORE_REPLACED' }, storeId: 'A', generation: 1, op: 'write' }, { ...request, kind: 'observed' });
   assert.equal(atArrival(f.certificate, f).retire, undefined);
 });
-test('S2a 13: overlapping own sends pin peer completion until both replies arrive', () => {
+test('S2a 13 / S2c 5: only completion releases each overlapping fetch pin, after response processing', () => {
   const f = context(); let state = initialState();
-  ({ state } = step(state, { type: 'dispatched' }, f));
+  assert.equal(state.responseOutstanding, 0);
+  for (let n = 0; n < 2; n++) ({ state } = step(state, { type: 'dispatched' }, f));
   ({ state } = step(state, { type: 'observed', receipt }, f));
-  ({ state } = step(state, { type: 'response', certificate: f.certificate }, f));
-  assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
-  ({ state } = step(state, { type: 'response', certificate: f.certificate }, f));
+  for (let n = 2; n > 0; n--) {
+    ({ state } = step(state, { type: 'response', certificate: f.certificate }, f));
+    assert.equal(state.responseOutstanding, n);
+    assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'refuseEviction' }]);
+    ({ state } = step(state, { type: 'transportFinished' }, f));
+    assert.equal(state.responseOutstanding, n - 1);
+  }
   assert.deepEqual(step(state, { type: 'evicted' }, f).effects, [{ type: 'discard' }]);
 });
 
@@ -258,4 +266,14 @@ test('S2b: foreign-store completion only wakes; it cannot create even an unseque
   const arrived = step(initialState(0), { type: 'response', certificate: f.certificate }, f);
   assert.deepEqual(publications(step(arrived.state, { type: 'persisted' }, f).effects)[0].publication,
     { invalidate: false, cut: undefined, preserved: undefined, footprint: 'qualified' });
+});
+
+test('S2c 8: step carries the arrival refusal decision even with contradictory restore confirmation', () => {
+  const facts = context(pin, { state: 'failed', why: { code: 'E_STORE_REPLACED', family: 'store', message: 'replaced' }, store_id: 'B' },
+    { ...request, restoreConfirmed: true });
+  const result = step(initialState(), { type: 'response', certificate: facts.certificate }, facts);
+  assert.deepEqual(result.effects.find(effect => effect.type === 'retire'), {
+    type: 'retire', decision: { reads: 'fence', dispatcher: 'retire-all', reopen: 'allowed', metadata: 'adopt-directly', notify: 'once', transport: 'settle' },
+  });
+  assert.equal(result.effects.filter(effect => effect.type === 'deliverOutcome').length, 1);
 });

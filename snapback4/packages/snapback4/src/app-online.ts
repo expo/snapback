@@ -220,7 +220,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const intent = journal.pending.find(entry => entry.id === id);
       if (!intent) {
         const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
-        if (receipt) return { write: publicWrite(receipt), revision: undefined };
+        // Internal synthetic response keeps execution metadata for client read resets.
+        if (receipt) return { write: receipt, revision: undefined };
         throw new Error("the write has no durable intent; it cannot be dispatched");
       }
       const write = bindIntentStore(journal, intent, identity);

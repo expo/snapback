@@ -32,12 +32,13 @@ export interface Episode {
 }
 export type Effect = ({ type: "startEpisode" } & Episode)
   | { type: "publish"; publication: Publication }
+  | { type: "retire"; decision: RefusalDecision }
   | { type: "settle" } | { type: "deliverOutcome"; outcome: Outcome }
   | { type: "retain"; invalidate?: true } | { type: "discard" } | { type: "refuseEviction" };
 
-/** Unknown response ownership pins conservatively. A peer-only owner may pass zero.
- * An observed peer completion cannot clear this pin; each own response releases one dispatch. */
-export function initialState(responseOutstanding = 1): State {
+/** Each fetch emits dispatched once, then transportFinished once in its finally.
+ * Neither a terminal response nor peer completion releases the transport pin. */
+export function initialState(responseOutstanding = 0): State {
   return { phase: "admitted", certificate: undefined, episodeStarted: false, cutInstalled: false, published: false,
     op: undefined, footprintKnown: false, storeId: undefined, outcome: undefined, outcomeDelivered: false, responseOutstanding };
 }
@@ -69,7 +70,8 @@ export function atSettlement(state: State, facts: Facts): Publication {
 export function step(previous: State, event: Event, facts: Facts): { state: State; effects: Effect[] } {
   const state = { ...previous }, effects: Effect[] = [];
   const arrive = (certificate: Certificate) => {
-    const { episode } = atArrival(certificate, facts);
+    const { episode, retire } = atArrival(certificate, facts);
+    if (retire) effects.push({ type: "retire", decision: retire });
     if (episode) { effects.push({ type: "startEpisode", ...episode }); state.episodeStarted = true; }
   };
   const deliver = () => {
@@ -97,7 +99,6 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       }
       break;
     case "response":
-      state.responseOutstanding = Math.max(0, state.responseOutstanding - 1);
       arrive(event.certificate);
       // Peer completion owns settlement, but never swallows live revocation.
       if (state.phase === "settled") break;
@@ -123,7 +124,7 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       finish();
       break;
     case "transportFinished":
-      // A nonterminal or failed fetch releases only its own response pin.
+      // Every completed fetch releases only its own pin after processing.
       state.responseOutstanding = Math.max(0, state.responseOutstanding - 1);
       break;
     case "evicted":

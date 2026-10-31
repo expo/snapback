@@ -1934,7 +1934,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const capture = { store_id: dispatchStore ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
     const dispatchId = init?.body ? (JSON.parse(String(init.body)) as { id?: string }).id : undefined;
     const finishReceipt = dispatchId ? journalWrites.dispatch(dispatchId) : () => {};
-    let responded = false;
     try {
       const response = await doFetch(input, { ...init, headers: request.headers });
       const json = await response.clone().json() as Record<string, unknown>;
@@ -1973,9 +1972,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // Re-pin after metadata adoption; the certificate still owns the original
       // dispatch values and rechecks them at pending exit.
       const receipt = extract(json, { ...extraction, footprintKnown: dependencies(backend, extraction.op)?.writes !== undefined }, snapshot());
-      if (dispatchId && receipt.certificate) { journalWrites.receipt(dispatchId, receipt); responded = true; }
+      if (dispatchId && receipt.certificate) journalWrites.receipt(dispatchId, receipt);
       return response;
-    } finally { finishReceipt(responded); }
+    } finally { finishReceipt(); }
   }, (op, effect) => {
     const footprint = op === undefined ? undefined : dependencies(backend, op)?.writes;
     if (effect?.type === "startEpisode") {

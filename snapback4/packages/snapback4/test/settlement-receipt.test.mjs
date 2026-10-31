@@ -4,7 +4,7 @@ import { journalReader } from '../dist/app-journal.js';
 import { onlineCustody } from '../dist/app-online.js';
 import { memorySessionStore } from '../dist/auth.js';
 import { mintId } from '../dist/client.js';
-import { trackDispatch } from '../dist/online-dispatch.js';
+import { bindDispatchReceipt, trackDispatch } from '../dist/online-dispatch.js';
 import { ProgressiveWrites, prepareProgressiveWrites } from '../dist/progressive-writes.js';
 import { fixture, until, mutation } from './helpers/progressive-writes.mjs';
 import { journalChanges } from '../dist/journal-changes.js';
@@ -71,16 +71,42 @@ test('S2a 15: progressive outbox recovers an initial journal receipt without int
   assert.deepEqual(JSON.parse(await store.get(key)).receipts, [receipt]);
 });
 
-test('S2a 15: progressive inspection learns a peer receipt but public lookup and same-id recovery strip bindings', async t => {
+test('S2c 7: journal-owned peer lookup and same-id recovery strip bindings at the public boundary', async t => {
   const f = await fixture(t); await f.app.ready;
   const id = mintId(); await f.app.mutate(mutation, {}, { id, waitSeconds: 0 }); await f.posted.promise;
   const saved = await f.journal(), receipt = { state: 'sent', id, seq: 21, replayed: true, storeId: 'A', generation: 7, op: 'write' };
   saved.pending = []; saved.receipts = [receipt];
   await f.store.set(storeKey('writes', f.url, 'alice'), JSON.stringify(saved));
-  const changes = journalChanges(storeKey('writes', f.url, 'alice')); changes.notify(); t.after(() => changes.close());
+  const changes = journalChanges(storeKey('writes', f.url, 'alice'), () => {}); changes.notify(); t.after(() => changes.close());
   await until(async () => (await f.app.client.pendingWrites()).length === 0);
   const expected = { state: 'sent', id, seq: 21, replayed: true };
   assert.deepEqual(await f.app.client.write(id), expected);
   assert.deepEqual(await f.app.mutate(mutation, {}, { id }), expected);
   assert.deepEqual((await f.journal()).receipts, [receipt]);
+});
+
+test('S2c 2: replay serving metadata never persists as an execution certificate', async t => {
+  const store = memorySessionStore(), id = mintId();
+  const write = bindDispatchReceipt({ state: 'sent', id, seq: 21, replayed: true },
+    { state: 'sent', seq: 21, replayed: true, store_id: 'A', head: 40, generation: 2 });
+  const raw = { viewer: () => owner, onViewer: () => () => {}, onWrite: () => () => {},
+    mutate: async () => write, write: async () => undefined, pendingWrites: async () => [], close: async () => {}, signOut: async () => {} };
+  trackDispatch(raw, { store: 'A' });
+  const custody = await onlineCustody(raw, url, store, fail); t.after(() => custody.client.close());
+  assert.equal(await custody.client.mutate(mutation, {}, { id }), write);
+  const saved = await journalReader(key, owner, url, store, fail, true)();
+  assert.deepEqual(saved.receipts, [{ state: 'sent', id, seq: 21, replayed: true, storeId: 'A', op: 'write' }]);
+  assert.equal((await custody.inspect()).receipts[0].generation, undefined);
+});
+
+test('S2c 9: dispatch short-circuit retains the stored generation while public recovery strips it', async t => {
+  const store = memorySessionStore(), id = mintId();
+  const receipt = { state: 'sent', id, seq: 21, replayed: true, storeId: 'A', generation: 2, op: 'write' };
+  await store.set(key, JSON.stringify({ owner, backend: url, pending: [], receipts: [receipt] }));
+  const dispatch = { store: 'A' }, raw = { viewer: () => owner, onViewer: () => () => {}, onWrite: () => () => {},
+    mutate: async () => { throw Error('receipt already known'); }, write: async () => undefined, pendingWrites: async () => [], close: async () => {}, signOut: async () => {} };
+  trackDispatch(raw, dispatch);
+  const custody = await onlineCustody(raw, url, store, fail); t.after(() => custody.client.close());
+  assert.deepEqual(await dispatch.owner.before(id, 'A'), receipt, 'client.send must see generation 2 to reset its observation');
+  assert.deepEqual(await custody.client.write(id), { state: 'sent', id, seq: 21, replayed: true });
 });

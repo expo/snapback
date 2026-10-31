@@ -1,3 +1,4 @@
+import { extractRefusal } from "./settlement-extract.ts";
 import { bindDispatchReceipt } from "./online-dispatch.ts";
 import type { Refusal, Write } from "./contract.ts";
 
@@ -58,7 +59,7 @@ export class ClosingResponse {
     const json = this.take()?.json;
     if (json?.state === "sent") return bindDispatchReceipt({ state: "sent", id: pending.id, seq: Number(json.seq ?? 0),
       ...(json.replayed === true ? { replayed: true } : { result: json.result as R }) }, json);
-    const why = (json?.why ?? json?.denied) as Refusal | undefined;
+    const why = json && extractRefusal(json);
     return why && !why.retryable ? bindDispatchReceipt({ state: "failed", id: pending.id, why }, json!) : pending;
   }
 }

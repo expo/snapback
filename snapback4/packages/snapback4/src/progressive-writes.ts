@@ -77,17 +77,20 @@ export class ProgressiveWrites {
         // response hold, including late own replies after a peer's completion.
         // This logical owner notification must not emit a second public receipt.
         case "deliverOutcome": break;
+        // The journal wrapper is the single refusal actor and executes this
+        // decision before metadata adoption, then registers the response here.
+        case "retire": break;
         case "discard": this.states.delete(id); break;
       }
     }
   }
-  dispatch(id: string): (responded?: boolean) => void {
+  dispatch(id: string): () => void {
     this.reduce(id, { type: "dispatched" });
     let finished = false;
-    return (responded = false) => {
+    return () => {
       if (finished) return;
       finished = true;
-      if (!responded) this.reduce(id, { type: "transportFinished" });
+      this.reduce(id, { type: "transportFinished" });
       this.trim();
     };
   }
@@ -336,7 +339,7 @@ export class ProgressiveWrites {
         this.reduce(entry.id, { type: "admitted", op: entry.op, footprintKnown: facts.footprintKnown }, facts);
       }
       for (const write of receipts) {
-        learned.set(write.id, publicWrite(write));
+        learned.set(write.id, write);
         if (learned.size > WRITE_HISTORY_LIMIT) learned.delete(learned.keys().next().value!);
         const prior = this.states.get(write.id), facts = observation(write, write.id, prior?.op, prior?.storeId);
         if (facts.outcome) this.reduce(write.id, { type: "observed", receipt: facts.outcome,

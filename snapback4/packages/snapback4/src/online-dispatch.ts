@@ -1,3 +1,4 @@
+import { executionGeneration } from "./settlement-extract.ts";
 import type { Client, Write } from "./contract.ts";
 
 // Private connection between the online transport and createApp's journal.
@@ -33,9 +34,10 @@ export async function identifyDispatch(client: Client): Promise<string | undefin
 interface ReceiptBinding { store_id?: string; generation?: number }
 const receiptBindings = new WeakMap<object, ReceiptBinding>();
 export function bindDispatchReceipt<T extends object>(write: T, json: Record<string, unknown>): T {
+  const generation = executionGeneration(json, "response");
   receiptBindings.set(write, {
     ...(typeof json.store_id === "string" && json.store_id ? { store_id: json.store_id } : {}),
-    ...(Number.isSafeInteger(json.generation) && Number(json.generation) >= 0 ? { generation: Number(json.generation) } : {}),
+    ...(generation !== undefined ? { generation } : {}),
   });
   return write;
 }

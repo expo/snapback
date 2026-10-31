@@ -6,7 +6,12 @@ registerHooks({ load(url, context, nextLoad) {
   if (url === new URL('../dist/local.js', import.meta.url).href) {
     const needle = 'let onlineHead = 0, onlineStore = backend?.store_id, onlineGeneration = Number(backend?.generation ?? 0);';
     assert.ok(String(result.source).includes(needle));
-    result.source = String(result.source).replace(needle, needle + ' globalThis.__s2bOnlineStore?.(value => { onlineStore = value; });');
+    result.source = String(result.source).replace(needle, needle + ' globalThis.__s2bOnlineStore?.(value => { onlineStore = value; }); globalThis.__s2cMetadata?.(() => ({ closed, sessionDead, storeIdentity, onlineStore, onlineGeneration }));');
+  }
+  if (url === new URL('../dist/refusal-decision.js', import.meta.url).href) {
+    const needle = 'export function decideRefusal(f) {';
+    assert.ok(String(result.source).includes(needle));
+    result.source = String(result.source).replace(needle, needle + ' globalThis.__s2cDecision?.(f);');
   }
   return result;
 } });
@@ -16,6 +21,7 @@ const { mintId } = await import('../dist/client.js');
 const { storeKey } = await import('../dist/app-storage.js');
 const { onlineCustody } = await import('../dist/app-online.js');
 const { ProgressiveWrites, progressiveWriteCustody } = await import('../dist/progressive-writes.js');
+const { journalChanges } = await import('../dist/journal-changes.js');
 const { episodeDeadline } = await import('../dist/read-episode.js');
 const { trackDispatch } = await import('../dist/online-dispatch.js');
 const url = 'https://progressive-writes.invalid', key = storeKey('writes', url, 'alice');
@@ -110,4 +116,125 @@ test('S2b settlement: response before any admission inspection still publishes i
   assert.equal(publications.length, 1);
   const persisted = (await f.journal()).receipts.find(write => write.id === id);
   assert.equal(persisted.generation, 1); assert.equal(persisted.storeId, 'A'); assert.equal(persisted.op, 'write');
+});
+
+for (const mode of ['success', 'retryable', 'failure']) test(`S2c 5: wrapper releases ${mode} fetch pins once, after processing`, async t => {
+  let progressive, responses = 0, finishes = 0; const responsePins = [], finishedPins = [];
+  const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt, dispatch = ProgressiveWrites.prototype.dispatch;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) { progressive = this; return install.apply(this, args); });
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(id, facts) {
+    receipt.call(this, id, facts); responses++;
+    responsePins.push(this.states.get(id).responseOutstanding);
+  });
+  t.mock.method(ProgressiveWrites.prototype, 'dispatch', function(id) {
+    const finish = dispatch.call(this, id);
+    return (...args) => {
+      finish(...args); finishes++;
+      finishedPins.push(this.states.get(id)?.responseOutstanding ?? 0);
+      finish(...args);
+      finishedPins.push(this.states.get(id)?.responseOutstanding ?? 0);
+    };
+  });
+  const f = await fixture(t, { raw: true, drop: mode === 'failure', hold: false,
+    ...(mode === 'retryable' ? { mutationRefusal: { code: 'E_OVERLOADED', family: 'availability', message: 'retry', retryable: true } } : {}) });
+  const id = mintId(); await f.app.mutate(mutation, {}, { id, waitSeconds: 0 });
+  await until(() => finishes > 0);
+  assert.equal(progressive.states.get(id).responseOutstanding, 0);
+  assert.equal(responses, mode === 'success' ? 1 : 0);
+  assert.deepEqual(responsePins, mode === 'success' ? [1] : [], 'response effects still own their fetch pin');
+  assert.deepEqual(finishedPins, [0, 0], 'completion callback releases exactly once');
+});
+
+test('S2c 2: lost generation-1 commit replayed by generation 2 cuts beyond the new write tables', async t => {
+  const publications = []; let progressive, responseFacts;
+  const backend = structuredClone(schema);
+  const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt;
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(id, facts) { responseFacts = facts; return receipt.call(this, id, facts); });
+  t.mock.method(ProgressiveWrites.prototype, 'install', async function(client, identity, fetch, changed, ...args) {
+    progressive = this;
+    return install.call(this, client, identity, fetch, (op, effect) => { if (effect?.type === 'publish') publications.push(effect.publication); changed(op, effect); }, ...args);
+  });
+  const f = await fixture(t, { raw: true, drop: true, backend, receiptReply: reply => ({ ...reply, generation: backend.generation }) });
+  const id = mintId(); await f.app.mutate(mutation, {}, { id, waitSeconds: 0 }); await f.posted.promise;
+  backend.generation = 2;
+  backend.programs.find(op => op.name === 'write').settlement.writes = { other: null };
+  await f.app.client.sync();
+  f.release.resolve();
+  await until(() => progressive.states.get(id)?.published);
+  assert.equal(f.executions.size, 1); assert.ok(f.requests.length >= 2);
+  assert.equal(responseFacts.snapshot.generation, 2, 'the reducer sees the newly adopted program');
+  assert.equal(responseFacts.snapshot.onlineGeneration, 2, 'successful replay metadata still runs online evidence');
+  assert.equal(progressive.states.get(id).certificate.generation, undefined);
+  assert.equal(publications.at(-1).footprint, 'unknown', 'items reads cannot escape via generation 2 write tables');
+  assert.equal((await f.journal()).receipts.find(write => write.id === id).generation, undefined);
+});
+
+for (const [name, why] of Object.entries({ missing: undefined, null: null, malformed: { code: 7 } }))
+test(`S2c 3: HTTP 200 failed ${name} retains journal intent without publishing a receipt`, async t => {
+  let finishes = 0, progressive;
+  const install = ProgressiveWrites.prototype.install, dispatch = ProgressiveWrites.prototype.dispatch;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) { progressive = this; return install.apply(this, args); });
+  t.mock.method(ProgressiveWrites.prototype, 'dispatch', function(id) { const finish = dispatch.call(this, id); return () => { finish(); finishes++; }; });
+  const f = await fixture(t, { raw: true, hold: false, receiptReply: () => ({ state: 'failed', why }) });
+  const id = mintId(); await f.app.mutate(mutation, {}, { id, waitSeconds: 0 });
+  await until(() => finishes > 0);
+  assert.equal(progressive.states.get(id)?.outcome, undefined);
+  assert.equal(progressive.states.get(id)?.published, false);
+  const journal = await f.journal();
+  assert.equal(journal.pending[0].id, id); assert.deepEqual(journal.receipts, []);
+});
+
+test('S2c 1: wrapper ignores retryable auth metadata after adopting another store', { timeout: 20_000 }, async t => {
+  let metadata, finishes = 0; const notices = [];
+  globalThis.__s2cMetadata = read => { metadata = read; };
+  t.after(() => { delete globalThis.__s2cMetadata; });
+  const dispatch = ProgressiveWrites.prototype.dispatch;
+  t.mock.method(ProgressiveWrites.prototype, 'dispatch', function(id) { const finish = dispatch.call(this, id); return () => { finish(); finishes++; }; });
+  const f = await fixture(t, { raw: true,
+    onStoreChange: why => notices.push(why), receiptReply: () => ({ state: 'failed', why: { code: 'E_AUTH', family: 'auth', message: 'retry', retryable: true }, store_id: 'A', head: 21, generation: 1 }) });
+  await f.app.mutate(mutation, {}, { waitSeconds: 0 }); await f.posted.promise;
+  f.replace('B'); await f.app.client.sync();
+  assert.equal(metadata().storeIdentity, 'B'); notices.length = 0;
+  f.release.resolve(); await until(() => finishes > 0);
+  assert.equal(metadata().storeIdentity, 'B'); assert.equal(metadata().onlineStore, 'B');
+  assert.deepEqual(notices, []);
+});
+
+test('S2c 1 / 4: wrapper re-pins refusal facts after terminal auth retirement', { timeout: 20_000 }, async t => {
+  let metadata, finishes = 0; const decisions = [];
+  globalThis.__s2cMetadata = read => { metadata = read; };
+  globalThis.__s2cDecision = facts => { if (facts.code === 'E_AUTH') decisions.push(facts); };
+  t.after(() => { delete globalThis.__s2cMetadata; delete globalThis.__s2cDecision; });
+  const dispatch = ProgressiveWrites.prototype.dispatch;
+  t.mock.method(ProgressiveWrites.prototype, 'dispatch', function(id) { const finish = dispatch.call(this, id); return () => { finish(); finishes++; }; });
+  const f = await fixture(t, { raw: true, hold: false, receiptReply: () => ({ state: 'failed', why: { code: 'E_AUTH', family: 'auth', message: 'expired', retryable: false }, store_id: 'obsolete', head: 99, generation: 99 }) });
+  const id = mintId(); await f.app.mutate(mutation, {}, { id, waitSeconds: 0 }); await until(() => finishes > 0);
+  assert.equal(decisions[0].snapshot.sessionDead, false);
+  assert.equal(decisions.at(-1).snapshot.sessionDead, true);
+  assert.equal(decisions.at(-1).certificate, undefined);
+  assert.equal(metadata().storeIdentity, 'A'); assert.equal(metadata().onlineGeneration, 1);
+  assert.ok((await f.journal()).pending.some(write => write.id === id));
+});
+
+for (const state of ['sent', 'failed']) test(`S2c S2b obligation: late own ${state} invocation retains its full live outcome after peer completion`, async t => {
+  let progressive; const publications = [], notifications = [];
+  const install = ProgressiveWrites.prototype.install;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(client, identity, fetch, changed, ...args) {
+    progressive = this;
+    return install.call(this, client, identity, fetch, (op, effect) => { if (effect?.type === 'publish') publications.push(effect); changed(op, effect); }, ...args);
+  });
+  const why = { code: 'NOT_ALLOWED', family: 'auth', message: 'full live refusal', details: { private: 7 } };
+  const f = await fixture(t, { raw: true, receiptReply: reply => state === 'sent' ? { ...reply, result: { private: 7 } } : { ...reply, state, why } });
+  f.app.client.onWrite(write => notifications.push(write));
+  const id = mintId(), writing = f.app.mutate(mutation, {}, { id, waitSeconds: 5 }); await f.posted.promise;
+  const peer = state === 'sent' ? { state, id, seq: 21, replayed: true } : { state, id, why: { code: why.code, family: why.family, message: 'write refused' } };
+  const journal = await f.journal(); journal.pending = []; journal.receipts = [peer];
+  await f.store.set(key, JSON.stringify(journal));
+  const changes = journalChanges(key, () => {}); changes.notify(); t.after(() => changes.close());
+  await until(() => progressive.states.get(id)?.published);
+  assert.equal(publications.length, 1);
+  f.release.resolve();
+  const result = await writing;
+  assert.deepEqual(result, state === 'sent' ? { state, id, seq: 21, result: { private: 7 } } : { state, id, why });
+  assert.equal(publications.length, 1); assert.equal(notifications.length, 1);
 });

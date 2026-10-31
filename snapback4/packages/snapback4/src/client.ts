@@ -1,3 +1,4 @@
+import { extractRefusal } from "./settlement-extract.ts";
 import { bindDispatchReceipt } from "./online-dispatch.ts";
 import { proofResponse } from "./proof-observation.ts";
 import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
@@ -1037,7 +1038,7 @@ export function createClient(options: ClientOptions): Client {
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
-      const why = (json.why ?? json.denied) as Refusal | undefined;
+      const why = extractRefusal(json);
       if (!why) return false; // An unrecognized answer does not settle this id.
       const outcome = { state: "failed", id: entry.id, why } as const;
       bindDispatchReceipt(outcome, json);

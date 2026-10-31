@@ -10,7 +10,7 @@ test('refusal: full seven-input product with explicit unreachable reasons and ro
   for (const retryable of [false, true]) for (const storeNamed of ['equals-dispatch', 'differs', 'absent'])
   for (const requestStore of ['equals-dispatch', 'differs', 'absent']) for (const authority of ['current', 'obsolete', 'lifetime-ended'])
   for (const restoreConfirmed of [false, true]) {
-    const f = { source, code, retryable, storeNamed, requestStore, authority, restoreConfirmed };
+    const f = { source, code, retryable, storeNamed, requestStore, authority, restoreConfirmed, authorityCurrent: () => authority === 'current' };
     // Independent actor domains. Invalid rows are checked, not filtered out.
     const confirmation = !restoreConfirmed || code === 'E_STORE_RESTORE' && !retryable;
     const binding = source !== 'dispatch-binding' || code === 'E_STORE_REPLACED' && !retryable && !restoreConfirmed && storeNamed === 'absent' && requestStore !== 'equals-dispatch';
@@ -23,7 +23,8 @@ test('refusal: full seven-input product with explicit unreachable reasons and ro
         : source === 'dispatch-binding' ? (code !== 'E_STORE_REPLACED' || retryable || restoreConfirmed ? 'binding produces only a terminal replacement' : 'binding has no server reply and refuses a foreign or unbound intent')
         : retryable ? 'raw onWrite emits terminal outcomes, not transport retries' : 'raw onWrite has no request or reply store envelope';
       assert.equal(reach.reason, reason); reasons[reason] = (reasons[reason] ?? 0) + 1;
-      assert.deepEqual(decideRefusal(f), { reads: "keep", dispatcher: "keep", reopen: "allowed", metadata: "none", notify: "none", transport: "settle" });
+      assert.deepEqual(decideRefusal(f), !confirmation ? decideRefusal({ ...f, restoreConfirmed: false })
+        : { reads: "keep", dispatcher: "keep", reopen: "allowed", metadata: "none", notify: "none", transport: "settle" });
       continue;
     }
     yes++;
@@ -36,7 +37,7 @@ test('refusal: full seven-input product with explicit unreachable reasons and ro
     assert.equal(d.dispatcher !== 'keep', retires); if (retires) witnesses.retirement++;
     assert.equal(d.metadata === 'adopt-directly', fences); if (d.metadata === 'adopt-directly') witnesses.direct++;
     assert.equal(d.reopen === 'terminal', retires && code === 'E_STORE_RESTORE' && (restoreConfirmed || fences)); if (d.reopen === 'terminal') witnesses.terminal++;
-    assert.equal(d.notify === 'once', retires && code !== 'E_STORE_RESTORE'); if (d.notify === 'once') witnesses.notify++;
+    assert.equal(d.notify === 'once', retires && source === 'journal-wrapper' && code !== 'E_STORE_RESTORE'); if (d.notify === 'once') witnesses.notify++;
     assert.equal(d.transport === 'retry', source === 'journal-wrapper' && code === 'E_AUTH' && authority === 'obsolete'); if (d.transport === 'retry') witnesses.retry++;
     if (authority !== 'current') assert.equal(d.metadata, 'none');
     // A fence must retire ALL independently of raw/confirmation predicates.
@@ -45,7 +46,7 @@ test('refusal: full seven-input product with explicit unreachable reasons and ro
     if (retires && source === 'journal-wrapper' && !fences && !restoreConfirmed) { assert.equal(d.dispatcher, 'retire-foreign'); witnesses.foreign++; }
     if (source === 'dispatch-binding') { assert.equal(d.dispatcher, 'keep'); witnesses.binding++; }
     if (authority === 'lifetime-ended') { assert.deepEqual(d, { reads: 'keep', dispatcher: 'keep', reopen: 'allowed', metadata: 'none', notify: 'none', transport: 'settle' }); witnesses.ended++; }
-    const online = source === 'journal-wrapper' && authority === 'current' && (retryable || !store || code === 'E_STORE_REPLACED' && storeNamed === 'equals-dispatch');
+    const online = source === 'journal-wrapper' && authority === 'current' && (code !== 'E_AUTH' || retryable) && (retryable || !store || code === 'E_STORE_REPLACED' && storeNamed === 'equals-dispatch');
     assert.equal(d.metadata === 'through-online-evidence', online);
     if (code === 'E_STORE_RESTORE') assert.equal(d.notify, 'none');
   }
@@ -57,7 +58,7 @@ test('refusal: full seven-input product with explicit unreachable reasons and ro
 });
 
 const row = { source: 'journal-wrapper', code: 'E_STORE_REPLACED', retryable: false,
-  storeNamed: 'equals-dispatch', requestStore: 'differs', authority: 'current', restoreConfirmed: false };
+  storeNamed: 'equals-dispatch', requestStore: 'differs', authority: 'current', restoreConfirmed: false, authorityCurrent: () => true };
 test('S2a 1: already-adopted store still requests dispatcher recovery', () => {
   assert.equal(decideRefusal(row).notify, 'once');
 });
@@ -73,12 +74,18 @@ test('S2a 2b: server restore fence confirms terminal retirement itself', () => {
     assert.equal(d.reads, 'fence'); assert.equal(d.dispatcher, 'retire-all'); assert.equal(d.reopen, 'terminal');
   }
 });
-test('S2a 4: unreachable refusal is total with a separate diagnostic', () => {
-  const f = { ...row, restoreConfirmed: true };
+test('S2a 4 / S2c 8: a contradictory confirmation cannot suppress the real refusal', () => {
+  const f = { ...row, storeNamed: 'differs', restoreConfirmed: true };
   assert.equal(reachable(f).reachable, false);
-  assert.deepEqual(decideRefusal(f), { reads: 'keep', dispatcher: 'keep', reopen: 'allowed', metadata: 'none', notify: 'none', transport: 'settle' });
+  assert.deepEqual(decideRefusal(f), { reads: 'fence', dispatcher: 'retire-all', reopen: 'allowed', metadata: 'adopt-directly', notify: 'once', transport: 'settle' });
 });
 for (const code of ['other', 'E_AUTH', 'E_STORE_REPLACED', 'E_DEV_RESET', 'E_STORE_RESTORE'])
 test(`S2a 5: ordinary or retryable ${code} runs online evidence`, () => {
-  assert.equal(decideRefusal({ ...row, code, retryable: code.startsWith('E_STORE') || code === 'E_DEV_RESET' }).metadata, 'through-online-evidence');
+  assert.equal(decideRefusal({ ...row, code, retryable: code !== 'other' }).metadata, 'through-online-evidence');
+});
+
+for (const code of ['E_STORE_REPLACED', 'E_DEV_RESET', 'E_STORE_RESTORE'])
+test(`S2c 6: raw ${code} retires without promising an unavailable onStoreChange callback`, () => {
+  const decision = decideRefusal({ ...row, source: 'raw-onWrite', storeNamed: 'absent', requestStore: 'absent', code });
+  assert.equal(decision.dispatcher, 'retire-all'); assert.equal(decision.notify, 'none');
 });

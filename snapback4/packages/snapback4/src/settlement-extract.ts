@@ -65,11 +65,21 @@ export interface Facts extends RefusalFacts {
 const record = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const named = (v: unknown): string | undefined => typeof v === "string" && v.length > 0 ? v : undefined;
 const sequence = (v: unknown): number | undefined => Number.isSafeInteger(v) && Number(v) >= 0 ? Number(v) : undefined;
+// @ref LLP 3000.002.000.000#2.1 — a wire replay names the serving program,
+// not the program that committed. Only separately persisted execution proves it.
+export const executionGeneration = (json: Record<string, unknown>, kind: ExtractionRequest["kind"]): number | undefined =>
+  kind === "response" && json.replayed === true ? undefined : sequence(json.generation);
+// A failed body is terminal only with the refusal shape the journal can retain.
+export function extractRefusal(json: Record<string, unknown>): (Record<string, unknown> & { code: string; family: string; message: string; retryable?: boolean }) | undefined {
+  const why = record(json.denied ?? json.why);
+  return typeof why.code === "string" && why.code.length > 0 && typeof why.family === "string" && typeof why.message === "string"
+    && (why.retryable === undefined || typeof why.retryable === "boolean") ? why as ReturnType<typeof extractRefusal> : undefined;
+}
 export const storeRelation = (store: string | undefined, current: string | undefined): Relation => store === undefined || current === undefined ? "unknown" : store === current ? "same" : "other";
 export const generationRelation = (generation: number | undefined, current: number | undefined): GenerationRelation => generation === undefined || current === undefined ? "unknown" : generation === current ? "same" : "differs";
 
 export function extract(value: unknown, request: ExtractionRequest, pinned: Snapshot): Facts {
-  const json = record(value), snapshot = { ...pinned }, why = record(json.denied ?? json.why);
+  const json = record(value), snapshot = { ...pinned }, refusal = extractRefusal(json), why = record(refusal);
   const source = request.source, own = request.kind === "response";
   const parts = (now: Snapshot) => ({ lifetimeLive: !now.closed && !now.sessionDead,
     credentialCurrent: snapshot.requestRevision === now.credentialRevision,
@@ -84,23 +94,25 @@ export function extract(value: unknown, request: ExtractionRequest, pinned: Snap
     : validPreserved(json.preserved) ? [...json.preserved] : [];
   const op = own ? request.op : named(json.op) ?? request.op;
   const seq = sequence(json.seq);
-  const outcome: Outcome | undefined = why.retryable === true ? undefined : json.state === "sent" && seq !== undefined ? { state: "sent", id: request.id, seq,
+  const outcome: Outcome | undefined = ["E_AUTH", "E_CLOSED"].includes(String(why.code)) || why.retryable === true ? undefined : json.state === "sent" && seq !== undefined ? { state: "sent", id: request.id, seq,
     ...(typeof json.replayed === "boolean" ? { replayed: json.replayed } : {}),
     ...(json.replayed !== true && Object.hasOwn(json, "result") ? { result: json.result } : {}) }
-    : json.state === "failed" || typeof why.code === "string" ? { state: "failed", id: request.id, why: { ...why } } : undefined;
+    : refusal ? { state: "failed", id: request.id, why: { ...why } } : undefined;
   // A legacy inspected receipt supplies an outcome, not an execution certificate.
+  const executedGeneration = executionGeneration(json, request.kind);
   const certificate = outcome && (own || named(json.storeId) !== undefined && generation !== undefined && named(json.op) !== undefined)
-    ? { outcome, storeId, generation, preserved: own && outcome.state === "sent" ? preserved : undefined, op, authorityCurrent } : undefined;
+    ? { outcome, storeId, generation: executedGeneration, preserved: own && outcome.state === "sent" ? preserved : undefined, op, authorityCurrent } : undefined;
   const code: RefusalFacts["code"] = ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE", "E_AUTH"].includes(String(why.code)) ? why.code as RefusalFacts["code"] : "other";
   const relation = (store: string | undefined): RefusalFacts["storeNamed"] => store === undefined ? "absent" : store === snapshot.dispatchStore ? "equals-dispatch" : "differs";
   const capture = { store_id: snapshot.dispatchStore ?? null, watermark: snapshot.dispatchWatermark, send_revision: snapshot.dispatchSendRevision };
   const onlineMetadata = { storeId: named(json.store_id), head: sequence(json.head ?? (json.replayed === true ? undefined : json.seq)), generation };
-  return { kind: request.kind, snapshot, capture, onlineMetadata, refusal: typeof why.code === "string" ? { ...why } : undefined, outcome, certificate, storeId, namedStoreId: named(json.store_id), head: sequence(json.head), generation,
+  return { kind: request.kind, snapshot, capture, onlineMetadata, refusal: refusal && { ...refusal }, outcome, certificate, storeId, namedStoreId: named(json.store_id), head: sequence(json.head), generation,
     storeRelation: storeRelation(storeId, snapshot.storeIdentity),
     generationRelation: generationRelation(certificate?.generation, snapshot.generation), authorityCurrent, authorityParts,
     preservedKind: certificate?.preserved === undefined ? "absent" : certificate.preserved.length ? "list" : "empty", footprintKnown: request.footprintKnown, op,
     source, code, retryable: why.retryable === true, storeNamed: relation(own ? named(json.store_id) : undefined), requestStore: relation(snapshot.requestStore),
     // E_AUTH is credential-scoped even across incarnation/program adoption.
-    authority: !authorityParts.lifetimeLive ? "lifetime-ended" : (code === "E_AUTH" ? authorityParts.credentialCurrent : authorityCurrent()) ? "current" : "obsolete",
+    authority: code === "E_AUTH" && !authorityParts.credentialCurrent ? "obsolete"
+      : !authorityParts.lifetimeLive ? "lifetime-ended" : (code === "E_AUTH" ? authorityParts.credentialCurrent : authorityCurrent()) ? "current" : "obsolete",
     restoreConfirmed: request.restoreConfirmed };
 }

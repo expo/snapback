@@ -7,6 +7,8 @@ export interface RefusalFacts {
   requestStore: "equals-dispatch" | "differs" | "absent";
   authority: "current" | "obsolete" | "lifetime-ended";
   restoreConfirmed: boolean;
+  /** Full dispatch authority; E_AUTH authority above is credential-scoped. */
+  authorityCurrent(): boolean;
 }
 
 export interface RefusalDecision {
@@ -37,12 +39,15 @@ export function reachable(f: RefusalFacts): { reachable: true } | { reachable: f
 }
 
 export function decideRefusal(f: RefusalFacts): RefusalDecision {
+  // A contradictory confirmation is diagnostic only; the actual code still acts.
+  if (f.restoreConfirmed && (f.code !== "E_STORE_RESTORE" || f.retryable)) f = { ...f, restoreConfirmed: false };
   const row = reachable(f);
   const decision: RefusalDecision = { reads: "keep", dispatcher: "keep", reopen: "allowed", metadata: "none", notify: "none", transport: "settle" };
   if (!row.reachable) return decision;
   if (f.authority === "lifetime-ended" || f.source === "dispatch-binding") return decision;
   if (f.source === "journal-wrapper" && f.code === "E_AUTH" && f.authority === "obsolete") decision.transport = "retry";
-  if (f.source === "journal-wrapper" && f.authority === "current") decision.metadata = "through-online-evidence";
+  if (f.source === "journal-wrapper" && f.authority === "current" && f.authorityCurrent()
+    && (f.code !== "E_AUTH" || f.retryable)) decision.metadata = "through-online-evidence";
   if (f.retryable || !["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(f.code)) return decision;
   const fence = f.source === "journal-wrapper" && f.authority === "current"
     && (f.code === "E_STORE_REPLACED" ? f.storeNamed !== "equals-dispatch" : f.requestStore !== "differs");
@@ -56,6 +61,6 @@ export function decideRefusal(f: RefusalFacts): RefusalDecision {
       ? "through-online-evidence" : "none";
   // Recovery is owed even if online evidence saw an already-adopted store.
   // Terminal restores use refuseRestore, which never calls onStoreChange.
-  decision.notify = decision.dispatcher !== "keep" && f.code !== "E_STORE_RESTORE" ? "once" : "none";
+  decision.notify = f.source === "journal-wrapper" && decision.dispatcher !== "keep" && f.code !== "E_STORE_RESTORE" ? "once" : "none";
   return decision;
 }

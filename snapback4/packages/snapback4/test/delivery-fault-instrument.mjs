@@ -785,3 +785,13 @@ export function awaitBoundary() {
 // 228/26/40/3. The complete expression seal changes for existing inline bodies;
 // all 215 classified delivery sites/recipes stay. Pure pin/eviction, generation,
 // held-save, unadmitted-response, peer and close witnesses cover the new effects.
+
+// Lane S2c: every fetch now releases its pin in the existing wrapper finally,
+// after processing; no new await. Extraction distinguishes replay serving from
+// execution generation and validates refusal bodies; the raw send/close paths
+// share that pure validator. before() keeps private receipt metadata, learned
+// receipt insertion leaves projection to the public boundary, and the reducer
+// exposes arrival refusal effects already executed by the wrapper. No delivery
+// site or recipe changes: 215; local/progressive/app-online/app-journal await
+// counts stay 228/26/40/3. Regenerate the complete expression seal; S2c witnesses
+// cover retries/errors, malformed replies, replay, metadata and projection.
