@@ -45,6 +45,7 @@ export class ProgressiveWrites {
   private deviceIntents?: PendingIntentAccess;
   private readonly intentSelections = new Map<object, { select: Parameters<NonNullable<PendingIntentAccess["retain"]>>[0]; release?: (() => void) | undefined }>();
   private lifetimePaused = false;
+  private lifetimeClosed = false;
   private blocked: () => Refusal | undefined = () => undefined;
   get uncertain(): boolean { return !this.snapshotValid; }
   get inspectionFailure(): Refusal | undefined { return !this.custody ? this.admissionDenied : undefined; }
@@ -53,11 +54,33 @@ export class ProgressiveWrites {
   private candidate = false;
   private admissionDenied?: Refusal;
   private readonly receipts = new Map<string, ReceiptEvidence>();
+  private readonly admitted = new Map<string, { op: string; evidence: ReceiptEvidence | undefined }>();
+  // An id-only ring, independent of the receipt evidence cache.
   private readonly completed = new Set<string>();
+  private readonly responding = new Map<string, number>();
+  dispatch(id: string): () => void {
+    this.responding.set(id, (this.responding.get(id) ?? 0) + 1);
+    return () => {
+      const remaining = (this.responding.get(id) ?? 1) - 1;
+      if (remaining) this.responding.set(id, remaining); else this.responding.delete(id);
+      this.trimCompleted();
+    };
+  }
+  private trimCompleted(): void {
+    for (const id of this.completed) {
+      if (this.completed.size <= WRITE_HISTORY_LIMIT) break;
+      // Peer settlement cannot evict the identity of an outstanding own reply.
+      if (!this.responding.has(id)) this.completed.delete(id);
+    }
+  }
   receipt(id: string, evidence: ReceiptEvidence): void {
+    // Live preservation is applied by the caller, independently of settlement.
     if (this.completed.has(id)) return;
     this.receipts.set(id, evidence);
-    if (this.receipts.size > WRITE_HISTORY_LIMIT) this.receipts.delete(this.receipts.keys().next().value!);
+    for (const key of this.receipts.keys()) {
+      if (this.receipts.size <= WRITE_HISTORY_LIMIT) break;
+      if (!this.admitted.has(key)) this.receipts.delete(key);
+    }
   }
   constructor(options: object, readonly url: string, readonly viewer: string) {
     this.plan = plans.get(options)!;
@@ -138,9 +161,10 @@ export class ProgressiveWrites {
       ? learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
     if (this.admissionDenied && !recoveringOpening) {
       const denied = this.admissionDenied;
+      let recovering: Promise<void> | undefined, closed = false;
       local.mutate = routeMutations(original.mutate, (op, args, options) => {
         if (local.viewer() !== this.viewer) return failedAdmission(options?.id ?? mintId(), { code: "E_AUTH", family: "auth", message: "sign in to write" });
-        if (this.lifetimePaused) return original.mutate(op, args, options);
+        if (closed) return original.mutate(op, args, options);
         return failedAdmission(options?.id ?? mintId(), denied);
       });
       if (!this.bridgeOpeningWrites) {
@@ -153,9 +177,8 @@ export class ProgressiveWrites {
           journal.onPendingWrites(() => { for (const listener of pendingListeners) listener(); });
         };
       }
-      let recovering: Promise<void> | undefined, closed = false;
       const close = async (signOut: boolean) => {
-        closed = this.lifetimePaused = true; this.recoverOpening = undefined;
+        closed = this.lifetimeClosed = this.lifetimePaused = true; this.recoverOpening = undefined;
         // Fence the original client's act/sendPost now, before recovery drains.
         // @ref LLP 3000.013#6 — retain responses until both local cleanups finish.
         const finish = holdClose(local);
@@ -182,7 +205,7 @@ export class ProgressiveWrites {
           await this.install(local, storeIdentity, fetch, changed, deviceKnown, blocked, observation, original, true);
           if (closed || this.lifetimePaused) {
             this.recoverOpening = undefined;
-            if (this.custody) await local.close();
+            if (closed && this.custody) await local.close();
           } else if (this.custody) {
             delete this.admissionDenied; this.recoverOpening = undefined;
             this.custody.start(); changed(undefined);
@@ -213,7 +236,7 @@ export class ProgressiveWrites {
     // This private, read-less transport reuses the shipped online retry queue.
     // The local client supplies every credential, store and rollback fence.
     // It has no refresh authority, subscriptions, interpreter or result cache.
-    const retired = () => this.lifetimePaused || local.viewer() !== this.viewer;
+    const retired = () => this.lifetimeClosed || local.viewer() !== this.viewer;
     if (retired()) return;
     const options = { url: this.url, ...(local.session() ? { token: local.session()!.token } : { persona: this.viewer.slice(4) }), fetch };
     const transport = (await prepareClient(options, () => sdkOwned(() => createClient(options)))).client;
@@ -249,6 +272,13 @@ export class ProgressiveWrites {
     // Update the existing handle, including consumers created during failure.
     const custody = Object.assign(lifetimes.get(local)!, opened), journal = custody.client;
     this.custody = custody;
+    custody.start = () => {
+      if (retired()) return;
+      // A pause while opening defers dispatch; only close retires the device.
+      const resuming = this.lifetimePaused;
+      this.lifetimePaused = false; delete this.admissionDenied; opened.start();
+      if (resuming) void refresh();
+    };
     this.bridgeOpeningWrites?.(journal); this.bridgeOpeningWrites = undefined;
     const deviceIntents = this.deviceIntents!, journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
@@ -256,7 +286,8 @@ export class ProgressiveWrites {
       // Inspection knows the intent's store, not the peer's execution program.
       ...evidence, store: store ?? undefined, generation: undefined, preserved: undefined,
     };
-    const admitted = new Map(this.initial?.pending.map(intent => [intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) }])), completed = this.completed;
+    const admitted = this.admitted, completed = this.completed;
+    for (const intent of this.initial?.pending ?? []) admitted.set(intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) });
     const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], evidence = observation()) => {
       this.snapshot = entries;
       for (const entry of unique([...entries, ...custody.captures()])) if (!completed.has(entry.id)) {
@@ -277,14 +308,14 @@ export class ProgressiveWrites {
         if (admission !== undefined && write.state !== "pending" && !completed.has(write.id)) {
           const evidence = this.receipts.get(write.id) ?? admission.evidence; this.receipts.delete(write.id);
           completed.add(write.id); admitted.delete(write.id); changed(admission.op, write.state === "sent" ? write.seq : undefined, evidence);
-          if (completed.size > WRITE_HISTORY_LIMIT) completed.delete(completed.values().next().value!);
+          this.trimCompleted();
         }
       }
     };
     let refreshing: Promise<void> | undefined, dirty = false, active = true, retryAfter = 0, retryDelay = 100, capturePending = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const refresh = (invalidate = true) => {
-      if (!active) return Promise.resolve();
+      if (!active || this.lifetimePaused) return Promise.resolve();
       // Recovery can commit a capture before this runtime knows its operation.
       // Unknown notifications invalidate synchronously. Own live captures already
       // expose their footprint, so a held commit need not park disjoint reads.
@@ -380,9 +411,10 @@ export class ProgressiveWrites {
     const deviceObserver = intentObserver(local);
     registerIntentObserver(local, ids => { deviceObserver?.(ids); observeIntents(journal, ids); });
     const close = async (signOut: boolean) => {
+      this.lifetimeClosed = this.lifetimePaused = true;
       active = false; this.retryInspection = undefined;
       clearTimeout(retryTimer);
-      custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true; this.receipts.clear();
+      custody.pause(); stopPending(); stopWrite(); this.snapshot = []; this.snapshotValid = true; this.receipts.clear(); this.admitted.clear();
       await Promise.all([journal.close(), signOut ? original.signOut() : original.close()]);
     };
     local.close = () => close(false); local.signOut = () => close(true);

@@ -730,3 +730,14 @@ export function awaitBoundary() {
 // dispatcher's admission refusal before refresh is synchronous. E13 holds both
 // opening boundaries and the first inspection, including a retired open failure.
 // No new admission/delivery I/O or fault recipe: all 215 classified sites remain.
+
+// Lane E round 14: local/progressive-writes/app-online retain 228/25/40 awaits.
+// The journal-install expression separates refusal metadata from observation,
+// recovers an already-adopted store's dispatcher, applies live preservation
+// independently of settlement, and bounds known obsolete preservation. Pause
+// versus close, deferred start, outstanding-response pins and admitted receipt
+// eviction are synchronous;
+// held-read revocation starts at the already-running attempt. No admission or
+// delivery I/O is added. E14's nine witnesses cover these decisions; all 215
+// classified sites, failure classes and recipes remain unchanged. Regenerate
+// the complete await-expression seal.

@@ -187,12 +187,20 @@ Inspected success receipts carry no execution generation, so their cut covers
 all tables unless execution metadata qualifies the operation's footprint. A
 failed write does not block disjoint reads. Inspected receipts invalidate reads
 without inventing revocation evidence, so retained answers keep their deadlines.
-An own receipt with current authority and a known preservation list keeps the
-withdrawal bound when its generation differs from the local metadata; an absent
-list or obsolete authority supplies no revocation evidence.
-Public pending writes omit internal store bindings. A replacement refusal is
-ignored only when the server names the store the device already adopted; a
-different store fences immediately, even for an older store's request.
+An own receipt with a known preservation list keeps the withdrawal bound when
+its authority or generation is obsolete: it cannot certify preserved scopes, so
+the known list becomes empty. An absent list stays unknown. Current same-store
+live preservation also reaches displayed answers after peer settlement, without
+settling the write twice; an in-flight replacement cannot defer the revocation
+bound. Receipt history evicts only evidence with no live admission, allowing
+overflow while all entries remain admitted. The completed-id history separately
+pins ids with outstanding own responses, so late peer-settled replies retain no
+extra evidence even after more than 256 newer completions.
+Public pending writes omit internal store bindings. A replacement refusal naming
+the already-adopted store recovers the retired write dispatcher without fencing
+its reads. A different store fences immediately, even for an older store's
+request. Refusal metadata records the server store, head and generation without
+a second store-change callback or comparison against the previous store's head.
 An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
@@ -221,7 +229,9 @@ dispatched action outcomes received before public close completes. Retired
 recovery closes any newly opened resources and reports no storage failure,
 including when transport preparation or journal opening was still pending.
 A later mutation returns `E_AUTH` after sign-out or `E_CLOSED` after close;
-a later read cannot restart that closed lifetime.
+a later read cannot restart that closed lifetime. A pause during opening leaves
+the device open and the new dispatcher deferred until opening resumes. A paused opening refusal remains `E_ADMISSION`; it cannot admit
+through the device outbox.
 A failed installation in an open lifetime keeps the typed
 `E_ADMISSION` refusal until custody is successfully installed. Once the live
 journal dispatcher takes over, clicks enter capture even while its first

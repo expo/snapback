@@ -1246,7 +1246,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || sessionDead) return; if (changed) answers.changed(watch, cut, writes);
     const denied = changesStopped ?? partitionDenied; if (denied) { watch.reset({ denied }); notify(watch); return; }
     if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); return; }
-    watch.reload(changed && watchCanRevoke(watch, preserved), { queued: true }); notify(watch); acquireRead(watch);
+    // New revocation evidence cannot wait behind a replacement already in
+    // flight. Only time awaiting an actual queue slot defers the episode.
+    watch.reload(changed && watchCanRevoke(watch, preserved), { queued: !watch.running }); notify(watch); acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
     if (closed || sessionDead) return;
@@ -1928,34 +1930,58 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const dispatchIncarnation = incarnation, dispatchStore = storeIdentity ?? onlineStore;
     const requestStore = init?.body ? (JSON.parse(String(init.body)) as { store_id?: string }).store_id : undefined;
     const capture = { store_id: dispatchStore ?? null, watermark: Math.max(onlineHead, seq), send_revision: 0 };
-    const response = await doFetch(input, { ...init, headers: request.headers });
-    const json = await response.clone().json() as Record<string, unknown>;
-    const denied = (json.denied ?? json.why) as Refusal | undefined;
-    if (denied?.code === "E_AUTH" && request.revision !== credentialRevision) throw new Error("journal retry after credential rotation");
-    const current = () => !closed && !sessionDead && request.revision === credentialRevision
-      && dispatchIncarnation === incarnation && dispatchStore === (storeIdentity ?? onlineStore);
-    // Revocation belongs to the credential, even across a store/schema adoption.
-    await refusedSession(denied, request.revision);
-    if (current()) {
-      if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)
-        && (denied.code === "E_STORE_REPLACED" ? typeof json.store_id !== "string" || json.store_id !== dispatchStore : requestStore === undefined || requestStore === dispatchStore)) {
-        if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
-        else {
-          partitionDenied = denied; observeIncarnation(typeof json.store_id === "string" ? json.store_id : storeIdentity, true);
-          answers.refuse(watches.values(), denied); confirmedJournalRefusal = denied; journalWrites.refuseStore(denied);
-          options.onStoreChange?.(denied);
+    const dispatchId = init?.body ? (JSON.parse(String(init.body)) as { id?: string }).id : undefined;
+    const finishReceipt = dispatchId ? journalWrites.dispatch(dispatchId) : () => {};
+    try {
+      const response = await doFetch(input, { ...init, headers: request.headers });
+      const json = await response.clone().json() as Record<string, unknown>;
+      const denied = (json.denied ?? json.why) as Refusal | undefined;
+      if (denied?.code === "E_AUTH" && request.revision !== credentialRevision) throw new Error("journal retry after credential rotation");
+      const current = () => !closed && !sessionDead && request.revision === credentialRevision
+        && dispatchIncarnation === incarnation && dispatchStore === (storeIdentity ?? onlineStore);
+      // Revocation belongs to the credential, even across a store/schema adoption.
+      await refusedSession(denied, request.revision);
+      if (current()) {
+        if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)
+          && (denied.code === "E_STORE_REPLACED" ? typeof json.store_id !== "string" || json.store_id !== dispatchStore : requestStore === undefined || requestStore === dispatchStore)) {
+          if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
+          else {
+            partitionDenied = denied; observeIncarnation(typeof json.store_id === "string" ? json.store_id : storeIdentity, true);
+            answers.refuse(watches.values(), denied); confirmedJournalRefusal = denied; journalWrites.refuseStore(denied);
+            options.onStoreChange?.(denied);
+          }
+        } else if (denied?.code === "E_STORE_REPLACED" && !denied.retryable) {
+          // Sync already adopted this store, but the old private transport is
+          // permanently retired. Reopen its dispatcher without fencing B's reads.
+          journalWrites.refuseStore(denied); options.onStoreChange?.(denied);
         }
+        if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)) {
+          // The refusal above already made the store decision. Its metadata is
+          // observational: do not fence/callback twice or compare the old head.
+          if (typeof json.store_id === "string") onlineStore = json.store_id;
+          if (Number.isSafeInteger(json.head) && Number(json.head) >= 0) onlineHead = Number(json.head);
+          if (Number.isSafeInteger(json.generation)) onlineGeneration = Number(json.generation);
+        } else await onlineEvidence(json, capture);
       }
-      await onlineEvidence(json, capture);
-    }
-    // @ref LLP 3000.002.000#6 — settlement cuts survive credential rotation.
-    // Keep the store binding
-    // across the asynchronous receipt save; metadata adoption stays fenced above.
-    if (json.state === "sent" && init?.body) journalWrites.receipt(JSON.parse(String(init.body)).id, {
-      preserved: json.preserved, generation: json.generation, store: typeof json.store_id === "string" ? json.store_id : dispatchStore,
-      authorityCurrent: current,
-    });
-    return response;
+      // @ref LLP 3000.002.000#6 — settlement cuts survive credential rotation.
+      // Keep the store binding
+      // across the asynchronous receipt save; metadata adoption stays fenced above.
+      if (json.state === "sent" && init?.body) {
+        const receiptStore = typeof json.store_id === "string" ? json.store_id : dispatchStore;
+        // Live preservation can revoke displayed scopes even after a peer settled
+        // this id. It neither installs another cut nor repeats custody settlement.
+        if (current() && receiptStore === storeIdentity && json.generation === backend?.generation && json.preserved != null) {
+          const op = decodeURIComponent(new URL(String(input)).pathname.split("/").pop()!);
+          const writes = dependencies(backend, op)?.writes;
+          for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
+            void scheduleRead(watch, true, undefined, json.preserved, writes);
+        }
+        journalWrites.receipt(JSON.parse(String(init.body)).id, {
+          preserved: json.preserved, generation: json.generation, store: receiptStore, authorityCurrent: current,
+        });
+      }
+      return response;
+    } finally { finishReceipt(); }
   }, (op, committed, evidence) => {
     pending.notify();
     if (op === undefined) {
@@ -1976,8 +2002,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     const sameGeneration = !evidence || evidence.generation === backend?.generation;
-    // A current, known certificate still bounds revocation if its program differs.
-    const preserved = evidence && !evidence.authorityCurrent() ? undefined : evidence?.preserved;
+    // Obsolete authority/programs cannot certify preservation. A known list
+    // still carries the revocation bound; only absent evidence stays unknown.
+    const preserved = evidence?.preserved == null ? undefined
+      : evidence.authorityCurrent() && sameGeneration ? evidence.preserved : [];
     // @ref LLP 3000.002.000#6 — only the executed generation qualifies a cut's footprint.
     // A receipt whose metadata was fenced still orders reads, conservatively.
     const writes = committed === undefined || sameGeneration ? footprint : undefined, tables = writes && Object.keys(writes);
@@ -1986,7 +2014,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       answers.notified(tables, committed, !!tables?.length || writes === undefined, writes, true);
     } else answers.evidence(undefined, tables, writes, writes, true);
     for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
-      void scheduleRead(watch, true, committed, sameGeneration || preserved == null ? preserved : [], writes);
+      void scheduleRead(watch, true, committed, preserved, writes);
   }, id => mutationIds.knows(id) || custodyEntries.some(entry => entry.id === id) ? true : deviceListed && deviceHistoryListed ? false : undefined, custodyFailure,
     () => ({ store: storeIdentity ?? onlineStore, generation: backend?.generation, preserved: undefined, authorityCurrent: () => false }));
   if (confirmedJournalRefusal) journalWrites?.refuseStore(confirmedJournalRefusal);

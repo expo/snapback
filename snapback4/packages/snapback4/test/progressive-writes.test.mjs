@@ -1364,11 +1364,11 @@ regression('E8 awaited journal receipt does not repeat a replacement already ado
   const before=changes.length;
   const write=await f.app.client.mutate(mutation,{}, {waitSeconds:5});
   // The transport remains bound to A and correctly refuses reuse in B. The
-  // local authority already adopted B, so it must not report replacement again
-  // or mistake A's old head for a restore of B.
+  // Local authority already adopted B: recover the retired dispatcher without
+  // fencing B's reads or mistaking A's old head for a restore of B.
   assert.equal(write.state,'failed',JSON.stringify(write));assert.equal(write.why.code,'E_STORE_REPLACED');
   assert.equal((await f.journal()).receipts.some(receipt=>receipt.id===write.id),true);
-  assert.equal(changes.length,before,'an A-bound server refusal must not fence the already adopted device store B');
+  assert.equal(changes.length,before+1,'the retired dispatcher requests recovery on the already adopted store B');
   f.offline(true);assert.equal((await f.app.client.query(query,{})).data,'local','B remains usable after the real server refusal');
 });
 

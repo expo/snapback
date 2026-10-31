@@ -40,7 +40,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
     if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json(await actionReply?.(id)??{id,state:'done',result:'acted'});}
     if(path.startsWith('/m/')){
       const body=JSON.parse(init.body);requests.push(body.id);
-      if(body.store_id&&body.store_id!==storeId)return Response.json({state:'failed',id:body.id,why:{code:'E_STORE_REPLACED',family:'store',message:'request belongs to another store'},store_id:storeId,generation:backend.generation},{status:409});
+      if(body.store_id&&body.store_id!==storeId)return Response.json({state:'failed',id:body.id,why:{code:'E_STORE_REPLACED',family:'store',message:'request belongs to another store',retryable:false},store_id:storeId,head,generation:backend.generation});
       if(failStore)return Response.json({denied:failStore},{status:409});
       if(mutationRefusal){posted.resolve();if(hold)await release.promise;return Response.json({state:'failed',id:body.id,why:mutationRefusal,store_id:storeId,generation:backend.generation},{status:400});}
       const replayed=executions.has(body.id);
