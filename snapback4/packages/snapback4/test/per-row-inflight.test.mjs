@@ -121,7 +121,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
   });
 }
 
-for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: invalidating an acquisition keeps local queue wait outside the episode and bounds online evidence`, async t => {
+for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: revocation during an in-flight acquisition starts the withdrawal bound`, async t => {
   const f = await fixture(t, tier, keep);
   f.acquire(); await until(() => f.reads === 1);
   assert.equal(episodeDeadline(f.watch.getSnapshot()), undefined);
@@ -134,18 +134,42 @@ for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined,
   else { assert.ok(Array.isArray(result.preserved), 'the authored write supplies known evidence'); f.change({ seq: result.seq, generation: 1, tables: ['notes'], preserved: result.preserved }); await until(() => f.owner.dirty); }
   const wall = Date.now(); t.mock.method(Date, 'now', () => wall + 1001);
   const queued = f.watch.getSnapshot();
-  if (tier === 'online') assert.deepEqual(queued, { loading: true }, 'online evidence can revoke access and expires during queue wait');
-  else {
-    assert.equal(queued.data?.row?.value, 7, 'the replacement has not received a slot');
-    assert.equal(queued.revalidating, true);
-    assert.equal(episodeDeadline(queued), undefined, 'a retired attempt cannot start the new local episode');
-  }
+  // @ref LLP 3000.002.000#7.2 — this acquisition is still in flight;
+  // so fresh revocation evidence starts the bound immediately on every tier.
+  assert.deepEqual(queued, { loading: true }, 'in-flight service is not capacity queue wait');
   assert.equal(f.reads, 1);
   f.old.resolve(); if (tier !== 'online') await until(() => f.blocked === 8);
   blocks.forEach(w => w.close()); await until(() => f.reads > 1);
-  if (tier === 'online') assert.deepEqual(f.watch.getSnapshot(), { loading: true }, 'expired online data cannot return when service starts');
-  else assert.equal(episodeDeadline(f.watch.getSnapshot()), wall + 2001);
+  assert.deepEqual(f.watch.getSnapshot(), { loading: true }, 'expired evidence cannot return or receive a new budget when replacement service starts');
   f.replacement.resolve();
+  await until(() => f.watch.getSnapshot().data?.count === 1 && !f.watch.getSnapshot().revalidating);
+});
+
+// A separate witness excludes actual capacity wait from a new local episode.
+// The old acquisition above remains active; it must not stand in for this state.
+for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: actual capacity queue wait precedes a new local episode`, async t => {
+  const f = await fixture(t, tier, keep), blocks = await f.fill();
+  await until(() => f.blocked === 8);
+  f.acquire();
+  assert.equal(f.reads, 0, 'all eight slots are held before this acquisition');
+  if (tier !== 'online') assert.equal(f.owner.episodeQueue.paused, true);
+  const result = await f.mutate('add');
+  if (f.client.sync) await f.client.sync();
+  else { assert.ok(Array.isArray(result.preserved)); f.change({ seq: result.seq, generation: 1, tables: ['notes'], preserved: result.preserved }); await until(() => episodeDeadline(f.watch.getSnapshot()) !== undefined, 'online change evidence received while queued'); }
+  const wall = Date.now(); t.mock.method(Date, 'now', () => wall + 1001);
+  const queued = f.watch.getSnapshot();
+  if (tier === 'online') assert.deepEqual(queued, { loading: true }, 'online evidence expires during capacity wait');
+  else {
+    assert.equal(queued.data?.row?.value, 7);
+    assert.equal(queued.revalidating, true);
+    assert.equal(f.owner.episodeQueue.paused, true, 'this owner really awaits a capacity slot');
+    assert.equal(episodeDeadline(queued), undefined, 'queue wait cannot start a new local episode');
+  }
+  assert.equal(f.reads, 0);
+  blocks.forEach(w => w.close()); await until(() => f.reads === 1);
+  if (tier === 'online') assert.deepEqual(f.watch.getSnapshot(), { loading: true });
+  else assert.equal(episodeDeadline(f.watch.getSnapshot()), wall + 2001, 'local budget begins at actual service');
+  f.old.resolve();
   await until(() => f.watch.getSnapshot().data?.count === 1 && !f.watch.getSnapshot().revalidating);
 });
 
