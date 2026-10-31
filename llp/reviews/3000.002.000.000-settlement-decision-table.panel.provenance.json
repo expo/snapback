@@ -1,0 +1,38 @@
+{
+ "document": "llp/3000.002.000.000-settlement-evidence-decision-table.rfc.md",
+ "revision": "draft 2026-10-31",
+ "code_revision": "a3eed85def (sb4/pws-e round 16)",
+ "pass": 1,
+ "seats": [
+  {
+   "seat": "astra",
+   "model": "gpt-6-astra",
+   "effort": "max",
+   "verdict": "DIRECTION RIGHT WITH ONE CHANGE",
+   "confidence": 0.95,
+   "output_sha256": "15cc98831361b90f116e551a6bc4b4cadf32d80749a1cd6d63e8e6fa41059034"
+  },
+  {
+   "seat": "fable",
+   "model": "claude-fable-5-1",
+   "effort": "xhigh",
+   "verdict": "DIRECTION RIGHT WITH ONE CHANGE",
+   "confidence": 0.72,
+   "output_sha256": "60b6dbd88a6f4b715a00ef65c212182a43e64a51e766d71cb393cb334939f7ce"
+  },
+  {
+   "seat": "grok",
+   "model": "grok-4.7",
+   "effort": "xhigh",
+   "verdict": "DIRECTION RIGHT WITH ONE CHANGE",
+   "confidence": 0.75,
+   "output_sha256": "18ab66852522f0d636cfd9c1b457dc66fcd388d3cb5203e182f2d1f32a240ad3"
+  },
+  {
+   "seat": "muse",
+   "model": "muse-wonder-full-1.0",
+   "status": "did not sit: quota exhausted until 2026-11-02"
+  }
+ ],
+ "prompt_sha256": "ea9da93e5b006dd8c1417cfb3f71a45248cfd770311b71fb6137658f478c60db"
+}
