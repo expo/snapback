@@ -183,16 +183,22 @@ A dependent server or local read waits on unsettled journal custody; known
 success requires an answer covering its server cut. Core attachment never retires
 its receipt owner. A peer tab's settlement of this tab's captured write keeps
 that same-store cut even while this tab's original response is still pending.
-Same-generation peer receipts keep the operation's footprint; a failed write
-does not block disjoint reads. Inspected receipts invalidate affected reads
+Inspected success receipts carry no execution generation, so their cut covers
+all tables unless execution metadata qualifies the operation's footprint. A
+failed write does not block disjoint reads. Inspected receipts invalidate reads
 without inventing revocation evidence, so retained answers keep their deadlines.
-Public pending writes omit internal store bindings. A replacement refusal for
-an older store's request does not fence a replacement the device already adopted.
+An own receipt with current authority and a known preservation list keeps the
+withdrawal bound when its generation differs from the local metadata; an absent
+list or obsolete authority supplies no revocation evidence.
+Public pending writes omit internal store bindings. A replacement refusal is
+ignored only when the server names the store the device already adopted; a
+different store fences immediately, even for an older store's request.
 An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
-settlement affect only intersecting read footprints; disjoint watches and local
-offline reads stay usable. A live peer tab's uncommitted capture parks this tab's intersecting reads until the peer commits or dies.
+settlement affect only intersecting read footprints when those footprints are
+qualified; unknown execution effects require all reads to cover the cut. A live
+peer tab's uncommitted capture parks this tab's intersecting reads until the peer commits or dies.
 `writes: "online"` with a device is refused with a
 rewrite: omit `writes` to use progressive ownership, or omit the device for an
 online journal app.

@@ -713,3 +713,12 @@ export function awaitBoundary() {
 // Removing the unread receipt stamp changes the existing install expression,
 // not delivery I/O. E11 and the strengthened E1/E5/E9 regressions cover these
 // boundaries. All 215 classified delivery sites and recipes remain unchanged.
+
+// Lane E round 12: local/progressive-writes/app-online retain 228/23/40 awaits.
+// The existing journal-install expression now treats inspected success as an
+// unknown execution generation, preserves a current known certificate's bound
+// on generation mismatch, and fences replacement by the refusing store. These
+// are synchronous evidence decisions, with no new delivery I/O or custody wait.
+// E12 regressions and isolated controls cover each decision; E10 keeps failed
+// peer settlement scoped. Regenerate the expression seal; all 215 classified
+// delivery sites, failure classes and recipes remain unchanged.

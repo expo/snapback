@@ -1400,7 +1400,7 @@ regression('E8 inspected peer receipt keeps its same-store cut across generation
   const receipt={state:'sent',id,seq:21,replayed:true};await store.set(key,JSON.stringify({owner:'alice',backend:url,pending:[],receipts:[receipt]}));events.notify();
   await until(()=>!progressive.uncertain&&!progressive.current().some(write=>write.id===id));
   assert.deepEqual(await f.app.client.write(id),receipt);
-  assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'observation generation qualifies the footprint, not comparable same-store sequence numbers');
+  assert.ok(cuts.some(([cut,writes])=>cut===21&&writes===undefined),'inspection cannot qualify execution generation, while same-store sequence numbers remain comparable');
   assert.equal((await f.app.client.query({kind:'query',name:'other'},{})).data,'covered');
 });
 

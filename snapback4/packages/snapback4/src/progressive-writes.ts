@@ -244,7 +244,8 @@ export class ProgressiveWrites {
     const deviceIntents = this.deviceIntents!, journalIntents = pendingIntentAccess(journal);
     const devicePending = original.pendingWrites;
     const binding = (evidence: ReceiptEvidence | undefined, store: string | null | undefined) => evidence && {
-      ...evidence, store: store ?? undefined, preserved: undefined,
+      // Inspection knows the intent's store, not the peer's execution program.
+      ...evidence, store: store ?? undefined, generation: undefined, preserved: undefined,
     };
     const admitted = new Map(this.initial?.pending.map(intent => [intent.id, { op: intent.op, evidence: binding(openingEvidence, intent.storeId) }])), completed = this.completed;
     const observe = (entries: readonly (PendingWrite & { storeId?: string | null | undefined })[], receipts: readonly Write[], evidence = observation()) => {

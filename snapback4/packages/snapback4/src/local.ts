@@ -1938,7 +1938,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await refusedSession(denied, request.revision);
     if (current()) {
       if (denied && !denied.retryable && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)
-        && (requestStore === undefined || requestStore === dispatchStore)) {
+        && (denied.code === "E_STORE_REPLACED" ? typeof json.store_id !== "string" || json.store_id !== dispatchStore : requestStore === undefined || requestStore === dispatchStore)) {
         if (denied.code === "E_STORE_RESTORE") refuseRestore(denied);
         else {
           partitionDenied = denied; observeIncarnation(typeof json.store_id === "string" ? json.store_id : storeIdentity, true);
@@ -1976,7 +1976,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     const sameGeneration = !evidence || evidence.generation === backend?.generation;
-    const preserved = sameGeneration && evidence?.authorityCurrent() ? evidence.preserved : undefined;
+    // A current, known certificate still bounds revocation if its program differs.
+    const preserved = evidence && !evidence.authorityCurrent() ? undefined : evidence?.preserved;
     // @ref LLP 3000.002.000#6 — only the executed generation qualifies a cut's footprint.
     // A receipt whose metadata was fenced still orders reads, conservatively.
     const writes = committed === undefined || sameGeneration ? footprint : undefined, tables = writes && Object.keys(writes);
@@ -1985,7 +1986,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       answers.notified(tables, committed, !!tables?.length || writes === undefined, writes, true);
     } else answers.evidence(undefined, tables, writes, writes, true);
     for (const watch of watches.values()) if (intersects(readFootprint(dependencies(backend, watch.op.name)?.reads, watch.tables), writes))
-      void scheduleRead(watch, true, committed, preserved, writes);
+      void scheduleRead(watch, true, committed, sameGeneration || preserved == null ? preserved : [], writes);
   }, id => mutationIds.knows(id) || custodyEntries.some(entry => entry.id === id) ? true : deviceListed && deviceHistoryListed ? false : undefined, custodyFailure,
     () => ({ store: storeIdentity ?? onlineStore, generation: backend?.generation, preserved: undefined, authorityCurrent: () => false }));
   if (confirmedJournalRefusal) journalWrites?.refuseStore(confirmedJournalRefusal);

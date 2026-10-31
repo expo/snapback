@@ -7,7 +7,6 @@ import { storeKey } from '../dist/app-storage.js';
 import { journalReader } from '../dist/app-journal.js';
 import { ProgressiveWrites, progressiveWriteCustody } from '../dist/progressive-writes.js';
 import { journalChanges } from '../dist/journal-changes.js';
-import { QueryCuts } from '../dist/query-dependencies.js';
 import { episodeDeadline } from '../dist/read-episode.js';
 import { fixture, gate, tick, until, mutation, query, schema } from './helpers/progressive-writes.mjs';
 const regression = (name, work) => test(name, { timeout: 20_000 }, work);
@@ -20,23 +19,21 @@ function track(t) {
   return owners;
 }
 
-for (const failed of [false,true]) regression(`E10 peer ${failed?'validation failure':'sent receipt'} leaves disjoint offline reads usable`, async t => {
-  const owners=track(t),store=memorySessionStore(),cuts=[],change=QueryCuts.prototype.change;
-  t.mock.method(QueryCuts.prototype,'change',function(...args){cuts.push(args);return change.apply(this,args);});
+regression('E10 peer validation failure leaves disjoint offline reads usable across generation adoption', async t => {
+  const owners=track(t),store=memorySessionStore();
   const backend=structuredClone(schema);let evaluations=0;
   const a=await fixture(t,{raw:true,store,backend,syncHead:20,wrapCore:core=>({...core,async call(request,...args){if(request.op==='query')evaluations++;return core.call(request,...args);}})});await until(()=>localStatus(a.app.client).getSnapshot().state==='ready');
   const watch=a.app.client.observe(other,{}),seen=[];watch.subscribe(()=>seen.push(watch.getSnapshot()));t.after(()=>watch.close());
   await until(()=>watch.getSnapshot().data==='other');
-  const b=await fixture(t,{raw:true,store,mutationRefusal:failed?{code:'E_VALIDATE',family:'input',message:'validation failed'}:undefined});
+  const b=await fixture(t,{raw:true,store,mutationRefusal:{code:'E_VALIDATE',family:'input',message:'validation failed'}});
   const id=mintId(),writing=b.app.client.mutate(mutation,{}, {id,waitSeconds:5});await b.posted.promise;
   await until(()=>!owners[0].uncertain&&owners[0].current().some(write=>write.id===id));
-  if(failed){backend.generation=2;await a.app.client.sync();await until(()=>watch.getSnapshot().data==='other');}
-  a.offline(true);cuts.length=0;seen.length=0;const before=evaluations;b.release.resolve();
-  assert.equal((await writing).state,failed?'failed':'sent');
+  backend.generation=2;await a.app.client.sync();await until(()=>watch.getSnapshot().data==='other');
+  a.offline(true);seen.length=0;const before=evaluations;b.release.resolve();
+  assert.equal((await writing).state,'failed');
   await until(()=>!owners[0].uncertain&&!owners[0].current().some(write=>write.id===id));
   await tick();await tick();
-  if(failed){assert.equal(b.executions.size,0,'validation did not execute a write');assert.equal(evaluations,before,'failed peer settlement must not reload disjoint watches');}
-  else assert.ok(cuts.some(([cut,writes])=>cut===21&&writes?.items===null),'same-generation inspection retains its footprint');
+  assert.equal(b.executions.size,0,'validation did not execute a write');assert.equal(evaluations,before,'failed peer settlement must not reload disjoint watches');
   assert.equal((await a.app.client.query(other,{})).data,'other');
   assert.equal(watch.getSnapshot().data,'other');
   assert.equal(seen.some(read=>read.loading||read.denied),false,'failure did not reload a disjoint retained answer');
