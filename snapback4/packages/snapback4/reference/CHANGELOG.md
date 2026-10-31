@@ -2,15 +2,11 @@
 
 ## 0.4.51
 
-- **Behavior change (2026-10-30):** `createApp` with `webDevice()` now defaults
-  to progressive startup. `app.ready` establishes a usable client and write
-  custody, not an open/acquired replica; observe `localStatus` / `useLocalStatus`
-  for local readiness. `startup: "awaited"` restores the old opening barrier.
-  Openers without a custody probe (native/Expo) still await. Author ruling:
-  "land it and make it the default"; Lane C qualification follows the flip.
+- **Behavior change:** `createApp` with `webDevice()` now defaults to progressive startup. `app.ready` establishes a usable client and write custody, not an open/acquired replica; observe `localStatus` / `useLocalStatus` for local readiness. `startup: "awaited"` restores the old opening barrier. Openers without a custody probe (native/Expo) still await.
 
 ### Guide changes
 
+- Includes the changes listed under 0.4.50 below; that version was not published.
 - Progressive web asset hooks keep opening refusals in loading and recover when the local device becomes executable; permanent opening failures remain visible. Restored upload cards refresh on local readiness. Asset ownership, one-view consumption and revocation rules are unchanged.
 
 - `day2-check` gives each production client call a fresh serve session on the same store, avoiding a shared identity-rate window across repeated callers. Call order, repeats and shutdown checks remain.
@@ -18,6 +14,8 @@
 - New Expo starters pin patched glob 14.0.2 and minimatch 11.0.1 for the Expo 57 CLI/configuration/fingerprint toolchain. Development dependencies remain audited with no new exceptions; existing apps can adopt these two npm overrides and reinstall.
 
 ## 0.4.50
+
+- Not published; its changes ship in 0.4.51.
 
 ### Guide changes
 
