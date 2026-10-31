@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 40,
-    "sha256": "eb82025f0583042c63b6e27e979ef6d8c171655e41c66ed38c221dd0bf87980e"
+    "count": 43,
+    "sha256": "c44457e192ca729f5499c7964516d19bad0d4f45bb4d29dd46e3d3c78e364e74"
   },
   "app-persona.ts": {
     "count": 23,
@@ -268,8 +268,8 @@
     "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
   },
   "local.ts": {
-    "count": 229,
-    "sha256": "07bc47227bb8b7176ec67e687a14afc19a6eb6a470301b6cafc3da6c68018262"
+    "count": 228,
+    "sha256": "7030631ddefc28b3ca2e39a5dd089d9c58ffceb4263f57ddae90ee5807928cbe"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -329,7 +329,7 @@
   },
   "progressive-writes.ts": {
     "count": 26,
-    "sha256": "b54420dbdff048736c36bbdc902d087bcb005e8124cc32da3eabc5c4ca222252"
+    "sha256": "93b18a12a4af5b46f4a6236ff7dba2308855aa01a85f2fcfdcdb8cdc6ea777fa"
   },
   "proof-accounts.ts": {
     "count": 16,
@@ -471,6 +471,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "refusal-decision.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "release.ts": {
     "count": 3,
     "sha256": "280a772ac9dae26ef5ea8bc7d56480ffcbf71b0095c29740f14b98c11d7370f3"
@@ -542,6 +546,14 @@
   "session-timing.ts": {
     "count": 3,
     "sha256": "1d28842de3003835574fd985f81e893e386c4e72a8f956f7aa88228e46f8269c"
+  },
+  "settlement-extract.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "settlement-reducer.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "sha256.ts": {
     "count": 0,

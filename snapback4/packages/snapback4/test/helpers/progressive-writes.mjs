@@ -1,3 +1,4 @@
+import { extract } from "../../dist/settlement-extract.js";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createApp } from '../../dist/app.js';
@@ -64,3 +65,20 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
 }
 
 export { fixture, wasm, gate, tick, until, mutation, query, schema };
+
+// Reducer-shaped equivalents of the former ring inspections. These are test
+// views, not production compatibility maps; each assertion still checks custody.
+export const unpublishedReceipt = (owner, id) => owner.states.get(id)?.phase === 'responded' ? owner.states.get(id).certificate : undefined;
+export const unpublishedCount = owner => [...owner.states.values()].filter(s => s.phase === 'responded' && s.certificate).length;
+export const completed = (owner, id) => owner.states.get(id)?.phase === 'settled';
+export const outstanding = (owner, id) => (owner.states.get(id)?.responseOutstanding ?? 0) > 0;
+export const outstandingCount = owner => [...owner.states.values()].filter(s => s.responseOutstanding > 0).length;
+export function receiptFacts(id, evidence, seq = 21) {
+  const facts = extract({ state: 'sent', seq, store_id: evidence.store, generation: evidence.generation, preserved: evidence.preserved },
+    { id, kind: 'response', source: 'journal-wrapper', op: 'write', footprintKnown: true, restoreConfirmed: false },
+    { closed: false, sessionDead: false, credentialRevision: 1, incarnation: 1, storeIdentity: evidence.store, onlineStore: evidence.store,
+      generation: evidence.generation, onlineHead: 20, onlineGeneration: evidence.generation, dispatchWatermark: 20,
+      dispatchSendRevision: 0, dispatchStore: evidence.store, dispatchIncarnation: 1, requestRevision: 1, requestStore: evidence.store });
+  facts.certificate.authorityCurrent = evidence.authorityCurrent;
+  return facts;
+}

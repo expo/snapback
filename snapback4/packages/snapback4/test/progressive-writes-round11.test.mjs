@@ -1,3 +1,4 @@
+import { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } from "./helpers/progressive-writes.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { localStatus } from '../dist/app.js';
@@ -69,7 +70,14 @@ regression('E11 receipt evidence stays bounded after completed-id history has ag
   const options={},store=memorySessionStore();prepareProgressiveWrites(options,{store,report:()=>{}});
   const writes=new ProgressiveWrites(options,'https://progressive-writes.invalid','alice');
   const evidence={store:'A',generation:1,preserved:undefined,authorityCurrent:()=>false};
-  for(let id=0;id<WRITE_HISTORY_LIMIT+5;id++)writes.receipt(String(id),evidence);
-  assert.equal(writes.receipts.size,WRITE_HISTORY_LIMIT);
-  assert.equal(writes.receipts.has('0'),false);assert.equal(writes.receipts.has(String(WRITE_HISTORY_LIMIT+4)),true);
+  // The old fixture supplied orphan evidence with no outcome. The reducer
+  // protects unpublished responses; age completed receipts through the same
+  // history window to witness the named completed-id eviction behavior.
+  for(let id=0;id<WRITE_HISTORY_LIMIT+5;id++) {
+    const facts=receiptFacts(String(id),evidence);
+    writes.receipt(String(id),facts);
+    writes.reduce(String(id),{type:'persisted'},facts); writes.trim();
+  }
+  assert.equal(writes.states.size,WRITE_HISTORY_LIMIT);
+  assert.equal(writes.states.has('0'),false);assert.equal(writes.states.has(String(WRITE_HISTORY_LIMIT+4)),true);
 });

@@ -21,11 +21,9 @@ registerHooks({ load(url, context, nextLoad) {
   if (url === new URL('../dist/client-start.js', import.meta.url).href) {
     patch('const client = await create();', 'const client = await create(); await globalThis.__e16Prepared?.(options, client);');
   }
-  if (url === new URL('../dist/progressive-writes.js', import.meta.url).href && process.env.E16_CONTROL === 'pause-guard') {
-    patch('if (this.lifetimePaused)\n                return failedAdmission(options?.id ?? mintId(), this.admissionDenied ??\n                    admissionRefusal("write custody is paused", "app.mutate", "retry after opening resumes"));', '');
-  }
   return result;
 } });
+const { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } = await import("./helpers/progressive-writes.mjs");
 const { memorySessionStore } = await import('../dist/auth.js');
 const { mintId } = await import('../dist/client.js');
 const { storeKey, storeLock } = await import('../dist/app-storage.js');
@@ -112,7 +110,7 @@ for (const obsolete of ['credential', 'generation']) regression(2, `peer complet
   const settledCuts = cuts.length;
   f.release.resolve(); const evidence = await received.promise;
   assert.equal(evidence.authorityCurrent(), obsolete !== 'credential');
-  assert.equal(progressive.receipts.has(id), false);
+  assert.equal((unpublishedReceipt(progressive, id) !== undefined), false);
   const deadline = episodeDeadline(displayed.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'unqualified live preservation must start the withdrawal bound after peer completion');
   await until(() => !('data' in displayed.getSnapshot())); assert.ok(Date.now() <= deadline + 250);
@@ -153,7 +151,8 @@ for (const kind of ['shrink', 'generation', 'foreign-reset', 'foreign-restore'])
   }
 });
 
-for (const when of ['before recovery', 'during recovery read']) regression(6, `opening pause ${when} can resume without reload`, async t => {
+// retired under LLP 3000.002.000.000 §2.4
+for (const when of ['before recovery', 'during recovery read']) regression(6, `opening pause ${when} requires a new lifetime`, async t => {
   const memory = memorySessionStore(), entered = gate(), release = gate(); await memory.set(key, 'damaged opening');
   let progressive, holding = false, installs = 0;
   const store = { ...memory, async get(k) { if (k === key && holding) { holding = false; entered.resolve(); await release.promise; } return memory.get(k); } };
@@ -173,10 +172,13 @@ for (const when of ['before recovery', 'during recovery read']) regression(6, `o
   else { holding = true; const recovering = progressive.pending(); await entered.promise; handle.pause(); release.resolve(); await recovering; }
   assert.equal(installs, 1, 'pause precedes nested transport preparation');
   assert.equal(progressive.custody, undefined);
-  const id = mintId(); assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 })).why?.code, 'E_ADMISSION');
-  handle.start();
-  await until(() => progressive.custody !== undefined);
-  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent', 'start resumes recovery and admits the refused id');
+  const id = mintId(); assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 })).why?.code, 'E_CLOSED');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined);
+  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).why?.code, 'E_CLOSED');
+  assert.deepEqual(f.requests, []);
+  const reopened = await f.reopen(); await reopened.ready;
+  assert.equal((await reopened.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent');
   assert.deepEqual(f.requests, [id]);
 });
 
@@ -186,7 +188,7 @@ regression(5, 'an unadmitted own receipt survives 256 admitted certificates and 
   let progressive; const settled = [];
   const install = ProgressiveWrites.prototype.install;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(client, identity, fetch, changed, ...args) {
-    await install.call(this, client, identity, fetch, (...event) => { if (event[1] !== undefined) settled.push(event); changed(...event); }, ...args); progressive = this;
+    await install.call(this, client, identity, fetch, (...event) => { if (event[1]?.type === "publish") settled.push(event); changed(...event); }, ...args); progressive = this;
   });
   const f = await fixture(t, { raw: true, hold: false });
   const ids = Array.from({ length: WRITE_HISTORY_LIMIT }, () => mintId());
@@ -195,19 +197,19 @@ regression(5, 'an unadmitted own receipt survives 256 admitted certificates and 
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = ids.map(intent); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === ids.length);
   const evidence = { store: 'A', generation: 1, preserved: ['items'], authorityCurrent: () => true };
-  for (const id of ids) progressive.receipt(id, evidence);
-  const fresh = mintId(), certificate = { ...evidence, preserved: [] }, finish = progressive.dispatch(fresh); t.after(finish);
-  assert.equal(progressive.admitted.has(fresh), false);
+  for (const id of ids) progressive.receipt(id, receiptFacts(id, evidence));
+  const fresh = mintId(), certificate = receiptFacts(fresh, { ...evidence, preserved: [] }, 42), finish = progressive.dispatch(fresh); t.after(finish);
+  assert.equal(progressive.current().some(write => write.id === fresh), false);
   progressive.receipt(fresh, certificate);
-  assert.equal(progressive.receipts.get(fresh), certificate, 'the newly inserted pre-admission certificate cannot evict itself');
-  const other = mintId(); progressive.receipt(other, evidence);
-  assert.equal(progressive.receipts.get(other), evidence, 'even an unpinned insertion cannot evict itself');
-  assert.equal(progressive.receipts.get(fresh), certificate, 'an outstanding response stays pinned during another insertion');
+  assert.equal(unpublishedReceipt(progressive, fresh), certificate.certificate, 'the newly inserted pre-admission certificate cannot evict itself');
+  const other = mintId(); progressive.receipt(other, receiptFacts(other, evidence));
+  assert.deepEqual(unpublishedReceipt(progressive, other)?.preserved, evidence.preserved, 'even an unpinned insertion cannot evict itself');
+  assert.equal(unpublishedReceipt(progressive, fresh), certificate.certificate, 'an outstanding response stays pinned during another insertion');
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending.push(intent(fresh)); await f.store.set(key, JSON.stringify(journal)); });
-  events.notify(); await until(() => progressive.admitted.has(fresh));
+  events.notify(); await until(() => progressive.current().some(write => write.id === fresh));
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = journal.pending.filter(write => write.id !== fresh); journal.receipts.push({ state: 'sent', id: fresh, seq: 42, replayed: true }); await f.store.set(key, JSON.stringify(journal)); });
-  events.notify(); await until(() => progressive.completed.has(fresh));
-  assert.equal(settled.find(event => event[1] === 42)?.[2], certificate, 'settlement uses the actual certificate rather than its admission placeholder');
+  events.notify(); await until(() => completed(progressive, fresh));
+  assert.deepEqual(settled.find(event => event[1]?.publication?.cut === 42)?.[1].publication, {invalidate:true,cut:42,preserved:[],footprint:'qualified'}, 'settlement uses the actual certificate rather than its admission placeholder');
 });
 
 regression(7, 'recovering an A-bound dispatcher replays unsent B intent instead of failing it', async t => {
@@ -236,7 +238,8 @@ regression(7, 'recovering an A-bound dispatcher replays unsent B intent instead 
   assert.equal((await f.journal()).pending.length, 0);
 });
 
-regression(3, 'a repaired paused dispatcher refuses its opening pending id until start', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression(3, 'a repaired retired dispatcher preserves its opening pending id for the next open', async t => {
   const store = memorySessionStore(), entered = gate(), release = gate(); await store.set(key, 'damaged opening');
   const id = mintId(); let progressive, installs = 0;
   const install = ProgressiveWrites.prototype.install;
@@ -250,18 +253,19 @@ regression(3, 'a repaired paused dispatcher refuses its opening pending id until
   const handle = progressiveWriteCustody(f.app.client), recovering = progressive.pending(); await entered.promise;
   assert.equal(progressive.initial.pending[0]?.id, id, 'the repaired opening snapshot owns X');
   handle.pause(); release.resolve(); await recovering;
-  assert.ok(progressive.custody);
-  assert.equal((await f.app.client.write(id))?.state, 'pending');
+  assert.equal(progressive.custody, undefined);
   assert.deepEqual(f.requests, []);
   const retry = await f.app.client.mutate(mutation, {}, { id, waitSeconds: 0 });
-  assert.equal(retry.why?.code, 'E_ADMISSION', 'same-id journal ownership cannot bypass a paused opening');
-  assert.deepEqual(f.requests, []);
-  handle.start();
-  assert.equal((await f.app.client.mutate(mutation, {}, { id, waitSeconds: 5 })).state, 'sent');
+  assert.equal(retry.why?.code, 'E_CLOSED', 'same-id retries cannot resume a retired opening');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined);
+  assert.deepEqual(JSON.parse(await store.get(key)).pending.map(write => write.id), [id]);
+  const reopened = await f.reopen(); await reopened.ready;
+  await until(async () => (await reopened.client.write(id))?.state === 'sent');
   assert.deepEqual(f.requests, [id]);
 });
 
-regression(8, 'a qualified own receipt schedules intersecting watches once at settlement', async t => {
+regression(8, 'a qualified own receipt parks its arrival read and publishes one settlement cut', async t => {
   const schedules = [], cuts = []; let progressive;
   const install = ProgressiveWrites.prototype.install;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
@@ -273,10 +277,11 @@ regression(8, 'a qualified own receipt schedules intersecting watches once at se
   const watch = f.app.client.observe(query, {}); watch.subscribe(() => {}); t.after(() => watch.close());
   await until(() => 'data' in watch.getSnapshot());
   const id = mintId(), writing = f.app.mutate(mutation, {}, { id, waitSeconds: 5 }); await f.posted.promise;
-  await until(() => !progressive.uncertain && progressive.admitted.has(id));
-  schedules.length = 0; cuts.length = 0;
+  await until(() => !progressive.uncertain && progressive.current().some(write => write.id === id));
+  schedules.length = 0; cuts.length = 0; const reads = f.reads();
   f.release.resolve(); assert.equal((await writing).state, 'sent');
-  await until(() => progressive.completed.has(id) && !progressive.uncertain);
-  assert.deepEqual(schedules, [{ op: 'read', cut: 21, preserved: [] }], 'ordinary certified settlement must not duplicate its live invalidation');
+  await until(() => completed(progressive, id) && !progressive.uncertain);
+  assert.deepEqual(schedules, [{ op: 'read', cut: undefined, preserved: [] }, { op: 'read', cut: 21, preserved: [] }], 'arrival acquires a read; pending exit supplies the only publishing cut');
+  assert.equal(f.reads(), reads + 1, 'pending arrival and settlement coalesce into one replacement fetch');
   assert.equal(cuts.length, 1);
 });

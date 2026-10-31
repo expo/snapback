@@ -1,3 +1,4 @@
+import { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } from "./helpers/progressive-writes.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { localStatus } from '../dist/app.js';
@@ -25,7 +26,7 @@ regression('E12 inspected peer success cannot borrow the observing generation fo
   const other = { kind: 'query', name: 'other' };
   assert.equal((await a.app.client.query(other, {})).data, 'other');
   // Only the executing peer adopts the expanded program. Inspection still sees
-  // generation 1 here and the durable receipt has no execution generation.
+  // generation 1 here; the durable receipt carries the actual execution generation.
   peerBackend.generation = 2;
   peerBackend.programs.find(op => op.name === 'write').settlement.writes.other = null;
   const b = await fixture(t, { raw: true, store, backend: peerBackend, receiptReply: r => ({ ...r, generation: 2 }) });
@@ -35,12 +36,12 @@ regression('E12 inspected peer success cannot borrow the observing generation fo
   settled = true; b.release.resolve(); assert.equal((await writing).state, 'sent');
   await until(() => !owners[0].uncertain && !owners[0].current().some(write => write.id === id));
   assert.equal(backend.generation, 1);
-  assert.equal((await a.journal()).receipts.find(write => write.id === id).generation, undefined);
+  assert.equal((await a.journal()).receipts.find(write => write.id === id).generation, 2);
   let answer;
   const reading = a.app.client.query(other, {}).then(read => { answer = read; });
   await until(() => answer !== undefined || covering); await tick();
   assert.equal(answer, undefined, 'the pre-write other value at watermark 20 must wait for cut 21');
-  assert.equal(covering, true, 'unknown execution generation requires a covering server read');
+  assert.equal(covering, true, 'the differing execution generation requires a covering server read');
   cover.resolve(); await reading;
   assert.equal(answer.data, 'other after write');
 });
@@ -68,7 +69,7 @@ for (const preserved of [[], ['items']]) regression(`E12 current own generation-
   const writing = f.app.mutate(mutation, {}); await f.posted.promise; f.release.resolve();
   assert.equal((await writing).state, 'sent'); await queried.promise;
   assert.equal(backend.generation, 1); assert.equal(evidence.authorityCurrent(), true);
-  assert.deepEqual(evidence.preserved, preserved);
+  assert.deepEqual(evidence.certificate.preserved, preserved);
   const deadline = episodeDeadline(watch.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'known preservation still starts the withdrawal bound');
   await until(() => !('data' in watch.getSnapshot()));

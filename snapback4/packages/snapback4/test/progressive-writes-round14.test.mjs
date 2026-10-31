@@ -15,6 +15,7 @@ registerHooks({ load(url, context, nextLoad) {
   }
   return result;
 } });
+const { unpublishedReceipt, unpublishedCount, completed, outstanding, outstandingCount, receiptFacts } = await import("./helpers/progressive-writes.mjs");
 const { memorySessionStore } = await import('../dist/auth.js');
 const { mintId } = await import('../dist/client.js');
 const { storeKey, storeLock } = await import('../dist/app-storage.js');
@@ -43,7 +44,8 @@ regression('E14 adopted-store refusal recovers the dispatcher and the next app m
   assert.equal((await f.app.client.query(query, {})).data, 'local');
 });
 
-regression('E14 pause during nested preparation leaves the device open and custody deferred until start', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression('E14 pause during nested preparation retires resources and preserves replay for the next open', async t => {
   const store = memorySessionStore(), entered = gate(), release = gate();
   await store.set(key, 'damaged opening');
   let progressive, installs = 0, transport, closes = 0;
@@ -64,17 +66,18 @@ regression('E14 pause during nested preparation leaves the device open and custo
   const replay = mintId();
   await store.set(key, JSON.stringify({ owner: 'alice', backend: url, pending: [{ owner: 'alice', id: replay, op: 'write', args: {}, storeId: 'A' }], receipts: [] }));
   handle.pause(); release.resolve(); await recovering;
-  assert.ok(transport); assert.equal(closes, 0, 'a pause must not retire the prepared transport');
+  assert.ok(transport); assert.ok(closes > 0, 'retirement closes the prepared transport');
   assert.equal(progressiveWriteCustody(f.app.client), handle);
-  assert.ok(progressive.custody, 'paused opening still installs its deferred custody');
-  const action = await f.app.client.act({ kind: 'action', name: 'perform' }, {});
-  assert.equal(action.state, 'done', 'the raw device lifetime remains open');
-  assert.deepEqual(f.requests, [], 'paused custody does not start replay');
-  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_ADMISSION');
-  handle.start(); // The existing deferred-start entry point resumes this opening.
-  await until(async () => (await f.app.client.write(replay))?.state === 'sent');
-  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 5 })).state, 'sent');
-  assert.equal(f.requests.length, 2); assert.equal(f.requests[0], replay);
+  assert.equal(progressive.custody, undefined, 'a retired opening cannot publish custody');
+  assert.equal((await f.app.client.act({ kind: 'action', name: 'perform' }, {})).denied?.code, 'E_CLOSED');
+  assert.deepEqual(f.requests, []);
+  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
+  handle.start(); await progressive.pending();
+  assert.equal(progressive.custody, undefined, 'start after retirement is a no-op');
+  assert.deepEqual(JSON.parse(await store.get(key)).pending.map(write => write.id), [replay]);
+  const reopened = await f.reopen(); await reopened.ready;
+  await until(async () => (await reopened.client.write(replay))?.state === 'sent');
+  assert.deepEqual(f.requests, [replay], 'the next open replays committed custody');
 });
 
 regression('E14 late own empty preservation withdraws a displayed answer after peer settlement without a second cut', async t => {
@@ -111,7 +114,8 @@ regression('E14 late own empty preservation withdraws a displayed answer after p
   assert.equal(episodeDeadline(watch.getSnapshot()), undefined, 'inspection has unknown preservation');
   const settledCuts = cuts.length;
   f.release.resolve(); await received.promise;
-  assert.equal(progressive.receipts.has(id), false, 'late own evidence is not retained');
+  assert.equal(progressive.states.get(id)?.phase, 'settled');
+  assert.equal(progressive.states.get(id)?.certificate, undefined, 'late own evidence is not retained after settlement');
   const deadline = episodeDeadline(watch.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'late live revocation starts the withdrawal bound');
   await until(() => !('data' in watch.getSnapshot()));
@@ -143,7 +147,7 @@ regression('E14 credential rotation keeps the withdrawal bound of an own known e
   await until(() => watch.getSnapshot().data === 'displayed');
   replacing = true; f.release.resolve(); assert.equal((await writing).state, 'sent'); await queried.promise;
   assert.equal(evidence.authorityCurrent(), false, 'the response belongs to the previous credential revision');
-  assert.deepEqual(evidence.preserved, []);
+  assert.deepEqual(evidence.certificate.preserved, []);
   const deadline = episodeDeadline(watch.getSnapshot());
   assert.ok(deadline !== undefined && deadline - Date.now() <= 1000, 'obsolete credentials cannot turn known revocation into unknown evidence');
   await until(() => !('data' in watch.getSnapshot())); assert.ok(Date.now() <= deadline + 250);
@@ -175,7 +179,8 @@ for (const refusing of ['B', 'C']) regression(`E14 real replacement metadata for
   }
 });
 
-regression('E14 paused open denial frame keeps raw mutations at E_ADMISSION', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression('E14 retired open denial frame refuses raw mutations with E_CLOSED', async t => {
   const { localStatus } = await import('../dist/app.js');
   const memory = memorySessionStore(); await memory.set(key, 'damaged opening');
   // start() now attempts opening recovery too. Keep quarantine unavailable so
@@ -188,7 +193,9 @@ regression('E14 paused open denial frame keeps raw mutations at E_ADMISSION', as
   await until(() => localStatus(f.app.client).getSnapshot().state === 'ready');
   progressiveWriteCustody(f.app.client).pause();
   const write = await f.app.client.mutate(mutation, {}, { waitSeconds: 0 });
-  assert.equal(write.why?.code, 'E_ADMISSION', 'pause is not permission to admit into the device outbox');
+  assert.equal(write.why?.code, 'E_CLOSED', 'retirement cannot admit into the device outbox');
+  progressiveWriteCustody(f.app.client).start();
+  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
   assert.deepEqual(f.requests, []); assert.equal(await store.get(key), 'damaged opening');
 });
 
@@ -208,15 +215,15 @@ async function peerAdmissions(t, count) {
 regression('E14 an own receipt after 257 peer completions retains no orphan evidence', async t => {
   const { WRITE_HISTORY_LIMIT } = await import('../dist/writes.js');
   const { journalChanges } = await import('../dist/journal-changes.js');
-  let progressive; const received = gate();
+  let progressive, lateState; const received = gate();
   const install = ProgressiveWrites.prototype.install, receipt = ProgressiveWrites.prototype.receipt;
   t.mock.method(ProgressiveWrites.prototype, 'install', async function(...args) { await install.apply(this, args); progressive = this; });
-  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); received.resolve(); return completed; });
+  t.mock.method(ProgressiveWrites.prototype, 'receipt', function(...args) { const completed = receipt.apply(this, args); lateState = this.states.get(args[0]); received.resolve(); return completed; });
   const f = await fixture(t, { raw: true });
   const ids = Array.from({ length: WRITE_HISTORY_LIMIT + 1 }, () => mintId());
   const writing = f.app.client.mutate(mutation, {}, { id: ids[0], waitSeconds: 0 });
   await f.posted.promise; await writing;
-  assert.equal(progressive.responding.has(ids[0]), true, 'the actual own HTTP request pins its response');
+  assert.equal(outstanding(progressive, ids[0]), true, 'the actual own HTTP request pins its response');
   const events = journalChanges(key, () => {}); t.after(() => events.close());
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending.push(...ids.slice(1).map(id => ({ owner: 'alice', id, op: 'write', args: {}, storeId: 'A', dispatched: true }))); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === ids.length);
@@ -224,26 +231,30 @@ regression('E14 an own receipt after 257 peer completions retains no orphan evid
   // window. An oversized snapshot is invalid journal data, not 257 completions.
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = journal.pending.slice(-1); journal.receipts = ids.slice(0, -1).map((id, n) => ({ state: 'sent', id, seq: 21 + n, replayed: true })); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === 1);
-  assert.equal(progressive.completed.has(ids[0]), true);
+  assert.equal(completed(progressive, ids[0]), true);
   await storeLock(key, async () => { const journal = await f.journal(); journal.pending = []; journal.receipts = journal.receipts.slice(1); journal.receipts.push({ state: 'sent', id: ids.at(-1), seq: 21 + WRITE_HISTORY_LIMIT, replayed: true }); await f.store.set(key, JSON.stringify(journal)); });
   events.notify(); await until(() => !progressive.uncertain && progressive.current().length === 0);
-  assert.equal(progressive.completed.has(ids[0]), true, 'the completed-id ring pins the still-outstanding own response');
-  assert.equal(progressive.completed.has(ids[1]), false, 'the ring evicts the oldest unpinned completion');
+  assert.equal(completed(progressive, ids[0]), true, 'the completed-id ring pins the still-outstanding own response');
+  assert.equal(completed(progressive, ids[1]), true, 'retained receipt history remains represented alongside the outstanding response');
+  assert.equal(progressive.states.size, WRITE_HISTORY_LIMIT + 1, 'the response pin permits completed-history overflow');
   f.release.resolve(); await received.promise;
-  assert.equal(progressive.receipts.has(ids[0]), false, 'late own evidence cannot resurrect a settled id after history eviction');
-  await until(() => progressive.responding.size === 0);
-  assert.equal(progressive.receipts.size, 0); assert.deepEqual(f.requests, [ids[0]]);
+  assert.equal(lateState?.phase, 'settled');
+  assert.equal(lateState?.certificate, undefined, 'late own evidence cannot resurrect a settled id after history eviction');
+  await until(() => outstandingCount(progressive) === 0);
+  assert.equal(unpublishedCount(progressive), 0); assert.deepEqual(f.requests, [ids[0]]);
+  assert.equal(progressive.states.size, WRITE_HISTORY_LIMIT);
+  assert.equal(progressive.states.has(ids[0]), false, 'released response outside the retained receipt set is now evictable');
 });
 
 regression('E14 all 257 admitted receipts survive the evidence cap including an updated oldest entry', async t => {
   const { WRITE_HISTORY_LIMIT } = await import('../dist/writes.js');
   const { ids, progressive } = await peerAdmissions(t, WRITE_HISTORY_LIMIT + 1);
   const evidence = { store: 'A', generation: 1, preserved: ['items'], authorityCurrent: () => true };
-  for (const id of ids.slice(0, -1)) progressive.receipt(id, evidence);
-  const latest = { ...evidence, preserved: [] };
+  for (const id of ids.slice(0, -1)) progressive.receipt(id, receiptFacts(id, evidence));
+  const latest = receiptFacts(ids[0], { ...evidence, preserved: [] });
   progressive.receipt(ids[0], latest);
-  progressive.receipt(ids.at(-1), evidence);
-  assert.equal(progressive.receipts.size, ids.length, 'the cap permits overflow while every receipt is admitted');
-  assert.equal(progressive.receipts.get(ids[0]), latest, 'updating an old Map key cannot make an admitted receipt evictable');
-  for (const id of ids) assert.ok(progressive.receipts.has(id));
+  progressive.receipt(ids.at(-1), receiptFacts(ids.at(-1), evidence));
+  assert.equal(unpublishedCount(progressive), ids.length, 'the cap permits overflow while every receipt is admitted');
+  assert.equal(unpublishedReceipt(progressive, ids[0]), latest.certificate, 'updating an old Map key cannot make an admitted receipt evictable');
+  for (const id of ids) assert.ok((unpublishedReceipt(progressive, id) !== undefined));
 });

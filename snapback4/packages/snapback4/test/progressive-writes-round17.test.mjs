@@ -4,7 +4,7 @@ import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, nextLoad) {
   const result = nextLoad(url, context);
   if (url === new URL('../dist/app-online.js', import.meta.url).href) {
-    const source = String(result.source), needle = 'if (!restoredIds.has(id) && recovery)';
+    const source = String(result.source), needle = 'const refusedCapture = async () => {';
     assert.ok(source.includes(needle), needle);
     result.source = source.replace(needle, 'globalThis.__e17Gate?.(id); ' + needle);
   }
@@ -119,7 +119,7 @@ for (const method of ['close', 'signOut']) regression(2, `retained ${method} aft
   });
   const f = await recovered(t, { receiptReply: reply => ({ ...reply, result: 'held-result' }) });
   assert.equal(transports, 1);
-  assert.equal(f.progressive.recoverOpening, undefined, 'opening recovery has fully completed');
+  assert.equal(f.progressive.recovering, undefined, 'opening recovery has fully completed');
   const writing = f.app.client.mutate(mutation, {}, { waitSeconds: 5 });
   await f.posted.promise;
   await f.saved[method]();
@@ -158,7 +158,8 @@ for (const method of ['close', 'signOut']) regression(4, `nested quarantine afte
   assert.equal(progressive.custody, undefined);
 });
 
-regression(5, 'pause during a failed preservation reports the streak once across resume', async t => {
+// retired under LLP 3000.002.000.000 §2.4
+regression(5, 'pause during a failed preservation reports the retired opening streak once', async t => {
   const memory = memorySessionStore(), entered = gate(), release = gate(), reports = [];
   const damaged = 'damaged paused recovery'; await memory.set(key, damaged);
   let holding = false, attempts = 0, installs = 0, progressive;
@@ -183,12 +184,13 @@ regression(5, 'pause during a failed preservation reports the streak once across
   const handle = progressiveWriteCustody(f.app.client), recovering = progressive.pending(); await entered.promise;
   handle.pause(); release.resolve(); await recovering;
   assert.equal(attempts, 1);
-  handle.start(); await until(() => attempts >= 2); await progressive.pending();
-  assert.equal(reports.length, 1, 'pause must not swallow the only warning in the continuing failure streak');
+  handle.start(); await progressive.pending();
+  assert.equal(attempts, 1, 'start after pause cannot retry preservation');
+  assert.equal(reports.length, 1, 'retirement reports the last preservation failure once');
   assert.match(reports[0].why.message, /could not be preserved/);
   assert.equal(await memory.get(key), damaged);
   assert.equal(progressive.custody, undefined);
-  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_ADMISSION');
+  assert.equal((await f.app.client.mutate(mutation, {}, { waitSeconds: 0 })).why?.code, 'E_CLOSED');
 });
 
 regression(1, 'a captured gate waiter commits journal custody for recovery after close', async t => {

@@ -1,3 +1,5 @@
+import { extractRefusal } from "./settlement-extract.ts";
+import { bindDispatchReceipt } from "./online-dispatch.ts";
 import { proofResponse } from "./proof-observation.ts";
 import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
@@ -1029,15 +1031,17 @@ export function createClient(options: ClientOptions): Client {
       const outcome = json.replayed === true
         ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
+      bindDispatchReceipt(outcome, json);
       entry.resolve(outcome);
       emitWrite(outcome);
       for (const watch of watches.values()) void scheduleRead(watch, true, json.preserved, json.generation);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
-      const why = (json.why ?? json.denied) as Refusal | undefined;
+      const why = extractRefusal(json);
       if (!why) return false; // An unrecognized answer does not settle this id.
       const outcome = { state: "failed", id: entry.id, why } as const;
+      bindDispatchReceipt(outcome, json);
       entry.resolve(outcome);
       emitWrite(outcome);
     }

@@ -761,3 +761,64 @@ export function awaitBoundary() {
 // quarantine across retirement/pause. app-online's retirement guard and the
 // preservation-report flag are synchronous; its 40 awaits remain unchanged.
 // Regenerate the full expression seal; all 215 delivery sites/recipes remain.
+
+// Lane S1: settlement-extract, settlement-reducer and refusal-decision are pure
+// additive modules with zero awaits; no executor imports them yet. receiptOf
+// whitelists storeId/generation/op inside app-online's existing settlement
+// transaction. That changes its await-expression seal, not its 40 awaits or
+// the 215 classified delivery sites/recipes. settlement-receipt witnesses old
+// reads, additive round trips and disclosure; regenerate the complete seal.
+
+// Lane S2b step 1: the journal wrapper executes extract/decideRefusal and takes
+// selective retirement before online evidence. Two conditional onlineEvidence
+// awaits become one effect executor (local 229→228). app-online retains its 40
+// awaits; raw refusal execution and kept-intent caller projection are synchronous.
+// Rounds 12/14/16 and progressive-writes-s2b exercise fences, shrink, recovery,
+// lagging online metadata and kept callers. All 215 delivery sites/recipes stay.
+
+// Lane S2b step 2: reducer effects replace the wrapper's receipt/live rules and
+// callback qualification plus progressive's four rings. Arrival starts the
+// existing watch episode; pending exit publishes the in-memory cut. app-online
+// forwards known pending exits synchronously around its existing persistence
+// and notifications. Transport bindings use a WeakMap, including close delivery.
+// These paths add no I/O await: local/progressive/app-online/app-journal remain
+// 228/26/40/3. The complete expression seal changes for existing inline bodies;
+// all 215 classified delivery sites/recipes stay. Pure pin/eviction, generation,
+// held-save, unadmitted-response, peer and close witnesses cover the new effects.
+
+// Lane S2c: every fetch now releases its pin in the existing wrapper finally,
+// after processing; no new await. Extraction distinguishes replay serving from
+// execution generation and validates refusal bodies; the raw send/close paths
+// share that pure validator. before() keeps private receipt metadata, learned
+// receipt insertion leaves projection to the public boundary, and the reducer
+// exposes arrival refusal effects already executed by the wrapper. No delivery
+// site or recipe changes: 215; local/progressive/app-online/app-journal await
+// counts stay 228/26/40/3. Regenerate the complete expression seal; S2c witnesses
+// cover retries/errors, malformed replies, replay, metadata and projection.
+
+// Lane S3a: tracked-only receipt reduction, retained-snapshot eviction pins,
+// arrival read acquisition, wake-only foreign publication, store-bound capture,
+// and raw settlement execution add no await. The reducer's response ordering
+// remains pure. app-online emits persisted only after an actual pending exit;
+// a no-op failed-save retry still reports observed. Existing inline executor
+// bodies change the complete expression seal, not delivery I/O or recipes.
+// local/progressive-writes/app-online/app-journal stay at 228/26/40/3 awaits;
+// all 215 classified sites/recipes remain. S3a, rounds 14/16 and receipt tests
+// cover these paths; regenerate the complete seal.
+
+// Lane S3b step 3: ProgressiveWrites' one terminal machine replaces the denial,
+// paused and closed flags. Its 26 awaits now drain tracked nested installation,
+// recovery and inspection tasks under one response hold. app-online grows 40→42
+// awaits for admission/inspection/recovery drains; transaction admission rechecks
+// the shared retirement refusal after journal I/O. Captured work still uses the
+// existing locked authority check and restored ids keep committed custody.
+// The 30-edge table, 48 seeded lifetime walks and rounds 11/13/15/17 + HF1 cover
+// these boundaries. All 215 classified delivery sites and recipes stay intact.
+
+// Lane S3b step 4: fresh uncaptured admission returns a readiness wait out of
+// the journal transaction, then retries its state check after the next read.
+// start releases readiness after issuing the complete restored prefix. This
+// adds one app-online await (42→43); local/progressive/app-journal remain
+// 228/26/3. The gate witnesses, its retirement-guard removal control, rounds
+// 13/15/17 and HF1 cover ordering and retirement without adding a delivery I/O
+// site or changing any of the 215 classified sites/recipes. Regenerate the seal.
