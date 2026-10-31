@@ -15,6 +15,8 @@ import { createClient } from "snapback4/client";
 import { harness, nativeViews, routerHarness, onlineClientHarness, searchHarness } from "./helpers/social-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
+// @ref LLP 3000#publication-suite-under-contention — await the result of asynchronous browser checks, not a truthy Promise.
+const waitForBrowser = (page, predicate, arg) => until(() => page.evaluate(predicate, arg), predicate.toString());
 test("social recipes in React/browser: real online signals and media, controlled read interleavings", { timeout: hangBudget(303) }, async t => {
   const dir = mkdtempSync(join(root, ".social-browser-"));
   let vite, browser;
@@ -142,12 +144,12 @@ test("social recipes in React/browser: real online signals and media, controlled
       const text = `queued with ${state} membership`;
       await composer.fill(text);
       await page.getByRole("button", { name: "Send", exact: true }).click();
-      await page.waitForFunction(async text => (await window.savedSends()).some(w => w.op === "send" && w.args.text === text), text);
+      await waitForBrowser(page, async text => (await window.savedSends()).some(w => w.op === "send" && w.args.text === text), text);
       assert.equal(await composer.inputValue(), "");
       assert.ok(!(await page.evaluate(() => window.serverHistory())).data.some(row => row.text === text));
       await page.evaluate(() => window.reconnect());
-      await page.waitForFunction(async text => (await window.serverHistory()).data.some(row => row.text === text), text);
-      await page.waitForFunction(async () => !(await window.savedSends()).some(w => w.op === "send"));
+      await waitForBrowser(page, async text => (await window.serverHistory()).data.some(row => row.text === text), text);
+      await waitForBrowser(page, async () => !(await window.savedSends()).some(w => w.op === "send"));
     }
     await page.evaluate(async () => { window.restore(); await Promise.all(window.onlineArms.map(arm => arm.query({ name: "typingIn", kind: "query" }, { conversation: window.historyRows[0].conversation }))); });
     // Known-offline one-shots refuse before their reconnect probe completes.
@@ -179,26 +181,30 @@ test("social recipes in React/browser: real online signals and media, controlled
   const tick = () => page.evaluate(() => window.tick());
   const quietAfter = async action => {
     await composer.fill("activity " + await signalCount("setTyping"));
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     const stops = await signalCount("stopTyping");
     await action();
     await page.waitForFunction(before => window.requests.filter(r => r.path === "/m/stopTyping" && r.account === "alice").length > before, stops);
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     const renewals = await signalCount("setTyping");
     await tick(); await tick();
     assert.equal(await signalCount("setTyping"), renewals, "cleanup must end renewal");
+    const boxes = await page.evaluate(() => window.outboxes());
+    assert.ok(boxes.every(box => box.every(write => write.op !== "setTyping" && write.op !== "stopTyping")), "typing never enters durable custody");
+    // Send also admitted an ordinary message; its delivery is independent of stopping the typing lease.
+    await waitForBrowser(page, async () => (await window.outboxes()).every(box => box.length === 0));
     assert.ok((await page.evaluate(() => window.outboxes())).every(box => box.length === 0));
   };
   await t.test("renewal, idle without blur, Send, route visibility/key and unmount stop before expiry", async () => {
     await composer.fill("controlled activity");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     const before = await signalCount("setTyping");
     await tick();
     await page.waitForFunction(before => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length > before, before);
     const stops = await signalCount("stopTyping");
     await tick(); // 2.002s idle, still focused, before the four-second expiry.
     await page.waitForFunction(before => window.requests.filter(r => r.path === "/m/stopTyping" && r.account === "alice").length > before, stops);
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     assert.equal(await composer.evaluate(node => document.activeElement === node), true);
     // DOM click avoids blur, so Send itself must stop the lease.
     await quietAfter(() => page.getByRole("button", { name: "Send", exact: true }).evaluate(node => node.click()));
@@ -219,7 +225,7 @@ test("social recipes in React/browser: real online signals and media, controlled
 
   await t.test("a late failed renewal cannot stop a newer successful typing lease", async () => {
     await composer.fill("start lease");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     await page.evaluate(() => window.holdTypingFailure());
     await tick(); // Hold the interval renewal's result after it reaches the server.
     await page.waitForFunction(() => window.typingFailureHeld());
@@ -235,7 +241,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length > n, renewals, { timeout: hangBudget() });
     await tick(); // Idle stop still owns the newer lease, before its server expiry.
     await page.waitForFunction(n => window.requests.filter(r => r.path === "/m/stopTyping" && r.account === "alice").length > n, stops);
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     const after = await signalCount("setTyping");
     await tick();
     assert.equal(await signalCount("setTyping"), after);
@@ -253,21 +259,21 @@ test("social recipes in React/browser: real online signals and media, controlled
     assert.equal(await signalCount("setTyping"), failedRenewals);
     assert.equal(await signalCount("stopTyping"), failedStops);
     await page.evaluate(() => window.expire());
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
   });
 
   await t.test("typing expires, drops on disconnect, needs a fresh keystroke and never queues", async () => {
     await composer.fill("new activity");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     await composer.blur();
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     await composer.fill("disconnect activity");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     await page.evaluate(() => window.drop());
     await composer.fill("dropped hint");
     assert.equal(await composer.evaluate(node => node === window.composerNode && document.activeElement === node), true);
     await page.evaluate(() => window.expire());
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     assert.ok((await page.evaluate(() => window.outboxes())).every(box => box.length === 0));
     const sends = await page.evaluate(() => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length);
     await page.evaluate(() => window.reconnect());
@@ -277,9 +283,9 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.evaluate(() => window.tick(1300));
     assert.equal(await page.evaluate(() => window.requests.filter(r => r.path === "/m/setTyping" && r.account === "alice").length), sends);
     await composer.fill("fresh keystroke");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     await page.evaluate(() => window.leave()); await page.evaluate(() => window.expire());
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     await composer.fill("revoked cannot renew");
     assert.equal((await page.evaluate(() => window.typingAtPeer())).length, 0);
     await page.evaluate(() => window.rejoin());
@@ -345,14 +351,14 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.evaluate(() => window.setRead("receiptMember", { loading: true }));
     await composer.fill("first offline message");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await page.waitForFunction(async () => (await window.savedSends()).filter(w => w.op === "send").length === 1);
+    await waitForBrowser(page, async () => (await window.savedSends()).filter(w => w.op === "send").length === 1);
     // The picker stub uploads no bytes; its already-uploaded asset id travels in the real send args.
     await page.evaluate(id => { window.pickAsset = id; }, unsentPhoto);
     await page.getByRole("button", { name: "Attach once photo" }).click();
     await page.getByRole("button", { name: "Remove attachment" }).waitFor();
     await composer.fill("second offline message");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await page.waitForFunction(async () => (await window.savedSends()).filter(w => w.op === "send").length === 2);
+    await waitForBrowser(page, async () => (await window.savedSends()).filter(w => w.op === "send").length === 2);
     assert.ok(!(await page.evaluate(() => window.serverHistory())).data.some(row => row.text.includes("offline message")), "neither send reached the server while offline");
     await page.evaluate(() => window.reconnect());
     try { await page.getByRole("button", { name: "Edit unsent message" }).nth(1).waitFor({ timeout: hangBudget() }); }
@@ -393,14 +399,14 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.getByRole("button", { name: "Open media", exact: true }).click();
     await page.getByAltText("Once photo").waitFor();
     await composer.fill("private prior-account draft");
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 1);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 1);
     await page.evaluate(() => window.accountSwitch());
     assert.equal(await composer.inputValue(), "");
     assert.equal(await composer.evaluate(node => node === window.composerNode), false);
     assert.equal(await page.locator('[data-testid^="send-"]').count(), 0, "other account never sees prior intents");
     await page.waitForFunction(id => window.revoked.includes(id), accountPhoto);
     assert.equal(await page.getByTestId("once-viewer").count(), 0);
-    await page.waitForFunction(async () => (await window.typingAtPeer()).length === 0);
+    await waitForBrowser(page, async () => (await window.typingAtPeer()).length === 0);
     assert.equal((await page.evaluate(() => window.typingAtPeer())).length, 0);
     assert.equal(await page.getByTestId("history").locator('[data-testid^="message-"]').count(), 0);
   });
@@ -581,7 +587,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   assert.deepEqual(await page.evaluate(() => window.dmAttempts), [], "a slow loading lookup never creates");
   await page.evaluate(() => window.holdLookup(false));
   await page.getByTestId("composer").waitFor();
-  await page.waitForFunction(async () => !(await window.pendingDM()).some(w => w.op === "openDirect"));
+  await waitForBrowser(page, async () => !(await window.pendingDM()).some(w => w.op === "openDirect"));
   const online = await until(async () => {
     const read = await peer.query(api.directConversation, { other: alice.principal });
     return read.data && read;
@@ -593,11 +599,15 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   const repeat = await peer.mutate(api.openDirect, { id: "peer-proposal", other: alice.principal });
   assert.equal(repeat.state, "sent"); assert.equal(repeat.result, canonical);
   await page.evaluate(() => window.syncDM());
+  // @ref LLP 3000.002.000#7.2 — cold journal custody keeps its owner; local write prediction starts on the next open.
+  await waitForBrowser(page, async () => (await window.pendingDM()).length === 0);
+  await page.evaluate(() => window.finishDM());
+  await reloadBrowserPage(page); await page.waitForFunction(() => window.fixtureReady);
   await page.evaluate(() => window.dropDM());
   await page.evaluate(() => window.profileDM());
   await page.evaluate(other => window.openDM(other), bob.principal);
   await page.waitForFunction(id => window.routeDM().id === id, canonical);
-  assert.equal(await page.evaluate(() => window.dmAttempts.length), 1, "held offline key resolves without creating");
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 0, "held offline key resolves without creating");
   await page.getByTestId("composer").waitFor();
 
   // This replica knows no Carol DM. Carol creates one after it goes offline.
@@ -615,7 +625,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   await page.evaluate(other => window.openDM(other), carol.principal);
   await page.waitForFunction(() => window.pendingDMReads > 0);
   await new Promise(resolve => setTimeout(resolve, 250));
-  assert.equal(await page.evaluate(() => window.dmAttempts.length), 2, "an empty initial hook snapshot must not recreate a queued opening");
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 1, "an empty initial hook snapshot must not recreate a queued opening");
   assert.equal(await page.evaluate(() => window.routeDM().screen), "dm", "wait for durable custody before choosing the opening");
   await page.evaluate(() => window.holdPendingDM(false));
   await page.getByTestId("composer").waitFor();
@@ -623,7 +633,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening queued creation recovers its original settlement owner");
   await page.getByTestId("composer").fill("sent against the provisional ID");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send"));
+  await waitForBrowser(page, async () => (await window.pendingDM()).some(w => w.op === "send"));
   await page.getByTestId("composer").fill("draft while the peer wins");
   await page.getByTestId("composer").focus();
   await page.evaluate(() => { window.draftNode = document.querySelector('[data-testid="composer"]'); });
@@ -636,7 +646,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
   await page.evaluate(() => window.holdLookup(true));
   assert.equal(await page.getByTestId("composer").inputValue(), "draft while the peer wins", "later lookup withdrawal cannot unmount the route");
-  assert.equal(await page.evaluate(() => window.dmAttempts.length), 2);
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 1);
   await page.evaluate(() => window.holdLookup(false));
   await t.test("failed provisional sends survive Profile reopen and a full reload", async () => {
     const original = (await page.evaluate(() => window.savedDM())).intents;
@@ -678,7 +688,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(id => window.navigateDM({ id }), canonical);
     const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
     assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
-    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await waitForBrowser(page, async id => (await window.writeDM(id))?.state === "sent", leaving.id);
     await page.evaluate(() => window.syncDM());
     const absent = await page.evaluate(id => window.memberDM(id), canonical);
     assert.equal(absent.data, null); assert.equal(absent.fresh, true);
@@ -696,16 +706,16 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
     await page.getByTestId("composer").fill("queued after offline re-invite");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send" && w.args.text === "queued after offline re-invite"));
+    await waitForBrowser(page, async () => (await window.pendingDM()).some(w => w.op === "send" && w.args.text === "queued after offline re-invite"));
     await page.evaluate(() => window.connectDM());
-    await page.waitForFunction(async id => (await window.historyDM(id)).data?.some(row => row.text === "queued after offline re-invite"), canonical);
+    await waitForBrowser(page, async id => (await window.historyDM(id)).data?.some(row => row.text === "queued after offline re-invite"), canonical);
   });
 
   await t.test("stale absent membership queues offline and server refuses at sync without re-invitation", async () => {
     await page.evaluate(id => window.navigateDM({ id }), canonical);
     const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
     assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
-    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await waitForBrowser(page, async id => (await window.writeDM(id))?.state === "sent", leaving.id);
     await page.evaluate(() => window.syncDM());
     await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
     await page.evaluate(() => window.dropDM());
@@ -719,7 +729,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w =>
       w.op === "send" && w.args.text === "queued despite stale absence"), "stale absence reaches SDK custody");
     await page.evaluate(() => window.connectDM());
-    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    await waitForBrowser(page, async id => (await window.writeDM(id))?.state === "failed", queued.id);
     const failed = page.getByTestId(`send-${queued.id}`);
     await failed.getByRole("button", { name: "Edit unsent message" }).waitFor();
     assert.match(await failed.innerText(), /Not sent.*queued despite stale absence/s);
@@ -745,7 +755,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w => w.op === "send" && w.args.conversation === proposed), "provisional send admitted");
     await page.evaluate(() => window.profileDM());
     await page.evaluate(() => window.connectDM());
-    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    await waitForBrowser(page, async id => (await window.writeDM(id))?.state === "failed", queued.id);
     await reloadBrowserPage(page); await page.waitForFunction(() => window.fixtureReady);
     await page.evaluate(id => window.navigateDM({ id }), winner.result);
     const failed = page.getByTestId(`send-${queued.id}`);
@@ -763,7 +773,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(() => window.profileDM());
     assert.deepEqual(await page.evaluate(() => window.savedDM()), {});
     await page.evaluate(other => window.openDM(other), alice.principal);
-    await page.waitForFunction(async () => {
+    await waitForBrowser(page, async () => {
       const attempt = window.dmAttempts.at(-1);
       const receipt = attempt && await window.writeDM(attempt.options.id);
       return receipt?.state === "failed" && receipt.why.code === "SELF_DM";
@@ -780,7 +790,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(() => window.profileDM());
     assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "abandoned pending opening has no sends needing recovery");
     await page.evaluate(() => window.connectDM());
-    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", abandoned);
+    await waitForBrowser(page, async id => (await window.writeDM(id))?.state === "sent", abandoned);
     assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "unmounted successful opening leaves no association");
   });
 

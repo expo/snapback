@@ -29,7 +29,8 @@ import { createRoot } from "react-dom/client";
 import { AppProvider } from "snapback4/react";
 import { createClient } from "real-client";
 import { instrumentOnline } from "snapback4/client";
-import { createApp } from "snapback4/app";
+import { createApp, localStatus } from "snapback4/app";
+import { waitFor as awaitState } from '/@fs/${new URL("./wait.mjs", import.meta.url).pathname}';
 import { webDevice } from "snapback4/web";
 import { keepSession, localStorageSessionStore } from "snapback4/auth";
 import ConversationRoute from "starter-route";
@@ -67,7 +68,10 @@ const ownerApp = createApp({ url, sessionStore, fetch: (input, init) => { if (di
 const opened = await ownerApp.ready;
 if (!opened.ok) throw Error(JSON.stringify(opened));
 const raw = ownerApp.client;
+// @ref LLP 3000.002.000#4 — controlled facades need a real executable/acquired replica for offline fixtures.
+await awaitState(() => localStatus(raw).getSnapshot().executable, "controlled fixture executable");
 await raw.sync();
+await awaitState(() => localStatus(raw).getSnapshot().acquired, "controlled fixture acquired");
 const peer = createClient({ url, token: bob.token });
 const other = createClient({ url, token: carol.token });
 const ready = (data, extra = {}) => {
@@ -148,7 +152,9 @@ window.typingAtPeer = async () => (await peer.query(api.typingIn, { conversation
 window.peerTyping = () => peer.mutate(api.setTyping, { conversation });
 window.peerStop = () => peer.mutate(api.stopTyping, { conversation });
 window.drop = async () => { disconnected = true; link = "offline"; for (const listener of linkListeners) listener(link); await Promise.all(window.onlineArms.map(arm => arm.query(api.typingIn, { conversation }))); };
-window.reconnect = async () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); await raw.sync(); };
+window.reconnect = async () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); await raw.sync();
+  // The fake network did not emit a browser online event; probe the independent online arm too.
+  await Promise.all(window.onlineArms.filter(arm => arm.viewer()).map(arm => arm.query(api.typingIn, { conversation }))); };
 window.outboxes = async () => [await raw.pendingWrites()];
 window.savedSends = () => app.client.pendingWrites();
 window.sendOutcomes = async () => { const key = "snapback4-social:" + JSON.stringify([url, alice.principal]); const intents = JSON.parse(localStorage.getItem(key) ?? '{"intents":[]}').intents; return Promise.all(intents.map(async i => ({ id: i.id, outcome: await raw.write(i.id) }))); };

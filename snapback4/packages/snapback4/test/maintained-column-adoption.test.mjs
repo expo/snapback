@@ -86,6 +86,8 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
       assert.ok(Object.hasOwn(row,"likeCount"),`served parent lacks maintained field: ${JSON.stringify(row)}`);
       assert.equal(row.likeCount,row.id==="zero"?0:1);
     }
+    // @ref LLP 3000.007.003#5 — server publication can precede local adoption; observe the first adoption before editing again.
+    if (synced) await until(()=>between.length===1);
     seen.length=0;
     // Only unselected contributions: a nonzero value must be rewritten to zero.
     writeFileSync(path,after.replace("count likes by postId", "count likes where .selected by postId"));

@@ -3,7 +3,8 @@ export const directHarness = `
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider } from "snapback4/react";
-import { createApp } from "snapback4/app";
+import { createApp, localStatus } from "snapback4/app";
+import { waitFor as awaitState } from '/@fs/${new URL("./wait.mjs", import.meta.url).pathname}';
 import { webDevice } from "snapback4/web";
 import { keepSession, localStorageSessionStore } from "snapback4/auth";
 import Profile from "./src/Profile";
@@ -31,7 +32,10 @@ const app = createApp({ url, sessionStore: store, device: webDevice({ wasm: fetc
 });
 const opened = await app.ready;
 if (!opened.ok) throw Error(JSON.stringify(opened));
+// @ref LLP 3000.002.000#4 — this fixture explicitly prepares the offline replica.
+await awaitState(() => localStatus(app.client).getSnapshot().executable, "DM fixture executable");
 await app.client.sync();
+await awaitState(() => localStatus(app.client).getSnapshot().acquired, "DM fixture acquired");
 const observe = app.client.observe, mutate = app.client.mutate;
 const pendingWrites = app.client.pendingWrites, pendingWaiters = new Set();
 let pendingHeld = false;
