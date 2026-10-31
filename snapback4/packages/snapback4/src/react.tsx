@@ -645,7 +645,8 @@ export function useAsset(id: string | null | undefined): AssetState {
   useEffect(() => {
     const { client, signedOut, id } = owner;
     if (!id || signedOut) return;
-    let live = true, busy = false, recoveryRequested = false;
+    let live = true, busy = false, recoveryRequested = false, openingRefused = false;
+    const local = localStatus(client);
     let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
     let stage: AssetStage = "scheduled", since = owner.since;
@@ -679,6 +680,9 @@ export function useAsset(id: string | null | undefined): AssetState {
       if (!live || busy || client.link() === "signed-out") return;
       clearTimeout(recoveryTimer); recoveryTimer = undefined;
       busy = true;
+      openingRefused = false;
+      const before = local.getSnapshot();
+      const wasOpening = before.state !== "unavailable" && !before.executable;
       since = Date.now(); progress("client");
       try {
         const result = await readAsset(client, id, progress);
@@ -687,13 +691,20 @@ export function useAsset(id: string | null | undefined): AssetState {
           if ("url" in result) result.revoke();
           return;
         }
-        publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
+        const status = local.getSnapshot();
+        // @ref LLP 3000.002.000#4 — opening is loading; engine readiness retries without consuming another asset view.
+        openingRefused = "denied" in result && result.denied.code === "E_STORE" && result.denied.retryable === true
+          && (wasOpening || status.state !== "unavailable" && !status.executable);
+        if (openingRefused) {
+          if (status.state === "unavailable") { openingRefused = false; read = { denied: status.why }; publish({ status: "denied", why: status.why }); }
+          else { publishWaiting(); if (status.executable || status.acquired) recoveryRequested = true; }
+        } else publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
           : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
       } catch (error) {
         read = null;
         if (live) publish({ status: "error", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
       } finally {
-        clearTimeout(diagnosticTimer);
+        if (!openingRefused) clearTimeout(diagnosticTimer);
         busy = false;
         if (recoveryRequested) { recoveryRequested = false; recover(); }
       }
@@ -701,6 +712,13 @@ export function useAsset(id: string | null | undefined): AssetState {
     const recover = () => {
       if (!live) return;
       if (busy) { recoveryRequested = true; return; }
+      if (openingRefused) {
+        const status = local.getSnapshot();
+        // Unavailable ends this opening, even if its cause advises retrying with a reopened client.
+        if (status.state === "unavailable") { openingRefused = false; clearTimeout(diagnosticTimer); read = { denied: status.why }; publish({ status: "denied", why: status.why }); }
+        else if (status.executable || status.acquired) void load();
+        return;
+      }
       if (read && "denied" in read && assetError(read.denied) && read.denied.retryable === true) {
         if (Date.now() >= assetRetryAt(read.denied)) load();
         else if (recoveryTimer === undefined) recoveryTimer = setTimeout(() => {
@@ -710,6 +728,7 @@ export function useAsset(id: string | null | undefined): AssetState {
     };
     let link = client.link();
     const unsubscribe = client.onLink(next => { const before = link; link = next; if (next === "online" && before !== "online") recover(); });
+    const stopLocal = local.subscribe(() => { if (openingRefused) recover(); });
     const visible = () => { if (globalThis.document?.visibilityState === "visible") recover(); };
     globalThis.addEventListener?.("focus", recover);
     globalThis.addEventListener?.("online", recover);
@@ -721,6 +740,7 @@ export function useAsset(id: string | null | undefined): AssetState {
       clearTimeout(recoveryTimer);
       clearTimeout(diagnosticTimer);
       unsubscribe();
+      stopLocal();
       globalThis.removeEventListener?.("focus", recover);
       globalThis.removeEventListener?.("online", recover);
       globalThis.document?.removeEventListener?.("visibilitychange", visible);
@@ -798,8 +818,9 @@ export function useUpload<A, R, K extends Extract<keyof A, string>>(op: Mutation
     let alive = true, version = 0;
     const refresh = () => { const captured = ++version; if (!id) { setState(undefined); return; }
       void uploads.uploadIntent(id).then(next => { if (alive && captured === version) setState(next); }).catch(() => {}); };
-    const stop = uploads.onUploads(refresh); refresh();
-    return () => { alive = false; stop(); };
+    // @ref LLP 3000.002.000#4 — a kept upload's first device read can precede executable local storage.
+    const stop = uploads.onUploads(refresh), stopLocal = localStatus(client).subscribe(refresh); refresh();
+    return () => { alive = false; stop(); stopLocal(); };
   }, [uploads, id, available]);
   const uploadAndPlace = useCallback(async (args: Omit<A, K>, bytes: Blob | ArrayBuffer | Uint8Array, options?: Omit<import("./uploads.ts").UploadAndPlaceOptions<K>, "argument">) => {
     const next:import("./uploads.ts").UploadIntent = available ? await uploads.uploadAndPlace(op, args, bytes, { ...options, argument }) :
