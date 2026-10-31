@@ -929,12 +929,12 @@ fn adapt_never_touches_a_file_the_project_changed() {
 /// under Expo 57's config plugins) among its audit findings. The Expo
 /// starters override it to a release that still exports CommonJS `v4`.
 #[test]
-fn expo_starters_override_the_config_plugins_uuid() {
-    for flags in [&["--expo"][..], &["--expo", "--template", "chat"]] {
+fn expo_starters_pin_patched_toolchain_dependencies() {
+    for flags in [&["--expo"][..], &["--expo", "--online"], &["--expo", "--template", "chat"], &["--expo", "--template", "social"], &["--expo", "--online", "--template", "social"]] {
         let dir = Dir::new();
         assert!(dir.init(flags).status.success(), "{flags:?}");
         let package: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1", "deepmerge": "file:./toolchain/deepmerge" }), "{flags:?}");
+        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1", "glob": "14.0.2", "minimatch": "11.0.1", "deepmerge": "file:./toolchain/deepmerge" }), "{flags:?}");
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("1.4.1"), "{flags:?}");
         assert!(!readme.contains("dated no-fix warning") && !readme.contains("failed audit") && !readme.contains("audit as failed"), "{flags:?}: {readme}");

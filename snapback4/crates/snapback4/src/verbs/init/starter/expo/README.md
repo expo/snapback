@@ -47,6 +47,7 @@ fail Hermes compilation.
 ## Audit findings
 
 `package.json`'s `overrides` selects `uuid@11` for the config plugins' `xcode`,
+patched `glob@14.0.2` and `minimatch@11.0.1` for CLI/configuration/fingerprint traversal,
 patched `node-forge@1.4.1` for Expo code signing, and patched zod and
 decode-uri-component versions. Qualification includes development dependencies;
 fixable or unrecorded advisories fail. There are no current no-fix exceptions.

@@ -9,6 +9,10 @@
   Openers without a custody probe (native/Expo) still await. Author ruling:
   "land it and make it the default"; Lane C qualification follows the flip.
 
+### Guide changes
+
+- New Expo starters pin patched glob 14.0.2 and minimatch 11.0.1 for the Expo 57 CLI/configuration/fingerprint toolchain. Development dependencies remain audited with no new exceptions; existing apps can adopt these two npm overrides and reinstall.
+
 ## 0.4.50
 
 ### Guide changes
