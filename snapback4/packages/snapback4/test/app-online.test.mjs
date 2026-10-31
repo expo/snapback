@@ -264,7 +264,7 @@ test("CCP two createApp instances recover the known receipt when journal saves f
   const original = await a.mutate(op, args, { id }); assert.equal(original.state, "sent");
   fail = true;
   const returned = await b.mutate(op, args, { id, waitSeconds: 0 });
-  assert.deepEqual(returned, { state: "sent", id, seq: original.seq, replayed: true, storeId: "A", op: "send" });
+  assert.deepEqual(returned, { state: "sent", id, seq: original.seq, replayed: true });
   assert.deepEqual(await b.client.write(id), returned); assert.equal(executions, 1);
   t.diagnostic(`shared journal: ${executions} execution, recovered=${returned.state}, replayed=${returned.replayed}`);
 });

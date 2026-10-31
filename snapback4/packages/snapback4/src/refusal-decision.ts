@@ -38,19 +38,24 @@ export function reachable(f: RefusalFacts): { reachable: true } | { reachable: f
 
 export function decideRefusal(f: RefusalFacts): RefusalDecision {
   const row = reachable(f);
-  if (!row.reachable) throw new Error(`unreachable refusal: ${row.reason}`);
   const decision: RefusalDecision = { reads: "keep", dispatcher: "keep", reopen: "allowed", metadata: "none", notify: "none", transport: "settle" };
+  if (!row.reachable) return decision;
   if (f.authority === "lifetime-ended" || f.source === "dispatch-binding") return decision;
   if (f.source === "journal-wrapper" && f.code === "E_AUTH" && f.authority === "obsolete") decision.transport = "retry";
+  if (f.source === "journal-wrapper" && f.authority === "current") decision.metadata = "through-online-evidence";
   if (f.retryable || !["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(f.code)) return decision;
   const fence = f.source === "journal-wrapper" && f.authority === "current"
     && (f.code === "E_STORE_REPLACED" ? f.storeNamed !== "equals-dispatch" : f.requestStore !== "differs");
   decision.reads = fence ? "fence" : "keep";
-  decision.dispatcher = fence || f.source === "raw-onWrite" || f.restoreConfirmed ? "retire-all" : "retire-foreign";
-  decision.reopen = f.restoreConfirmed ? "terminal" : "allowed";
+  const confirmed = f.restoreConfirmed && (f.source === "raw-onWrite" || f.authority === "current");
+  decision.dispatcher = fence || f.source === "raw-onWrite" || confirmed ? "retire-all"
+    : f.code === "E_STORE_RESTORE" ? "keep" : "retire-foreign";
+  decision.reopen = f.code === "E_STORE_RESTORE" && (fence || confirmed) ? "terminal" : "allowed";
   decision.metadata = fence ? "adopt-directly"
     : f.source === "journal-wrapper" && f.authority === "current" && f.code === "E_STORE_REPLACED" && f.storeNamed === "equals-dispatch"
       ? "through-online-evidence" : "none";
-  decision.notify = decision.metadata === "through-online-evidence" ? "none" : "once";
+  // Recovery is owed even if online evidence saw an already-adopted store.
+  // Terminal restores use refuseRestore, which never calls onStoreChange.
+  decision.notify = decision.dispatcher !== "keep" && f.code !== "E_STORE_RESTORE" ? "once" : "none";
   return decision;
 }

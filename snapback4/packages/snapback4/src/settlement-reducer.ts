@@ -13,9 +13,10 @@ export interface State {
   storeId: string | undefined;
   outcome: Outcome | undefined;
   outcomeDelivered: boolean;
-  responseOutstanding: boolean;
+  responseOutstanding: number;
 }
-export type Event = { type: "admitted"; op: string; footprintKnown: boolean }
+export type Event = { type: "dispatched" }
+  | { type: "admitted"; op: string; footprintKnown: boolean }
   | { type: "response"; certificate: Certificate }
   | { type: "observed"; receipt: Outcome; certificate?: Certificate }
   | { type: "persisted" } | { type: "evicted" };
@@ -33,16 +34,16 @@ export type Effect = ({ type: "startEpisode" } & Episode)
   | { type: "settle" } | { type: "deliverOutcome"; outcome: Outcome }
   | { type: "retain" } | { type: "discard" } | { type: "refuseEviction" };
 
-/** Unknown response ownership pins conservatively. A peer-only owner may pass false.
- * An observed peer completion cannot clear this pin; only the own response does. */
-export function initialState(responseOutstanding = true): State {
+/** Unknown response ownership pins conservatively. A peer-only owner may pass zero.
+ * An observed peer completion cannot clear this pin; each own response releases one dispatch. */
+export function initialState(responseOutstanding = 1): State {
   return { phase: "admitted", certificate: undefined, episodeStarted: false, cutInstalled: false, published: false,
     op: undefined, footprintKnown: false, storeId: undefined, outcome: undefined, outcomeDelivered: false, responseOutstanding };
 }
 
 export function atArrival(certificate: Certificate, facts: Facts): { episode?: Episode; retire?: RefusalDecision } {
   const result: { episode?: Episode; retire?: RefusalDecision } = {};
-  if (certificate.outcome.state === "failed") result.retire = decideRefusal(facts);
+  if (facts.kind === "response" && certificate.outcome.state === "failed") result.retire = decideRefusal(facts);
   const now = facts.snapshot;
   if (now.closed || now.sessionDead || storeRelation(certificate.storeId, now.storeIdentity) !== "same" || certificate.preserved === undefined) return result;
   const sameGeneration = generationRelation(certificate.generation, now.generation) === "same";
@@ -83,6 +84,9 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
     deliver();
   };
   switch (event.type) {
+    case "dispatched":
+      state.responseOutstanding++;
+      break;
     case "admitted":
       if (state.phase !== "settled") {
         state.op ??= event.op; state.footprintKnown = event.footprintKnown;
@@ -91,7 +95,7 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       }
       break;
     case "response":
-      state.responseOutstanding = false;
+      state.responseOutstanding = Math.max(0, state.responseOutstanding - 1);
       arrive(event.certificate);
       // Peer completion owns settlement, but never swallows live revocation.
       if (state.phase === "settled") break;

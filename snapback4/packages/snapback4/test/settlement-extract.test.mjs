@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { canRevoke } from '../dist/change-evidence.js';
 import { extract } from '../dist/settlement-extract.js';
 
 const snapshot = { closed: false, sessionDead: false, credentialRevision: 4, incarnation: 8,
-  storeIdentity: 'A', onlineStore: 'lagging', generation: 1, dispatchStore: 'A', dispatchIncarnation: 8, requestRevision: 4, requestStore: 'A' };
+  storeIdentity: 'A', onlineStore: 'lagging', generation: 1, onlineHead: 30, onlineGeneration: 3, dispatchWatermark: 20, dispatchSendRevision: 0, dispatchStore: 'A', dispatchIncarnation: 8, requestRevision: 4, requestStore: 'A' };
 const request = { kind: 'response', source: 'journal-wrapper', id: 'write-id', op: 'write', footprintKnown: true, restoreConfirmed: false };
 const sent = { state: 'sent', seq: 21, head: 21, store_id: 'A', generation: 1, replayed: false };
 const outcome = { state: 'sent', id: 'write-id', seq: 21, replayed: false };
@@ -48,7 +49,17 @@ function values(facts) {
 for (const row of rows) test(`extract: ${row.name}`, () => {
   const pin = { ...snapshot, ...row.pin }, input = { ...request, ...row.input }, original = structuredClone({ json: row.json, pin, input });
   const facts = extract(row.json, input, pin);
-  assert.deepEqual(values(facts), { ...base, ...row.expected, snapshot: pin }, 'every Facts field, including all certificate and authority decomposition fields');
+  const metadata = [
+    { storeId: 'B', head: 0, generation: 2 }, { storeId: 'A', head: 21, generation: 1 },
+    { storeId: 'A', head: 21, generation: 2 }, { storeId: undefined, head: undefined, generation: undefined },
+    { storeId: undefined, head: undefined, generation: undefined }, { storeId: undefined, head: 21, generation: 1 },
+    { storeId: undefined, head: 21, generation: 1 }, { storeId: undefined, head: undefined, generation: undefined },
+    { storeId: 'A', head: 21, generation: 1 }, { storeId: 'A', head: 21, generation: 1 },
+    { storeId: undefined, head: 21, generation: undefined },
+  ][rows.indexOf(row)];
+  assert.deepEqual(values(facts), { ...base, ...row.expected, snapshot: pin, kind: input.kind,
+    capture: { store_id: pin.dispatchStore ?? null, watermark: 20, send_revision: 0 }, onlineMetadata: metadata,
+    refusal: row.expected?.outcome?.state === 'failed' ? row.expected.outcome.why : undefined }, 'every Facts field, including all certificate and authority decomposition fields');
   assert.deepEqual({ json: row.json, pin, input }, original, 'extraction is pure');
   const atArrival = facts.authorityCurrent();
   pin.closed = !pin.closed; pin.credentialRevision++;
@@ -68,4 +79,32 @@ test('extract: live outcomes retain results and refusal details for their owner 
   assert.deepEqual(extract({ ...sent, result }, request, snapshot).outcome, { ...outcome, result });
   assert.deepEqual(extract({ state: 'failed', why }, request, snapshot).outcome, { state: 'failed', id: request.id, why });
   assert.deepEqual(extract({ ...sent, replayed: true, result }, request, snapshot).outcome, { state: 'sent', id: request.id, seq: 21, replayed: true });
+});
+
+test('S2a 6: overload retains refusal facts without a terminal outcome or certificate', () => {
+  const f = extract({ state: 'failed', why: { code: 'E_OVERLOADED', retryable: true } }, request, snapshot);
+  assert.deepEqual(f.refusal, { code: 'E_OVERLOADED', retryable: true }); assert.equal(f.retryable, true); assert.equal(f.outcome, undefined); assert.equal(f.certificate, undefined);
+});
+test('S2a 7: paired B requests keep their different dispatch watermarks and online metadata', () => {
+  const pin = { ...snapshot, storeIdentity: 'B', onlineStore: 'B', dispatchStore: 'B', requestStore: 'B', onlineHead: 30, onlineGeneration: 9, generation: 1, dispatchSendRevision: 6 };
+  const json = { ...sent, store_id: 'B', head: 30, generation: 10 };
+  const facts = [20, 40].map(dispatchWatermark => extract(json, request, { ...pin, dispatchWatermark }));
+  for (const [i, f] of facts.entries()) {
+    assert.deepEqual(f.capture, { store_id: 'B', watermark: [20, 40][i], send_revision: 6 });
+    assert.deepEqual(f.onlineMetadata, { storeId: 'B', head: 30, generation: 10 });
+    assert.equal(f.snapshot.onlineGeneration, 9); assert.equal(f.snapshot.generation, 1);
+  }
+  assert.deepEqual(facts.map(f => f.onlineMetadata.head < f.capture.watermark), [false, true]);
+});
+for (const length of [129, 512, 513]) test(`S2a 8: preservation name length ${length}`, () => {
+  const name = 'x'.repeat(length), f = extract({ ...sent, preserved: [name] }, request, snapshot);
+  assert.deepEqual(f.certificate.preserved, length <= 512 ? [name] : []);
+  assert.equal(canRevoke(new Set([name]), { [name]: [] }, [name]), length > 512);
+});
+test('S2a 9: observation kind survives extraction', () => {
+  assert.equal(extract({ state: 'failed', why: { code: 'E_STORE_REPLACED' }, storeId: 'A', generation: 1, op: 'write' }, { ...request, kind: 'observed' }, snapshot).kind, 'observed');
+});
+test('S2a 10: failed certificates never carry preservation', () => {
+  const f = extract({ state: 'failed', why: { code: 'NO' }, preserved: ['items'] }, request, snapshot);
+  assert.equal(f.certificate.preserved, undefined); assert.equal(f.preservedKind, 'absent');
 });

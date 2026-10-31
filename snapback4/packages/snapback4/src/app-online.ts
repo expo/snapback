@@ -19,6 +19,15 @@ import { admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./adm
 import { StorageWarning } from "./app-storage.ts";
 import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts";
 
+// @ref LLP 3000.002.000#6 — journal execution bindings stay internal.
+export function publicWrite<T extends Write | undefined>(write: T): T {
+  if (write === undefined) return write;
+  const { storeId: _store, store_id: _wireStore, generation: _generation, op: _op, ...value } = write as Write & {
+    storeId?: unknown; store_id?: unknown; generation?: unknown; op?: unknown;
+  };
+  return value as T;
+}
+
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown, preserved?: boolean) => void, autoStart = true,
   captureAuthority?: AdmissionAuthorityContext, dispatchEnabled = true, progressive = false, reportRecovery = report) {
@@ -115,7 +124,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     restoredIds.delete(write.id);
     ids.finish(write.id);
     pending.notify();
-    if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
+    if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(publicWrite(write));
   };
   // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
   const receiptOf = (write: Terminal, intent?: Intent): Terminal => {
@@ -196,7 +205,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const intent = journal.pending.find(entry => entry.id === id);
       if (!intent) {
         const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
-        if (receipt) return { write: receipt, revision: undefined };
+        if (receipt) return { write: publicWrite(receipt), revision: undefined };
         throw new Error("the write has no durable intent; it cannot be dispatched");
       }
       const write = bindIntentStore(journal, intent, identity);
@@ -285,7 +294,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           }
           // @ref LLP 3000.013.000#4.2 — today's precedence, then an id known only by its marker.
           const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id) ?? capturedReceipt(journal, id);
-          if (receipt) return Promise.resolve(receipt);
+          if (receipt) return Promise.resolve(publicWrite(receipt));
           if (identity) observeJournalStore(journal, identity);
           // A capture keeps the store it recorded, whatever the transport sees now.
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: captured?.storeId ?? identity ?? null, dispatched: false });
@@ -375,12 +384,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (retained) {
         try { await settle(retained); }
         catch (error) { retain(retained, error); }
-        return retained;
+        return publicWrite(retained);
       }
       const journal = await locked(key, read);
       if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
-      if (receipt) { notify(receipt); return receipt; }
+      if (receipt) { notify(receipt); return publicWrite(receipt); }
       const retired = retiredReceipt(journal, id);
       // Saturation fences new admissions, not recovery of an admitted intent.
       if (retired && !journal.pending.some(intent => intent.id === id)) return retired;

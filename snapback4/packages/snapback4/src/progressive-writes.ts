@@ -5,7 +5,7 @@ import type { SessionStore } from "./auth.ts";
 import type { AdmissionAuthorityContext } from "./admission-authority.ts";
 import { storeKey, storeLock, StorageWarning } from "./app-storage.ts";
 import { journalReader, retiredReceipt, capturedReceipt, type Journal } from "./app-journal.ts";
-import { onlineCustody } from "./app-online.ts";
+import { onlineCustody, publicWrite } from "./app-online.ts";
 import { OnlineCapture } from "./online-capture.ts";
 import { sdkOwned, admissionRefusal, failedAdmission, freshlyMinted } from "./admission.ts";
 import { createClient, mintId } from "./client.ts";
@@ -163,7 +163,7 @@ export class ProgressiveWrites {
     }
     const learned = new Map<string, Write>();
     const recorded = (id: string): Write | undefined => local.viewer() === this.viewer && this.initial
-      ? learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id) : undefined;
+      ? publicWrite(learned.get(id) ?? this.initial.receipts.find(write => write.id === id) ?? retiredReceipt(this.initial, id) ?? capturedReceipt(this.initial, id)) : undefined;
     if (this.admissionDenied && !recoveringOpening) {
       const denied = this.admissionDenied;
       let recovering: Promise<void> | undefined, closed = false;
@@ -320,7 +320,7 @@ export class ProgressiveWrites {
       for (const write of receipts) {
         // Inspection can learn a peer's settlement after the opening snapshot.
         // Retain positive ownership so an unlisted device cannot refuse its retry.
-        learned.set(write.id, write);
+        learned.set(write.id, publicWrite(write));
         if (learned.size > WRITE_HISTORY_LIMIT) learned.delete(learned.keys().next().value!);
         const admission = admitted.get(write.id);
         if (admission !== undefined && write.state !== "pending" && !completed.has(write.id)) {
