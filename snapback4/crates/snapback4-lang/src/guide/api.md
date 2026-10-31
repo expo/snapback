@@ -26,7 +26,7 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 | `snapback4/web` | the device in the browser (wasm) | `webDevice`, `indexedDbPersistence`, `memoryPersistence` | `WebDeviceOptions`, `Persistence` |
 | `snapback4/local` | a local-first client over a device you open | `createLocalClient`, `localStatus`, `DeviceVersionError`, `uploadAndPlace`, `hasUploads`, `blobArrayBuffer` | `LocalOptions`, `LocalClient`, `DeviceOpener`, `LocalStatus`, `LocalStatusObservation` |
 | `snapback4/native` | the device as a process, from Node | `processDevice` | `ProcessDeviceOptions` |
-| `snapback4/auth` | sign-in and session storage | `guest`, `signup`, `login`, `logout`, `logoutAll`, `refreshSession`, `restoreSession`, `keepSession`, `forgetSession`, `narrowSession`, `memorySessionStore`, `localStorageSessionStore`, `defaultSessionStore`, `sessionKey` | `Session`, `SignIn`, `SessionStore` |
+| `snapback4/auth` | sign-in and session storage | `guest`, `signup`, `login`, `logout`, `logoutAll`, `deleteAccount`, `refreshSession`, `restoreSession`, `keepSession`, `forgetSession`, `narrowSession`, `memorySessionStore`, `localStorageSessionStore`, `defaultSessionStore`, `sessionKey` | `Session`, `SignIn`, `SessionStore` |
 | `snapback4/mock` | a labelled in-memory mock for screens without a server | `createMockClient`, `mockId`, `page` | `MockClient`, `MockOptions` |
 | `snapback4/inspection` | read-pressure inspection | `inspect` | `ReadInspection`, `PressureCounts` |
 

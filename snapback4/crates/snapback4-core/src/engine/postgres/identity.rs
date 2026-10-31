@@ -345,6 +345,20 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    fn delete_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError> {
+        write(self, |tx| {
+            tx.execute_one("INSERT INTO _principal_generations(principal,generation) VALUES ($1,1) ON CONFLICT(principal) DO UPDATE SET generation = _principal_generations.generation + 1", &[&principal])?;
+            let mut removed = tx.execute("DELETE FROM _sessions WHERE principal = $1", &[&principal])?;
+            if read_sessions_present(tx)? {
+                removed += tx.execute("DELETE FROM _read_sessions WHERE principal = $1", &[&principal])?;
+            }
+            tx.execute("DELETE FROM _session_mint_bindings WHERE principal = $1", &[&principal])?;
+            tx.execute("DELETE FROM _credentials WHERE principal = $1", &[&principal])?;
+            tx.execute("DELETE FROM _principals WHERE id = $1", &[&principal])?;
+            Ok(removed)
+        })
+    }
+
     /// A NUL lookup key is absent without querying.
     fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError> {
         if absent_text_key(&[digest]) { return Ok(None); }

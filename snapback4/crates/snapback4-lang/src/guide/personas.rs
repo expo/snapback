@@ -77,7 +77,7 @@ seed, defaults to `127.0.0.1`, and requires `--i-understand-cleartext` for a non
 terminator in front, preserve `Authorization` and `Origin`, strip persona headers, and pass `--trusted-proxy <ip|cidr>`
 so the sign-in counter keys the `X-Forwarded-For` client, not the proxy; identity trusts only bearer tokens.
 
-`GET /auth/config` is the small public advertisement for guest/password support. Catalog, schema, generated API,
+`GET /auth/config` is the small public advertisement for guest/password support. `POST /auth/delete` (bearer) deletes the signed-in account — sessions, credential, principal; the app's rows stay — and `app.auth.deleteAccount()` calls it then signs out; see guide deploy. Catalog, schema, generated API,
 native module and changes require a live principal. Signup requires at least 8 characters (Unicode scalar
 values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024 UTF-8 bytes. Password hashing runs in bounded
 concurrent slots outside the engine mutex. Under `serve`, guest, login and signup share 30 attempts per client

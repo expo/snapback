@@ -8,6 +8,7 @@ export function signup(url: string, email: string, password: string, options?: S
 export function login(url: string, email: string, password: string, options?: SignInOptions | typeof fetch, fetcher?: typeof fetch): Promise<SignIn>;
 export function refreshSession(url: string, token: string, doFetch?: typeof fetch): Promise<SignIn>;
 export function logoutAll(url: string, token: string, doFetch?: typeof fetch): Promise<SessionRevocation>;
+export function deleteAccount(url: string, token: string, doFetch?: typeof fetch): Promise<SessionRevocation>;
 export function memorySessionStore(): SessionStore;
 export function localStorageSessionStore(storage?: StorageLike, authorityNamespace?: string): SessionStore;
 export function restoreSession(url: string, store?: SessionStore, now?: () => number, readOnly?: boolean): Promise<Session | null>;

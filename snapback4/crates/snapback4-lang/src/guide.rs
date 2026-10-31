@@ -76,7 +76,8 @@ pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
-    ("bootstrap", "production"),
+    ("bootstrap", "production"), ("hosting", "production"), ("host", "production"), ("fly", "production"), ("fly.io", "production"), ("docker", "production"), ("volume", "production"), ("vps", "production"),
+    ("delete account", "deploy"), ("account deletion", "deploy"), ("delete-account", "deploy"),
     ("invariants", "security"), ("invariant", "security"), ("audit", "security"), ("privacy", "security"),
     ("schema", "language"), ("reference", "types"), ("references", "types"), ("principal", "personas"), ("principals", "personas"), ("first admin", "deploy"),
     ("useQueryData", "client"), ("useQueryResult", "client"), ("SignedIn", "client"), ("hourOfDay", "time"),

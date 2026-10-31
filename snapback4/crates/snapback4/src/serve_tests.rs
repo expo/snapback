@@ -540,6 +540,67 @@ fn change_polls_and_effect_claims_take_separate_long_wait_classes() {
 }
 
 #[test]
+fn deleting_an_account_ends_its_sessions_frees_its_email_and_has_an_operator_door() {
+    let host = Host::new(false);
+    // A guest deletes itself: the bearer answers once, then it is not live.
+    let guest = body(&host.request("POST", "/auth/guest", "", "{}"));
+    let guest_bearer = format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap());
+    let gone = body(&host.request("POST", "/auth/delete", &guest_bearer, ""));
+    assert_eq!(gone["ok"], true, "{gone}");
+    assert_eq!(gone["deleted"], guest["session"]["principal"]);
+    assert_eq!(gone["revoked"], 1);
+    assert_eq!(status(&host.request("GET", "/schema", &guest_bearer, "")), 401);
+    let again = host.request("POST", "/auth/delete", &guest_bearer, "");
+    assert_eq!(status(&again), 401, "{again}");
+    assert_eq!(body(&again)["denied"]["code"], "E_AUTH");
+
+    // A password account: two sessions end, the credential is gone, the email is free.
+    let credentials = r#"{"email":"Gone@Example.test","password":"a private passphrase"}"#;
+    let first = body(&host.request("POST", "/auth/signup", "", credentials));
+    let principal = first["session"]["principal"].as_str().unwrap().to_owned();
+    let second = body(&host.request("POST", "/auth/login", "", credentials));
+    assert_eq!(second["session"]["principal"], principal);
+    let first_bearer = format!("Authorization: Bearer {}\r\n", first["session"]["token"].as_str().unwrap());
+    let second_bearer = format!("Authorization: Bearer {}\r\n", second["session"]["token"].as_str().unwrap());
+    let deleted = body(&host.request("POST", "/auth/delete", &first_bearer, ""));
+    assert_eq!(deleted["deleted"], principal, "{deleted}");
+    assert_eq!(deleted["revoked"], 2);
+    assert_eq!(status(&host.request("GET", "/schema", &second_bearer, "")), 401);
+    let login = host.request("POST", "/auth/login", "", credentials);
+    assert_eq!(status(&login), 401, "{login}");
+    let fresh = body(&host.request("POST", "/auth/signup", "", credentials));
+    assert_ne!(fresh["session"]["principal"], principal, "the address signs up as a new principal: {fresh}");
+    { let engine = lock(&host.shared.engine);
+      // Through the identity port: the address now belongs to the fresh principal, and the deleted one has nothing left to remove.
+      assert!(snapback4_core::identity::credential(engine.store(), "gone@example.test").unwrap().is_some(), "the fresh signup owns the address");
+      assert_eq!(snapback4_core::identity::delete_principal(engine.store(), &principal).unwrap(), 0); }
+
+    // A read-scoped session cannot delete the account.
+    let reader = body(&host.request("POST", "/auth/guest", "", r#"{"scope":"read"}"#));
+    let reader_bearer = format!("Authorization: Bearer {}\r\n", reader["session"]["token"].as_str().unwrap());
+    let refused = host.request("POST", "/auth/delete", &reader_bearer, "");
+    assert_eq!(status(&refused), 403, "{refused}");
+    assert_eq!(body(&refused)["denied"]["code"], "E_READ_ONLY");
+
+    // Operators delete one account by principal with a service token, as /auth/revoke revokes one.
+    let service = { let engine = lock(&host.shared.engine); let now = host.shared.now();
+        snapback4_core::identity::service_session(engine.store(), "ops", now, 1).unwrap() };
+    let service_header = format!("Authorization: Bearer {}\r\n", service.token);
+    let target = fresh["session"]["principal"].as_str().unwrap().to_owned();
+    let fresh_bearer = format!("Authorization: Bearer {}\r\n", fresh["session"]["token"].as_str().unwrap());
+    let removed = body(&host.request("POST", "/auth/delete-account", &service_header, &format!(r#"{{"principal":"{target}"}}"#)));
+    assert_eq!(removed["ok"], true, "{removed}");
+    assert_eq!(removed["deleted"], target);
+    assert_eq!(status(&host.request("GET", "/schema", &fresh_bearer, "")), 401);
+    let unnamed = host.request("POST", "/auth/delete-account", &service_header, "{}");
+    assert_eq!(status(&unnamed), 400, "{unnamed}");
+    let seat = body(&host.request("POST", "/auth/delete-account", &service_header, r#"{"principal":"service:ops"}"#));
+    assert_eq!(seat["denied"]["code"], "E_INPUT", "{seat}");
+    let anonymous = host.request("POST", "/auth/delete-account", "", &format!(r#"{{"principal":"{target}"}}"#));
+    assert_eq!(status(&anonymous), 401, "{anonymous}");
+}
+
+#[test]
 fn refresh_rotates_and_logout_all_revokes_every_session() {
     let host = Host::new(false);
     let first = body(&host.request("POST", "/auth/guest", "", "{}"));

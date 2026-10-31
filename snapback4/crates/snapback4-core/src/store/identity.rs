@@ -360,6 +360,20 @@ impl IdentityStore for Store {
         tx.commit()?;
         Ok(removed)
     }
+    fn delete_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        // The generation bump stays: a bearer presented concurrently resolves against it and fails.
+        tx.execute("INSERT INTO _principal_generations(principal, generation) VALUES (?1, 1) ON CONFLICT(principal) DO UPDATE SET generation = generation + 1", [principal])?;
+        let mut removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64;
+        if present(&tx)? {
+            removed += tx.execute("DELETE FROM _read_sessions WHERE principal = ?1", params![principal])? as u64;
+        }
+        tx.execute("DELETE FROM _session_mint_bindings WHERE principal = ?1", params![principal])?;
+        tx.execute("DELETE FROM _credentials WHERE principal = ?1", params![principal])?;
+        tx.execute("DELETE FROM _principals WHERE id = ?1", params![principal])?;
+        tx.commit()?;
+        Ok(removed)
+    }
     fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError> {
         let mut expiry = self
             .conn

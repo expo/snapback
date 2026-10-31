@@ -2830,7 +2830,9 @@ password)` and `refreshSession(url, token)` return `{ ok: true, session
 atomically invalidates the presented token, so adopt the returned session;
 the local client does this through its method and `onSession` lifecycle.
 `logout(url, token)` ends one session; `logoutAll(url, token)` confirms
-`{ ok: true, revoked }` after ending every session for the principal. A
+`{ ok: true, revoked }` after ending every session for the principal;
+`deleteAccount(url, token)` deletes the account itself (sessions, credential,
+principal — the application's rows stay) and confirms the same shape. A
 session is `{ principal, kind, token, expiresAt }` (`kind` is `"guest"` or
 `"user"` for built-in identity, or the application kind a service minted);
 pass it to `createLocalClient({ url, session })` once and the client keeps
@@ -2865,7 +2867,7 @@ the principal is the application's own name for the account
 Session helpers can also be used directly; choose memory or explicit browser persistence:
 
 ```ts
-import { guest, signup, login, refreshSession, logout, logoutAll, memorySessionStore, localStorageSessionStore, sessionKey, keepSession, restoreSession, forgetSession } from "snapback4/auth";
+import { guest, signup, login, refreshSession, logout, logoutAll, deleteAccount, memorySessionStore, localStorageSessionStore, sessionKey, keepSession, restoreSession, forgetSession } from "snapback4/auth";
 const url = "http://127.0.0.1:4400", email = "alice@example.com", password = "a-long-password";
 const store = memorySessionStore(); // or the explicit browser opt-in below
 const persisted = localStorageSessionStore();
@@ -2881,6 +2883,10 @@ if (signedIn.ok) {
   await forgetSession(url, store);
 }
 if (visitor.ok) await logout(url, visitor.session.token);
+// Account deletion (an App Store requirement for apps with sign-up): the
+// account's sessions, credential and principal go; the app's rows stay.
+const leaving = await login(url, email, password);
+if (leaving.ok) await deleteAccount(url, leaving.session.token);
 ```
 
 #### Profile onboarding after sign-up
@@ -3627,9 +3633,15 @@ uses `Cache-Control: private, no-store`; a file is always `Content-Disposition: 
 }`; `POST /auth/logout` atomically authenticates and closes the presented live refresh/recovery family, then
 answers `{ "ok": true }`; a stale replaced bearer is 401 and cannot close or pretend to close its replacement.
 `POST /auth/refresh` returns a replacement session and invalidates that bearer; `POST /auth/logout-all`
-revokes every session for its principal and answers `{ "ok": true, "revoked": N }`. With a service token:
+revokes every session for its principal and answers `{ "ok": true, "revoked": N }`. `POST /auth/delete`
+(a full-scope bearer) deletes the account in one store transaction — every session, the stored
+credential and the principal row — and answers `{ "ok": true, "deleted": principal, "revoked": N }`;
+the email can sign up again as a new principal, and the application's own rows stay for a cleanup
+mutation or effect. Read-scoped sessions and service seats are refused (`snapback4/auth`
+`deleteAccount(url, token)`; `app.auth.deleteAccount()` then signs the device out). With a service token:
 `POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session for an account the application
 authenticated, `POST /auth/revoke` (`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
+`POST /auth/delete-account` (`{ "principal" }`) deletes one account the same way `/auth/delete` does,
 and an identity-verifying action may bind the mint to its current claim by also sending
 `x-snapback-action-lease` plus `binding: { invocationId, intent: "identity-session/v1", replaceLostDelivery?:
 true }`. A first bound call atomically creates one family. An ordinary replay refuses rather than returning a

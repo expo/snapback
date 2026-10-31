@@ -16,8 +16,9 @@ export function keepSession(url: string, session: Session, store?: SessionStore,
 export function forgetSession(url: string, store?: SessionStore, readOnly?: boolean): Promise<void>;
 export function logout(url: string, token: string, doFetch?: typeof fetch): Promise<void>;
 export function logoutAll(url: string, token: string, doFetch?: typeof fetch): Promise<SessionRevocation>;
+export function deleteAccount(url: string, token: string, doFetch?: typeof fetch): Promise<SessionRevocation>;
 export function refreshSession(url: string, token: string, doFetch?: typeof fetch): Promise<SignIn>;
 export function narrowSession(url: string, session: Session, doFetch?: typeof fetch): Promise<SignIn>;
 ```
 
-Declaration fingerprint: 46fed84921896c022287029dd55d7bc7eef15eaf114978353dffda0b3464fa2c
+Declaration fingerprint: 2dfc0147a86ba13021aa4b1758ea2d304cd356f454f0bb36ac4b320bcefbb5b7

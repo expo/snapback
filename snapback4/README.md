@@ -39,7 +39,13 @@ literal loopback origins (any app port), with a loopback Host header. A
 non-browser local tool may omit Origin. Personas and `/seed` are local
 development capabilities; a DNS name that resolves to loopback is not one.
 
-`snapback4 serve <dir>` defaults to HTTP on `127.0.0.1:4400`. Put a TLS
+`snapback4 serve <dir>` defaults to HTTP on `127.0.0.1:4400`. `<dir>` is the
+deployment directory and it *is* the data: `store.sqlite` and `releases/` live
+there, so it belongs on the persistent volume (`--worker-state-dir` holds only
+release workers' own state). Every top-level `snapback/workers/<name>.{ts,mts,mjs}`
+captured by `deploy` starts under serve as `service:<name>`; keep an unfinished
+worker in a subdirectory (helpers) or outside that folder. A hosted layout with
+a Fly.io example is `snapback4 guide production --section hosting`. Put a TLS
 reverse proxy on the same host in front of it, and configure clients with
 the public **https** URL. Preserve `Authorization` and `Origin`, strip
 `x-snapback-persona`, and restrict direct access to the backend socket.

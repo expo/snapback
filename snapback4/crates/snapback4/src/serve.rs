@@ -993,7 +993,7 @@ fn handle_resumable(mut request: Request, shared: &Shared, resume: Arc<read_inde
             }
         }
     }
-    if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
+    if method == Method::Post && (path == "/auth/revoke" || path == "/auth/delete-account" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
             return reject(request, if refusal.retryable { 503 } else { 401 }, refusal);
         }
@@ -1330,8 +1330,25 @@ fn handle_resumable(mut request: Request, shared: &Shared, resume: Arc<read_inde
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")
-        | (Method::Post, "/auth/narrow") | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") => {
+        | (Method::Post, "/auth/narrow") | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") | (Method::Post, "/auth/delete") => {
             crate::auth::handle(request, shared, &path, &body);
+        }
+        (Method::Post, "/auth/delete-account") => {
+            // An operator's door (a service token): delete one account by principal, like /auth/revoke ends its sessions.
+            let _service = match service_of(&request, shared) {
+                Ok(service) => service,
+                Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
+            };
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
+                return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"user:42\" }")) }));
+            };
+            let target = principal.clone();
+            let outcome = shared.engine.attempt(move |engine, _| snapback4_core::identity::delete_principal(engine.store(), &target));
+            match outcome {
+                Ok(revoked) => respond_timed(request, shared, 200, json!({ "ok": true, "deleted": principal, "revoked": revoked })),
+                Err(error) => respond_timed(request, shared, crate::auth::error_status(&error), json!({ "denied": refusal_json(&error.refusal()) })),
+            }
         }
         (Method::Post, "/seed") => dev_doors::seed(request, shared, &body),
         (Method::Post, "/dev/reset") => dev_doors::reset(request, shared, &body),

@@ -59,6 +59,9 @@ snapback4 doctor --release ./deployment --json
 ```
 
 `SNAPBACK4_WORKER_STATE_DIR` also supplies the absolute durable state directory.
+It holds release workers' own state only. The data is the deployment directory
+itself: `./deployment/store.sqlite` plus `releases/`; put that directory on the
+persistent volume (`guide production --section hosting`).
 Its ledger filename binds to the logical store id; serve validates it before
 listening, even while worker execution is excluded. `--store <path>` selects
 SQLite. For deploy/serve it aliases an existing SQLite store into the deployment;

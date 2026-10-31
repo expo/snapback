@@ -312,6 +312,10 @@ fn activate(
         let project = Project { root };
         let prepared = crate::native::prepare(&project, &bound).map_err(|e| e.to_string())?;
         crate::dev_worker::prepare_release(&project, &bound.schema)?;
+        // Every captured top-level worker starts under serve; say so before it does.
+        if let Ok(workers) = crate::dev_worker::declared(&project) && !workers.is_empty() {
+            eprintln!("deploy: workers: {} — each starts under serve as service:<name> (Node 24); an unfinished worker belongs in a subdirectory of snapback/workers, not at its top level", workers.keys().cloned().collect::<Vec<_>>().join(", "));
+        }
         crate::release_files::link_store(&project.root)?;
         crate::release_files::durable(&project.root)?;
         let mut pointer = crate::release_files::Pointer::prepare(dir, release, previous, rollback)?;

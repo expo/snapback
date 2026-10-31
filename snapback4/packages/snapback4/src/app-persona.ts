@@ -202,6 +202,8 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     },
     logoutEverywhere: (): Promise<SessionRevocation> => Promise.resolve({ ok: false,
       why: personaOnly(`development persona ${viewer} has no sessions to revoke`) }),
+    deleteAccount: (): Promise<SessionRevocation> => Promise.resolve({ ok: false,
+      why: personaOnly(`development persona ${viewer} is declared in schema.q, not an account to delete`) }),
   };
   const auth = live as AppAuth;
   let closing: Promise<void> | undefined;

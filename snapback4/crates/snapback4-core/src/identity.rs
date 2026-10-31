@@ -123,6 +123,8 @@ pub(crate) trait IdentityStore {
         mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError>;
     fn revoke_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError>;
+    /// Delete the account: its sessions, credential and principal row, in one transaction.
+    fn delete_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError>;
     fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError>;
     fn is_supervised_family(&self, digest: &str) -> Result<bool, RuntimeError>;
     fn clear_worker_families(&self) -> Result<(), RuntimeError>;
@@ -595,6 +597,30 @@ mod tests {
     }
 
     #[test]
+    fn deleting_an_account_frees_its_email_and_ends_every_bearer() {
+        let store = AnyStore::memory().unwrap();
+        let mut entropy = crate::ids::Mint::default();
+        let first = signup(&store, "Who@Example.com", "correct horse battery", 1_000, &mut entropy).unwrap();
+        let second = login(&store, "who@example.com", "correct horse battery", 1_000).unwrap();
+        let (principal, revoked) = delete_account(&store, &first.token, 2_000).unwrap();
+        assert_eq!(principal, first.principal);
+        assert_eq!(revoked, 2);
+        assert_eq!(resolve(&store, &first.token, 2_000).unwrap(), None);
+        assert_eq!(resolve(&store, &second.token, 2_000).unwrap(), None);
+        assert!(credential(&store, "who@example.com").unwrap().is_none());
+        assert!(login(&store, "who@example.com", "correct horse battery", 2_000).is_err());
+        assert!(delete_account(&store, &first.token, 2_000).is_err(), "a deleted bearer is not live");
+        // The same address signs up again as a new principal.
+        let again = signup(&store, "who@example.com", "another passphrase!", 3_000, &mut entropy).unwrap();
+        assert_ne!(again.principal, first.principal);
+        // Read scope and service seats refuse.
+        let reader = guest_scoped(&store, 1_000, &mut entropy, SessionScope::Read).unwrap();
+        assert!(delete_account(&store, &reader.token, 2_000).is_err());
+        assert!(delete_principal(&store, "service:worker").is_err());
+        assert_eq!(delete_principal(&store, "guest:never-seen").unwrap(), 0);
+    }
+
+    #[test]
     fn rotation_and_revoke_all_end_every_old_bearer() {
         let store = AnyStore::memory().unwrap();
         let original = open_session(&store, "user:one", "user", 1_000).unwrap();
@@ -862,6 +888,30 @@ pub fn revoke_principal(store: &AnyStore, principal: &str) -> Result<u64, Runtim
 fn revoke_principal_in(store: &impl IdentityStore, principal: &str) -> Result<u64, RuntimeError> {
     refuse_nul(&[(principal, "a principal is 1–128 printable characters")])?;
     store.revoke_identity_principal(principal)
+}
+
+/// Delete the signed-in account: every session, the stored credential and the
+/// principal row go in one transaction, so the email can sign up again and no
+/// bearer resolves. The app's own rows stay — a mutation or effect owns their
+/// cleanup. Read-scoped sessions and service seats refuse.
+pub fn delete_account(store: &AnyStore, token: &str, now: i64) -> Result<(String, u64), RuntimeError> {
+    let Some((principal, _kind, scope)) = resolve(store, token, now)? else {
+        return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+    };
+    if scope == SessionScope::Read {
+        return Err(RuntimeError::Auth("a read-only session cannot delete the account; sign in with a full session".into()));
+    }
+    let revoked = delete_principal(store, &principal)?;
+    Ok((principal, revoked))
+}
+
+/// Delete one account by principal (an operator holding a service token).
+pub fn delete_principal(store: &AnyStore, principal: &str) -> Result<u64, RuntimeError> {
+    refuse_nul(&[(principal, "a principal is 1–128 printable characters")])?;
+    if is_service(principal) {
+        return Err(RuntimeError::Input("a service seat is not an account: revoke it with /auth/revoke or snapback4 token".into()));
+    }
+    store.delete_identity_principal(principal)
 }
 
 #[cfg(test)]

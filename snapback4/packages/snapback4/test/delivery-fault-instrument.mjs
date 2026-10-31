@@ -319,6 +319,10 @@ export function awaitBoundary() {
   }));
 }
 
+// Account deletion (2026-10-31): auth.ts gained deleteAccount's two awaits (the
+// POST /auth/delete fetch and its body read) and app.ts one, `await live.logout()`
+// in app.auth.deleteAccount() after the server confirmed. All three sit on the
+// user-initiated auth path, never on delivery, like logoutAll/logoutEverywhere's.
 // FH round 3 merge: the RO and FH await families above both remain classified.
 // Read-only Following refusal and refusal-poll suppression are synchronous;
 // neither adds I/O, write custody, a delivery site or a fault recipe. The merged

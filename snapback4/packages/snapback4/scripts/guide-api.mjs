@@ -18,7 +18,7 @@ const modules = {
   proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','DevHost','ServeHost','AdvanceOptions','serveUntilSignal','deploy','cli','CliResult','command','startStatic','withBrowser','signInUI','signOutUI','renderedText','waitForFresh','waitForServer','fillRN','labelledControl','exhaustPages','snapshotAll','cleanup','bounded','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingAccount','StagingSessions','ProvisionedAccount','probeServeGuard','ProvisionedSessions','uniqueName','freshUser','FreshUserOptions'],
   client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Ready','Write','refusalOf','Signal','Cursor','AssetRead','Uploaded','UploadOptions','settleMutation','Session','SignIn','MutateOptions','Refusal','Query','Mutation','mintId','idFrom','SettledRead','MutationPromise'],
 
-  auth: ['signup','login','SignIn','Session','SignInOptions','guest','SessionStore','memorySessionStore','restoreSession','keepSession','forgetSession','logout','logoutAll','refreshSession','narrowSession'],
+  auth: ['signup','login','SignIn','Session','SignInOptions','guest','SessionStore','memorySessionStore','restoreSession','keepSession','forgetSession','logout','logoutAll','deleteAccount','refreshSession','narrowSession'],
 };
 // First line in every shipped declaration. Apply before fingerprinting for stable
 // rebuilds and --check; full declarations remain available below the pointer.

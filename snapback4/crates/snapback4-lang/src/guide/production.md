@@ -501,3 +501,58 @@ The bridge is a new release; retained new tables may have no old read path.
 Declared table/asset-column renames preserve identity/home; migration-only
 fileText and indexed cross-table backfills are in `guide evolution` and the
 packed-tested `guide language` example. SEC6 owns rule-review resurfacing.
+
+## Hosting a release
+
+`serve <deployment>` is the whole backend: the deployment directory holds
+`store.sqlite` and `releases/`, so it is the one thing that must be on a
+persistent disk. Workers' own state goes in `--worker-state-dir`; nothing else
+needs to survive a restart. The process speaks plain HTTP; a TLS terminator in
+front of it carries the public https URL. Behind that proxy pass
+`--trusted-proxy` so sign-in rate limits key the real client (`guide
+release-json --section proxies`). Every top-level `snapback/workers/<name>.*`
+captured by `deploy` starts under serve as `service:<name>` (Node 24 required):
+keep unfinished workers in a subdirectory or outside the folder, and read the
+`deploy: workers:` line before you ship. A health check is `GET /auth/config`
+(public, no bearer).
+
+Fly.io, one machine, one volume (`fly volumes create data --size 1`):
+
+```dockerfile
+FROM node:24-slim
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY . .
+RUN npx snapback4 check
+CMD ["sh", "-c", "npx snapback4 deploy /data/deployment && exec npx snapback4 serve /data/deployment --bind 0.0.0.0 --port 8080 --i-understand-cleartext --trusted-proxy ${TRUSTED_PROXY:-fdaa::/16} --worker-state-dir /data/workers"]
+```
+
+```toml
+# fly.toml
+[build]
+[mounts]
+  source = "data"
+  destination = "/data"
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "2s"
+    method = "GET"
+    path = "/auth/config"
+```
+
+`deploy` on start adopts the image's release into the volume's store (a
+running serve would adopt it too) and `serve` then owns it; `--bind 0.0.0.0
+--i-understand-cleartext` is right here because only Fly's proxy reaches the
+machine and it terminates TLS. Fly's proxy connects from its private 6PN range
+and appends your app's public address as the last `X-Forwarded-For` hop, so
+list both in `--trusted-proxy` (`fly ips list`) or the rate key names your own
+address. `auto_stop_machines = false` keeps the store open; scale to zero is
+fine too, since a stopped machine loses nothing on the volume. Deleting a test
+account: sign in as it and `POST /auth/delete`, or with a service token
+`POST /auth/delete-account {"principal":"user:…"}` (`guide deploy`).

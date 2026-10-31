@@ -173,7 +173,7 @@ pub(crate) fn help(verb: &str) -> String {
             ("sql", "dormant") => " — inspect retained dormant rows and cells; requires --release",
             ("sql", "all-releases") => " — inspect active and retained records together; requires --release",
             (_, "store-url") => " — Postgres URL with explicit schema and ha=none; overrides SNAPBACK4_STORE_URL; passwords here are visible in process arguments, so prefer the environment",
-            (_, "worker-state-dir") => " — absolute durable state directory; or SNAPBACK4_WORKER_STATE_DIR",
+            (_, "worker-state-dir") => " — absolute durable directory for release workers' own state (not the database: store.sqlite and releases live in the deployment directory); or SNAPBACK4_WORKER_STATE_DIR",
             ("deploy" | "serve", "store") => " — alias an existing SQLite store into the deployment; conflicts with a store URL",
             (_, "store") => " — select the SQLite store path for inspection or adoption checking",
             (_, "fixture") => " — fixture directory containing table.jsonl rows and test.cases.jsonl",

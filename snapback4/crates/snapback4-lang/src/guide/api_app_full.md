@@ -23,7 +23,7 @@ export type AppResult = { readonly ok: true; } | { readonly ok: false; readonly 
 export type AuthSnapshot = { readonly state: "signed-in"; readonly viewer: Principal; readonly why?: Refusal | undefined; } | { readonly state: "restoring" | "signed-out"; readonly viewer: null; readonly why?: Refusal | undefined; };
 export type AppAuth = AuthSnapshot & AppAuthMethods;
 export type LiveAuth = { readonly state: AuthState; readonly viewer: Principal | null; readonly why?: Refusal | undefined; } & AppAuthMethods;
-export interface AppAuthMethods { signup(email: string, password: string): Promise<SignIn>; login(email: string, password: string): Promise<SignIn>; guest(): Promise<SignIn>; logout(): Promise<AppResult>; logoutEverywhere(): Promise<SessionRevocation>; onChange(listener: () => void): () => void; getSnapshot(): AuthSnapshot; }
+export interface AppAuthMethods { signup(email: string, password: string): Promise<SignIn>; login(email: string, password: string): Promise<SignIn>; guest(): Promise<SignIn>; logout(): Promise<AppResult>; logoutEverywhere(): Promise<SessionRevocation>; deleteAccount(): Promise<SessionRevocation>; onChange(listener: () => void): () => void; getSnapshot(): AuthSnapshot; }
 export interface App { readonly client: Client; readonly online: Online; onOnlineChange(listener: () => void): () => void; readonly auth: AppAuth; readonly ready: Promise<AppResult>; mutate: Client["mutate"]; close(): Promise<void>; }
 export type AppOptions = AppConfiguration & ({ readonly device: DeviceOpener; } | { readonly persona: string; } | { readonly readOnly: true; } | { readonly sessionStore: SessionStore; });
 ```

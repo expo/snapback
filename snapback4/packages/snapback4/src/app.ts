@@ -29,7 +29,7 @@ export type { Online } from "./app-online-arm.ts";
 export type { Client, Principal, Refusal, Write, Outcome, Read, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
-import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
+import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, deleteAccount as deleteAccountOnServer, sessionKey, type SessionStore } from "./auth.ts";
 import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } from "./contract.ts";
 
 export type AuthState = "restoring" | "signed-out" | "signed-in";
@@ -51,6 +51,9 @@ export interface AppAuthMethods {
   guest(): Promise<SignIn>;
   logout(): Promise<AppResult>;
   logoutEverywhere(): Promise<SessionRevocation>;
+  /** Delete the signed-in account on the server (every session, the credential,
+   * the principal), then sign this device out. The app's rows stay. */
+  deleteAccount(): Promise<SessionRevocation>;
   onChange(listener: () => void): () => void;
   getSnapshot(): AuthSnapshot;
 }
@@ -129,7 +132,7 @@ function refusedApp(options: AppOptions, why: Refusal): App {
   const snapshot: AuthSnapshot = { state: "signed-out", viewer: null, why };
   const refused = () => Promise.resolve(result);
   const auth: AppAuth = { ...snapshot, getSnapshot: () => snapshot, onChange: () => () => {},
-    signup: refused, login: refused, guest: refused, logout: refused, logoutEverywhere: refused };
+    signup: refused, login: refused, guest: refused, logout: refused, logoutEverywhere: refused, deleteAccount: refused };
   return { client, online: onlineView(client), onOnlineChange: () => () => {}, auth,
     ready: Promise.resolve(result), mutate: client.mutate, close: () => client.close() };
 }
@@ -977,6 +980,18 @@ function createAppInner(options: AppOptions): App {
       // Later sign-ins wait for local deletion, never for remote revocation.
       operations = Promise.allSettled([operations, ending]);
       return ending;
+    },
+    deleteAccount() {
+      if (readOnly) return Promise.resolve({ ok: false, why: readOnlyRefusal() });
+      if (closed) return Promise.resolve(inactive());
+      const session = owner?.valid ? owner.client.session() : null;
+      if (!session) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to delete the account", site: "app.auth.deleteAccount", rewrite: "await app.auth.login(email, password) first" } as Refusal });
+      // The server ends every session with the account; the local sign-out
+      // then clears this device without waiting for a remote acknowledgement.
+      return deleteAccountOnServer(url, session.token, fetcher).then(async result => {
+        if (result.ok) await live.logout();
+        return result;
+      });
     },
     logoutEverywhere() {
       if (readOnly) return Promise.resolve({ ok: false, why: readOnlyRefusal() });

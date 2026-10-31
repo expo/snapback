@@ -87,6 +87,21 @@ export async function logoutAll(url: string, token: string, doFetch: typeof fetc
   }
 }
 
+/** Delete the bearer token's account on the server: every session, the stored
+ * credential and the principal row. The app's own rows stay; a mutation or an
+ * effect owns their cleanup. The email can sign up again afterwards. */
+export async function deleteAccount(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SessionRevocation> {
+  try {
+    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/delete`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    const json = (await readResponse(response)) as { ok?: boolean; revoked?: number; denied?: Refusal };
+    if (json.denied) return { ok: false, why: json.denied };
+    if (response.ok && json.ok === true) return { ok: true, revoked: Number(json.revoked ?? 0) };
+    return { ok: false, why: refused("account deletion was refused") };
+  } catch (error) {
+    return { ok: false, why: transportRefusal(error) };
+  }
+}
+
 /** Where a device keeps its bearer session. The default is memory, so a web
  * page cannot read a long-lived token from browser storage. Pass a secure
  * platform store for continuity across starts. */

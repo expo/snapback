@@ -143,13 +143,16 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
         Ok(Outcome::LogoutAll(revoked)) => {
             respond_timed(request, shared, 200, json!({ "ok": true, "revoked": revoked }))
         }
+        Ok(Outcome::Deleted(principal, revoked)) => {
+            respond_timed(request, shared, 200, json!({ "ok": true, "deleted": principal, "revoked": revoked }))
+        }
         Ok(Outcome::Session(session)) => {
             let mut wire = json!({ "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at, "scope": session.scope });
             if let Some(cap) = session.cap_expires_at { wire["capExpiresAt"] = json!(cap); }
             respond_timed(request, shared, 200, json!({ "session": wire }));
         },
         Err(error) => {
-            if matches!(path, "/auth/logout" | "/auth/narrow" | "/auth/refresh" | "/auth/logout-all")
+            if matches!(path, "/auth/logout" | "/auth/narrow" | "/auth/refresh" | "/auth/logout-all" | "/auth/delete")
                 && let RuntimeError::Auth(message) = &error {
                 return respond_refused(request, shared, Refusal::new("E_AUTH", "auth", message).guide("personas"));
             }
@@ -165,6 +168,8 @@ enum Outcome {
     SupervisedRefresh,
     Logout,
     LogoutAll(u64),
+    /// The account is gone: its principal, and how many sessions ended with it.
+    Deleted(String, u64),
 }
 
 pub(crate) fn error_status(error: &RuntimeError) -> u16 {
@@ -298,6 +303,8 @@ fn perform(
                         #[cfg(test)] crate::serve::test_work(&shared.auth_work);
                         identity::rotate_session(engine.store(), &token, shared.now()).map(|session| session.map(Outcome::Session).unwrap_or_else(|| refused_bearer(trusted, shared, engine, &token)))
                     }
+                    // @ref LLP 3000.009#5.1 — deletion is logout-all plus the credential and principal rows, in one store transaction.
+                    "/auth/delete" => identity::delete_account(engine.store(), &token, shared.now()).map(|(principal, revoked)| Outcome::Deleted(principal, revoked)),
                     _ => identity::logout_session(engine.store_mut(), &token, || shared.now()).map(|()| Outcome::Logout),
                 };
                 credential_result(trusted, shared, engine, &token, result)
