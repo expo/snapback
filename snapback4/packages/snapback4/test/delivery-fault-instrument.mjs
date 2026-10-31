@@ -822,3 +822,14 @@ export function awaitBoundary() {
 // 228/26/3. The gate witnesses, its retirement-guard removal control, rounds
 // 13/15/17 and HF1 cover ordering and retirement without adding a delivery I/O
 // site or changing any of the 215 classified sites/recipes. Regenerate the seal.
+
+// HF2: app-online's progressive onWrite now awaits the existing retirement
+// transaction before consuming its kept ids, then awaits ordinary settlement
+// only for a non-kept outcome (43→45 awaits). local's wrapper records keep
+// synchronously; its existing install expression changes, with 228 awaits.
+// progressive-writes observes sign-out rejection and ends the device in finally
+// without adding a drain dependency (26 awaits). Observer validation, confirmed
+// invocation precedence and the reducer's peer-success row are synchronous.
+// Real raw-queue/held-save/keep, rejecting deletion, malformed observer, S3a and
+// pure reducer witnesses cover these boundaries. Regenerate the complete seal;
+// all 215 classified delivery sites, failure classes and recipes are unchanged.

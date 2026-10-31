@@ -89,6 +89,12 @@ export class ProgressiveWrites {
     void work.then(() => this.openingWork.delete(work), () => this.openingWork.delete(work));
     return work;
   }
+  private signOut(): Promise<void> {
+    // @ref LLP 3000.002.000.000#2.4 — deletion/media errors cannot strand the
+    // common drain. Observe viewer-triggered rejection too, exactly once.
+    return this.signingOut ??= Promise.resolve(this.original?.signOut())
+      .catch(this.plan.report).finally(() => this.endDevice?.());
+  }
   // @ref LLP 3000.002.000.000#2.4 — the sole lifetime writer, shared by every
   // retained callback and nested install. Resource promises are drains, not states.
   private transition(event: LifetimeEvent, cause: Retirement = "close"): Promise<void> {
@@ -116,7 +122,7 @@ export class ProgressiveWrites {
             Promise.resolve(this.original?.close()).then(resolve, reject);
           };
         });
-        if (signsOut) this.signingOut = this.original?.signOut();
+        if (signsOut) this.signOut();
         else this.endDevice?.();
         this.stopViewer?.(); this.stopInspection?.();
         const journal = this.custody?.client.close();
@@ -137,7 +143,7 @@ export class ProgressiveWrites {
     }
     if (event === "retire" && cause === "close") this.endDevice?.();
     if (event === "retire" && cause === "signOut") {
-      this.signingOut ??= this.original?.signOut();
+      this.signOut();
       return Promise.all([this.closing, this.signingOut]).then(() => {});
     }
     return event === "retire" ? this.closing ?? Promise.resolve() : Promise.resolve();
@@ -275,6 +281,7 @@ export class ProgressiveWrites {
     return unique([...this.snapshot, ...this.custody?.captures() ?? []]).filter(write => this.states.get(write.id)?.phase !== "settled").map(({ storeId: _store, ...write }) => reason ? { ...write, state: "held", reason: `${reason.code}: ${reason.message}` } : write);
   }
   refuseStore(why: Refusal, adoptedStore?: string): void { void this.custody?.refuseStore(why, adoptedStore).catch(this.plan.report); }
+  keepStore(id: string): void { this.custody?.keepStore(id); }
   async install(local: Client, storeIdentity: string | undefined, fetch: typeof globalThis.fetch, changed: Change,
     deviceKnown: (id: string) => boolean | undefined, blocked: () => Refusal | undefined = () => undefined,
     observation: Observation = unknownObservation, original: Client = { ...local }): Promise<void> {
@@ -310,7 +317,7 @@ export class ProgressiveWrites {
       this.stopViewer = original.onViewer(viewer => { if (viewer !== this.viewer) void this.transition("retire", "viewer").catch(this.plan.report); });
       lifetimes.set(local, { client: local, start: () => this.start(),
         pause: () => { void this.transition("retire", "pause").catch(this.plan.report); },
-        recover: async () => {}, refuseStore: async () => {}, captures: () => [],
+        recover: async () => {}, refuseStore: async () => {}, keepStore: () => {}, captures: () => [],
         captureState: async () => ({ unsettled: true, peers: [] }), inspect: async () => ({ pending: [], receipts: [] }) });
     }
     const learned = new Map<string, Write>();

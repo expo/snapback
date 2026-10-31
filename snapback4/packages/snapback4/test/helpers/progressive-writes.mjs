@@ -20,7 +20,7 @@ const schema = {generation:1,store_id:'A',schema:{tables:{}},programs:[
   {name:'constant',kind:'Query',args:{},body:[{Return:{Literal:{String:'constant'}}}],settlement:{reads:{},writes:{}}},
 ]};
 async function fixture(t, {hold=true, drop=false, custody='none', store=memorySessionStore(), persist=memoryPersistence(), raw=false,
-  backend=schema, mutationRefusal, failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, actionReply, probeWait, schemaStore=true, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
+  backend=schema, mutationRefusal, storeRefusalCode='E_STORE_REPLACED', failure, badEngine=false, wrapCore=core=>core, queryReply, receiptReply, actionReply, probeWait, schemaStore=true, refreshReply, syncHead, syncGeneration, syncWait, authority, report=console.error, onStoreChange, basePath='', startup='progressive', persona=false, journal=false}={}) {
   const url=(persona?'http://127.0.0.1:4400':'https://progressive-writes.invalid')+basePath, release=gate(), posted=gate(), coreGate=gate();
   let head=20, requests=[], actions=[], executions=new Map(), reads=0, failStore, coreOpens=0, offline=false, revokes=0, failSync, storeId='A',changes=[];
   await store.set(sessionKey(url),JSON.stringify({token:'token',principal:'alice',kind:'user',expiresAt:Date.now()+7*86400000}));
@@ -41,7 +41,7 @@ async function fixture(t, {hold=true, drop=false, custody='none', store=memorySe
     if(path.startsWith('/a/')){const {id}=JSON.parse(init.body);actions.push(id);return Response.json(await actionReply?.(id)??{id,state:'done',result:'acted'});}
     if(path.startsWith('/m/')){
       const body=JSON.parse(init.body);requests.push(body.id);
-      if(body.store_id&&body.store_id!==storeId)return Response.json({state:'failed',id:body.id,why:{code:'E_STORE_REPLACED',family:'store',message:'request belongs to another store',retryable:false},store_id:storeId,head,generation:backend.generation});
+      if(body.store_id&&body.store_id!==storeId)return Response.json({state:'failed',id:body.id,why:{code:storeRefusalCode,family:'store',message:'request belongs to another store',retryable:false},store_id:storeId,head,generation:backend.generation});
       if(failStore)return Response.json({denied:failStore},{status:409});
       if(mutationRefusal){posted.resolve();if(hold)await release.promise;return Response.json({state:'failed',id:body.id,why:mutationRefusal,store_id:storeId,generation:backend.generation},{status:400});}
       const replayed=executions.has(body.id);

@@ -1953,6 +1953,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // @ref LLP 3000.002.000.000#2.3 — pin selective retirement BEFORE online
       // evidence can discover a shrink and request terminal retirement again.
       if (decision.dispatcher !== "keep") journalWrites.refuseStore(denied!, decision.dispatcher === "retire-foreign" ? storeIdentity : undefined);
+      else if (dispatchId && (facts.code === "E_STORE_REPLACED" || facts.code === "E_DEV_RESET" || facts.code === "E_STORE_RESTORE")) journalWrites.keepStore(dispatchId);
       if (decision.reads === "fence") {
         if (decision.reopen === "terminal") refuseRestore(denied);
         else {

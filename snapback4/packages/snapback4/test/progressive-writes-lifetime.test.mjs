@@ -19,6 +19,44 @@ const { ClosingResponse, ClosingResponses, trackClose } = await import('../dist/
 const { fixture, gate, tick, until, mutation } = await import('./helpers/progressive-writes.mjs');
 const url = 'https://progressive-writes.invalid', key = storeKey('writes', url, 'alice');
 
+for (const cause of ['signOut', 'viewer']) test(`HF2 H2: ${cause} drains after session deletion rejects`, { timeout: 10_000 }, async t => {
+  const memory = memorySessionStore(), deleted = gate(), opening = gate(), failure = Error('session deletion refused');
+  const errors = [], sessionEvents = []; let progressive, released = false;
+  const store = { ...memory, async delete(k) {
+    if (k === sessionKey(url)) { deleted.resolve(); throw failure; }
+    return memory.delete(k);
+  } };
+  const install = ProgressiveWrites.prototype.install, hold = ClosingResponses.prototype.hold;
+  t.mock.method(ProgressiveWrites.prototype, 'install', function(...args) { progressive = this; return install.apply(this, args); });
+  t.mock.method(ClosingResponses.prototype, 'hold', function() {
+    const finish = hold.call(this); return () => { released = true; finish(); };
+  });
+  const f = await fixture(t, { raw: true, store, report: error => errors.push(error) });
+  f.app.client.onSession(session => sessionEvents.push(session));
+  const id = mintId(), writing = f.app.mutate(mutation, {}, { id, waitSeconds: 0.1 }); await f.posted.promise;
+  progressive.track(opening.promise);
+  // Rescue the deliberately broken baseline after the bounded assertion so its
+  // test cleanup cannot hang. This is never reached during the green witness.
+  t.after(() => { opening.resolve(); progressive.endDevice?.(); });
+  const ending = cause === 'signOut' ? f.app.client.signOut() : progressive.transition('retire', 'viewer');
+  void ending.catch(() => {});
+  await deleted.promise; await tick();
+  assert.equal(progressive.lifetime, 'retiring');
+  assert.equal(released, false, 'opening work still owns the response hold');
+  assert.deepEqual(sessionEvents, [null], 'endSession notifications precede device close even on rejection');
+  opening.resolve();
+  let timer;
+  try {
+    await Promise.race([Promise.all([ending.catch(() => {}), writing]), new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Error('retirement exceeded the bounded caller wait')), 1500);
+    })]);
+  } finally { clearTimeout(timer); }
+  assert.equal(released, true);
+  assert.equal(progressive.lifetime, 'retired');
+  assert.equal(progressive.openingWork.size, 0);
+  assert.deepEqual(errors, [failure], 'the sign-out rejection is observed and reported once');
+});
+
 test('S3b lifetime table: every state × every event; absent edges have no effects', async () => {
   // Independent specification matrix, not imported from the implementation.
   const events = ['denied', 'recover', 'installed', 'retire', 'cleaned'];

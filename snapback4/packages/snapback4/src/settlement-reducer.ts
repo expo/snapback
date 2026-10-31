@@ -114,6 +114,14 @@ export function step(previous: State, event: Event, facts: Facts): { state: Stat
       break;
     case "observed":
       if (state.phase === "settled") break;
+      // @ref LLP 3000.002.000.000#2.2 — a store refusal says execution is
+      // unknown. A peer's confirmed success supplies the outcome and cut; it
+      // cannot inherit execution metadata from the refused response.
+      if (state.certificate?.outcome.state === "failed" && event.receipt.state === "sent"
+        && typeof state.certificate.outcome.why.code === "string"
+        && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(state.certificate.outcome.why.code)) {
+        state.certificate = event.certificate;
+      }
       if (!state.certificate && event.certificate) { state.certificate = event.certificate; arrive(event.certificate); }
       state.outcome = state.certificate?.outcome ?? event.receipt;
       state.storeId ??= facts.storeId; state.op ??= facts.op;

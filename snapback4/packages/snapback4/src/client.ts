@@ -482,7 +482,7 @@ export function createClient(options: ClientOptions): Client {
 
   function observeStore(json: Record<string, unknown>, floorAtDispatch: number, receipt = false, touched?: Changes): void {
     if (storeRefusal) return;
-    const why = (json.denied ?? json.why) as Refusal | undefined;
+    const why = extractRefusal(json);
     if (why?.code === "E_STORE_REPLACED" || why?.code === "E_DEV_RESET" || why?.code === "E_STORE_RESTORE") { stopForStore(why.code); return; }
     const id = json.store_id;
     if (typeof id !== "string" || !id) return; // Older servers have no identity envelope.

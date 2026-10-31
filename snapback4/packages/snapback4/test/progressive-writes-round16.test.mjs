@@ -138,7 +138,14 @@ for (const kind of ['shrink', 'generation', 'foreign-reset', 'foreign-restore'])
   assert.deepEqual(metadata(), { onlineStore: 'B', onlineHead: 40, onlineGeneration: 1 });
   resets.length = 0; changes.length = 0;
   const write = await f.app.client.mutate(mutation, {}, { waitSeconds: 5 });
-  assert.equal(write.state, 'failed');
+  // HF2: an unfenced, unconfirmed restore is the existing dispatcher: keep
+  // row. Its raw queue failure must not become a durable terminal receipt.
+  assert.equal(write.state, kind === 'foreign-restore' ? 'pending' : 'failed');
+  if (kind === 'foreign-restore') {
+    const journal = await f.journal();
+    assert.ok(journal.pending.some(intent => intent.id === write.id));
+    assert.equal(journal.receipts.some(receipt => receipt.id === write.id), false);
+  }
   if (kind === 'shrink') {
     assert.equal((await f.app.client.query(query, {})).denied?.code, 'E_STORE_RESTORE', 'same-store shrink must pass through the durable restore witness');
     assert.equal(metadata().onlineHead, 40, 'a refusal cannot lower the observed high watermark');
