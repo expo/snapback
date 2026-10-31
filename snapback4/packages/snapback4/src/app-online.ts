@@ -49,7 +49,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const pending = pendingChanges();
   const identification = new IdentityWait(pending.notify);
   // A synchronous capture owns the click before its async journal commit.
-  const capturing = new Map<string, import("./contract.ts").PendingWrite>();
+  const capturing = new Map<string, import("./contract.ts").PendingWrite & { storeId: string }>();
   const rawIntents = pendingIntentAccess(raw);
   const intentScope = () => active && !storeRefusal && raw.viewer() === viewer ? rawIntents.scope() : undefined;
   const presentation = new OnlineIntentPresentation(intentScope, pending.notify);
@@ -329,7 +329,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const captured = identity ? capture.capture(id, op.name, snapshot, identity)
             : admissionRefusal("the backend store is not identified; the write was not admitted", "app.mutate", "retry with the same id");
           if (!("v" in captured)) { release(); return failedAdmission<R>(id, captured); }
-          capturing.set(id, { id, op: op.name, args: snapshot, state: "queued", predicted: [] }); pending.notify();
+          // @ref LLP 3000.002.000#6 — a peer can settle before our response; keep the capture's original store for its cut.
+          capturing.set(id, { id, op: op.name, args: snapshot, storeId: captured.storeId, state: "queued", predicted: [] }); pending.notify();
           return submit(release, captured);
         };
         if ((!dispatchIdentity(raw) || identification.size) && !restoredIds.has(id)) {
@@ -381,7 +382,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     onWrite(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     // @ref LLP 3000.019#3.3 — restored online intent is visible before replay;
     // the shared journal supplies order and persisted dispatch status.
-    async pendingWrites() { return (await inspect()).pending; },
+    async pendingWrites() { return (await inspect()).pending.map(({ storeId: _store, ...write }: import("./contract.ts").PendingWrite & { storeId?: string | null | undefined }) => write); },
     onPendingWrites: pending.subscribe,
     async close() { pause(); await raw.close(); await writes.catch(report); },
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
@@ -418,7 +419,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     const entries = journalEntries(journal);
     const items = presentation.sync(entries, [...journal.receipts, ...unpersisted.values()]);
     const listed = new Set([...items.map(item => item.write.id), ...entries.map(entry => entry.id), ...journal.receipts.map(write => write.id)]);
-    return [...items, ...[...capturing.values(), ...identification.pending()].filter(write => !listed.has(write.id)).map(write => pendingIntent(write, !progressive || !capturing.has(write.id)))];
+    return [...items, ...[...capturing.values(), ...identification.pending()].filter(write => !listed.has(write.id)).map(({ storeId: _store, ...write }: import("./contract.ts").PendingWrite & { storeId?: string }) => pendingIntent(write, !progressive || !capturing.has(write.id)))];
   } });
   registerIntentObserver(client, ids => { if (intentScope() != null) presentation.observed(ids); });
   inheritClose(client, raw);

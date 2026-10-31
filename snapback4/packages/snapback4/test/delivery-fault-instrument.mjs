@@ -685,3 +685,59 @@ export function awaitBoundary() {
 // store/head observations in both startup modes. These are synchronous
 // evidence changes at existing boundaries; all 215 classified delivery sites,
 // failure classes and recipes remain unchanged. Regenerate the expression seal.
+
+// Lane E round 9: progressive-writes drops 26→23 awaits by combining retained
+// close/sign-out cleanup in one Promise.all. The original client's fence runs
+// synchronously before that wait; nested custody inherits its paused lifetime.
+// app-online retains 40 awaits: its live capture now carries the original
+// store into inspection, allowing a peer receipt to install the same-store cut
+// before the capturing response arrives. E9 regressions and isolated controls
+// cover both races. No delivery I/O/site, failure class or recipe changes;
+// regenerate the expression seal with all 215 classified sites intact.
+
+// Lane E round 10: local keeps 228 awaits and progressive-writes keeps 23.
+// Existing journal installation now retains typed admission failure through
+// nested preparation and clears recovery even after a closed installation fails.
+// The recovery reader persists its quarantine warning streak. Same-generation
+// peer cuts retain footprints; failed writes stay scoped, unknown preservation
+// does not revoke, and store refusals qualify against the request binding.
+// Sync advances generation in both startup modes. Public pending writes strip
+// internal store bindings. E10 regressions cover these synchronous changes at
+// existing I/O boundaries; all 215 classified delivery sites/recipes are unchanged.
+
+// Lane E round 11: local/progressive-writes/app-online retain 228/23/40 awaits.
+// The opening-failure lifecycle waits for original cleanup and nested recovery
+// with allSettled, holding response custody through both; this does not await
+// the network or acquire delivery custody. The pre-transport retired-viewer
+// guard, identity-wait binding repair and bounded receipt evidence are sync.
+// Removing the unread receipt stamp changes the existing install expression,
+// not delivery I/O. E11 and the strengthened E1/E5/E9 regressions cover these
+// boundaries. All 215 classified delivery sites and recipes remain unchanged.
+
+// Lane E round 12: local/progressive-writes/app-online retain 228/23/40 awaits.
+// The existing journal-install expression now treats inspected success as an
+// unknown execution generation, preserves a current known certificate's bound
+// on generation mismatch, and fences replacement by the refusing store. These
+// are synchronous evidence decisions, with no new delivery I/O or custody wait.
+// E12 regressions and isolated controls cover each decision; E10 keeps failed
+// peer settlement scoped. Regenerate the expression seal; all 215 classified
+// delivery sites, failure classes and recipes remain unchanged.
+
+// Lane E round 13: progressive-writes adds two retirement-only cleanup awaits
+// (23→25): close a prepared transport or newly opened custody before exposing
+// either to a retired lifetime. Rechecks after preparation/opening and failure
+// reporting suppression preserve the original refusal wrappers; clearing a live
+// dispatcher's admission refusal before refresh is synchronous. E13 holds both
+// opening boundaries and the first inspection, including a retired open failure.
+// No new admission/delivery I/O or fault recipe: all 215 classified sites remain.
+
+// Lane E round 14: local/progressive-writes/app-online retain 228/25/40 awaits.
+// The journal-install expression separates refusal metadata from observation,
+// recovers an already-adopted store's dispatcher, applies live preservation
+// independently of settlement, and bounds known obsolete preservation. Pause
+// versus close, deferred start, outstanding-response pins and admitted receipt
+// eviction are synchronous;
+// held-read revocation starts at the already-running attempt. No admission or
+// delivery I/O is added. E14's nine witnesses cover these decisions; all 215
+// classified sites, failure classes and recipes remain unchanged. Regenerate
+// the complete await-expression seal.

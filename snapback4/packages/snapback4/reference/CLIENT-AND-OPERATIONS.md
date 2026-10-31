@@ -181,11 +181,32 @@ Device-app mutations keep their four-second default wait before returning
 mutation `waitSeconds` overrides it.
 A dependent server or local read waits on unsettled journal custody; known
 success requires an answer covering its server cut. Core attachment never retires
-its receipt owner. An empty journal adds no custody wait. A watch already showing
+its receipt owner. A peer tab's settlement of this tab's captured write keeps
+that same-store cut even while this tab's original response is still pending.
+Inspected success receipts carry no execution generation, so their cut covers
+all tables unless execution metadata qualifies the operation's footprint. A
+failed write does not block disjoint reads. Inspected receipts invalidate reads
+without inventing revocation evidence, so retained answers keep their deadlines.
+An own receipt with a known preservation list keeps the withdrawal bound when
+its authority or generation is obsolete: it cannot certify preserved scopes, so
+the known list becomes empty. An absent list stays unknown. Current same-store
+live preservation also reaches displayed answers after peer settlement, without
+settling the write twice; an in-flight replacement cannot defer the revocation
+bound. Receipt history evicts only evidence with no live admission, allowing
+overflow while all entries remain admitted. The completed-id history separately
+pins ids with outstanding own responses, so late peer-settled replies retain no
+extra evidence even after more than 256 newer completions.
+Public pending writes omit internal store bindings. A replacement refusal naming
+the already-adopted store recovers the retired write dispatcher without fencing
+its reads. A different store fences immediately, even for an older store's
+request. Refusal metadata records the server store, head and generation without
+a second store-change callback or comparison against the previous store's head.
+An empty journal adds no custody wait. A watch already showing
 data retains that answer and its original deadlines while custody settles;
 waiting keeps the existing bounded revalidation episode. Journal admission and
-settlement affect only intersecting read footprints; disjoint watches and local
-offline reads stay usable. A live peer tab's uncommitted capture parks this tab's intersecting reads until the peer commits or dies.
+settlement affect only intersecting read footprints when those footprints are
+qualified; unknown execution effects require all reads to cover the cut. A live
+peer tab's uncommitted capture parks this tab's intersecting reads until the peer commits or dies.
 `writes: "online"` with a device is refused with a
 rewrite: omit `writes` to use progressive ownership, or omit the device for an
 online journal app.
@@ -202,6 +223,20 @@ An unreadable opening journal also refuses potentially dependent reads with
 journal and session locks, restoring reads and writes when storage recovers.
 Existing pending-intent hooks continue observing recovered custody, including
 held intents and retained settlements.
+Calling `client.close()` or `client.signOut()` during recovery immediately fences
+new actions and transport sends; cleanup waits for recovery, retaining already
+dispatched action outcomes received before public close completes. Retired
+recovery closes any newly opened resources and reports no storage failure,
+including when transport preparation or journal opening was still pending.
+A later mutation returns `E_AUTH` after sign-out or `E_CLOSED` after close;
+a later read cannot restart that closed lifetime. A pause during opening leaves
+the device open and the new dispatcher deferred until opening resumes. A paused opening refusal remains `E_ADMISSION`; it cannot admit
+through the device outbox.
+A failed installation in an open lifetime keeps the typed
+`E_ADMISSION` refusal until custody is successfully installed. Once the live
+journal dispatcher takes over, clicks enter capture even while its first
+inspection is pending. Failed quarantine
+preservation reports once per failure streak; success reports its saved-byte key.
 Once opened, failed journal inspections retry while the client is active,
 including for reads already waiting, with exponential backoff from 100 ms to
 3.2 seconds; live-capture polling uses the same backoff. Capture recovery and

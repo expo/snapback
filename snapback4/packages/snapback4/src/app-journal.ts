@@ -111,13 +111,14 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
  * replacing the active record. If preservation fails, sign-in still succeeds,
  * but writes remain blocked until storage can preserve those bytes. */
 export function journalReader(key: string, owner: string, backend: string, store: SessionStore, report: (error: unknown) => void, inspectOnly = false) {
+  let preservationFailed = false;
   const empty = (): Journal => ({ owner, backend, pending: [], receipts: [] });
   return async (forWrite = false): Promise<Journal> => {
     const text = await store.get(key);
-    if (text === null) return empty();
+    if (text === null) { preservationFailed = false; return empty(); }
     try {
       const parsed: unknown = JSON.parse(text);
-      if (valid(parsed, owner, backend)) return parsed;
+      if (valid(parsed, owner, backend)) { preservationFailed = false; return parsed; }
     } catch { /* Preserve the original bytes below. */ }
     if (inspectOnly) throw new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
       message: "the online write journal is damaged; opening inspection does not replace it",
@@ -127,13 +128,15 @@ export function journalReader(key: string, owner: string, backend: string, store
       const side = `${key}.damaged.${mintId().toLowerCase()}`;
       await store.set(side, text);
       await store.set(key, JSON.stringify(journal));
+      preservationFailed = false;
       report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
         message: "The online write journal was damaged or belonged to another owner; its bytes were preserved and no saved intent was replayed.",
         rewrite: `inspect the saved bytes with await sessionStore.get(${JSON.stringify(side)}); submit new intent with app.mutate(op, args)` }));
     } catch (error) {
-      report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
+      if (!preservationFailed) report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
         message: "The damaged online write journal could not be preserved; its original bytes remain and writes are blocked until storage is repaired.",
         rewrite: "repair sessionStore, then reopen createApp({ url, sessionStore })" }));
+      preservationFailed = true;
       if (forWrite) throw error;
     }
     return journal;
