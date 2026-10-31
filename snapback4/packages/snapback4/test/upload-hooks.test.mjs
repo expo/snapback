@@ -24,12 +24,12 @@ mutation attach(doc: file <=100000):
   const witness=await launch({sourceDir:join(project,'snapback'),seed:[],entrySource:`
 import {createElement as h,StrictMode} from '${req.resolve('react')}';
 import {createRoot} from '${req.resolve('react-dom/client')}';
-import {AppProvider,SnapbackProvider,useUpload} from '${join(root,'packages/snapback4/src/react.tsx')}';
+import {AppProvider,SnapbackProvider,useUpload,useLocalStatus} from '${join(root,'packages/snapback4/src/react.tsx')}';
 window.bootHook=async(url,offline=false,id=undefined)=>{
  window.offlineMode=offline;
  window.app=window.createApp({url,persona:'alice',device:window.webDevice(),fetch:(input,init)=>window.offlineMode?Promise.reject(Error('offline')):fetch(input,init)});
  await app.ready; window.oldClient=app.client;
- function Capture(){window.uploadHook=useUpload({kind:'mutation',name:'attach'},'doc',id);return h('span',null,uploadHook.state?.state??'empty');}
+ function Capture(){window.uploadLocalStatus=useLocalStatus();window.uploadHook=useUpload({kind:'mutation',name:'attach'},'doc',id);return h('span',null,uploadHook.state?.state??'empty');}
  const main=document.createElement('main');document.body.append(main);window.reactRoot=createRoot(main);
  reactRoot.render(h(StrictMode,null,h(AppProvider,{app},h(Capture))));
 };
@@ -38,12 +38,14 @@ window.unsupportedHook=()=>{
  reactRoot.render(h(SnapbackProvider,{client:{onUploads:()=>()=>{}}},h(Capture)));
 };
 `});teardownAfter(t, ()=>witness.close());const {page,api}=witness;
-  await page.evaluate(api=>bootHook(api),api);await until(()=>page.evaluate(()=>uploadHook?.available),'upload capability');
+  await page.evaluate(api=>bootHook(api),api);
+  // @ref LLP 3000.002.000#4 — offline capture needs the executable, identified replica, beyond app.ready.
+  await until(()=>page.evaluate(()=>uploadHook?.available&&uploadLocalStatus?.executable&&uploadLocalStatus?.acquired),'upload backend identified');
   await page.evaluate(()=>{offlineMode=true;});
-  const capture=await page.evaluate(()=>uploadHook.uploadAndPlace({},new File(['%PDF-1.7\n'],'a.pdf',{type:'application/pdf'}),{file:{},id:'hook1'}));assert.equal(capture.id,'hook1');
+  const capture=await page.evaluate(()=>uploadHook.uploadAndPlace({},new File(['%PDF-1.7\n'],'a.pdf',{type:'application/pdf'}),{file:{},id:'hook1'}));assert.equal(capture.id,'hook1');assert.equal(capture.state,'queued','reload resumes a durably captured upload: '+JSON.stringify(capture));
   await until(()=>page.evaluate(()=>uploadHook?.id==='hook1'),'captured card');
   await page.evaluate(()=>reactRoot.unmount());await witness.reload();
-  await page.evaluate(api=>bootHook(api,true,'hook1'),api);await until(()=>page.evaluate(()=>!!uploadHook?.state),'resumed upload');
+  await page.evaluate(api=>bootHook(api,true,'hook1'),api);await until(()=>page.evaluate(()=>uploadLocalStatus?.executable),'restored upload device readiness');await until(()=>page.evaluate(()=>!!uploadHook?.state),'resumed upload');
   assert.equal(await page.evaluate(()=>uploadHook.state.id),'hook1');
   await page.evaluate(async()=>{offlineMode=false;await app.client.sync();});
   await until(()=>page.evaluate(()=>uploadHook?.state?.state==='sent'),'placed card');
