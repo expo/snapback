@@ -1,0 +1,134 @@
+{
+  "source": "9a8ddfaf7a046e114039cbf38fe35ef79752416e",
+  "mode": "consumer-only",
+  "version": "0.4.50",
+  "route": "proot",
+  "clientIntegrity": "sha512-pPKiT7GnLhxS2ep4jgQAY1maHbVMdMCT6MTv765JYuaFskogPVj8UjcNvmRjX15dqgfOXP6YS3QWF+jbKJFJaw==",
+  "expoIntegrity": "sha512-RDekYEFL5ftvnQLKeohEjsiOs58SLt8C6jAhvDSKvVOfkOIUbpcmgI1ABIF+j5Kg+ihDS15MJhJR5A8HA5dTSA==",
+  "binarySha256": "95432b73fa2db934bfff694be098856ada10c8bad2be51271f61c890a32a9c32",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "proofs": [
+    {
+      "base": "ubuntu:24.04",
+      "status": "passed",
+      "route": "proot",
+      "runtime": "proot",
+      "node": "24.13.1",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "status": "passed",
+      "route": "proot",
+      "runtime": "proot",
+      "node": "24.18.1",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "hostStarters": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "status": "passed",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "typecheck": "passed",
+      "build": "passed"
+    }
+  ],
+  "frontendProofs": {
+    "count": 12,
+    "allPassed": true
+  },
+  "auditFindings": {
+    "starter-web-chat": 0,
+    "starter-web": 0,
+    "starter-expo-chat": 0,
+    "starter-web-online": 0,
+    "starter-expo-social": 0,
+    "starter-expo": 0
+  },
+  "sourceFiles": {
+    "snapback4/crates/snapback4/src/verbs/init.rs": "f03bc1087c719c0ca31081f57b19fc8afae58e4a048dee5315fdd5cc48f013f7",
+    "snapback4/scripts/publication-starters.mjs": "759a0d7aa122262728705b9f853b16dccf512180bf56e291aff309a9e2c2caa2",
+    "snapback4/scripts/starter-audit-allowlist.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "command": "qualify-linux.mjs --consumer-only --client <fresh client.tgz> --expo <fresh expo.tgz> --out <new directory>",
+  "exitCode": 0
+}
