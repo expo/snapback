@@ -9,7 +9,6 @@ pub fn reader_card(name: &str, card: &str) -> String {
     let title = card.lines().next().unwrap_or("# Guide");
     // Package manuals keep TOK6's existing bounded pagination contract.
     let limit = if name.starts_with("package-reference ") { FULL_BYTES } else { REFERENCE_BYTES };
-    let mut room = limit.saturating_sub(title.len() + "Opening".len() + 7);
     let mut out = format!("{title}\n\nRead one section for your change. `guide {name} --sections` lists sections.\n\n");
     let mut heading = "Opening".to_owned();
     let mut page = String::new();
@@ -31,11 +30,24 @@ pub fn reader_card(name: &str, card: &str) -> String {
         prepared.push_str(line); prepared.push('\n');
         if !fenced && (line.starts_with("## ") || line.starts_with("### ") || line.starts_with("```")) { prepared.push('\n'); }
     }
-    for block in reading_blocks(&prepared) {
+    let blocks = reading_blocks(&prepared);
+    let is_heading = |block: &str| block.starts_with("## ") || block.starts_with("### ");
+    // A fitting heading uses its exact allowance. Only an oversized heading
+    // reserves continuation-label bytes, uniformly for all of its parts, so a
+    // block can never move into a smaller destination allowance after flushing.
+    let room_for = |heading: &str, start: usize| {
+        let room = limit.saturating_sub(title.len() + heading.len() + 7);
+        let body: String = blocks[start..].iter().take_while(|block| !is_heading(block))
+            .map(|block| format!("{block}\n")).collect();
+        if body.trim_end().len() <= room { room }
+        else { room.saturating_sub(format!(" (continued {})", usize::MAX).len()) }
+    };
+    let mut room = room_for("Opening", 0);
+    for (index, block) in blocks.iter().enumerate() {
         if block.starts_with("## ") || block.starts_with("### ") {
             flush(&mut out, &mut page, &heading, part);
             heading = block.trim().trim_start_matches('#').trim().to_owned(); part = 1;
-            room = limit.saturating_sub(title.len() + heading.len() + 7);
+            room = room_for(&heading, index + 1);
             continue;
         }
         let block = if block.trim_end().len() > room && block.starts_with("```") {
@@ -47,7 +59,7 @@ pub fn reader_card(name: &str, card: &str) -> String {
                 _=>panic!("oversized guide fence needs its own packed reference: {name}"),
             };
             format!("Complete reference: node_modules/snapback4/dist/recipes/{reference}. Read only this file when adapting that example.\n")
-        } else { block };
+        } else { block.clone() };
         // Dense prose can exceed a section; split only prose at word boundaries.
         let chunks = if block.trim_end().len() > room {
             let mut chunks = Vec::new(); let mut chunk = String::new();
@@ -60,7 +72,6 @@ pub fn reader_card(name: &str, card: &str) -> String {
         for chunk in chunks {
             if format!("{page}{chunk}").trim_end().len() > room && !page.is_empty() {
                 flush(&mut out, &mut page, &heading, part); part += 1;
-                room = limit.saturating_sub(title.len() + heading.len() + format!(" (continued {part})").len() + 7);
             }
             page.push_str(&chunk); page.push('\n');
         }

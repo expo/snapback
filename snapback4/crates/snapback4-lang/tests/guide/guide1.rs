@@ -43,3 +43,23 @@ fn fitting_heading_does_not_lose_the_renderers_safety_margin() {
     assert!(section.len()<=guide::REFERENCE_BYTES);
     assert!(section.contains(&"b".repeat(8900)));
 }
+
+#[test]
+fn continued_parts_and_packed_fences_fit_their_destination_allowance() {
+    for (name, limit) in [("edge", guide::REFERENCE_BYTES), ("package-reference edge", guide::FULL_BYTES)] {
+        let raw=format!("# Edge\n\n## Heading\n\nShort lead.\n\n{}\n\n{}\n", "a ".repeat(limit), "b ".repeat(limit));
+        let card=guide::reader_card(name,&raw);
+        assert!(card.contains("continued"));
+        for n in 1..=guide::sections(&card).len() {
+            assert!(guide::section(name,&card,&n.to_string()).unwrap().len()<=limit);
+        }
+    }
+    // This fence fits the initial heading allowance but not a continued label.
+    // The known packed-source mechanism must retain it rather than clip it.
+    let raw=format!("# Edge\n\n## Heading\n\nShort lead.\n\n```js\n// day2-accounts\n{}\n```\n", "x".repeat(17_950));
+    let card=guide::reader_card("testing",&raw);
+    assert!(card.contains("dist/recipes/day2-accounts.mjs"));
+    for n in 1..=guide::sections(&card).len() {
+        assert!(guide::section("testing",&card,&n.to_string()).unwrap().len()<=guide::REFERENCE_BYTES);
+    }
+}
