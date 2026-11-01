@@ -1,0 +1,8 @@
+file:///Users/ccheever/sb4-pub-0452/preflight-publication-source/audit-fast.mjs:8
+if(existsSync(out))throw Error('audit output exists');mkdirSync(out,{recursive:true});
+                         ^
+
+Error: audit output exists
+    at file:///Users/ccheever/sb4-pub-0452/preflight-publication-source/audit-fast.mjs:8:26
+
+Node.js v24.18.0

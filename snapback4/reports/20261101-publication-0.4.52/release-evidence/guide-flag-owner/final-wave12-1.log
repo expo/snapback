@@ -1,0 +1,44 @@
+-- client file start: packages/snapback4/test/wave12-surface.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: publication check catches 0.4.28 deploy --schema omission and covers every announced flag
+ok 1 - publication check catches 0.4.28 deploy --schema omission and covers every announced flag
+  ---
+  duration_ms: 97.190906
+  type: 'test'
+  ...
+# Subtest: guide discovery accepts unambiguous names, successful section keywords and quoted/unquoted OR
+ok 2 - guide discovery accepts unambiguous names, successful section keywords and quoted/unquoted OR
+  ---
+  duration_ms: 32.732338
+  type: 'test'
+  ...
+# Subtest: bare operation names refuse with generated handle guidance before query/write dispatch
+ok 3 - bare operation names refuse with generated handle guidance before query/write dispatch
+  ---
+  duration_ms: 10.851631
+  type: 'test'
+  ...
+# Subtest: a staged standalone binary owns every native verb help without companion JS helpers
+ok 4 - a staged standalone binary owns every native verb help without companion JS helpers
+  ---
+  duration_ms: 375.872215
+  type: 'test'
+  ...
+# Subtest: changelog help distinguishes flag retirement from supported announcements
+ok 5 - changelog help distinguishes flag retirement from supported announcements
+  ---
+  duration_ms: 0.664346
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 621.736788
+-- process inspection: {"snapshots":3,"unrelatedRows":4349}
+-- client file ok: packages/snapback4/test/wave12-surface.test.mjs (948 ms)
+-- client files: 1/1; failed 0; tests {"tests":5,"pass":5,"fail":0,"cancelled":0,"skipped":0,"todo":0}

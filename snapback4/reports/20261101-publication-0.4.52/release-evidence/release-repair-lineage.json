@@ -1,0 +1,10 @@
+{
+  "base.sha": "980664bfa243a565a630c2c029060a34d076bbab",
+  "draft-source.sha": "1cdab9aee0db9cb546429dd4520bbb5f40f05686",
+  "prose-finalized-release.sha": "1f350e869ad003598241f181b14b6c4c40bbc0f8",
+  "default-contract-main-pushed.sha": "221f9f35b15c6ad12ba3bc246263552930608c9a",
+  "fixture-cherry-pick.sha": "3503f993cd6a0503eed731d3ec5b00d82023f599",
+  "requalified-draft-source.sha": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+  "finalGuideOwnerCorrectionSource": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "scopeBase": "d6f9b1047834925d3160ae4e51f965813fbe5bf2"
+}

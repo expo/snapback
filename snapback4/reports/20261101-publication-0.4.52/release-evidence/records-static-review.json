@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-01T22:50:47.371854+00:00",
+  "status": "passed",
+  "files": 3308,
+  "gzipRoundtrips": 11,
+  "bytes": 25172549,
+  "forbiddenPaths": [],
+  "credentialMaterialFiles": [],
+  "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd"
+}

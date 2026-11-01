@@ -1,0 +1,75 @@
+snapback4 dev [--port N|A-B] [--bind VALUE] [--no-watch] [--fresh] [--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset VALUE] [--resume-clock] [--trace-empty] [--verbose] [--i-understand-cleartext] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N] [--unsafe-dev-doors]
+
+Serves snapback/*.q on http://127.0.0.1:4400 and re-adopts the schema on every
+save (a save with problems keeps the previous generation serving).
+
+Readiness and ownership:
+  stdout's first line is the URL, printed once the server accepts requests;
+  everything else goes to stderr, so read stdout alone for it. A script that
+  reads both streams through one handler matches the tagged stderr line
+  SNAPBACK4_READY verb=dev generation=N url=http://… pid=N [wrapperPid=N]
+  instead. The stderr banner names the server's pid, and GET /auth/config always advertises
+  development/devDoors. When fixture doors are open, GET /dev/status answers {pid, wrapperPid, project, temporary, generation,
+  personas, …}: a script that spawned dev can check the pid is the one it
+  started. Through the npm wrapper (node_modules/.bin/snapback4, npx), pid is
+  the binary's and wrapperPid the wrapper's; a signal to either stops the
+  server, and so does a SIGKILL to the wrapper (the binary exits when the
+  wrapper that launched it is gone). A taken port refuses the start at once (E_ADDRINUSE, naming
+  the holder); --port 0 picks a free port; --port A-B binds the first free
+  port of that inclusive range (E_ADDRINUSE only when every one is taken),
+  for a host that assigns each builder a range. Read the URL from stdout.
+
+AnyStore:
+  (default)        .snapback4/store.sqlite, kept across runs; one host at a
+                   time (a second dev, or a CLI writer, refuses E_STORE_BUSY
+                   naming the owner's address and pid)
+  --fresh          a new private temporary store that dies with this process;
+  --memory         the same flag. run, data, sql and test still read the
+                   on-disk store; reach a fresh dev over HTTP or run --port N
+
+Identity: x-snapback-persona: alice acts as dev:alice for a persona declared
+in `use personas`; an undeclared name is refused E_AUTH. POST /seed writes
+rows as the system (guide wire); POST /dev/reset (snapback4 reset) empties the
+store between tests and can reseed it in the same transaction (guide testing).
+Development only: deploy + serve refuse all three.
+
+Scripted lifecycle (an acceptance script): spawn the installed binary
+(node_modules/.bin/snapback4, or node_modules/snapback4-<platform>/snapback4)
+with dev --port 0 --memory, read the URL from stdout's first line, run the
+requests, then send SIGTERM and wait for the exit; dev exits 128+15 after
+flushing its refusal log, and the port is closed. Through npx the wrapper also
+stops the server when its parent dies. snapback4 guide testing has the script.
+
+  --no-watch          never re-adopt; restart to serve edits
+  --replay            suppress new effects and hold schedules
+  --hold-effects      keep effects queued, unclaimed
+  --hold-schedules    admit no scheduled runs
+  --clock-offset +25h start the dev clock ahead; --resume-clock continues the store's time
+  --trace-empty       record unknown empty reads in snapback4 why recent
+  --verbose           print each refusal's full record (phase, generation, store, instance, request)
+  long-wait flags     see snapback4 --help
+
+Stop with Ctrl-C or SIGTERM. Refusals print as one short `dev refusal: <op> <CODE> at <site> (<clause>)`
+line per cause; snapback4 why recent lists the full records.
+
+Flags (validated before any project or store work):
+  --port N|A-B — backend port (0 chooses a free port; A-B tries an inclusive range)
+  --bind VALUE — listening IP address (default 127.0.0.1)
+  --no-watch — keep serving the starting schema; restart to adopt edits
+  --fresh — use a private temporary store for this dev process
+  --memory — use a private temporary store for this dev process
+  --replay — suppress effects and hold schedules while replaying
+  --hold-effects — keep effects queued and unclaimed
+  --hold-schedules — admit no scheduled runs
+  --clock-offset VALUE — start dev or a classified staging clock at an offset, for example +25h
+  --resume-clock — resume the persisted development store's clock
+  --trace-empty — record unknown empty reads in why recent
+  --verbose — include complete diagnostic and execution details
+  --i-understand-cleartext — explicitly allow a non-loopback HTTP listener
+  --long-waits N — held viewer request capacity (default 1024, max 4096)
+  --long-waits-per-principal N — held viewer requests per principal (default 16)
+  --claim-waits N — held worker claim capacity (default 32, max 1024)
+  --unsafe-dev-doors — explicitly open unauthenticated local fixture/clock/persona doors for password-only apps
+  --help — print this verb's help (-h also works)
+
+snapback4 --help lists every verb.

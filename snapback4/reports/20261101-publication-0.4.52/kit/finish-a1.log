@@ -1,0 +1,9 @@
+publication-resume exit=0 seconds=646.1
+registry-cli exit=0 seconds=2.9
+expo-pack exit=0 seconds=1.3
+expo-pack-verification exit=0 seconds=0.1
+expo-proof-bytes exit=0 seconds=0.0
+expo-publish exit=0 seconds=2.8
+expo-registry-wait exit=0 seconds=153.8
+registry-expo exit=0 seconds=0.8
+FINISH DONE

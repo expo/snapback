@@ -1,0 +1,13 @@
+RELEASE QUALIFICATION PASS:32 effective checks, final documentation delta and exact full client/model rerun; original FAIL preserved
+HEAD is now at 107a413c29 chore(sb4): prepare snapback4 0.4.52 release
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+From ssh://charlies-macbook-pro-m5max-black/Users/ccheever/projects/snapback
+ * [new branch]            sb4-publish-0.4.52 -> pub52-m5/sb4-publish-0.4.52
+[snapback-drift] WARNING: pinned Node 24.18.0 is unavailable; using ambient v24.13.1
+[visibility-governance] ALLOWED: 0 governed ref update(s); 1 exempt
+[snapback-drift] 107a413c296c: 0 committed path(s) across 1 ref update(s) selected 2 gate(s): path-migration-stragglers, workspace-graph
+[snapback-drift] NON-MAIN REF: 1 ref update(s) across 1 distinct revision(s), 0 committed path(s), selected 2 gate(s); no gate commands ran and no independent scheduled-main verdict is claimed: path-migration-stragglers, workspace-graph
+[snapback-drift] a same-tip origin/main update is covered by that landing; otherwise a later origin/main landing is selected from its own ref update; strict opt-in now: SNAPBACK_DRIFT_GATES_STRICT=1 git push ...
+[snapback-drift] ALLOWED: non-main ref updates left frozen-record execution to an explicit strict run or later origin/main landing (11 ms)
+To ssh://charlies-macbook-pro-m5max-black/Users/ccheever/projects/snapback
+ * [new branch]            HEAD -> sb4-pub052-source-107a413c29

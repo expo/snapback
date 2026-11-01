@@ -1,0 +1,32 @@
+{
+  "source": "1cdab9aee0db9cb546429dd4520bbb5f40f05686",
+  "initialMain": "980664bfa243a565a630c2c029060a34d076bbab",
+  "mirrorsPriorPaths": [
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/packages/snapback4-darwin-arm64/package.json",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4-linux-x64/package.json",
+    "snapback4/packages/snapback4/package.json",
+    "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "snapback4/packages/snapback4/test/device-version.test.mjs",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "additionalEditorPaths": [
+    "snapback4/editors/tree-sitter-quarry/README.md",
+    "snapback4/editors/tree-sitter-quarry/keywords.generated.js",
+    "snapback4/editors/tree-sitter-quarry/package.json",
+    "snapback4/editors/tree-sitter-quarry/tree-sitter.json",
+    "snapback4/editors/vscode/package.json",
+    "snapback4/editors/vscode/syntaxes/quarry.tmLanguage.json"
+  ],
+  "crateVersions": {
+    "snapback4": "0.4.52",
+    "snapback4-core": "0.4.52",
+    "snapback4-device": "0.4.52",
+    "snapback4-difftest": "0.4.52",
+    "snapback4-lang": "0.4.52",
+    "snapback4-native": "0.4.52",
+    "snapback4-sim": "0.4.52"
+  }
+}

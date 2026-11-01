@@ -1,0 +1,176 @@
+{
+  "status": "passed",
+  "at": "2026-11-01T17:02:36.196169+00:00",
+  "publicationCandidate": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "priorFullSource": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+  "actualDelta": [
+    "snapback4/packages/snapback4/reference/CHANGELOG.md"
+  ],
+  "onlyDelta": "spell guide --full explicitly in release entry; every other tracked byte identical",
+  "fullRawReceipt": {
+    "path": "/home/ccheever/sb4-pub-0452-records/archive-corrected-full-rerun-red/d6f9b1047834-1793541159991.json",
+    "sha256": "d0bf648a59622f3381f69f0018dc2d3cb7a4412a420609d6129002331861c19f",
+    "ok": false
+  },
+  "finalAffectedReceipt": {
+    "path": "/home/ccheever/sb4-pub-0441/target/affected/107a413c296c-1793549862245.json",
+    "sha256": "2d556c11cc9692d7b3442bac6af8273ae2ea967a7510001f88086452c225ff5a",
+    "ok": true
+  },
+  "effectiveChecks": {
+    "install-client": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "build-cli": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "build-wasm": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "build-client": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "typecheck:snapback4": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-core": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-device": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-difftest": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-lang": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-native": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "rust:snapback4-sim": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "fixture-tests": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "client-tests": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "client-models": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "chat-check": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "chat-typecheck": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "diagnostics": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "docs-budget": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "editor-grammar": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "expo-typecheck": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "generated": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "guide": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "inventories": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "packaged-docs": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "ref-check": {
+      "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+      "status": 0
+    },
+    "release-guard": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "selector-tests": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "wasm-measurement": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "lean-build": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "difftest:run-lean": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    },
+    "difftest:run": {
+      "source": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+      "status": 0
+    }
+  },
+  "clientCounts": {
+    "client-tests": {
+      "files": 487,
+      "done": 487,
+      "failedFiles": 0,
+      "tests": 8691,
+      "pass": 8634,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 57,
+      "todo": 0
+    },
+    "client-models": {
+      "files": 2,
+      "done": 2,
+      "failedFiles": 0,
+      "tests": 89,
+      "pass": 89,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "scope": "original full32 plus final documentation selection overselected to exact full original clients/models; original raw failure retained",
+  "publicationSuites": "full Linux and Mac qualification still independently required"
+}

@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "source": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "version": "0.4.52",
+  "receiptSha256": "af364036e502d610e862e2dd95ad023799fb40e8e0985654e42eb718a1cee30f",
+  "linuxSha256": "a47c5f0290d36da6e60a97e891a6b1820383a1787f0c1cff3ae8dd8355e4fbef",
+  "clientIntegrity": "sha512-Ko5h+gC7mI74jV2ZkV465likexEpPKkV+/lN/fojZBR4jCrEBa7JDgMj8TfqA82wk+WcUl79CC/8+HWr6DT1dw==",
+  "expoIntegrity": "sha512-dESvD7T1ewF8HshVtkdr9aeF4ahPCjgp7QaXQYwLF+6EYP9mppXlDPe5HRnOivyq2OL2vIAeyUz1BrGnqCn2XA=="
+}

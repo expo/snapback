@@ -1,0 +1,16 @@
+{
+  "default-contract-main-pushed.sha": "221f9f35b15c6ad12ba3bc246263552930608c9a",
+  "guide-owner-final-source.sha": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "fixture-cherry-pick.sha": "3503f993cd6a0503eed731d3ec5b00d82023f599",
+  "guide-owner-scope-base.sha": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+  "base.sha": "980664bfa243a565a630c2c029060a34d076bbab",
+  "requalified-draft-source.sha": "d6f9b1047834925d3160ae4e51f965813fbe5bf2",
+  "publication-source-source.sha": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "source.sha": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "default-contract-fix.sha": "221f9f35b15c6ad12ba3bc246263552930608c9a",
+  "mac-source.sha": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "source-before-push.sha": "107a413c296cd73e9701bc43ebdd4c6b86ca95bd",
+  "stale-draft-source.sha": "b34992d40be5297ec42feb9aa4a29200bccfca98",
+  "prose-finalized-release.sha": "1f350e869ad003598241f181b14b6c4c40bbc0f8",
+  "draft-source.sha": "1cdab9aee0db9cb546429dd4520bbb5f40f05686"
+}

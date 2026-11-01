@@ -1,0 +1,2582 @@
+npm notice
+npm notice New major version of npm available! 11.16.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+consumer ok: query complete+fresh, online write sent, offline write pending
+DAY5 installed guide recipe, immutable snapshot, bridge and schema-first starter custody passed
+
+added 6 packages in 799ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 26 files in . — Vite + React todos, offline-capable — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, package.json, shared.ts, on-write.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+frontend install: running; 5s elapsed; waiting
+npm install finished (exit 0)
+http://127.0.0.1:61658
+(node:19274) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/guide-development-hosts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 134.4 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 148 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.54 kB │ gzip:   0.32 kB
+dist/assets/web-worker-entry-BU8M3SOE.js          25.54 kB
+dist/assets/snapback4_device_bg-CGT5hlzQ.wasm  2,416.83 kB │ gzip: 751.41 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/local-device-B1LfqyHJ.js               0.08 kB │ gzip:   0.10 kB
+dist/assets/http-response-DCfcbRVy.js              3.18 kB │ gzip:   1.63 kB
+dist/assets/device-control-DJGLfD68.js            15.10 kB │ gzip:   5.08 kB
+dist/assets/web-worker-device-BzsJCE6D.js         15.96 kB │ gzip:   5.73 kB
+dist/assets/web-runtime-DpvdECZU.js               31.04 kB │ gzip:  11.23 kB
+dist/assets/local-smLNftde.js                     91.64 kB │ gzip:  31.07 kB
+dist/assets/index-NHKUuF-z.js                    503.44 kB │ gzip: 160.84 kB
+
+[32m✓ built in 272ms[39m
+web-shell: 12 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793571990314,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "e39b4e17de53c7b5fe2c105426f450ffcfe396bc2bc67aa510996faa1f4f36f9",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 35 files in . — Vite + React todos, offline-capable — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, package.json, shared.ts, on-write.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}, versions/{v1/schema.q, v1/fixtures/.gitkeep, v1/fixtures/todos.jsonl, v1/fixtures/test.cases.jsonl, v2/schema.q, v2/fixtures/.gitkeep, v2/fixtures/todos.jsonl, v2/fixtures/test.cases.jsonl}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+init --adapt: planned changes (only unmodified starter files):
+  rewrite src/App.tsx — the unmodified starter screen shows the guest sign-in, but your snapback/*.q declares `use identity password`; adapt writes the password sign-in
+  rewrite src/client.ts — the unmodified starter client for the guest sign-in; adapt writes the password sign-in
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe the todo starter's operations, which your snapback/*.q declares again
+  add scripts/staging.mjs — missing proof infrastructure
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified starter screen shows the guest sign-in, but your snapback/*.q declares `use identity password`; adapt writes the password sign-in
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 122.4 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 148 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.54 kB │ gzip:   0.32 kB
+dist/assets/web-worker-entry-BU8M3SOE.js          25.54 kB
+dist/assets/snapback4_device_bg-CGT5hlzQ.wasm  2,416.83 kB │ gzip: 751.41 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/local-device-BC_0S7zA.js               0.08 kB │ gzip:   0.10 kB
+dist/assets/http-response-DCfcbRVy.js              3.18 kB │ gzip:   1.63 kB
+dist/assets/device-control-C2yqEaxC.js            15.10 kB │ gzip:   5.08 kB
+dist/assets/web-worker-device-BaUB0hS6.js         15.96 kB │ gzip:   5.73 kB
+dist/assets/web-runtime-CcHUuEOw.js               31.04 kB │ gzip:  11.23 kB
+dist/assets/local-CvnFiDsu.js                     91.64 kB │ gzip:  31.07 kB
+dist/assets/index-DqwIqp3p.js                    503.90 kB │ gzip: 160.95 kB
+
+[32m✓ built in 135ms[39m
+{"witness":"web","proof":"visible-form","state":"sent","id":"01M6CKHG72W53XTF1Z7S9Q1FAB","mutation":"add","field":"Task","button":"Add"}
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite scripts/frontend-proof.mjs — the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 2 notes; 73.3 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 127 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/local-D5_MW5Xb.js   105.36 kB │ gzip:  35.16 kB
+dist/assets/index-DT5jBab3.js   485.28 kB │ gzip: 154.40 kB
+
+[32m✓ built in 92ms[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+proof failed: no backend refusal or server error observed; inspect the assertion below
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 1
+file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/scripts/frontend-proof.mjs:51
+    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');
+          ^
+
+Error: E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/scripts/frontend-proof.mjs:51:11
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/node_modules/snapback4/dist/proof.js:463:24)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/scripts/frontend-proof.mjs:33:3
+    at async runProofSuite (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/node_modules/snapback4/bin/proof-runner.js:25:9)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/scripts/frontend-proof.mjs:11:1
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 1 notes; 71.9 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 127 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.28 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/local-DWzHFk5m.js   105.36 kB │ gzip:  35.16 kB
+dist/assets/index-D-57aevO.js   488.06 kB │ gzip: 155.47 kB
+
+[32m✓ built in 94ms[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 754ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 26 files in . — Vite + React app, online reads and journaled writes (no device) — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, package.json, shared.ts, on-write.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 0)
+check: ok — 1 table (0 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 124.6 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 128 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/local-FQlDczKj.js   105.36 kB │ gzip:  35.16 kB
+dist/assets/index-CmxgEfAh.js   491.55 kB │ gzip: 156.68 kB
+
+[32m✓ built in 174ms[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793572009208,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "7a5373c19d253b1e723fe11d0282129f4bc60a7d11701cf4aa4121552fad8858",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 756ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 31 files in . — Expo todos: native when available, online in Expo Go — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, package.json, shared.ts, on-write.ts, UploadPicker.tsx}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, toolchain/{deepmerge/package.json, deepmerge/index.cjs, deepmerge/index.d.ts, deepmerge/LICENSE, deepmerge/README.md}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npm run verify`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+frontend install: running; 5s elapsed; waiting
+frontend install: running; 10s elapsed; waiting
+npm install finished (exit 0)
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 139.0 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 492ms index.js (341 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-1deae163be874f7cc014bd45f5c94bbb.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-1f8f5d3ca6b7f58204d51e14506d73fb.js (3.8KB)
+_expo/static/js/web/index-7ec3fa8f1070e97972ab5893d78efd77.js (859KB)
+_expo/static/js/web/web-runtime-489e1710262ca04de09ef2a804dd90b7.js (24KB)
+_expo/static/js/web/web-worker-device-059aac0c5a9081fa7f6cc73c6ee64748.js (18KB)
+_expo/static/js/web/web-worker-entry-57cb1f603fd4c70c8562c68db2545a29.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3729ms index.js (337 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-1deae163be874f7cc014bd45f5c94bbb.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-1f8f5d3ca6b7f58204d51e14506d73fb.js (3.8KB)
+_expo/static/js/web/index-7ec3fa8f1070e97972ab5893d78efd77.js (859KB)
+_expo/static/js/web/web-runtime-489e1710262ca04de09ef2a804dd90b7.js (24KB)
+_expo/static/js/web/web-worker-device-059aac0c5a9081fa7f6cc73c6ee64748.js (18KB)
+_expo/static/js/web/web-worker-entry-57cb1f603fd4c70c8562c68db2545a29.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 9 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793572036719,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "f9b04af5f7443906c49c7138703b27b5143a4ca3f9a96635b874f82d7ea6c352",
+    "release": 1
+  },
+  "workers": []
+}
+
+snapback4 proof: running; 5s elapsed; waiting
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+snapback4 proof: running; 5s elapsed; waiting
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite scripts/frontend-proof.mjs — the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 2 notes; 76.0 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 412ms index.js (310 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-541ac956425d6e4a3407eb0157e08b54.js (829KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3227ms index.js (306 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-541ac956425d6e4a3407eb0157e08b54.js (829KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+proof failed: no backend refusal or server error observed; inspect the assertion below
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 1
+file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/scripts/frontend-proof.mjs:51
+    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');
+          ^
+
+Error: E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/scripts/frontend-proof.mjs:51:11
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/node_modules/snapback4/dist/proof.js:463:24)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/scripts/frontend-proof.mjs:33:3
+    at async runProofSuite (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/node_modules/snapback4/bin/proof-runner.js:25:9)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/scripts/frontend-proof.mjs:11:1
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 1 notes; 75.6 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 300ms index.js (144 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-8abcc287a5aeefd4c08aad462b16b710.js (836KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3219ms index.js (308 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-8abcc287a5aeefd4c08aad462b16b710.js (836KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+frontend:proof passed
+snapback4 proof: running; 5s elapsed; waiting
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 787ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 26 files in . — Vite chat app — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 0)
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; 222.4 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 152 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.29 kB │ gzip:   0.70 kB
+dist/assets/web-worker-entry-BU8M3SOE.js          25.54 kB
+dist/assets/snapback4_device_bg-CGT5hlzQ.wasm  2,416.83 kB │ gzip: 751.41 kB
+dist/assets/local-device-ystIEVFk.js               0.08 kB │ gzip:   0.10 kB
+dist/assets/http-response-DCfcbRVy.js              3.18 kB │ gzip:   1.63 kB
+dist/assets/device-control-DiP8X1uO.js            15.10 kB │ gzip:   5.08 kB
+dist/assets/web-worker-device-D_seCNGP.js         15.96 kB │ gzip:   5.72 kB
+dist/assets/web-runtime-Bdq2VrTb.js               31.01 kB │ gzip:  11.22 kB
+dist/assets/local-BGZRnMTZ.js                     91.64 kB │ gzip:  31.07 kB
+dist/assets/index-D5Ak9t_E.js                    511.12 kB │ gzip: 162.96 kB
+
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 207ms[39m
+web-shell: 11 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793572082601,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "conversations": [
+          "creatorId",
+          "id",
+          "title"
+        ],
+        "memberships": [
+          "conversationId",
+          "id",
+          "joinedAt",
+          "principal",
+          "role"
+        ],
+        "messageCounts": [
+          "conversationId",
+          "id",
+          "value"
+        ],
+        "messages": [
+          "at",
+          "authorId",
+          "body",
+          "conversationId",
+          "editedAt",
+          "id",
+          "photo"
+        ],
+        "profiles": [
+          "avatarUrl",
+          "displayName",
+          "handle",
+          "id",
+          "principal"
+        ],
+        "readMarkers": [
+          "at",
+          "conversationId",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "conversations": [
+        "creatorId",
+        "id",
+        "title"
+      ],
+      "memberships": [
+        "conversationId",
+        "id",
+        "joinedAt",
+        "principal",
+        "role"
+      ],
+      "messageCounts": [
+        "conversationId",
+        "id",
+        "value"
+      ],
+      "messages": [
+        "at",
+        "authorId",
+        "body",
+        "conversationId",
+        "editedAt",
+        "id",
+        "photo"
+      ],
+      "profiles": [
+        "avatarUrl",
+        "displayName",
+        "handle",
+        "id",
+        "principal"
+      ],
+      "readMarkers": [
+        "at",
+        "conversationId",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "7a82b5428e2ec3c55f66c1975fe1473f32a6d1206b6d182b7c1ebe1c51c6a657",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status",
+      "{\"crashes\":0,\"mode\":\"dev\",\"name\":\"worker\",\"pid\":36873,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web-chat/deployment/releases/1/snapback/worker.ts\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 816ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 31 files in . — Expo chat app — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, toolchain/{deepmerge/package.json, deepmerge/index.cjs, deepmerge/index.d.ts, deepmerge/LICENSE, deepmerge/README.md}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npm run verify`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+frontend install: running; 5s elapsed; waiting
+npm install finished (exit 0)
+check: ok — 5 tables, 1 view (5 synced), 11 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; 231.2 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 1085ms index.js (374 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-909516ef12a7b623aa2bc6d5513e2481.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-1f8f5d3ca6b7f58204d51e14506d73fb.js (3.8KB)
+_expo/static/js/web/index-dcd9a5e9a58d6d6a4476e54a639470c8.js (937KB)
+_expo/static/js/web/web-runtime-a290427c087fbcf73cba9899ef809a75.js (24KB)
+_expo/static/js/web/web-worker-device-98599243e86ef49a2d715ecf8ffce7ce.js (18KB)
+_expo/static/js/web/web-worker-entry-76fed3d5c9a4170fc56874978935b93b.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 109ms index.js (374 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-909516ef12a7b623aa2bc6d5513e2481.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-1f8f5d3ca6b7f58204d51e14506d73fb.js (3.8KB)
+_expo/static/js/web/index-dcd9a5e9a58d6d6a4476e54a639470c8.js (937KB)
+_expo/static/js/web/web-runtime-a290427c087fbcf73cba9899ef809a75.js (24KB)
+_expo/static/js/web/web-worker-device-98599243e86ef49a2d715ecf8ffce7ce.js (18KB)
+_expo/static/js/web/web-worker-entry-76fed3d5c9a4170fc56874978935b93b.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 9 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793572099470,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "conversations": [
+          "creatorId",
+          "id",
+          "title"
+        ],
+        "memberships": [
+          "conversationId",
+          "id",
+          "joinedAt",
+          "principal",
+          "role"
+        ],
+        "messageCounts": [
+          "conversationId",
+          "id",
+          "value"
+        ],
+        "messages": [
+          "at",
+          "authorId",
+          "body",
+          "conversationId",
+          "editedAt",
+          "id",
+          "photo"
+        ],
+        "profiles": [
+          "avatarUrl",
+          "displayName",
+          "handle",
+          "id",
+          "principal"
+        ],
+        "readMarkers": [
+          "at",
+          "conversationId",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "conversations": [
+        "creatorId",
+        "id",
+        "title"
+      ],
+      "memberships": [
+        "conversationId",
+        "id",
+        "joinedAt",
+        "principal",
+        "role"
+      ],
+      "messageCounts": [
+        "conversationId",
+        "id",
+        "value"
+      ],
+      "messages": [
+        "at",
+        "authorId",
+        "body",
+        "conversationId",
+        "editedAt",
+        "id",
+        "photo"
+      ],
+      "profiles": [
+        "avatarUrl",
+        "displayName",
+        "handle",
+        "id",
+        "principal"
+      ],
+      "readMarkers": [
+        "at",
+        "conversationId",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "31ba86b351ddae6983b2d3f937f03fcd33a5518d4612461cf4a5a0043399b3d8",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 811ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 52 files in . — Expo Router social app — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (19 files), scripts/{seed.mjs, install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, toolchain/{deepmerge/package.json, deepmerge/index.cjs, deepmerge/index.d.ts, deepmerge/LICENSE, deepmerge/README.md}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npm run verify`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+frontend install: running; 5s elapsed; waiting
+npm install finished (exit 0)
+check: ok — 16 tables, 1 view (15 synced), 31 operations, compiled; 0 gates pending, 0 witnessed questions, 22 advisories (don't block): `check --review`; 0 recorded; 21 notes; 728.6 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+fix: schema.q:232:1 N_NEVER_COMPLETE: query search: analyzer limitation: when the search text folds to no words, the page over messages[..] by read or declaration on messages (at, id) at schema.q:233:10 is never `complete` — the read rule `exists members[.conversation, viewer]` reads .conversation, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `"expect": "capped"`); a client shows the rows it has and treats `complete: false` as "there may be more", not an error; the complete form is the pin (check --verbose) — check --review for repair
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 6049ms node_modules/expo-router/entry.js (942 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-650a3fc019c72ec4053c4a48e27982d3.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-ed4c1cfa6193d76fc294130e42bd1916.js (3.5KB)
+_expo/static/js/web/entry-ad6f4b9902e92e5258e255e8e7cb26c8.js (1.7MB)
+_expo/static/js/web/web-runtime-2a0e976fce8934d5409932840cabd554.js (24KB)
+_expo/static/js/web/web-worker-device-7c524b9df01328e9f452947f1f552f69.js (18KB)
+_expo/static/js/web/web-worker-entry-7944b624234f68328b1632c15df2634c.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 225ms node_modules/expo-router/entry.js (942 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.07d41b6c1c40d3491b0c29695a692f9c.wasm (2.4MB)
+
+› web bundles (6):
+_expo/static/js/web/__common-650a3fc019c72ec4053c4a48e27982d3.js (11KB)
+_expo/static/js/web/__expo-metro-runtime-ed4c1cfa6193d76fc294130e42bd1916.js (3.5KB)
+_expo/static/js/web/entry-ad6f4b9902e92e5258e255e8e7cb26c8.js (1.7MB)
+_expo/static/js/web/web-runtime-2a0e976fce8934d5409932840cabd554.js (24KB)
+_expo/static/js/web/web-worker-device-7c524b9df01328e9f452947f1f552f69.js (18KB)
+_expo/static/js/web/web-worker-entry-7944b624234f68328b1632c15df2634c.js (38KB)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 27 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793572128188,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "$ownKeys:likes": [
+          "id",
+          "post",
+          "principal",
+          "value"
+        ],
+        "conversations": [
+          "creatorId",
+          "id",
+          "lastOrdinal",
+          "title"
+        ],
+        "directChats": [
+          "conversation",
+          "id",
+          "owner",
+          "peer"
+        ],
+        "followingEdges": [
+          "actorId",
+          "epoch",
+          "id",
+          "readerId"
+        ],
+        "followingFeed": [
+          "actorId",
+          "at",
+          "authorId",
+          "epoch",
+          "eventId",
+          "id",
+          "postId",
+          "readerId",
+          "repost"
+        ],
+        "followingPosts": [
+          "actorId",
+          "at",
+          "authorId",
+          "id",
+          "postId",
+          "repost"
+        ],
+        "followingRemovedEvents": [
+          "actorId",
+          "eventId",
+          "id"
+        ],
+        "followingWork": [
+          "actorId",
+          "admitted",
+          "at",
+          "cursor",
+          "epoch",
+          "error",
+          "eventId",
+          "id",
+          "kind",
+          "readerId",
+          "remaining",
+          "status",
+          "viewerId"
+        ],
+        "follows": [
+          "followedId",
+          "followerId",
+          "id"
+        ],
+        "likes": [
+          "at",
+          "id",
+          "post",
+          "principal"
+        ],
+        "members": [
+          "conversation",
+          "deliveredOrdinal",
+          "id",
+          "joinedOrdinal",
+          "principal",
+          "seenOrdinal"
+        ],
+        "messages": [
+          "at",
+          "conversation",
+          "id",
+          "ordinal",
+          "photo",
+          "recipients",
+          "replyTo",
+          "sender",
+          "text"
+        ],
+        "posts": [
+          "at",
+          "authorId",
+          "body",
+          "id",
+          "removed"
+        ],
+        "profiles": [
+          "avatar",
+          "id",
+          "name",
+          "principal"
+        ],
+        "reposts": [
+          "actorId",
+          "at",
+          "id",
+          "postId"
+        ],
+        "runs": [
+          "conversation",
+          "fromOrdinal",
+          "id",
+          "principal",
+          "throughOrdinal"
+        ],
+        "typing": [
+          "conversation",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "$ownKeys:likes": [
+        "id",
+        "post",
+        "principal",
+        "value"
+      ],
+      "conversations": [
+        "creatorId",
+        "id",
+        "lastOrdinal",
+        "title"
+      ],
+      "directChats": [
+        "conversation",
+        "id",
+        "owner",
+        "peer"
+      ],
+      "followingEdges": [
+        "actorId",
+        "epoch",
+        "id",
+        "readerId"
+      ],
+      "followingFeed": [
+        "actorId",
+        "at",
+        "authorId",
+        "epoch",
+        "eventId",
+        "id",
+        "postId",
+        "readerId",
+        "repost"
+      ],
+      "followingPosts": [
+        "actorId",
+        "at",
+        "authorId",
+        "id",
+        "postId",
+        "repost"
+      ],
+      "followingRemovedEvents": [
+        "actorId",
+        "eventId",
+        "id"
+      ],
+      "followingWork": [
+        "actorId",
+        "admitted",
+        "at",
+        "cursor",
+        "epoch",
+        "error",
+        "eventId",
+        "id",
+        "kind",
+        "readerId",
+        "remaining",
+        "status",
+        "viewerId"
+      ],
+      "follows": [
+        "followedId",
+        "followerId",
+        "id"
+      ],
+      "likes": [
+        "at",
+        "id",
+        "post",
+        "principal"
+      ],
+      "members": [
+        "conversation",
+        "deliveredOrdinal",
+        "id",
+        "joinedOrdinal",
+        "principal",
+        "seenOrdinal"
+      ],
+      "messages": [
+        "at",
+        "conversation",
+        "id",
+        "ordinal",
+        "photo",
+        "recipients",
+        "replyTo",
+        "sender",
+        "text"
+      ],
+      "posts": [
+        "at",
+        "authorId",
+        "body",
+        "id",
+        "removed"
+      ],
+      "profiles": [
+        "avatar",
+        "id",
+        "name",
+        "principal"
+      ],
+      "reposts": [
+        "actorId",
+        "at",
+        "id",
+        "postId"
+      ],
+      "runs": [
+        "conversation",
+        "fromOrdinal",
+        "id",
+        "principal",
+        "throughOrdinal"
+      ],
+      "typing": [
+        "conversation",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "40e2e509d741a0cab7725287047509ee733759141b88910cab961b8506cd498e",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status:notifications",
+      "{\"crashes\":0,\"mode\":\"serve\",\"name\":\"notifications\",\"pid\":44525,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo-social/deployment/releases/1/snapback/workers/notifications.mjs\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+frontend:proof passed
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+
+added 6 packages in 795ms
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 26 files in . — Vite + React todos, offline-capable — next: `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, package.json, shared.ts, on-write.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: installing frontend dependencies; guide start and the file map above are readable meanwhile. Allow this command to finish; no status polling. npm output: .snapback4/install.log
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 0)
+init: frontend dependencies ready; next: npm run verify (no install join needed)
+
+added 1 package in 136ms
+npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step
+packed clock and alias controls passed
+✔ KIT4 literal first wire page runs unchanged and its trace is generated from real requests (427.600875ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 471.984917
+
+added 6 packages in 811ms
+check: ok — 2 tables (0 synced), 5 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 92.6 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 2 tables (0 synced), 5 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 80.1 ms; client usage: snapback/generated/api.ts
+proof draft: scripts/proof-draft/cases.mjs; set acceptance to node scripts/proof-draft/acceptance.mjs
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+acceptance: 2 authored business cases passed; coverage: application-owned
+snapback4 proof: lingering handles after suite: PipeWrap(1), ProcessWrap(1); exiting with status 0
+check: ok — 2 tables (0 synced), 5 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 78.0 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 2 tables (0 synced), 5 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 79.1 ms; client usage: snapback/generated/api.ts
+proof scaffold: scripts/proof-scaffold/ (7 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+acceptance: 21 operation/role/guard cases and 0 clock cases passed
+
+added 17 packages in 1s
+frontend:proof: real-role UI assertions passed
+check: ok — 2 tables (0 synced), 6 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 80.3 ms; client usage: snapback/generated/api.ts
+proof scaffold: scripts/proof-scaffold/ (1 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 2 tables (0 synced), 7 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 78.2 ms; client usage: snapback/generated/api.ts
+proof scaffold: scripts/proof-scaffold/ (0 written, 1 edited files kept); node scripts/proof-scaffold/acceptance.mjs
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 3 tables (0 synced), 7 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 83.7 ms; client usage: snapback/generated/api.ts
+proof scaffold: scripts/proof-scaffold/ (7 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 1 table (0 synced), 0 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 1 notes; 75.1 ms; client usage: snapback/generated/api.ts
+proof scaffold: scripts/proof-scaffold/ (7 written, 0 edited files kept); node scripts/proof-scaffold/acceptance.mjs
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+added 6 packages in 797ms
+check: ok — 2 tables (0 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 0 notes; 75.5 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+{"backendUrl":"http://127.0.0.1:63326","credentialsFile":"staging-users-3fec27f0-6a3a-4a25-b32e-1bc456bae13e.json"}
+deploy: release 1 current, generation 1; 0 rows, 0 cells, 0 index entries dormant; 1.3 ms
+last test: NEVER RECORDED; next: snapback4 test
+details: .snapback4/last/deploy.txt; --explain for full output
+First admin provisioned; sign in with the chosen email and password
+First admin provisioned; sign in with the chosen email and password
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+packed staging: serve, real users/data, first admin, production refusal passed
+
+added 6 packages in 784ms
+== npm publish snapback4-darwin-arm64-0.4.52.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.52
+npm notice Tarball Contents
+npm notice 4.5kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 34.9MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.52
+npm notice filename: snapback4-darwin-arm64-0.4.52.tgz
+npm notice package size: 16.6 MB
+npm notice unpacked size: 34.9 MB
+npm notice shasum: a1877d2e5ab2ae16971ef4c3911cdfd71abbe838
+npm notice integrity: sha512-9sJspI3dLc0yU[...]TTQvgh0lRFyTg==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.52 to become readable
+== npm publish snapback4-linux-x64-0.4.52.tgz
+npm notice
+npm notice 📦  snapback4-linux-x64@0.4.52
+npm notice Tarball Contents
+npm notice 12.0kB THIRD-PARTY-NOTICES
+npm notice 448B package.json
+npm notice 46.4MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-linux-x64
+npm notice version: 0.4.52
+npm notice filename: snapback4-linux-x64-0.4.52.tgz
+npm notice package size: 19.0 MB
+npm notice unpacked size: 46.4 MB
+npm notice shasum: 794ae7f385100ecde8cf1adfceaa73b1e9f10b0b
+npm notice integrity: sha512-24/D0hK8ce68H[...]jWQDBQteebpJQ==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+publish: waiting for snapback4-linux-x64@0.4.52 to become readable
+== npm publish snapback4-0.4.52.tgz
+npm notice
+npm notice 📦  snapback4@0.4.52
+npm notice Tarball Contents
+npm notice 530B README.md
+npm notice 2.0kB THIRD-PARTY-NOTICES
+npm notice 10.7kB bin/cli-commands.json
+npm notice 647B bin/cli-usage.js
+npm notice 12.1kB bin/day2-check.js
+npm notice 324B bin/proof-runner.d.ts
+npm notice 2.9kB bin/proof-runner.js
+npm notice 6.6kB bin/release-changes.js
+npm notice 5.3kB bin/snapback4.js
+npm notice 8.8kB bin/upgrade-warnings.js
+npm notice 16.6kB bin/upgrade.js
+npm notice 6.5kB bin/web-shell.js
+npm notice 25.7kB bin/witness-acquire.js
+npm notice 14.5kB bin/witness-web.js
+npm notice 903B dist/acquisition.d.ts
+npm notice 1.7kB dist/acquisition.js
+npm notice 559B dist/actions.d.ts
+npm notice 1.7kB dist/actions.js
+npm notice 1.6kB dist/admission-authority.d.ts
+npm notice 3.1kB dist/admission-authority.js
+npm notice 2.4kB dist/admission.d.ts
+npm notice 3.5kB dist/admission.js
+npm notice 638B dist/app-client.d.ts
+npm notice 21.2kB dist/app-client.js
+npm notice 433B dist/app-global.d.ts
+npm notice 1.3kB dist/app-global.js
+npm notice 1.8kB dist/app-journal.d.ts
+npm notice 9.8kB dist/app-journal.js
+npm notice 940B dist/app-online-arm.d.ts
+npm notice 3.2kB dist/app-online-arm.js
+npm notice 1.9kB dist/app-online.d.ts
+npm notice 49.5kB dist/app-online.js
+npm notice 366B dist/app-persona.d.ts
+npm notice 15.5kB dist/app-persona.js
+npm notice 955B dist/app-revocations.d.ts
+npm notice 13.0kB dist/app-revocations.js
+npm notice 654B dist/app-storage.d.ts
+npm notice 2.6kB dist/app-storage.js
+npm notice 440B dist/app-uploads.d.ts
+npm notice 2.4kB dist/app-uploads.js
+npm notice 4.7kB dist/app.d.ts
+npm notice 72.7kB dist/app.js
+npm notice 939B dist/asset-download.d.ts
+npm notice 14.1kB dist/asset-download.js
+npm notice 1.7kB dist/asset-progress.d.ts
+npm notice 2.7kB dist/asset-progress.js
+npm notice 1.3kB dist/assets.d.ts
+npm notice 9.9kB dist/assets.js
+npm notice 3.9kB dist/auth.d.ts
+npm notice 10.2kB dist/auth.js
+npm notice 3.3kB dist/backend.d.ts
+npm notice 4.8kB dist/backend.js
+npm notice 137B dist/bin-path.d.ts
+npm notice 212B dist/bin-path.js
+npm notice 892B dist/change-evidence.d.ts
+npm notice 1.4kB dist/change-evidence.js
+npm notice 891B dist/changes.d.ts
+npm notice 7.1kB dist/changes.js
+npm notice 964B dist/client-start.d.ts
+npm notice 1.6kB dist/client-start.js
+npm notice 2.8kB dist/client.d.ts
+npm notice 88.6kB dist/client.js
+npm notice 3.0kB dist/clock.d.ts
+npm notice 12.4kB dist/clock.js
+npm notice 1.2kB dist/closing-responses.d.ts
+npm notice 3.3kB dist/closing-responses.js
+npm notice 31.9kB dist/contract.d.ts
+npm notice 5.8kB dist/contract.js
+npm notice 133B dist/default-fetch.d.ts
+npm notice 455B dist/default-fetch.js
+npm notice 417B dist/delivery-acceptance.d.ts
+npm notice 1.2kB dist/delivery-acceptance.js
+npm notice 2.5kB dist/delivery-state.d.ts
+npm notice 6.2kB dist/delivery-state.js
+npm notice 2.3kB dist/delivery.d.ts
+npm notice 19.2kB dist/delivery.js
+npm notice 1.7kB dist/device-control.d.ts
+npm notice 3.5kB dist/device-control.js
+npm notice 2.2kB dist/device-restore.d.ts
+npm notice 5.0kB dist/device-restore.js
+npm notice 1.8kB dist/device-version.d.ts
+npm notice 3.2kB dist/device-version.js
+npm notice 1.4kB dist/ephemeral-reads.d.ts
+npm notice 5.7kB dist/ephemeral-reads.js
+npm notice 1.2kB dist/ephemeral.d.ts
+npm notice 6.6kB dist/ephemeral.js
+npm notice 1.5kB dist/files.d.ts
+npm notice 3.7kB dist/files.js
+npm notice 1.1kB dist/following-transport.d.ts
+npm notice 1.9kB dist/following-transport.js
+npm notice 1.8kB dist/following.d.ts
+npm notice 18.5kB dist/following.js
+npm notice 1.6kB dist/http-response.d.ts
+npm notice 5.9kB dist/http-response.js
+npm notice 1.9kB dist/identity-admission.d.ts
+npm notice 8.7kB dist/identity-admission.js
+npm notice 164B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 633B dist/identity-request.d.ts
+npm notice 2.7kB dist/identity-request.js
+npm notice 628B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.9kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 210B dist/inspection.d.ts
+npm notice 49B dist/inspection.js
+npm notice 201B dist/journal-changes.d.ts
+npm notice 2.8kB dist/journal-changes.js
+npm notice 1.7kB dist/local-assets.d.ts
+npm notice 10.4kB dist/local-assets.js
+npm notice 1.2kB dist/local-backend.d.ts
+npm notice 2.7kB dist/local-backend.js
+npm notice 1.6kB dist/local-delivery.d.ts
+npm notice 8.0kB dist/local-delivery.js
+npm notice 5.4kB dist/local-device.d.ts
+npm notice 376B dist/local-device.js
+npm notice 535B dist/local-exit-settlement.d.ts
+npm notice 939B dist/local-exit-settlement.js
+npm notice 698B dist/local-exit.d.ts
+npm notice 3.0kB dist/local-exit.js
+npm notice 1.8kB dist/local-following.d.ts
+npm notice 6.5kB dist/local-following.js
+npm notice 742B dist/local-native.d.ts
+npm notice 3.1kB dist/local-native.js
+npm notice 647B dist/local-network.d.ts
+npm notice 2.3kB dist/local-network.js
+npm notice 557B dist/local-publication.d.ts
+npm notice 845B dist/local-publication.js
+npm notice 4.1kB dist/local-query.d.ts
+npm notice 35.3kB dist/local-query.js
+npm notice 1.0kB dist/local-read-deadlines.d.ts
+npm notice 2.3kB dist/local-read-deadlines.js
+npm notice 10.6kB dist/local-reads.d.ts
+npm notice 28.6kB dist/local-reads.js
+npm notice 2.4kB dist/local-receipts.d.ts
+npm notice 6.9kB dist/local-receipts.js
+npm notice 2.4kB dist/local-search.d.ts
+npm notice 26.2kB dist/local-search.js
+npm notice 1.0kB dist/local-status.d.ts
+npm notice 1.8kB dist/local-status.js
+npm notice 1.4kB dist/local-sync.d.ts
+npm notice 4.5kB dist/local-sync.js
+npm notice 273B dist/local-through.d.ts
+npm notice 5.3kB dist/local-through.js
+npm notice 1.3kB dist/local-types.d.ts
+npm notice 11B dist/local-types.js
+npm notice 980B dist/local-upload.d.ts
+npm notice 2.6kB dist/local-upload.js
+npm notice 880B dist/local.d.ts
+npm notice 169.3kB dist/local.js
+npm notice 521B dist/mock-ephemeral.d.ts
+npm notice 5.0kB dist/mock-ephemeral.js
+npm notice 2.2kB dist/mock.d.ts
+npm notice 13.9kB dist/mock.js
+npm notice 950B dist/native.d.ts
+npm notice 5.9kB dist/native.js
+npm notice 243B dist/node-fetch.d.ts
+npm notice 5.5kB dist/node-fetch.js
+npm notice 1.6kB dist/observation-work.d.ts
+npm notice 4.4kB dist/observation-work.js
+npm notice 2.1kB dist/observe-watch.d.ts
+npm notice 6.7kB dist/observe-watch.js
+npm notice 1.0kB dist/online-arm-fence.d.ts
+npm notice 1.2kB dist/online-arm-fence.js
+npm notice 3.4kB dist/online-capture.d.ts
+npm notice 11.6kB dist/online-capture.js
+npm notice 794B dist/online-delivery.d.ts
+npm notice 1.8kB dist/online-delivery.js
+npm notice 1.3kB dist/online-dispatch.d.ts
+npm notice 1.4kB dist/online-dispatch.js
+npm notice 153B dist/parent-lifetime.d.ts
+npm notice 3.0kB dist/parent-lifetime.js
+npm notice 4.9kB dist/pending-items.d.ts
+npm notice 11.5kB dist/pending-items.js
+npm notice 1.3kB dist/pending-writes.d.ts
+npm notice 6.4kB dist/pending-writes.js
+npm notice 507B dist/presence-refresh.d.ts
+npm notice 858B dist/presence-refresh.js
+npm notice 4.0kB dist/progressive-writes.d.ts
+npm notice 34.6kB dist/progressive-writes.js
+npm notice 3.3kB dist/proof-accounts.d.ts
+npm notice 21.5kB dist/proof-accounts.js
+npm notice 827B dist/proof-browser.d.ts
+npm notice 1.3kB dist/proof-browser.js
+npm notice 94B dist/proof-command.d.ts
+npm notice 2.3kB dist/proof-command.js
+npm notice 851B dist/proof-failure.d.ts
+npm notice 4.7kB dist/proof-failure.js
+npm notice 1.0kB dist/proof-fixtures.d.ts
+npm notice 5.2kB dist/proof-fixtures.js
+npm notice 418B dist/proof-fresh.d.ts
+npm notice 948B dist/proof-fresh.js
+npm notice 83B dist/proof-guard.d.ts
+npm notice 457B dist/proof-guard.js
+npm notice 94B dist/proof-host.d.ts
+npm notice 7.6kB dist/proof-host.js
+npm notice 899B dist/proof-observation.d.ts
+npm notice 3.6kB dist/proof-observation.js
+npm notice 826B dist/proof-probe.d.ts
+npm notice 3.8kB dist/proof-probe.js
+npm notice 2.9kB dist/proof-process.d.ts
+npm notice 11.0kB dist/proof-process.js
+npm notice 451B dist/proof-report.d.ts
+npm notice 2.6kB dist/proof-report.js
+npm notice 422B dist/proof-roster-lock.d.ts
+npm notice 3.4kB dist/proof-roster-lock.js
+npm notice 2.0kB dist/proof-serve-check.d.ts
+npm notice 14.1kB dist/proof-serve-check.js
+npm notice 94B dist/proof-serve-driver.d.ts
+npm notice 2.6kB dist/proof-serve-driver.js
+npm notice 722B dist/proof-text.d.ts
+npm notice 16.7kB dist/proof-text.js
+npm notice 12.1kB dist/proof.d.ts
+npm notice 46.7kB dist/proof.js
+npm notice 1.2kB dist/query-custody.d.ts
+npm notice 2.2kB dist/query-custody.js
+npm notice 2.0kB dist/query-dependencies.d.ts
+npm notice 4.5kB dist/query-dependencies.js
+npm notice 1.4kB dist/query-settlement.d.ts
+npm notice 5.5kB dist/query-settlement.js
+npm notice 981B dist/react-pages.d.ts
+npm notice 7.5kB dist/react-pages.js
+npm notice 807B dist/react-pending-items.d.ts
+npm notice 3.2kB dist/react-pending-items.js
+npm notice 881B dist/react-pending-writes.d.ts
+npm notice 2.3kB dist/react-pending-writes.js
+npm notice 19.1kB dist/react.d.ts
+npm notice 41.7kB dist/react.js
+npm notice 782B dist/read-approval.d.ts
+npm notice 6.3kB dist/read-approval.js
+npm notice 1.1kB dist/read-decoration.d.ts
+npm notice 3.5kB dist/read-decoration.js
+npm notice 1.1kB dist/read-episode.d.ts
+npm notice 2.9kB dist/read-episode.js
+npm notice 552B dist/read-existence.d.ts
+npm notice 1.1kB dist/read-existence.js
+npm notice 1.9kB dist/read-expiry.d.ts
+npm notice 9.4kB dist/read-expiry.js
+npm notice 404B dist/read-key.d.ts
+npm notice 593B dist/read-key.js
+npm notice 250B dist/read-notifications.d.ts
+npm notice 558B dist/read-notifications.js
+npm notice 3.2kB dist/read-observation.d.ts
+npm notice 11.8kB dist/read-observation.js
+npm notice 1.4kB dist/read-only.d.ts
+npm notice 4.7kB dist/read-only.js
+npm notice 147B dist/read-token.d.ts
+npm notice 327B dist/read-token.js
+npm notice 1.5kB dist/read-work.d.ts
+npm notice 8.9kB dist/read-work.js
+npm notice 1.3kB dist/receipt-family.d.ts
+npm notice 11B dist/receipt-family.js
+npm notice 8.5kB dist/recipes/day2-accounts.mjs
+npm notice 8.6kB dist/recipes/production/expo/App.tsx
+npm notice 1.8kB dist/recipes/production/expo/client.ts
+npm notice 2.3kB dist/recipes/production/expo/schema.q
+npm notice 746B dist/recipes/production/expo/test.cases.jsonl
+npm notice 8.4kB dist/recipes/production/web/App.tsx
+npm notice 1.2kB dist/recipes/production/web/client.ts
+npm notice 2.3kB dist/recipes/production/web/schema.q
+npm notice 746B dist/recipes/production/web/test.cases.jsonl
+npm notice 5.1kB dist/recipes/social/BoundedConversation.tsx
+npm notice 1.6kB dist/recipes/social/Chats.tsx
+npm notice 1.4kB dist/recipes/social/client.ts
+npm notice 3.3kB dist/recipes/social/conversation-route.tsx
+npm notice 14.8kB dist/recipes/social/Conversation.tsx
+npm notice 3.2kB dist/recipes/social/Direct.tsx
+npm notice 2.3kB dist/recipes/social/Feed.tsx
+npm notice 4.1kB dist/recipes/social/intents.ts
+npm notice 2.1kB dist/recipes/social/layout.tsx
+npm notice 1.5kB dist/recipes/social/PageLifetime.ts
+npm notice 2.8kB dist/recipes/social/Profile.tsx
+npm notice 1.2kB dist/recipes/social/QuotedMessage.tsx
+npm notice 2.0kB dist/recipes/social/Search.tsx
+npm notice 1.6kB dist/recipes/social/TrendingSnapshot.tsx
+npm notice 1.3kB dist/recipes/social/ui.tsx
+npm notice 8.8kB dist/recipes/social/useJumpToMessage.ts
+npm notice 1.6kB dist/recipes/social/useOnceMedia.ts
+npm notice 2.5kB dist/recipes/social/useTyping.ts
+npm notice 1.2kB dist/refusal-decision.d.ts
+npm notice 3.3kB dist/refusal-decision.js
+npm notice 3.1kB dist/release.d.ts
+npm notice 7.6kB dist/release.js
+npm notice 858B dist/request-wait.d.ts
+npm notice 1.8kB dist/request-wait.js
+npm notice 394B dist/residency.d.ts
+npm notice 949B dist/residency.js
+npm notice 173B dist/resolve-binary.d.ts
+npm notice 1.3kB dist/resolve-binary.js
+npm notice 1.7kB dist/seen-progress.d.ts
+npm notice 9.0kB dist/seen-progress.js
+npm notice 654B dist/server-context.d.ts
+npm notice 7.1kB dist/server-context.js
+npm notice 778B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 819B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.4kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.5kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.9kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 714B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 874B dist/server-verify.d.ts
+npm notice 7.5kB dist/server-verify.js
+npm notice 3.5kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 625B dist/session-authority.d.ts
+npm notice 7.4kB dist/session-authority.js
+npm notice 433B dist/session-input.d.ts
+npm notice 2.7kB dist/session-input.js
+npm notice 316B dist/session-refusal.d.ts
+npm notice 372B dist/session-refusal.js
+npm notice 906B dist/session-timing.d.ts
+npm notice 2.8kB dist/session-timing.js
+npm notice 3.2kB dist/settlement-extract.d.ts
+npm notice 5.1kB dist/settlement-extract.js
+npm notice 2.3kB dist/settlement-reducer.d.ts
+npm notice 7.2kB dist/settlement-reducer.js
+npm notice 279B dist/sha256.d.ts
+npm notice 3.6kB dist/sha256.js
+npm notice 4.6kB dist/uploads.d.ts
+npm notice 14.7kB dist/uploads.js
+npm notice 141B dist/utf8-size.d.ts
+npm notice 304B dist/utf8-size.js
+npm notice 2.4MB dist/wasm/snapback4_device_bg.wasm
+npm notice 1.1kB dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 3.1kB dist/wasm/snapback4_device.d.ts
+npm notice 16.1kB dist/wasm/snapback4_device.js
+npm notice 234B dist/web-drain.d.ts
+npm notice 422B dist/web-drain.js
+npm notice 1.6kB dist/web-idb-buckets.d.ts
+npm notice 8.1kB dist/web-idb-buckets.js
+npm notice 1.2kB dist/web-idb-pages.d.ts
+npm notice 14.1kB dist/web-idb-pages.js
+npm notice 234B dist/web-idb.d.ts
+npm notice 13.8kB dist/web-idb.js
+npm notice 610B dist/web-journal-execution.d.ts
+npm notice 555B dist/web-journal-execution.js
+npm notice 3.1kB dist/web-journal.d.ts
+npm notice 19.8kB dist/web-journal.js
+npm notice 636B dist/web-ownership.d.ts
+npm notice 3.7kB dist/web-ownership.js
+npm notice 488B dist/web-persistence.d.ts
+npm notice 2.1kB dist/web-persistence.js
+npm notice 799B dist/web-receipts.d.ts
+npm notice 3.4kB dist/web-receipts.js
+npm notice 425B dist/web-residency.d.ts
+npm notice 2.5kB dist/web-residency.js
+npm notice 370B dist/web-runtime.d.ts
+npm notice 39.1kB dist/web-runtime.js
+npm notice 1.4kB dist/web-upload-admission.d.ts
+npm notice 1.6kB dist/web-upload-admission.js
+npm notice 942B dist/web-wasm.d.ts
+npm notice 6.5kB dist/web-wasm.js
+npm notice 418B dist/web-worker-device.d.ts
+npm notice 15.3kB dist/web-worker-device.js
+npm notice 95B dist/web-worker-entry.d.ts
+npm notice 80B dist/web-worker-entry.js
+npm notice 2.5kB dist/web-worker-host.d.ts
+npm notice 12.6kB dist/web-worker-host.js
+npm notice 530B dist/web-worker-orphans.d.ts
+npm notice 7.4kB dist/web-worker-orphans.js
+npm notice 1.2kB dist/web-worker-runtime.d.ts
+npm notice 7.3kB dist/web-worker-runtime.js
+npm notice 939B dist/web-worker-suspend.d.ts
+npm notice 4.7kB dist/web-worker-suspend.js
+npm notice 2.7kB dist/web.d.ts
+npm notice 3.1kB dist/web.js
+npm notice 977B dist/witness-web.d.ts
+npm notice 15.8kB dist/witness-web.js
+npm notice 733B dist/worker-ledger.d.ts
+npm notice 5.3kB dist/worker-ledger.js
+npm notice 6.7kB dist/worker.d.ts
+npm notice 21.0kB dist/worker.js
+npm notice 595B dist/write-settlement.d.ts
+npm notice 2.7kB dist/write-settlement.js
+npm notice 3.2kB dist/writes.d.ts
+npm notice 14.5kB dist/writes.js
+npm notice 3.9kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.4.52
+npm notice filename: snapback4-0.4.52.tgz
+npm notice package size: 1.3 MB
+npm notice unpacked size: 4.5 MB
+npm notice shasum: 213c7b82e6d4af7f7665274ff8ab267fe9c54683
+npm notice integrity: sha512-Ko5h+gC7mI74j[...]C/8+HWr6DT1dw==
+npm notice total files: 382
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+publish: waiting for snapback4@0.4.52 to become readable
+{"tarballBytes":1265367,"platformTarballBytes":16599548,"tarballIntegrity":"sha512-Ko5h+gC7mI74jV2ZkV465likexEpPKkV+/lN/fojZBR4jCrEBa7JDgMj8TfqA82wk+WcUl79CC/8+HWr6DT1dw==","platformTarballIntegrity":"sha512-9sJspI3dLc0yUCsChxD3xdgrdit0XnGo7fNbthtYJ26MrDP1J52t24hj22haCXr68Qz3c/XUlTTQvgh0lRFyTg==","files":382,"binaryVersion":"snapback4 0.4.52","binaryProfile":"production","sqliteBuildFlags":"-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"platform":"darwin-arm64","at":"2026-11-01T22:36:43.627Z","version":"0.4.52","source":"107a413c296cd73e9701bc43ebdd4c6b86ca95bd","artifacts":[{"name":"snapback4-darwin-arm64","version":"0.4.52","filename":"snapback4-darwin-arm64-0.4.52.tgz","integrity":"sha512-9sJspI3dLc0yUCsChxD3xdgrdit0XnGo7fNbthtYJ26MrDP1J52t24hj22haCXr68Qz3c/XUlTTQvgh0lRFyTg==","bytes":16599548,"binaryProfile":"production","binarySha256":"4b92cabb6445813c990d1898e13936d565d1080e7057d3b44d3fe1f5050668f0","binaryVersion":"snapback4 0.4.52","binaryBytes":34930256,"cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"sqliteBuildFlags":"-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0","signing":{"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null},"proof":{"status":"passed","proofKit":{"scaffolds":{"status":"passed","compact":"three files <=8k; unchanged checks; real accounts, exact refusal and business assertion; empty/unfilled refuse","syntax":8,"realAccounts":"admin/member/roleless signup plus sign-in, including custom member/level provisioning args","frontend":"six isolated real accounts; visible click, SDK receipt and fresh result; build:web auto selection","positive":"operation/role/guard cases, real image/file uploads, staging deadline and approval who/why reread","negative":["unfilled acceptance","unfilled frontend","UI click without a durable write","wrong refusal code","missing excluded role","new operation with preserved edits","edited stale schema facts","empty acceptance"],"qualification":false},"status":"passed","dayTwo":"production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions","wire":"literal first section, actual packed CLI trace","clock":"30-day coalesced jump, each-boundary cap, memory replay command, page sampling","aliases":"array index path through packed test"},"staging":{"status":"passed","guide":"staging","recipes":"verbatim installed card","roles":{"admin":2,"member":2},"mode":"serve","realPasswordLogin":"passed","data":"passed","selfGrant":"refused","productionBulkSeed":"refused before mint","productionRelabel":"refused","firstAdmin":"passed","privateCredentials":"0600"},"security":{"status":"passed","guide":"verbatim installed security card","artifacts":{"clientSha256":"079d2596a110b6e2f03f33cbb9a326363977e3b042507c30f67a789c988bd58b","platformSha256":"0f0124fda2f7b6c847d9a27cac6f37207a9b57d05b10b690cdc7d333840ef1c2","binarySha256":"4b92cabb6445813c990d1898e13936d565d1080e7057d3b44d3fe1f5050668f0"},"guideCases":[{"block":0,"invariants":3,"audit":"passed","finite":{"attempted":1208,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":0},"broadRead":"refuted","expectedFailureExits":[1,1,1]},{"block":1,"compile":"passed","invariants":0},{"block":2,"compile":"passed","invariants":0}],"sessions":[{"method":"guests","status":"passed","attempted":1040,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"},{"method":"password","status":"passed","attempted":1040,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"}],"starters":[{"id":"todo-backend","status":"passed","invariants":1,"attempted":1249,"refused":629,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":0},{"id":"todo-online","status":"passed","invariants":1,"attempted":1249,"refused":629,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":0},{"id":"social","status":"passed","invariants":2,"attempted":6292,"refused":3864,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"todo-web","status":"passed","invariants":1,"attempted":1345,"refused":751,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":18},{"id":"chat-web","status":"passed","invariants":1,"attempted":48,"refused":36,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"chat-expo","status":"passed","invariants":1,"attempted":48,"refused":36,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":25,"revocationHttpRefused":32},{"id":"production-recipe","status":"passed","source":"installed dist/recipes/production/web/schema.q","invariants":2,"attempted":162,"refused":24,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":13,"revocationHttpRefused":20}],"sec6":{"suppliedSession":"passed before side effects","multiWrite":"refuted by authored add","mutationResult":"refuted by authored edit"},"scope":"finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim","commands":[{"args":["check","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["audit","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/card-1","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-2","exitCode":0,"expectedExitCode":0},{"args":["guide","start","--full","--repeat"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["audit","--json"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["test"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/sec6-multi-write","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only","--explain"],"project":"/sec6-multi-write","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only","--explain"],"project":"/sec6-write-result","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/sec6-write-result","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/todo-backend"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-backend","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/todo-backend","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/todo-online","--online"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/social","--template","social"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/todo-web","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/chat-web","--template","chat","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["init","--no-install","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/security-policy-Wam74s/chat-expo","--template","chat","--expo"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only","--explain"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0}]},"day5Proof":{"status":"passed","directory":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/consumer","guideRecipe":"capture-release-and-bridge","starterCustody":["web","expo"]},"starters":[{"starter":"web","kind":"web","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1385,"range":[61750,61770],"occupied":61750,"cpuLoadWorkers":2,"loadavg":[6.77587890625,7.044921875,7.529296875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1533,"range":[61769,61789],"occupied":61769,"cpuLoadWorkers":2,"loadavg":[6.77587890625,7.044921875,7.529296875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/proof-logs-2"}],"adaptedProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1427,"range":[61854,61874],"occupied":61854,"cpuLoadWorkers":2,"loadavg":[7.1171875,7.10888671875,7.5458984375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1465,"range":[61875,61895],"occupied":61875,"cpuLoadWorkers":2,"loadavg":[7.1171875,7.10888671875,7.5458984375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"E_FRONTEND_SCENARIO: frontend rendered","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"passed"},{"starter":"web-online","kind":"web","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-online","kind":"web","attempt":1,"status":"passed","elapsedMs":1471,"range":[61946,61966],"occupied":61946,"cpuLoadWorkers":2,"loadavg":[7.74853515625,7.25146484375,7.59130859375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web-online/proof-logs-1"},{"starter":"web-online","kind":"web","attempt":2,"status":"passed","elapsedMs":1444,"range":[61965,61985],"occupied":61965,"cpuLoadWorkers":2,"loadavg":[7.74853515625,7.25146484375,7.59130859375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web-online/proof-logs-2"}]},{"starter":"expo","kind":"expo","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":5508,"range":[62160,62180],"occupied":62160,"cpuLoadWorkers":2,"loadavg":[9.40234375,7.6796875,7.73486328125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":5735,"range":[62200,62220],"occupied":62200,"cpuLoadWorkers":2,"loadavg":[8.87255859375,7.62353515625,7.71435546875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/proof-logs-2"}],"adaptedProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":5225,"range":[62349,62369],"occupied":62349,"cpuLoadWorkers":2,"loadavg":[10.8642578125,8.1376953125,7.89501953125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":4924,"range":[62386,62406],"occupied":62386,"cpuLoadWorkers":2,"loadavg":[11.35546875,8.28466796875,7.9482421875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"E_FRONTEND_SCENARIO: frontend rendered","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"not-applicable"},{"starter":"web-chat","kind":"web","template":"chat","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-chat","kind":"web","attempt":1,"status":"passed","elapsedMs":1660,"range":[62487,62507],"occupied":62487,"cpuLoadWorkers":2,"loadavg":[12.333984375,8.646484375,8.08251953125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web-chat/proof-logs-1"},{"starter":"web-chat","kind":"web","attempt":2,"status":"passed","elapsedMs":1688,"range":[62511,62531],"occupied":62511,"cpuLoadWorkers":2,"loadavg":[12.333984375,8.646484375,8.08251953125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-web-chat/proof-logs-2"}]},{"starter":"expo-chat","kind":"expo","template":"chat","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-chat","kind":"expo","attempt":1,"status":"passed","elapsedMs":1939,"range":[62632,62652],"occupied":62632,"cpuLoadWorkers":2,"loadavg":[11.95068359375,8.74462890625,8.126953125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo-chat/proof-logs-1"},{"starter":"expo-chat","kind":"expo","attempt":2,"status":"passed","elapsedMs":1891,"range":[62654,62674],"occupied":62654,"cpuLoadWorkers":2,"loadavg":[11.95068359375,8.74462890625,8.126953125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo-chat/proof-logs-2"}]},{"starter":"expo-social","kind":"expo","template":"social","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-social","kind":"expo","attempt":1,"status":"passed","elapsedMs":2645,"range":[62860,62880],"occupied":62860,"cpuLoadWorkers":2,"loadavg":[10.4248046875,8.66064453125,8.115234375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo-social/proof-logs-1"},{"starter":"expo-social","kind":"expo","attempt":2,"status":"passed","elapsedMs":2511,"range":[62897,62917],"occupied":62897,"cpuLoadWorkers":2,"loadavg":[10.4248046875,8.66064453125,8.115234375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-bg6Y0p/starter-expo-social/proof-logs-2"}]}],"expoIntegrity":"sha512-dESvD7T1ewF8HshVtkdr9aeF4ahPCjgp7QaXQYwLF+6EYP9mppXlDPe5HRnOivyq2OL2vIAeyUz1BrGnqCn2XA==","clientIntegrity":"sha512-Ko5h+gC7mI74jV2ZkV465likexEpPKkV+/lN/fojZBR4jCrEBa7JDgMj8TfqA82wk+WcUl79CC/8+HWr6DT1dw==","platformIntegrity":"sha512-9sJspI3dLc0yUCsChxD3xdgrdit0XnGo7fNbthtYJ26MrDP1J52t24hj22haCXr68Qz3c/XUlTTQvgh0lRFyTg=="}},{"name":"snapback4-linux-x64","version":"0.4.52","filename":"snapback4-linux-x64-0.4.52.tgz","integrity":"sha512-24/D0hK8ce68HA0dL3BQY9drRW0rdRd22Rghbmo6xtC3oMMFduSyChfoOrAfObfys9M0fYQKljWQDBQteebpJQ==","bytes":19001798,"binarySha256":"b0aed93475316b9a3aa028ffc422dc92eb5fc222c0b491f2d75f0f1cd1510a8e","receiptFile":"linux-receipt.json","receiptIntegrity":"sha512-jpZUUPZ1HCYc+C4+6eactH+oH/j4sKIpLZ6kKNK1azE/ZXiLynZgNc/ZHXM4qDl4EnxzDqMUCyUt9SjBI+NlkQ=="},{"name":"snapback4","version":"0.4.52","filename":"snapback4-0.4.52.tgz","integrity":"sha512-Ko5h+gC7mI74jV2ZkV465likexEpPKkV+/lN/fojZBR4jCrEBa7JDgMj8TfqA82wk+WcUl79CC/8+HWr6DT1dw==","bytes":1265367,"files":382}],"resume":"/Users/ccheever/sb4-pub-0444-wt/snapback4/target/publication/snapback4-darwin-arm64-0.4.52/resume.json","signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"binaryBytes":34930256,"binarySha256":"4b92cabb6445813c990d1898e13936d565d1080e7057d3b44d3fe1f5050668f0","publish_s":645.5,"dry":false}

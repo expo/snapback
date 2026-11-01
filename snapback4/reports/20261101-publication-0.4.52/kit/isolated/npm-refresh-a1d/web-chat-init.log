@@ -1,0 +1,87 @@
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 26 files in . — Vite chat app — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, scripts/{install.mjs, frontend-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs

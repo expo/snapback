@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "android": {
+      "package": "dev.snapback4.expo"
+    },
+    "ios": {
+      "bundleIdentifier": "dev.snapback4.expo",
+      "supportsTablet": true
+    },
+    "name": "Expo",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-status-bar",
+      "snapback4-expo/plugin"
+    ],
+    "scheme": "expo",
+    "slug": "expo",
+    "version": "0.0.1"
+  }
+}

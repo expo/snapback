@@ -1,0 +1,21 @@
+✔ client card retains its 114-line and 1200-word budgets with default and prediction guidance (1.081331ms)
+✔ prediction and reference distinguish first-visit journal writes from next-open outbox prediction (1.443734ms)
+✔ default-flip changelog entry retains its next patch semver heading (0.563936ms)
+✔ opening journal admission-barrier omission and its custody rationale are disclosed (2.625857ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/expo-client.ts (0.448432ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/web-client.ts (0.148633ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/social/client.ts (0.112418ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/web/client.ts (0.091427ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/expo/client.ts (0.113059ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/personas/expo-client.ts (0.155012ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/personas/web-client.ts (0.101502ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/production/expo-client.ts (0.083836ms)
+✔ published starter remains byte-compatible for init --adapt: crates/snapback4/src/verbs/init/starter/production/web-client.ts (0.106049ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57.880098

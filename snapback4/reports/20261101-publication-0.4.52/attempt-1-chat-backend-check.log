@@ -1,0 +1,17 @@
+runtime changes: 0.4.51 → 0.4.52
+## 0.4.52
+
+- Guide reading history expires after 30 minutes of inactivity and resets when copied to another project. Reads with no new blocks reprint the bounded selection with a repeat note. `guide --full` prints the complete card up to 18,000 bytes; larger cards explain the limit and list sections. Explicit sections keep a heading together within that bound, including the persistent-production deploy recipe. Default and first-read budgets stay the same.
+- `check --quick` compiles and adopts Quarry and writes generated types with a static verdict for iteration. It runs no security search, server typecheck or native build and saves no check evidence; run plain `check` before finishing.
+- `grammar` exports the compiler grammar facts used by the new Quarry TextMate and tree-sitter grammars. Local editor packages provide syntax highlighting and VS Code compiler diagnostics; Rust remains the parser of record.
+History begins at 0.4.26; earlier changes are not recorded.
+check: snapback/generated/ was written by snapback4 0.4.51; this is 0.4.52: regenerating them now
+upgrade delta: 0.4.51 → 0.4.52 for snapback/*.q
+  new notes: none
+  new compiler refusals: none
+  pending security review gates: none
+  generated/api.ts types: unchanged
+  query completeness: unchanged
+  release card: snapback4 guide changes
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`); 6824.3 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)

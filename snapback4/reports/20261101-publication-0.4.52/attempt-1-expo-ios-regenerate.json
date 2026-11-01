@@ -1,0 +1,13 @@
+{
+  "step": "expo-ios-regenerate",
+  "command": [
+    "rm",
+    "-rf",
+    "ios"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0444-wt/snapback4/apps/chat-expo",
+  "start": 1793552924.0896761,
+  "end": 1793552925.393116,
+  "seconds": 1.303,
+  "exit": 0
+}

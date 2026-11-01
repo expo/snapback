@@ -1,0 +1,6 @@
+free 131G load 6.87 6.67 8.28
+  sb4-pub52-disk-release.service   loaded active running /bin/bash -c "bash ./disklog.sh 1"
+  sb4-pub52-disklog-1.service      loaded active running /bin/bash -c "bash ./disklog.sh 1"
+  sb4-pub52-linux-1.service        loaded active running /bin/bash -c "ATTEMPT=1 bash ./linux.sh > linux-1.out 2>&1"
+  sb4-pub52-native-handoff.service loaded active running /bin/bash -c "bash ~/sb4-pub-0452-kit/qualify-after-native.sh > ~/sb4-pub-0452-records/qualify-after-native.log 2>&1"
+  sb4-pub52-onpass-1.service       loaded active running /bin/bash -c "./on-linux-pass.sh 1 > on-linux-pass-1.out 2>&1"

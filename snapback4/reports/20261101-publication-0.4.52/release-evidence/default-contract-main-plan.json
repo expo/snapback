@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "files": [
+    "snapback4/packages/snapback4/test/default-startup-contract.test.mjs"
+  ],
+  "broad": false,
+  "reasons": [
+    {
+      "path": "snapback4/packages/snapback4/test/default-startup-contract.test.mjs",
+      "reason": "client test file only"
+    }
+  ],
+  "rustPackages": [],
+  "fixtureFiles": [],
+  "rustTargets": {},
+  "clientFiles": [
+    "snapback4/packages/snapback4/test/default-startup-contract.test.mjs"
+  ],
+  "checks": [
+    "ref-check"
+  ],
+  "steps": [
+    {
+      "id": "install-client",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "reason": "locked client/build dependencies",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "build-cli",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4"
+      ],
+      "reason": "selected clients spawn/import CLI",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "build-wasm",
+      "cwd": "snapback4",
+      "argv": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "reason": "selected clients import wasm",
+      "timeoutSeconds": 10800,
+      "requires": [
+        "install-client"
+      ]
+    },
+    {
+      "id": "build-client",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "reason": "selected tests import dist",
+      "timeoutSeconds": 10800,
+      "requires": [
+        "install-client",
+        "build-wasm"
+      ]
+    },
+    {
+      "id": "client-tests",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "24",
+        "files",
+        "packages/snapback4/test/default-startup-contract.test.mjs"
+      ],
+      "reason": "selected files retain existing process custody",
+      "timeoutSeconds": 10800,
+      "fileArgOffset": 4,
+      "fileRequires": {
+        "packages/snapback4/test/default-startup-contract.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    }
+  ],
+  "base": "980664bfa243a565a630c2c029060a34d076bbab",
+  "mergeBase": "980664bfa243a565a630c2c029060a34d076bbab",
+  "head": "980664bfa243a565a630c2c029060a34d076bbab",
+  "worktree": true,
+  "observedFiles": [
+    "snapback4/packages/snapback4/test/default-startup-contract.test.mjs"
+  ],
+  "inputDigest": "5ea31e0867cb9e75e466b838cdd2457014f604ed490bbb1afb88704f2d51e2d0"
+}

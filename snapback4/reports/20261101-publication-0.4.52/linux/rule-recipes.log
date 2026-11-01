@@ -1,0 +1,35 @@
+▶ packed rule recipes run as written and preserve authority at boundaries
+  ✔ wall owner authority belongs to this wall (539.596009ms)
+  ✔ query return paths and optional lookups preserve packed read semantics (570.124383ms)
+  ✔ column privacy keeps one public row and omits private fields in exact guide sources (354.509034ms)
+  ✔ packed wasm preserves omitted column cells through nested spreads (1625.27821ms)
+  ✔ the compact opening recipe grants only its owner (366.217569ms)
+  ✔ current department transfer maintains every existing child atomically (2805.878448ms)
+  ✔ live parent transfers the packed guide authority, invalidates held reads and moves devices (1808.052448ms)
+  ✔ live asset placement follows the current parent without moving its home (486.831476ms)
+  ✔ private waitlist publishes occupancy without exposing membership (376.425175ms)
+  ✔ membership pages stop at grant expiry without relying on cleanup (457.430833ms)
+  ✔ bare union has an explicit cold-start tradeoff and both audiences read (2748.569079ms)
+  ✔ public mirror requires its own image placement and never publishes private notes (987.40177ms)
+  ✔ staff guard and table read rule agree, with custom refusal before lookup (368.342866ms)
+  ✔ upsert refusal ladder executes before a later custom require and rolls back (475.889499ms)
+  ✔ asserted hidden read precedes the business refusal (353.38643ms)
+  ✔ hidden unique conflicts redact even the authored code (355.457856ms)
+  ✔ rule and program exists deliberately see different populations (362.821297ms)
+  ✔ caller totals include every own row and exclude every hidden row (367.401574ms)
+  ✔ presence gates durable writes across poll grace and reconnect (510.820083ms)
+  ✔ scheduled publication withdraws, invalidates approval on edit and reapproves (418.838347ms)
+  ✔ availability is public without granting booking identities or overselling (384.230197ms)
+  ✔ leaderboard consent publishes only opted-in totals and withdrawal removes them (403.635063ms)
+  ✔ three levels share live root authority without chained captures (509.05071ms)
+  ✔ 077 distinct middle policy follows mutable root probes without widening owners (376.783982ms)
+  ✔ versioned transitions reject stale and hidden targets and retain private atomic history (385.196496ms)
+✔ packed rule recipes run as written and preserve authority at boundaries (23578.74211ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23659.746537

@@ -1,0 +1,10 @@
+{
+  "publish": {
+    "appendedRows": 2,
+    "prefixUnchanged": true
+  },
+  "witness": {
+    "appendedRows": 2,
+    "prefixUnchanged": true
+  }
+}

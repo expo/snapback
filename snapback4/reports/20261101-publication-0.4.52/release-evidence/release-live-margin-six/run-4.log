@@ -1,0 +1,38 @@
+-- client file start: packages/snapback4/test/live-margin-settlement.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: process: two offline sends settle without a once column
+ok 1 - process: two offline sends settle without a once column
+  ---
+  duration_ms: 422.539628
+  type: 'test'
+  ...
+# Subtest: process: two offline sends settle with a once column
+ok 2 - process: two offline sends settle with a once column
+  ---
+  duration_ms: 341.690493
+  type: 'test'
+  ...
+# Subtest: wasm: two offline sends settle without a once column
+ok 3 - wasm: two offline sends settle without a once column
+  ---
+  duration_ms: 322.176288
+  type: 'test'
+  ...
+# Subtest: wasm: two offline sends settle with a once column
+ok 4 - wasm: two offline sends settle with a once column
+  ---
+  duration_ms: 245.444577
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1461.719748
+-- process inspection: {"snapshots":3,"unrelatedRows":3531}
+-- client file ok: packages/snapback4/test/live-margin-settlement.test.mjs (1741 ms)
+-- client files: 1/1; failed 0; tests {"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0}
