@@ -64,6 +64,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         if has("ack-security")&&["ack-notes","fix","store","release","emit-lean","audit"].iter().any(|f|has(f)){return Err("E_INPUT: individual security review cannot combine with --ack-notes, --fix, saved-store/release, --emit-lean or --audit".into());}
         if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
         if has("as") && !has("residency") { return Err("E_INPUT: check --as requires --residency".into()); }
+        if has("quick") && let Some(flag) = allowed("check").split_whitespace().find(|flag|!matches!(*flag,"quick"|"json"|"store")&&has(flag)) { return Err(format!("E_INPUT: check --quick takes only --json or --store, not --{flag}; run plain check for it")); }
         let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release","ack-notes","audit"][..])) }
             else if has("release") { Some(("--store --release", &["cost","residency","fix","fixture","as","ack-notes"][..])) } else { None };
         if let Some((mode,flags)) = incompatible {
@@ -115,6 +116,7 @@ pub(crate) fn help(verb: &str) -> String {
         let description = match (verb, name) {
             ("check", "proof-draft") => " — opt into a compact one-scenario proof draft (created once)",
             ("check", "proof-scaffold") => " — opt into exhaustive editable operation/role/guard proof drafts",
+            ("check", "quick") => " — compile, adopt and write types without the security search; for iteration, not a finished check",
             ("check", "review") => " — show advisory decisions, witnesses and notes; gates always print",
             ("check", "ack-security") => " — repeat this flag or comma-separate decision IDs; all share --reason and record atomically",
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",

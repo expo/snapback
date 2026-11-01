@@ -307,6 +307,31 @@ fn emit_lean(file: &str) -> i32 {
     }
 }
 
+// @ref LLP 3000.036.004.000.000#quick-check — an iteration verdict that says what it skipped and saves no check evidence.
+fn quick_verdict(project: &Project, bound: &Bound, sources: &[(String, String)], eligible: &std::collections::BTreeSet<String>, security: &snapback4_lang::security::Report, started: Instant, options: &Options) -> i32 {
+    const NOT_RUN: &str = "security search, server typecheck and native build not run; run snapback4 check before finishing";
+    let reviewed = match note_reviews::review(project, sources, &bound.notes, eligible, false) {
+        Ok(review) => review,
+        Err(error) => {
+            if options.json { println!("{}", json!({"ok": false, "quick": true, "problems": [{"code": "E_CHECK_NOTES", "message": error}], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": []})); }
+            else { eprintln!("check: E_CHECK_NOTES: {error}"); }
+            return 2;
+        }
+    };
+    let elapsed = started.elapsed();
+    if options.json {
+        println!("{}", json!({ "ok": true, "quick": true, "notRun": ["securitySearch", "serverTypecheck", "nativeBuild"], "securityNotes": security.notes, "operations": bound.programs.len(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "ms": elapsed.as_millis() }));
+        return 0;
+    }
+    println!("check: ok (quick) — {} ({} synced), {} operations, compiled; {} notes; {:.1} ms; {NOT_RUN}", table_counts(&bound.schema), bound.schema.synced().count(), bound.programs.len(), reviewed.new.len() + security.notes.len(), elapsed.as_secs_f64() * 1000.0);
+    for note in &reviewed.new {
+        if crate::note_rank::tier(&note.code) == crate::note_rank::Tier::Fix {
+            println!("fix: {} {}: {} — check --review for repair", note.site, note.code, crate::presentation::indexes(&bound.schema, &note_summary(note), false));
+        }
+    }
+    0
+}
+
 pub fn check(options: &Options) -> i32 {
     if options.flags.contains_key("audit") { return security::audit(options); }
     if options.flags.contains_key("store") && options.flags.contains_key("release") {
@@ -357,7 +382,8 @@ pub fn check(options: &Options) -> i32 {
         Err(error)=>{failed_check(&bound,options.json,"E_ADOPT",error);return 1;}
     }
     if !bound.diagnostics.is_empty(){report_diagnostics(&bound,options.json,true,options.flags.contains_key("verbose"));return 1;}
-    let mut security = phase::measure("check.report", || security::report(&project, &bound, &compiled_sources, options));
+    let quick = options.flags.contains_key("quick");
+    let mut security = phase::measure("check.report", || if quick { security::declarations(&bound, &compiled_sources) } else { security::report(&project, &bound, &compiled_sources, options) });
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
@@ -382,6 +408,7 @@ pub fn check(options: &Options) -> i32 {
         failed_check(&bound, options.json, "E_STORE", format!("cannot write generated types: {error}"));
         return 2;
     }
+    if quick { return quick_verdict(&project, &bound, &compiled_sources, &reviewable_notes, &security, started, options); }
     if let Err(error) = project.check_server() {
         if options.json { println!("{}", json!({ "ok": false, "problems": [{ "code": if error.starts_with("E_SERVER_TOOLCHAIN") { "E_SERVER_TOOLCHAIN" } else { "E_SERVER_TYPECHECK" }, "message": error, "guide": "actions" }], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": [] })); }
         else { eprintln!("{error}"); }

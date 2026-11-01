@@ -64,6 +64,9 @@ Output:
                          Repeats of one code are shortened; one site's repeats
                          are counted (×N).
 
+  --quick      compile, adopt and write types in under a second while iterating; runs no
+               security search, server typecheck or native build and saves no check
+               evidence, so run plain check before finishing
   --ack-notes  record reviewed compiler notes in snapback/check-notes.json; any Quarry edit invalidates them
   --verbose    every note in full, with its card excerpt, rewrites and execution facts
   --json       one JSON object (ok, notes, problems, plans) on stdout

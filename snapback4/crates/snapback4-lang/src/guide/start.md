@@ -62,6 +62,8 @@ runs check, acceptance, frontend and probe shutdown; do not run those separately
 first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
 unchanged passing direct proofs can be reused within the same builder session.
 Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
 Optional helpers:
 `npx snapback4 check --proof-draft` creates one small business draft once;
 `npx snapback4 check --proof-scaffold` creates the exhaustive matrix.

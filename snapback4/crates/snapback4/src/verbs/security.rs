@@ -18,6 +18,10 @@ pub(super) use record::{remember,capture};
 pub(super) fn unauthenticated(project:&Project,bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(project,bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
+/// Declaration and source facts only: no campaign, so nothing here can refute an invariant.
+pub(super) fn declarations(bound:&Bound,sources:&[(String,String)])->Report{
+    let mut report=security::analyze_rules(bound);security::add_source_notes(&mut report,sources,bound);report
+}
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
     report_with_reviewed(project,bound,sources,options,&Default::default())
 }
