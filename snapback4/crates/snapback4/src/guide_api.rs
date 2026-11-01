@@ -178,7 +178,7 @@ fn usage(bound: &snapback4_lang::Bound, module: &str, digest: &str) -> Result<St
     } else {
         module
     });
-    out.push_str(" --generic (use --full for its section index).\n");
+    out.push_str(" --generic (use --sections for its section index).\n");
     if !digest.is_empty() {
         // Calls, setup, upload placement and guards are covered. Keep complementary signatures.
         let names: &[&str] = match module {

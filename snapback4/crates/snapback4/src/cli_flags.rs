@@ -146,7 +146,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "save-version") => " — save deployed sources, contemporary fixtures and immutable release label in a new directory",
             (_, "quiet") => " — print only the bearer token, with no successful stderr output",
             (_, "list") => " — list available guide cards",
-            (_, "full") => " — list bounded sections for a long card",
+            (_, "full") => " — print the whole card up to 18000 bytes; larger cards explain the limit and list sections",
             ("guide", "generic") => " — guide api: SDK-only signatures instead of this app's usage",
             (_, "sections") => " — print the card's numbered section index",
             (_, "section") => " — select a heading, topic or section number",

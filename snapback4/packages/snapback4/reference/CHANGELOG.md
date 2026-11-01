@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.52
+
+### Guide changes
+
+- Guide reading history expires after 30 minutes of inactivity and resets when copied to another project. Reads with no new blocks reprint the bounded selection with a repeat note. `--full` prints the complete card up to 18,000 bytes; larger cards explain the limit and list sections. Explicit sections keep a heading together within that bound, including the persistent-production deploy recipe. Default and first-read budgets stay the same.
+
 ## 0.4.51
 
 - **Behavior change:** `createApp` with `webDevice()` now defaults to progressive startup. `app.ready` establishes a usable client and write custody, not an open/acquired replica; observe `localStatus` / `useLocalStatus` for local readiness. `startup: "awaited"` restores the old opening barrier. Openers without a custody probe (native/Expo) still await.

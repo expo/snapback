@@ -1,14 +1,16 @@
 //! Bounded reading sections; the compiled corpus retains complete examples.
-// @ref LLP 3000.037.000#9 — explicit reference reads use the same byte budget.
-use super::{FULL_BYTES, reading_blocks};
+// @ref LLP 3000.037.000#8 — preserve one heading per explicit section within the reference bound.
+use super::{FULL_BYTES, REFERENCE_BYTES, reading_blocks};
 
 /// Flatten nested reference headings and split at complete paragraphs/fences.
 /// Long runnable references stay in the package, behind a file pointer.
 pub fn reader_card(name: &str, card: &str) -> String {
     if card.len() <= FULL_BYTES { return card.into(); }
     let title = card.lines().next().unwrap_or("# Guide");
-    let room = FULL_BYTES.saturating_sub(title.len() + 350);
-    let mut out = format!("{title}\n\nRead one section for your change. `guide {name} --full` lists sections; --repeat reprints a selection.\n\n");
+    // Package manuals keep TOK6's existing bounded pagination contract.
+    let limit = if name.starts_with("package-reference ") { FULL_BYTES } else { REFERENCE_BYTES };
+    let room = limit.saturating_sub(title.len() + 350);
+    let mut out = format!("{title}\n\nRead one section for your change. `guide {name} --sections` lists sections.\n\n");
     let mut heading = "Opening".to_owned();
     let mut page = String::new();
     let mut part = 1;

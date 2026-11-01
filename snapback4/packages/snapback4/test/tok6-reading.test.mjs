@@ -12,7 +12,7 @@ import {guideTypeScriptExport} from '../../../scripts/publication-starters.mjs';
 import {installedHistory,runtimeChanges} from '../bin/release-changes.js';
 const root=resolve(import.meta.dirname,'../../..'),bin=process.env.SNAPBACK4_BIN??join(root,'target/debug/snapback4');
 const encoding=getEncoding('o200k_base');
-const run=(cwd,args)=>{const p=spawnSync(bin,args,{cwd,encoding:'utf8',timeout:60000});assert.equal(p.status,0,p.stdout+p.stderr);assert.ok(Buffer.byteLength(p.stdout)<=8000,`${args}: byte budget`);return p.stdout;};
+const run=(cwd,args)=>{const p=spawnSync(bin,args,{cwd,encoding:'utf8',timeout:60000});assert.equal(p.status,0,p.stdout+p.stderr);assert.ok(Buffer.byteLength(p.stdout)<=(args.includes("--full")||args.includes("--section")?18000:8000),`${args}: byte budget`);return p.stdout;};
 for(const name of ['cpap','trailer','talent'])test(`${name}: the first four wiring lookups contain current app calls and guards`,()=>{
  const cwd=mkdtempSync(join(root,'target/tok6-test-'));
  try{
@@ -91,7 +91,7 @@ test('large app packets page to late operations; invalid/no project never return
   const index=run(cwd,['guide','api','react','--sections','--repeat']);assert.match(index,/query operations.q79/);
   const selected=run(cwd,['guide','api','react','--section','operations.q79','--repeat']);assert.match(selected,/api\["operations"\]\["q79"\]/);assert.match(selected,/Result: `number`/);
   assert.ok(!readFileSync(new URL('../package.json',import.meta.url),'utf8').includes('reference",'));
-  const generic=run(cwd,['guide','api','react','--generic','--full','--repeat']);assert.match(generic,/--section/);
+  const generic=run(cwd,['guide','api','react','--generic','--full','--repeat']);assert.match(generic,/export (?:declare )?function|too long to print whole/);
   run(cwd,['guide','api','react','--generic','--section','usePage','--repeat']);
   writeFileSync(join(cwd,'snapback/operations.q'),'broken schema');
   assert.match(run(cwd,['guide','api','client','--repeat']),/App schema does not bind/);
@@ -160,4 +160,26 @@ test('batched wiring lookups share schema facts while keeping new calls/signatur
   writeFileSync(join(cwd,'snapback/schema.q'),'use identity password\nquery answer():\n  return "changed"\n');
   assert.match(run(cwd,['guide','api','client']),/Result: `string`/);
  }finally{rmSync(cwd,{recursive:true,force:true});}
+});
+
+test('GUIDE1: repeated CLI selections reprint, expiry and immediate project copies start fresh',()=>{
+ const cwd=mkdtempSync(join(root,'target/guide1-source-')),copy=mkdtempSync(join(root,'target/guide1-copy-'));
+ try{
+  mkdirSync(join(cwd,'snapback'));mkdirSync(join(copy,'snapback'));mkdirSync(join(copy,'.snapback4'));
+  const args=['guide','deploy','--section','15'];
+  const first=run(cwd,args),p=spawnSync(bin,args,{cwd,encoding:'utf8'});
+  assert.equal(p.status,0);assert.equal(p.stdout,first);assert.match(p.stderr,/^Repeat: /);
+  assert.doesNotMatch(p.stdout+p.stderr,/new: 0 blocks|--repeat/);
+  const file=join(cwd,'.snapback4/guide-seen.json'),history=JSON.parse(readFileSync(file));
+  writeFileSync(join(copy,'.snapback4/guide-seen.json'),JSON.stringify(history));
+  const copied=spawnSync(bin,args,{cwd:copy,encoding:'utf8'});assert.equal(copied.stdout,first);assert.equal(copied.stderr,'');
+  history.last_read_ms=Date.now()-31*60*1000;writeFileSync(file,JSON.stringify(history));
+  const expired=spawnSync(bin,args,{cwd,encoding:'utf8'});assert.equal(expired.stdout,first);assert.equal(expired.stderr,'');
+  assert.match(first,/Persistent production/i);assert.doesNotMatch(first,/continued/);
+  for(const name of ['evolution','day2','staging']){
+   const full=run(cwd,['guide',name,'--full']);assert.doesNotMatch(full,/too long to print whole|Truncated:/);assert.match(full,/```/);
+   assert.equal(run(cwd,['guide',name,'--full']),full,'full bypasses history');
+  }
+  for(const name of ['deploy','language','rules','production','security','rule-recipes'])assert.match(run(cwd,['guide',name,'--full']),/too long to print whole/);
+ }finally{rmSync(cwd,{recursive:true,force:true});rmSync(copy,{recursive:true,force:true});}
 });

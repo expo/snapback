@@ -1600,10 +1600,10 @@ fn a_long_card_prints_bounded_full_index_and_complete_selected_sections() {
         let (code, full) = guide(&[keyword, "--full"]);
         assert_eq!(code, Some(0), "{keyword}");
         let card = snapback4_lang::guide::card(keyword).unwrap();
-        assert!(full.len() <= snapback4_lang::guide::FULL_BYTES + 1, "{keyword}: --full keeps the hard reading budget");
-        if card.len() > snapback4_lang::guide::FULL_BYTES || *keyword == "evolution" {
+        assert!(full.len() <= snapback4_lang::guide::REFERENCE_BYTES + 1, "{keyword}: --full keeps the hard reading budget");
+        if card.len() > snapback4_lang::guide::REFERENCE_BYTES {
             let (_, index) = guide(&[keyword, "--sections"]);
-            assert_eq!(full, index, "{keyword}: oversized --full is the complete bounded section index");
+            assert!(full.contains("too long to print whole") && full.ends_with(&index), "{keyword}: oversized --full explains its bound before the complete section index");
             let pages=index.lines().filter_map(|line| {
                 let (number,label)=line.trim().split_once(". ")?;
                 let number=number.parse::<usize>().ok()?;
@@ -1615,7 +1615,7 @@ fn a_long_card_prints_bounded_full_index_and_complete_selected_sections() {
                 let number=number.to_string();let (status,selected)=guide(&[keyword,"--section",&number]);
                 assert_eq!(status,Some(0),"{keyword}: section {number}");
                 if number!="0" {assert!(selected.contains(heading),"{keyword}: section {number} retains its heading");}
-                assert!(selected.len()<=snapback4_lang::guide::FULL_BYTES+1,"{keyword}: section {number} retains the byte budget");
+                assert!(selected.len()<=snapback4_lang::guide::REFERENCE_BYTES+1,"{keyword}: section {number} retains the byte budget");
                 assert_eq!(selected.lines().filter(|line|line.trim_start().starts_with("```")).count()%2,0,"{keyword}: selected recipe fences are complete");
             }
         } else {
@@ -1635,7 +1635,7 @@ fn a_long_card_prints_bounded_full_index_and_complete_selected_sections() {
             let (_, index) = guide(&[keyword, "--sections"]);
             assert!(index.contains("--section"),"{keyword}: explicit index routes the published bounded sections");
         } else if *keyword == "evolution" {
-            assert_eq!(default.trim_end(),card.trim_end(),"evolution: the short default card stays complete while --full lists sections");
+            assert_eq!(default.trim_end(),card.trim_end(),"evolution: the short default card stays complete");
         } else { assert_eq!(default, full, "{keyword}: short card prints in full"); }
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.

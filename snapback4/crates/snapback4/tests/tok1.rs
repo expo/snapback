@@ -8,7 +8,7 @@ impl Drop for Project { fn drop(&mut self){let _=fs::remove_dir_all(&self.0);} }
 fn wave32_codex_001_025_and_muse_019_028_first_schema_deltas_and_signatures() {
     let p=Project::new("read");
     let first=p.cli(&["guide","start"]);assert!(first.status.success());assert!(first.stdout.len()<=8001);
-    let second=p.cli(&["guide","start"]);let delta=String::from_utf8_lossy(&second.stdout);assert!(delta.contains("new: 0 blocks"),"{delta}");
+    let second=p.cli(&["guide","start"]);let delta=String::from_utf8_lossy(&second.stdout);assert_eq!(second.stdout, first.stdout);assert!(String::from_utf8_lossy(&second.stderr).contains("Repeat:"),"{delta}");
     assert_eq!(p.cli(&["guide","start","--repeat"]).stdout,first.stdout);
     let start=snapback4_lang::guide::card("workflow").unwrap();let source=snapback4_lang::guide::quarry(start).remove(0);
     fs::write(p.0.join("snapback/schema.q"),source).unwrap();
