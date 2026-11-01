@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-quarry",
-  "version": "0.4.50",
+  "version": "0.4.52",
   "private": true,
   "description": "Quarry highlighting grammar; snapback4-lang is the parser of record",
   "license": "MIT",

@@ -2,7 +2,7 @@
   "name": "quarry",
   "displayName": "Quarry",
   "description": "Quarry syntax highlighting and Snapback 4 compiler diagnostics.",
-  "version": "0.4.50",
+  "version": "0.4.52",
   "publisher": "snapback4",
   "license": "MIT",
   "repository": {

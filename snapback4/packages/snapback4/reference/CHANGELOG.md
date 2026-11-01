@@ -4,7 +4,10 @@
 
 ### Guide changes
 
-- Guide reading history expires after 30 minutes of inactivity and resets when copied to another project. Reads with no new blocks reprint the bounded selection with a repeat note. `--full` prints the complete card up to 18,000 bytes; larger cards explain the limit and list sections. Explicit sections keep a heading together within that bound, including the persistent-production deploy recipe. Default and first-read budgets stay the same.
+- Guide reading history expires after 30 minutes of inactivity and resets when copied to another project. Reads with no new blocks reprint the bounded selection with a repeat note. `guide --full` prints the complete card up to 18,000 bytes; larger cards explain the limit and list sections. Explicit sections keep a heading together within that bound, including the persistent-production deploy recipe. Default and first-read budgets stay the same.
+
+- `check --quick` compiles and adopts Quarry and writes generated types with a static verdict for iteration. It runs no security search, server typecheck or native build and saves no check evidence; run plain `check` before finishing.
+- `grammar` exports the compiler grammar facts used by the new Quarry TextMate and tree-sitter grammars. Local editor packages provide syntax highlighting and VS Code compiler diagnostics; Rust remains the parser of record.
 
 ## 0.4.51
 
