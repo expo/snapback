@@ -251,7 +251,7 @@ mod app_tests {
         }
         let single = format!(
             "# This app's client usage\n\n## query a\n\n{}\n",
-            "oversized ".repeat(790)
+            "oversized ".repeat(794)
         );
         assert_eq!(
             render_in(&root, "api client", &single, false),
