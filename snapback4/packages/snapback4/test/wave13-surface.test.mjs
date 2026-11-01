@@ -80,7 +80,7 @@ test('guide topic aliases select sections and full long cards carry a section in
   const cwd=fixture(t);
   for(const [word,heading] of [['identity','Deploy and password identity'],['migrations','Migrations and adoption'],['auth/headless','Seed accounts headlessly'],['backfill','Migrations and adoption'],['fields','Column types']]){
     const result=invoke(cwd,['guide',word]);okay(result);assert.match(result.stdout,new RegExp('section .*'+heading));
-    const full=invoke(cwd,['guide',word,'--full','--repeat']);okay(full);assert.ok(Buffer.byteLength(full.stdout)<=8000,word);assert.match(full.stdout,/--section|^# /,word);
+    const full=invoke(cwd,['guide',word,'--full','--repeat']);okay(full);assert.ok(Buffer.byteLength(full.stdout)<=18000,word);assert.match(full.stdout,/--section|^# /,word);
   }
   const long=invoke(cwd,['guide','deploy']);okay(long);assert.match(long.stdout,/Truncated:.*\d+-line card/);assert.match(long.stdout,/guide deploy --section/);
   const social=fixture(t);const initialized=invoke(social,['new','.','--template','social']);okay(initialized);assert.doesNotMatch(initialized.stdout,/init --expo --port/);

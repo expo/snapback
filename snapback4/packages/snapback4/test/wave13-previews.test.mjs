@@ -89,7 +89,8 @@ test('H9 additive preview-noise budget: unchanged guards stay quiet beside rollb
   const guide=run('guide','deploy','--full').stdout;
   const order=['Rollback after widening','Bridge a safety gate','What the old release sees'].map(heading=>guide.indexOf(heading));
   assert.ok(order.every(index=>index>=0),guide);assert.ok(order[0]<order[1]&&order[1]<order[2],guide);
-  assert.ok(Buffer.byteLength(guide)<=8000,'--full lists bounded sections');
+  assert.match(guide,/too long to print whole/);
+  assert.ok(Buffer.byteLength(guide)<=8000,'an oversized full card explains its bounded index');
 });
 
 test('changed probe dependencies group guards once; unused probe columns and unrelated writes stay silent', t => {

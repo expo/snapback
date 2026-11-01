@@ -524,7 +524,7 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
   assert.ok(Buffer.byteLength(long)<=8001,"default card retains its hard byte budget");
   assert.match(long, /snapback4 guide language --section/);
   assert.match(long, /Sections of guide language:/);
-  assert.match(long, /--full lists all sections/);
+  assert.match(long, /--sections lists all sections/);
 });
 
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
