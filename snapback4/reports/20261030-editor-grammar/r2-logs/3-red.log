@@ -1,0 +1,206 @@
+$ tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs
+  real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 4601 bytes/ms
+
+✔ blank and comment lines ignore their indentation (526.870958ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (11.430042ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (9.672ms)
+✔ inline tabs are allowed (9.8555ms)
+✔ empty and comment-only files (10.148583ms)
+✔ final significant line without LF (9.968584ms)
+✔ CRLF normalization (10.864125ms)
+✔ lone CR normalization (10.29325ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (31.142833ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (59.903834ms)
+✔ Unicode whitespace is not indentation produces a parse error (9.503417ms)
+✔ unclosed string produces a parse error (9.697459ms)
+✔ unknown punctuation at multiple sites produces a parse error (9.909ms)
+✔ scanner serialization survives incremental changes to layout and grouping (60.789875ms)
+✔ CR grouping recovers leading tabs like LF (30.430375ms)
+✔ CR grouping ignores Unicode blank and comment lines (31.248709ms)
+✔ logical CR line starts survive incremental serialization (18.884292ms)
+✔ hyphenated keywords require the complete lexer boundary (71.276042ms)
+✔ leading tabs recover indent and preserve the following declaration (19.454042ms)
+✔ off-stack dedent pops to the enclosing level without inventing a new block (9.682125ms)
+✖ off-stack dedent survives comment extras and incremental edits (10.059292ms)
+✖ off-stack dedent survives blank extras and incremental edits (9.726ms)
+✖ off-stack dedent survives mixed extras and incremental edits (10.201291ms)
+✔ unclosed group recovers locally and flushes the enclosing block at EOF (9.099208ms)
+✔ unclosed brackets and braces retain local recovery through an edit (118.137834ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 22
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1205.358709
+
+✖ failing tests:
+
+test at test/layout.test.mjs:103:3
+✖ off-stack dedent survives comment extras and incremental edits (10.059292ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [6, 0]
+    (declaration [0, 0] - [2, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [1, 0] - [2, 0]
+        (statement [1, 4] - [2, 0]
+          (expression [1, 4] - [1, 12]
+            (keyword [1, 4] - [1, 10])
+            (number [1, 11] - [1, 12])))))
+    (comment [2, 0] - [2, 10])
+    (block [3, 0] - [4, 0]
+      (statement [3, 2] - [4, 0]
+        (expression [3, 2] - [3, 10]
+          (keyword [3, 2] - [3, 8])
+          (number [3, 9] - [3, 10]))))
+    (declaration [4, 0] - [6, 0]
+      (declaration_keyword [4, 0] - [4, 5])
+      name: (declaration_name [4, 6] - [4, 7]
+        (identifier [4, 6] - [4, 7]))
+      (expression [4, 7] - [4, 10]
+        (parenthesized [4, 7] - [4, 9])
+        (operator [4, 9] - [4, 10]))
+      (block [5, 0] - [6, 0]
+        (statement [5, 2] - [6, 0]
+          (expression [5, 2] - [5, 10]
+            (keyword [5, 2] - [5, 8])
+            (number [5, 9] - [5, 10]))))))
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:107:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/layout.test.mjs:103:3
+✖ off-stack dedent survives blank extras and incremental edits (9.726ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [6, 0]
+    (declaration [0, 0] - [2, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [1, 0] - [2, 0]
+        (statement [1, 4] - [2, 0]
+          (expression [1, 4] - [1, 12]
+            (keyword [1, 4] - [1, 10])
+            (number [1, 11] - [1, 12])))))
+    (block [3, 0] - [4, 0]
+      (statement [3, 2] - [4, 0]
+        (expression [3, 2] - [3, 10]
+          (keyword [3, 2] - [3, 8])
+          (number [3, 9] - [3, 10]))))
+    (declaration [4, 0] - [6, 0]
+      (declaration_keyword [4, 0] - [4, 5])
+      name: (declaration_name [4, 6] - [4, 7]
+        (identifier [4, 6] - [4, 7]))
+      (expression [4, 7] - [4, 10]
+        (parenthesized [4, 7] - [4, 9])
+        (operator [4, 9] - [4, 10]))
+      (block [5, 0] - [6, 0]
+        (statement [5, 2] - [6, 0]
+          (expression [5, 2] - [5, 10]
+            (keyword [5, 2] - [5, 8])
+            (number [5, 9] - [5, 10]))))))
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:107:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/layout.test.mjs:103:3
+✖ off-stack dedent survives mixed extras and incremental edits (10.201291ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [8, 0]
+    (declaration [0, 0] - [2, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [1, 0] - [2, 0]
+        (statement [1, 4] - [2, 0]
+          (expression [1, 4] - [1, 12]
+            (keyword [1, 4] - [1, 10])
+            (number [1, 11] - [1, 12])))))
+    (comment [2, 0] - [2, 10])
+    (comment [4, 2] - [4, 16])
+    (block [5, 0] - [6, 0]
+      (statement [5, 2] - [6, 0]
+        (expression [5, 2] - [5, 10]
+          (keyword [5, 2] - [5, 8])
+          (number [5, 9] - [5, 10]))))
+    (declaration [6, 0] - [8, 0]
+      (declaration_keyword [6, 0] - [6, 5])
+      name: (declaration_name [6, 6] - [6, 7]
+        (identifier [6, 6] - [6, 7]))
+      (expression [6, 7] - [6, 10]
+        (parenthesized [6, 7] - [6, 9])
+        (operator [6, 9] - [6, 10]))
+      (block [7, 0] - [8, 0]
+        (statement [7, 2] - [8, 0]
+          (expression [7, 2] - [7, 10]
+            (keyword [7, 2] - [7, 8])
+            (number [7, 9] - [7, 10]))))))
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:107:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+error: script "test" exited with code 1

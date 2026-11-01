@@ -1,0 +1,414 @@
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling crossbeam-utils v0.8.23
+   Compiling subtle v2.6.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling crossbeam-epoch v0.9.20
+   Compiling libm v0.2.16
+   Compiling crossbeam-deque v0.8.7
+   Compiling zmij v1.0.23
+   Compiling foldhash v0.2.0
+   Compiling bitflags v2.13.2
+   Compiling serde v1.0.229
+   Compiling wasmi_ir v2.0.0
+   Compiling serde_json v1.0.151
+   Compiling rayon-core v1.13.0
+   Compiling wasmparser v0.228.0
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling rand_core v0.6.4
+   Compiling base64ct v1.8.3
+   Compiling cfg-if v1.0.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling hashbrown v0.17.1
+   Compiling thiserror v2.0.20
+   Compiling getrandom v0.3.4
+   Compiling tinyvec v1.13.2
+   Compiling wasmi v2.0.0
+   Compiling proc-macro2 v1.0.107
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling smallvec v1.16.1
+   Compiling spin v0.9.9
+   Compiling wasmi_collections v2.0.0
+   Compiling password-hash v0.5.0
+   Compiling either v1.18.0
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling fallible-iterator v0.3.0
+   Compiling unicode-normalization v0.1.25
+   Compiling cpufeatures v0.2.17
+   Compiling hashlink v0.12.2
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-lang v0.4.50 (/Users/ccheever/projects/snapback-quarry-grammar/snapback4/crates/snapback4-lang)
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling wasmi_core v2.0.0
+   Compiling digest v0.10.7
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling syn v2.0.119
+   Compiling rayon v1.12.0
+   Compiling argon2 v0.5.3
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-native v0.4.50 (/Users/ccheever/projects/snapback-quarry-grammar/snapback4/crates/snapback4-native)
+   Compiling snapback4-core v0.4.50 (/Users/ccheever/projects/snapback-quarry-grammar/snapback4/crates/snapback4-core)
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+   Compiling snapback4-device v0.4.50 (/Users/ccheever/projects/snapback-quarry-grammar/snapback4/crates/snapback4-device)
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused import: `super::*`
+  --> crates/snapback4-lang/src/bind/security/write_intent.rs:90:6
+   |
+90 |  use super::*;
+   |      ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/write_intent.rs:100:6
+    |
+100 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:191:6
+    |
+191 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:210:6
+    |
+210 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:220:6
+    |
+220 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:235:6
+    |
+235 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:249:6
+    |
+249 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+  --> crates/snapback4-lang/src/bind/security/derived/subject.rs:18:27
+   |
+18 | #[cfg(test)]mod tests{use super::*;
+   |                           ^^^^^^^^
+
+warning: `snapback4-lang` (lib test) generated 8 warnings (run `cargo fix --lib -p snapback4-lang --tests` to apply 8 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 4m 43s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_lang-dfac0acff1eca2d3)
+
+running 4 tests
+test parser::reserved::editor_tests::literal_census_sees_inline_array_membership ... ok
+test parser::reserved::editor_tests::literal_census_sees_guard_strings ... ok
+test parser::reserved::editor_tests::literal_census_keeps_all_word_shaped_literals ... ok
+test parser::reserved::editor_tests::every_parser_candidate_word_has_one_editor_class ... FAILED
+
+failures:
+
+---- parser::reserved::editor_tests::every_parser_candidate_word_has_one_editor_class stdout ----
+
+thread 'parser::reserved::editor_tests::every_parser_candidate_word_has_one_editor_class' (365259694) panicked at crates/snapback4-lang/src/parser/reserved.rs:240:9:
+parser sources: actions needs exactly one editor class or a documented non-keyword exception
+parser sources: addition needs exactly one editor class or a documented non-keyword exception
+parser sources: assets needs exactly one editor class or a documented non-keyword exception
+parser sources: author needs exactly one editor class or a documented non-keyword exception
+parser sources: capacity needs exactly one editor class or a documented non-keyword exception
+parser sources: change needs exactly one editor class or a documented non-keyword exception
+parser sources: column needs exactly one editor class or a documented non-keyword exception
+parser sources: feeds needs exactly one editor class or a documented non-keyword exception
+parser sources: imports needs exactly one editor class or a documented non-keyword exception
+parser sources: indexes needs exactly one editor class or a documented non-keyword exception
+parser sources: jobs needs exactly one editor class or a documented non-keyword exception
+parser sources: locked needs exactly one editor class or a documented non-keyword exception
+parser sources: maintains needs exactly one editor class or a documented non-keyword exception
+parser sources: outing needs exactly one editor class or a documented non-keyword exception
+parser sources: production needs exactly one editor class or a documented non-keyword exception
+parser sources: programs needs exactly one editor class or a documented non-keyword exception
+parser sources: reads needs exactly one editor class or a documented non-keyword exception
+parser sources: recipes needs exactly one editor class or a documented non-keyword exception
+parser sources: removal needs exactly one editor class or a documented non-keyword exception
+parser sources: retained needs exactly one editor class or a documented non-keyword exception
+parser sources: routes needs exactly one editor class or a documented non-keyword exception
+parser sources: rules needs exactly one editor class or a documented non-keyword exception
+parser sources: shapes needs exactly one editor class or a documented non-keyword exception
+parser sources: sharing needs exactly one editor class or a documented non-keyword exception
+parser sources: synced needs exactly one editor class or a documented non-keyword exception
+parser sources: totals needs exactly one editor class or a documented non-keyword exception
+parser sources: transient needs exactly one editor class or a documented non-keyword exception
+parser sources: types needs exactly one editor class or a documented non-keyword exception
+parser sources: who needs exactly one editor class or a documented non-keyword exception
+parser sources: writes needs exactly one editor class or a documented non-keyword exception
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    parser::reserved::editor_tests::every_parser_candidate_word_has_one_editor_class
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 214 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --lib`

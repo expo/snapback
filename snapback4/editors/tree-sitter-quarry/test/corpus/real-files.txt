@@ -1,0 +1,669 @@
+================================================================================
+Table with access rules — apps/chat/snapback/schema.q
+================================================================================
+table profiles:
+  principal: principal
+  displayName: text 1..50
+  handle: text 3..20 format handle
+  avatarUrl: text <=2048 format url ?
+  unique byPrincipal: principal
+  unique byHandle: handle
+  immutable principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- deny
+  sync last 2000 by byHandle        -- everyone holds the same bounded partition
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (operator))
+    (block
+      (statement
+        (expression
+          (type)
+          (operator)
+          (type)))
+      (statement
+        (expression
+          (identifier)
+          (operator)
+          (type)
+          (number)
+          (operator)
+          (number)))
+      (statement
+        (expression
+          (keyword)
+          (operator)
+          (type)
+          (number)
+          (operator)
+          (number)
+          (keyword)
+          (keyword)))
+      (statement
+        (expression
+          (identifier)
+          (operator)
+          (type)
+          (operator)
+          (number)
+          (keyword)
+          (keyword)
+          (operator)))
+      (table_line
+        (table_keyword)
+        (expression
+          (identifier)
+          (operator)
+          (type)))
+      (table_line
+        (table_keyword)
+        (expression
+          (identifier)
+          (operator)
+          (keyword)))
+      (table_line
+        (table_keyword)
+        (expression
+          (type)))
+      (table_line
+        (table_keyword)
+        (expression
+          (string)))
+      (table_line
+        (table_keyword)
+        (expression
+          (operator)
+          (property
+            (type))
+          (operator)
+          (builtin)))
+      (table_line
+        (table_keyword)
+        (expression
+          (operator)
+          (property
+            (type))
+          (operator)
+          (builtin)))
+      (table_line
+        (table_keyword)
+        (expression
+          (operator)
+          (keyword)))
+      (table_line
+        (table_keyword)
+        (expression
+          (keyword)
+          (number)
+          (table_keyword)
+          (identifier))
+        (comment)))))
+
+================================================================================
+Projection continuation — apps/chat/snapback/schema.q
+================================================================================
+query inbox():
+  return memberships[viewer] first 50 by byPrincipalConversation
+    { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized)
+      (operator))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (index_read
+            (identifier)
+            (list
+              (expression
+                (builtin))))
+          (keyword)
+          (number)
+          (table_keyword)
+          (identifier)
+          (shape
+            (expression
+              (identifier)
+              (operator)
+              (identifier)
+              (operator)
+              (index_read
+                (identifier)
+                (list
+                  (expression
+                    (property
+                      (identifier)))))
+              (operator)
+              (keyword)
+              (operator)
+              (index_read
+                (identifier)
+                (list
+                  (expression
+                    (property
+                      (identifier))))))))))))
+
+================================================================================
+Require and insert — apps/chat/snapback/schema.q
+================================================================================
+mutation send(conversationId: conversations, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  row = insert messages { conversationId, authorId: viewer, body, at: now }
+  return { id: row.id }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized
+        (expression
+          (identifier)
+          (operator)
+          (identifier)
+          (operator)
+          (identifier)
+          (operator)
+          (type)
+          (operator)
+          (number)))
+      (operator))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (keyword)
+          (index_read
+            (identifier)
+            (list
+              (expression
+                (identifier)
+                (operator)
+                (builtin))))
+          (keyword)
+          (identifier)))
+      (statement
+        (expression
+          (identifier)
+          (operator)
+          (table_keyword)
+          (identifier)
+          (shape
+            (expression
+              (identifier)
+              (operator)
+              (identifier)
+              (operator)
+              (builtin)
+              (operator)
+              (identifier)
+              (operator)
+              (keyword)
+              (operator)
+              (builtin)))))
+      (statement
+        (expression
+          (keyword)
+          (shape
+            (expression
+              (type)
+              (operator)
+              (identifier)
+              (property
+                (type)))))))))
+
+================================================================================
+Require and update — apps/chat/snapback/schema.q
+================================================================================
+mutation edit(messageId: messages, body: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.authorId = viewer else NOT_AUTHOR
+  update messages[msg] { body, editedAt: now }
+  return null
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized
+        (expression
+          (identifier)
+          (operator)
+          (identifier)
+          (operator)
+          (identifier)
+          (operator)
+          (type)
+          (operator)
+          (number)))
+      (operator))
+    (block
+      (statement
+        (expression
+          (identifier)
+          (operator)
+          (index_read
+            (identifier)
+            (list
+              (expression
+                (identifier))))
+          (operator)
+          (keyword)
+          (identifier)))
+      (statement
+        (expression
+          (keyword)
+          (identifier)
+          (property
+            (identifier))
+          (operator)
+          (builtin)
+          (keyword)
+          (identifier)))
+      (table_line
+        (table_keyword)
+        (expression
+          (index_read
+            (identifier)
+            (list
+              (expression
+                (identifier))))
+          (shape
+            (expression
+              (identifier)
+              (operator)
+              (identifier)
+              (operator)
+              (builtin)))))
+      (statement
+        (expression
+          (keyword)
+          (keyword))))))
+
+================================================================================
+Shape literal — apps/chat/snapback/schema.q
+================================================================================
+query room(conversationId: conversations):
+  return { conversation: conversations[conversationId], membership: memberships[conversationId, viewer] }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized
+        (expression
+          (identifier)
+          (operator)
+          (identifier)))
+      (operator))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (shape
+            (expression
+              (identifier)
+              (operator)
+              (index_read
+                (identifier)
+                (list
+                  (expression
+                    (identifier))))
+              (operator)
+              (identifier)
+              (operator)
+              (index_read
+                (identifier)
+                (list
+                  (expression
+                    (identifier)
+                    (operator)
+                    (builtin)))))))))))
+
+================================================================================
+First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+================================================================================
+query replaced(c: cursor ?):
+  return bookings where .guest = viewer first 2 by .start after c { *, start: 'display', id: { value: .id }, guest: 'display', listing: listings[.listing] { title, city } }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized
+        (expression
+          (identifier)
+          (operator)
+          (type)
+          (operator)))
+      (operator))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (identifier)
+          (keyword)
+          (property
+            (identifier))
+          (operator)
+          (builtin)
+          (keyword)
+          (number)
+          (table_keyword)
+          (property
+            (identifier))
+          (table_keyword)
+          (identifier)
+          (shape
+            (expression
+              (operator)
+              (operator)
+              (identifier)
+              (operator)
+              (string)
+              (operator)
+              (type)
+              (operator)
+              (shape
+                (expression
+                  (identifier)
+                  (operator)
+                  (property
+                    (type))))
+              (operator)
+              (identifier)
+              (operator)
+              (string)
+              (operator)
+              (identifier)
+              (operator)
+              (index_read
+                (identifier)
+                (list
+                  (expression
+                    (property
+                      (identifier)))))
+              (shape
+                (expression
+                  (identifier)
+                  (operator)
+                  (identifier))))))))))
+
+================================================================================
+View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+================================================================================
+view unread: count messages by members m
+  where .conversationId = m.conversationId and .ordinal > m.readUpTo
+    and .senderId != m.principal and not .tombstone and .ordinal > m.joinedAt
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (operator)
+      (keyword)
+      (identifier)
+      (table_keyword)
+      (identifier)
+      (keyword))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (property
+            (identifier))
+          (operator)
+          (keyword)
+          (property
+            (identifier))
+          (keyword)
+          (property
+            (identifier))
+          (operator)
+          (keyword)
+          (property
+            (identifier))
+          (keyword)
+          (property
+            (identifier))
+          (operator)
+          (keyword)
+          (property
+            (type))
+          (keyword)
+          (keyword)
+          (property
+            (identifier))
+          (keyword)
+          (property
+            (identifier))
+          (operator)
+          (keyword)
+          (property
+            (identifier)))))))
+
+================================================================================
+Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+================================================================================
+effect notify
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))))
+
+================================================================================
+Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+================================================================================
+job digest():
+  for p in profiles:
+    n = unreadFor(p)
+    if n > 0:
+      emit notify { target: p.principal, unread: n }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized)
+      (operator))
+    (block
+      (statement
+        (expression
+          (keyword)
+          (identifier)
+          (keyword)
+          (identifier)
+          (operator))
+        (block
+          (statement
+            (expression
+              (identifier)
+              (operator)
+              (call
+                (identifier)
+                (parenthesized
+                  (expression
+                    (identifier))))))
+          (statement
+            (expression
+              (keyword)
+              (identifier)
+              (operator)
+              (number)
+              (operator))
+            (block
+              (statement
+                (expression
+                  (keyword)
+                  (identifier)
+                  (shape
+                    (expression
+                      (identifier)
+                      (operator)
+                      (identifier)
+                      (property
+                        (type))
+                      (operator)
+                      (identifier)
+                      (operator)
+                      (identifier))))))))))))
+
+================================================================================
+Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+================================================================================
+fn unreadFor(p: profiles):
+  total = 0
+  for m in members where .principal = p.principal:
+    total = total + m.unread
+  return total
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (parenthesized
+        (expression
+          (identifier)
+          (operator)
+          (identifier)))
+      (operator))
+    (block
+      (statement
+        (expression
+          (identifier)
+          (operator)
+          (number)))
+      (statement
+        (expression
+          (keyword)
+          (keyword)
+          (keyword)
+          (identifier)
+          (keyword)
+          (property
+            (type))
+          (operator)
+          (identifier)
+          (property
+            (type))
+          (operator))
+        (block
+          (statement
+            (expression
+              (identifier)
+              (operator)
+              (identifier)
+              (operator)
+              (keyword)
+              (property
+                (identifier))))))
+      (statement
+        (expression
+          (keyword)
+          (identifier))))))
+
+================================================================================
+Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+================================================================================
+shape booking = { *, listing: listings[.listing] { title, city } }
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (operator)
+      (shape
+        (expression
+          (operator)
+          (operator)
+          (identifier)
+          (operator)
+          (index_read
+            (identifier)
+            (list
+              (expression
+                (property
+                  (identifier)))))
+          (shape
+            (expression
+              (identifier)
+              (operator)
+              (identifier))))))))
+
+================================================================================
+Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+================================================================================
+schedule everyMonth every 1 month at day 1 09:00: nightly            -- UTC calendar months
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (declaration_name
+      (identifier))
+    (expression
+      (keyword)
+      (number)
+      (keyword)
+      (keyword)
+      (keyword)
+      (number)
+      (number)
+      (operator)
+      (number)
+      (operator)
+      (identifier))
+    (comment)))

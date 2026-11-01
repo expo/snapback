@@ -1,0 +1,46 @@
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2371 bytes/ms
+
+✖ template substitution still rejects an unrelated unmatched parenthesis (1786.37825ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1905.689625
+
+✖ failing tests:
+
+test at editors/tree-sitter-quarry/check.test.mjs:27:1
+✖ template substitution still rejects an unrelated unmatched parenthesis (1786.37825ms)
+  AssertionError [ERR_ASSERTION]: tree-sitter: unsuccessful parse with no located ERROR/MISSING: crates/snapback4-lang/src/bind/timeline.q
+      at checkTreeSitter (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.mjs:123:5)
+      at probe (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:23:5)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:28:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

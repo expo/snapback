@@ -1,0 +1,41 @@
+TextMate ignored-line Unicode whitespace witnesses: pass
+✔ security-loosened: captured security refutation reaches Problems (92.664667ms)
+✔ security-notes-error: captured security refutation reaches Problems (72.281333ms)
+✔ pending security reviews keep their site and review instruction; acknowledged reviews are not pending (238.553792ms)
+✔ on-save surfaces missing node task failure (2.545333ms)
+✔ on-save surfaces missing snapback4 task failure (1.627625ms)
+✔ on-save surfaces compiler refusal task failure (0.624042ms)
+✔ successful and unrelated tasks stay quiet; queued saves still run (1.036125ms)
+✖ firstLine recognizes every exported declaration and comment with a word boundary (31.6035ms)
+✔ corpus walk includes .snapback and excludes only target and node_modules (4.132541ms)
+✔ corpus walk refuses symlink files, directories, cycles and dangling links loudly (4.825417ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 478.244917
+
+✖ failing tests:
+
+test at editors/vscode/test/first-line.test.mjs:5:1
+✖ firstLine recognizes every exported declaration and comment with a word boundary (31.6035ms)
+  AssertionError [ERR_ASSERTION]: firstLine misses action
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/first-line.test.mjs:10:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+editor grammar: 1137 .q files, 215 quarry fences, 2 failures; 6353 ms (TextMate only; tree-sitter NOT checked)
+editor grammar: committed firstLine differs: run node scripts/generate-editor-grammar.mjs
+editor grammar: editor self-tests failed: 1
+

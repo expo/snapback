@@ -1,0 +1,18 @@
+EOF group=1 count=2 pending=0 valid=000111101011
+EOF group=0 count=2 pending=0 valid=000100000010
+EOF group=0 count=2 pending=0 valid=010110101011
+(source_file [0, 0] - [3, 0]
+  (declaration [0, 0] - [1, 0]
+    (declaration_keyword [0, 0] - [0, 5])
+    name: (declaration_name [0, 6] - [0, 7]
+      (identifier [0, 6] - [0, 7]))
+    (expression [0, 7] - [0, 10]
+      (parenthesized [0, 7] - [0, 9])
+      (operator [0, 9] - [0, 10])))
+  (ERROR [1, 0] - [3, 0]
+    (keyword [1, 2] - [1, 8])
+    (expression [1, 10] - [2, 7]
+      (number [1, 10] - [1, 11])
+      (operator [2, 4] - [2, 5])
+      (number [2, 6] - [2, 7]))))
+/tmp/quarry-r1-unclosed.q	Parse:    3.62 ms	     8 bytes/ms	(ERROR [1, 0] - [3, 0])

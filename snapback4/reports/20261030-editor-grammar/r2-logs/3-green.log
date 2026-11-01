@@ -1,0 +1,50 @@
+$ tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs
+  real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3904 bytes/ms
+
+✔ blank and comment lines ignore their indentation (532.0325ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (10.315583ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (10.029916ms)
+✔ inline tabs are allowed (9.569333ms)
+✔ empty and comment-only files (10.038833ms)
+✔ final significant line without LF (10.132375ms)
+✔ CRLF normalization (10.2795ms)
+✔ lone CR normalization (9.587458ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (29.168917ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (56.127291ms)
+✔ Unicode whitespace is not indentation produces a parse error (9.498583ms)
+✔ unclosed string produces a parse error (9.692166ms)
+✔ unknown punctuation at multiple sites produces a parse error (8.795416ms)
+✔ scanner serialization survives incremental changes to layout and grouping (55.676417ms)
+✔ CR grouping recovers leading tabs like LF (28.3325ms)
+✔ CR grouping ignores Unicode blank and comment lines (29.278125ms)
+✔ logical CR line starts survive incremental serialization (17.978792ms)
+✔ hyphenated keywords require the complete lexer boundary (64.834834ms)
+✔ leading tabs recover indent and preserve the following declaration (18.189625ms)
+✔ off-stack dedent pops to the enclosing level without inventing a new block (10.114291ms)
+✔ off-stack dedent survives comment extras and incremental edits (83.425709ms)
+✔ off-stack dedent survives blank extras and incremental edits (87.112125ms)
+✔ off-stack dedent survives mixed extras and incremental edits (83.032292ms)
+✔ unclosed group recovers locally and flushes the enclosing block at EOF (9.658416ms)
+✔ unclosed brackets and braces retain local recovery through an edit (110.799166ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1397.758583

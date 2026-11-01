@@ -1,0 +1,5 @@
+node_modules/**
+.gitignore
+bun.lock
+*.vsix
+scripts/*.test.mjs

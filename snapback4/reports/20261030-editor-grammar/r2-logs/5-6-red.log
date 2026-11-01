@@ -1,0 +1,82 @@
+✖ captured synthetic refutation is accepted without an invariant error (285.7475ms)
+✖ only authored and generated fixture refutations become invariant errors (373.677792ms)
+✖ acknowledged security notes are hidden by disposition index; absent reviews retain notes (242.232833ms)
+✔ security-loosened: captured security refutation reaches Problems (136.511708ms)
+✔ security-notes-error: captured security refutation reaches Problems (290.181291ms)
+✔ pending security reviews keep their site and review instruction; acknowledged reviews are not pending (530.12725ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 3
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1932.764041
+
+✖ failing tests:
+
+test at editors/vscode/test/check-problems.test.mjs:22:1
+✖ captured synthetic refutation is accepted without an invariant error (285.7475ms)
+  AssertionError [ERR_ASSERTION]: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-gZMdhH/snapback/schema.q:1:1: N_NO_PRODUCTION_WRITER notes: no production writer can bootstrap this root; fixtures and /seed are dev-only | missing mutation path: no mutation inserts notes; add a bootstrapnotes mutation that requires `viewer = 'service:ops'`, allow that branch in notes's insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin Review this proposal, add the explicit service:ops insert branch to the table, and run check. No role is granted by signup. ```quarry mutation bootstrapnotes(body: text <=80, owner: principal): require viewer = 'service:ops' else NOT_OPERATOR return insert notes { body, owner } ```
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-gZMdhH/snapback/schema.q:4:3: N_BROAD_READ notes.read: branch `allow` lets every signed-in user read every row | restrict this branch to the intended role and row relationship, or confirm that every row is public to signed-in users
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-gZMdhH/snapback/schema.q:8:1: E_SECURITY_INVARIANT notes read (.owner = viewer): refuted via $security.notes.read as dev:security-b (synthetic-operation); read admission does not imply intent over independent predicates; a concrete replay is required for refutation; insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority; wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference; server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer; concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem | repair enforcement or independently verify the specification intent; run snapback4 test and snapback4 audit
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/check-problems.test.mjs:30:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at editors/vscode/test/check-problems.test.mjs:32:1
+✖ only authored and generated fixture refutations become invariant errors (373.677792ms)
+  AssertionError [ERR_ASSERTION]: synthetic-operation: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-lHWfpt/snapback/schema.q:1:1: N_NO_PRODUCTION_WRITER notes: no production writer can bootstrap this root; fixtures and /seed are dev-only | missing mutation path: no mutation inserts notes; add a bootstrapnotes mutation that requires `viewer = 'service:ops'`, allow that branch in notes's insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin Review this proposal, add the explicit service:ops insert branch to the table, and run check. No role is granted by signup. ```quarry mutation bootstrapnotes(body: text <=80, owner: principal): require viewer = 'service:ops' else NOT_OPERATOR return insert notes { body, owner } ```
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-lHWfpt/snapback/schema.q:4:3: N_BROAD_READ notes.read: branch `allow` lets every signed-in user read every row | restrict this branch to the intended role and row relationship, or confirm that every row is public to signed-in users
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-lHWfpt/snapback/schema.q:8:1: E_SECURITY_INVARIANT notes read (.owner = viewer): refuted via $security.notes.read as dev:security-b (synthetic-operation); read admission does not imply intent over independent predicates; a concrete replay is required for refutation; insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority; wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference; server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer; concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem | repair enforcement or independently verify the specification intent; run snapback4 test and snapback4 audit
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/check-problems.test.mjs:41:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at editors/vscode/test/check-problems.test.mjs:44:1
+✖ acknowledged security notes are hidden by disposition index; absent reviews retain notes (242.232833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-cezLX9/snapback/schema.q:3:3: N_BROAD_READ broad read | review intent'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/check-problems.test.mjs:48:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-cezLX9/snapback/schema.q:3:3: N_BROAD_READ broad read | review intent' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

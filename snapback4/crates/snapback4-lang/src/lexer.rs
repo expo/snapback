@@ -22,13 +22,16 @@ pub struct Token {
     pub value: String,
 }
 
-const TWO_CHARACTER: [&str; 6] = ["<-", "->", "<=", ">=", "!=", "??"];
-const SYMBOLS: &str = ":(),[]{}.?!+-~*/%=<>";
-const HYPHENATED_WORDS: [&str; 2] = ["until-revoked", "delivered-history"];
+// @ref LLP 3000.041#2.1 — editor grammars consume the lexer's own token spellings.
+pub const COMMENT: &str = "--";
+pub const TWO_CHARACTER: [&str; 6] = ["<-", "->", "<=", ">=", "!=", "??"];
+pub const SYMBOLS: &str = ":(),[]{}.?!+-~*/%=<>";
+pub const HYPHENATED_WORDS: [&str; 2] = ["until-revoked", "delivered-history"];
 
 pub fn lex(file: &str, source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
     let mut tokens: Vec<Token> = Vec::new();
     let mut diagnostics = Vec::new();
+    let comment: Vec<char> = COMMENT.chars().collect();
     let token = |line: u32, col: u32, kind: Kind, value: &str| Token { site: Site::new(file, line, col), kind, value: value.to_owned() };
     let mut indents = vec![0usize];
     let mut grouping: i32 = 0;
@@ -38,7 +41,7 @@ pub fn lex(file: &str, source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
         let line = line_index as u32 + 1;
         let chars: Vec<char> = raw.chars().collect();
         let trimmed = raw.trim_start();
-        if trimmed.is_empty() || trimmed.starts_with("--") {
+        if trimmed.is_empty() || trimmed.starts_with(COMMENT) {
             continue;
         }
         let leading = chars.iter().take_while(|c| **c == ' ' || **c == '\t').count();
@@ -75,7 +78,7 @@ pub fn lex(file: &str, source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
                 offset += 1;
                 continue;
             }
-            if c == '-' && chars.get(offset + 1) == Some(&'-') {
+            if chars[offset..].starts_with(&comment) {
                 break;
             }
             let site = Site::new(file, line, offset as u32 + 1);

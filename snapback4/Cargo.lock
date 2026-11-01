@@ -1673,6 +1673,7 @@ name = "snapback4-lang"
 version = "0.4.51"
 dependencies = [
  "libc",
+ "proc-macro2",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1680,6 +1681,7 @@ dependencies = [
  "snapback4-core",
  "snapback4-device",
  "snapback4-native",
+ "syn 2.0.119",
 ]
 
 [[package]]

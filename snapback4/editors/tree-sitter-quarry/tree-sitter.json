@@ -1,0 +1,12 @@
+{
+  "grammars": [{
+    "name": "quarry",
+    "camelcase": "Quarry",
+    "scope": "source.quarry",
+    "path": ".",
+    "file-types": ["q"],
+    "highlights": "queries/highlights.scm"
+  }],
+  "metadata": {"version": "0.4.50", "license": "MIT", "description": "Quarry highlighting grammar", "authors": [{"name": "Snapback contributors"}], "links": {"repository": "https://github.com/expo/snapback"}},
+  "bindings": {"c": false, "go": false, "node": false, "python": false, "rust": false, "swift": false}
+}

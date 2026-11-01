@@ -52,7 +52,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             }
         }
     }
-    let limit=match verb {"deploy"|"rollback"|"prune"|"stop"=>Some(1),"releases"|"promote"=>Some(2),_=>None};
+    let limit=match verb {"grammar"=>Some(0),"deploy"|"rollback"|"prune"|"stop"=>Some(1),"releases"|"promote"=>Some(2),_=>None};
     if limit.is_some_and(|limit|crate::verbs::parse(args).positionals.len()>limit) {
         return Err(format!("E_INPUT: {verb} has extra positional arguments; see `{verb} --help`"));
     }
@@ -251,7 +251,7 @@ pub(crate) fn help(verb: &str) -> String {
 mod projection_tests {
     #[test]
     fn every_validated_flag_is_in_its_generated_help() {
-        for verb in ["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
+        for verb in ["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","grammar","data","sql","token","doctor","upgrade","witness"] {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
@@ -274,7 +274,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","serve-check","day2-check","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","serve-check","day2-check","stop","run","clock","seed","reset","test","why","guide","grammar","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
@@ -303,6 +303,7 @@ pub(crate) fn top_help() -> String {
         "run"=>"Run one operation or system job locally or against a serving backend.",
         "clock"=>"Advance the development clock, sweep expiry and run due jobs.", "reset"=>"Empty a development backend and optionally reseed it atomically.",
         "test"=>"Load fixtures, run cases and sweep queries as their personas; --residency: acquisition report only; add --verbose to run queries and print meters.", "why"=>"Explain a diagnostic, operation, table, work id or recent refusal.",
+        "grammar"=>"Print Quarry lexical facts for editor grammars; --json emits one object.",
         "guide"=>"List cards or read a card/alias; --sections indexes it, --section selects one.",
         "data"=>"Inspect stored rows as an administrator; bypasses read rules.", "sql"=>"Read-only administrative SQL inspection; bypasses read rules.",
         "token"=>"Mint a service seat's bearer; --quiet is token-only, --json returns metadata.",
@@ -363,4 +364,30 @@ mod surface_parser_tests {
             }
         }
     }
+}
+
+// @ref LLP 3000.041#2.1 — one project-free lexical fact dump, sourced from the parser and lexer.
+pub(crate) fn grammar(json: bool) -> i32 {
+    use snapback4_lang::{lexer, parser::reserved::*};
+    let facts = serde_json::json!({
+        "comment": lexer::COMMENT,
+        "two_character_symbols": lexer::TWO_CHARACTER,
+        "symbols": lexer::SYMBOLS,
+        "hyphenated_words": lexer::HYPHENATED_WORDS,
+        "table_words": TABLE_WORDS,
+        "binding_words": editor_binding_words(),
+        "declaration_words": DECLARATION_WORDS,
+        "type_words": TYPE_WORDS,
+        "builtin_words": BUILTIN_WORDS,
+        "duration_units": DURATION_UNITS,
+    });
+    if json { println!("{facts}"); }
+    else {
+        for (name, value) in facts.as_object().unwrap() {
+            let text = value.as_str().map(str::to_owned).unwrap_or_else(||
+                value.as_array().unwrap().iter().map(|word| word.as_str().unwrap()).collect::<Vec<_>>().join(" "));
+            println!("{name}: {text}");
+        }
+    }
+    0
 }

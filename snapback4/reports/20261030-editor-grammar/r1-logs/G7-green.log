@@ -1,0 +1,12 @@
+✔ on-save surfaces missing node task failure (2.35675ms)
+✔ on-save surfaces missing snapback4 task failure (1.266083ms)
+✔ on-save surfaces compiler refusal task failure (0.523583ms)
+✔ successful and unrelated tasks stay quiet; queued saves still run (0.711083ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74.283791

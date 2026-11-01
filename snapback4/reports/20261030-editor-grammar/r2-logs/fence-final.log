@@ -1,0 +1,169 @@
+TextMate ignored-line Unicode whitespace witnesses: pass
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2526 bytes/ms
+✔ blank and comment lines ignore their indentation (682.14525ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (12.425958ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (12.344042ms)
+✔ inline tabs are allowed (13.2245ms)
+✔ empty and comment-only files (13.342084ms)
+✔ final significant line without LF (11.655167ms)
+✔ CRLF normalization (11.779541ms)
+✔ lone CR normalization (12.555958ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (36.041625ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (71.057333ms)
+✔ Unicode whitespace is not indentation produces a parse error (11.912584ms)
+✔ unclosed string produces a parse error (11.330916ms)
+✔ unknown punctuation at multiple sites produces a parse error (12.471959ms)
+✔ scanner serialization survives incremental changes to layout and grouping (74.688416ms)
+✔ CR grouping recovers leading tabs like LF (39.042042ms)
+✔ CR grouping ignores Unicode blank and comment lines (38.84275ms)
+✔ logical CR line starts survive incremental serialization (24.308334ms)
+✔ hyphenated keywords require the complete lexer boundary (86.304416ms)
+✔ leading tabs recover indent and preserve the following declaration (23.774959ms)
+✔ off-stack dedent pops to the enclosing level without inventing a new block (13.036458ms)
+✔ off-stack dedent survives comment extras and incremental edits (112.583958ms)
+✔ off-stack dedent survives blank extras and incremental edits (111.430958ms)
+✔ off-stack dedent survives mixed extras and incremental edits (113.874ms)
+✔ unclosed group recovers locally and flushes the enclosing block at EOF (12.592791ms)
+✔ unclosed brackets and braces retain local recovery through an edit (150.276542ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1823.452458
+tree-sitter: 1138 .q files, 215 quarry fences, 3 verified expected-error files; 5487 ms
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3296 bytes/ms
+
+tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 1474 ms
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 4297 bytes/ms
+
+tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 1237 ms
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 4297 bytes/ms
+
+tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 1359 ms
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3254 bytes/ms
+
+tree-sitter: 4 .q files, 0 quarry fences, 4 verified expected-error files; 1435 ms
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3014 bytes/ms
+
+tree-sitter: 4 .q files, 0 quarry fences, 3 verified expected-error files; 2046 ms
+✔ template substitution still rejects an unrelated unmatched parenthesis (1537.702708ms)
+✔ template substitution rejects unsupported @X@ in timeline (1255.749416ms)
+✔ template substitution rejects unsupported $x in timeline (1376.917042ms)
+✔ syntax exception checks the fixture in a real scratch project (1464.051916ms)
+✔ local unclosed-group recovery remains a located fence failure (2072.50625ms)
+✔ fence self-tests use the alternate binary with no default debug binary (1960.411167ms)
+✔ captured synthetic refutation is accepted without an invariant error (361.049416ms)
+✔ only authored and generated fixture refutations become invariant errors (1531.677083ms)
+✔ acknowledged security notes are hidden by disposition index; absent reviews retain notes (614.293333ms)
+✔ security-loosened: captured security refutation reaches Problems (227.10325ms)
+✔ security-notes-error: captured security refutation reaches Problems (164.779583ms)
+✔ pending security reviews keep their site and review instruction; acknowledged reviews are not pending (608.718625ms)
+✔ on-save surfaces missing node task failure (6.424833ms)
+✔ on-save surfaces missing snapback4 task failure (2.824916ms)
+✔ on-save surfaces compiler refusal task failure (0.81075ms)
+✔ successful and unrelated tasks stay quiet; queued saves still run (0.94875ms)
+✔ firstLine recognizes every exported declaration and comment with a word boundary (80.424042ms)
+✔ corpus walk includes .snapback and excludes only target and node_modules (4.451292ms)
+✔ corpus walk refuses symlink files, directories, cycles and dangling links loudly (4.412375ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9833.714291
+editor grammar: 1138 .q files, 215 quarry fences, 0 failures; 21287 ms (TextMate + tree-sitter)

@@ -1,0 +1,96 @@
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2724 bytes/ms
+
+tree-sitter generate: exit 0 (temporary build)
+real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2628 bytes/ms
+
+✖ template substitution still rejects an unrelated unmatched parenthesis (1041.221625ms)
+✖ syntax exception checks the fixture in a real scratch project (1293.815292ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2420.128792
+
+✖ failing tests:
+
+test at editors/tree-sitter-quarry/check.test.mjs:27:1
+✖ template substitution still rejects an unrelated unmatched parenthesis (1041.221625ms)
+  AssertionError [ERR_ASSERTION]: tree-sitter: unsuccessful parse with no located ERROR/MISSING: crates/snapback4-lang/src/bind/timeline.q
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-fence-probe-4Ju4Po/build/templates/1.q
+    pattern: 0
+      capture: error, start: (68, 0), end: (69, 0)
+    pattern: 0
+      capture: error, start: (68, 10), end: (69, 0)
+  
+      at checkTreeSitter (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.mjs:126:5)
+      at probe (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:23:5)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:28:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at editors/tree-sitter-quarry/check.test.mjs:31:1
+✖ syntax exception checks the fixture in a real scratch project (1293.815292ms)
+  AssertionError [ERR_ASSERTION]: tree-sitter: unsuccessful parse with no located ERROR/MISSING: crates/snapback4-lang/tests/fixtures/editor-syntax-probe.q
+  /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-fence-probe-hFWd5Q/project/crates/snapback4-lang/tests/fixtures/editor-syntax-probe.q
+    pattern: 0
+      capture: error, start: (1, 0), end: (2, 0)
+    pattern: 0
+      capture: error, start: (1, 10), end: (2, 0)
+  
+      at checkTreeSitter (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.mjs:126:5)
+      at probe (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:23:5)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/check.test.mjs:32:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

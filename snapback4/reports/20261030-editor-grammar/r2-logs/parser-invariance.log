@@ -1,0 +1,3 @@
+All 14 parser production prefixes byte-identical to f5abc83967; no Rust acceptance change.
+Allowlist before: 48
+Allowlist after: 78

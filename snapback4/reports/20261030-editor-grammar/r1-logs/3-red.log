@@ -1,0 +1,146 @@
+$ tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs
+  real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2717 bytes/ms
+
+✔ blank and comment lines ignore their indentation (728.808542ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (13.254792ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (12.191417ms)
+✔ inline tabs are allowed (14.168708ms)
+✔ empty and comment-only files (18.543667ms)
+✔ final significant line without LF (11.63075ms)
+✔ CRLF normalization (18.76475ms)
+✔ lone CR normalization (13.724667ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (46.131ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (101.635209ms)
+✔ tab indentation produces a parse error (23.105417ms)
+✔ Unicode whitespace is not indentation produces a parse error (16.462ms)
+✔ tabs before negative value produces a parse error (17.490583ms)
+✔ tabs inside grouping produces a parse error (21.139416ms)
+✔ dedent outside enclosing levels produces a parse error (13.323334ms)
+✔ unclosed grouping produces a parse error (12.389083ms)
+✔ unclosed string produces a parse error (16.184084ms)
+✔ unknown punctuation at multiple sites produces a parse error (14.063084ms)
+✔ scanner serialization survives incremental changes to layout and grouping (86.596709ms)
+✖ CR grouping still diagnoses leading tabs (23.628167ms)
+✖ CR grouping ignores Unicode blank and comment lines (13.837916ms)
+✖ logical CR line starts survive incremental serialization (14.29375ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 19
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1380.376125
+
+✖ failing tests:
+
+test at test/layout.test.mjs:70:1
+✖ CR grouping still diagnoses leading tabs (23.628167ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(!parse('query q():\r  return (\r\t1)\r').ok)
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:71:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/layout.test.mjs:73:1
+✖ CR grouping ignores Unicode blank and comment lines (13.837916ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [0, 46]
+    (declaration [0, 0] - [0, 46]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [0, 11] - [0, 46]
+        (statement [0, 13] - [0, 46]
+          (expression [0, 13] - [0, 45]
+            (call [0, 13] - [0, 45]
+              function: (keyword [0, 13] - [0, 19])
+              (parenthesized [0, 20] - [0, 45]
+                (ERROR [0, 22] - [0, 43]
+                  (ERROR [0, 22] - [0, 24])
+                  (comment [0, 24] - [0, 34])
+                  (ERROR [0, 34] - [0, 43]))
+                (expression [0, 43] - [0, 44]
+                  (number [0, 43] - [0, 44])))))))))
+      at clean (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:23:52)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:75:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/layout.test.mjs:78:1
+✖ logical CR line starts survive incremental serialization (14.29375ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [0, 43]
+    (declaration [0, 0] - [0, 43]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [0, 11] - [0, 43]
+        (statement [0, 13] - [0, 43]
+          (expression [0, 13] - [0, 42]
+            (call [0, 13] - [0, 42]
+              function: (keyword [0, 13] - [0, 19])
+              (parenthesized [0, 20] - [0, 42]
+                (ERROR [0, 22] - [0, 38]
+                  (ERROR [0, 22] - [0, 24])
+                  (comment [0, 24] - [0, 34])
+                  (ERROR [0, 34] - [0, 38]))
+                (expression [0, 38] - [0, 41]
+                  (number [0, 38] - [0, 41])))))))))
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:82:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+error: script "test" exited with code 1

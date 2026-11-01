@@ -1,0 +1,182 @@
+✖ CR grouping recovers leading tabs like LF (768.841166ms)
+✖ leading tabs recover indent and preserve the following declaration (11.737541ms)
+✖ off-stack dedent pops to the enclosing level without inventing a new block (11.87825ms)
+✖ unclosed group recovers locally and flushes the enclosing block at EOF (11.2435ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 908.876417
+
+✖ failing tests:
+
+test at editors/tree-sitter-quarry/test/layout.test.mjs:65:1
+✖ CR grouping recovers leading tabs like LF (768.841166ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [0, 26]
+    (declaration [0, 0] - [0, 26]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [0, 11] - [0, 26]
+        (statement [0, 13] - [0, 26]
+          (expression [0, 13] - [0, 25]
+            (call [0, 13] - [0, 25]
+              function: (keyword [0, 13] - [0, 19])
+              (parenthesized [0, 20] - [0, 25]
+                (ERROR [0, 22] - [0, 23]
+                  (ERROR [0, 22] - [0, 23]))
+                (expression [0, 23] - [0, 24]
+                  (number [0, 23] - [0, 24])))))))))
+      at clean (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:23:52)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:66:43)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at editors/tree-sitter-quarry/test/layout.test.mjs:91:1
+✖ leading tabs recover indent and preserve the following declaration (11.737541ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [4, 0]
+    (declaration [0, 0] - [2, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [1, 9]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10])
+        (ERROR [0, 10] - [1, 1]
+          (ERROR [0, 10] - [1, 1]))
+        (keyword [1, 1] - [1, 7])
+        (number [1, 8] - [1, 9])))
+    (declaration [2, 0] - [4, 0]
+      (declaration_keyword [2, 0] - [2, 5])
+      name: (declaration_name [2, 6] - [2, 7]
+        (identifier [2, 6] - [2, 7]))
+      (expression [2, 7] - [2, 10]
+        (parenthesized [2, 7] - [2, 9])
+        (operator [2, 9] - [2, 10]))
+      (block [3, 0] - [4, 0]
+        (statement [3, 2] - [4, 0]
+          (expression [3, 2] - [3, 10]
+            (keyword [3, 2] - [3, 8])
+            (number [3, 9] - [3, 10]))))))
+      at clean (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:23:52)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:92:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at node:internal/test_runner/test:1285:31
+      at node:internal/process/task_queues:151:7
+      at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+      at AsyncResource.runMicrotask (node:internal/process/task_queues:148:8) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at editors/tree-sitter-quarry/test/layout.test.mjs:97:1
+✖ off-stack dedent pops to the enclosing level without inventing a new block (11.87825ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [7, 0]
+    (declaration [0, 0] - [5, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10]))
+      (block [1, 0] - [5, 0]
+        (statement [1, 4] - [4, 0]
+          (expression [1, 4] - [1, 12]
+            (keyword [1, 4] - [1, 6])
+            (keyword [1, 7] - [1, 11])
+            (operator [1, 11] - [1, 12]))
+          (block [2, 0] - [4, 0]
+            (statement [2, 8] - [4, 0]
+              (expression [2, 8] - [3, 14]
+                (keyword [2, 8] - [2, 14])
+                (number [2, 15] - [2, 16])
+                (ERROR [2, 16] - [3, 6]
+                  (ERROR [2, 16] - [3, 6]))
+                (keyword [3, 6] - [3, 12])
+                (number [3, 13] - [3, 14])))))
+        (statement [4, 4] - [5, 0]
+          (expression [4, 4] - [4, 12]
+            (keyword [4, 4] - [4, 10])
+            (number [4, 11] - [4, 12])))))
+    (declaration [5, 0] - [7, 0]
+      (declaration_keyword [5, 0] - [5, 5])
+      name: (declaration_name [5, 6] - [5, 7]
+        (identifier [5, 6] - [5, 7]))
+      (expression [5, 7] - [5, 10]
+        (parenthesized [5, 7] - [5, 9])
+        (operator [5, 9] - [5, 10]))
+      (block [6, 0] - [7, 0]
+        (statement [6, 2] - [7, 0]
+          (expression [6, 2] - [6, 10]
+            (keyword [6, 2] - [6, 8])
+            (number [6, 9] - [6, 10]))))))
+      at clean (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:23:52)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:98:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at editors/tree-sitter-quarry/test/layout.test.mjs:102:1
+✖ unclosed group recovers locally and flushes the enclosing block at EOF (11.2435ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [3, 0]
+    (declaration [0, 0] - [1, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10])))
+    (ERROR [1, 0] - [2, 7]
+      (keyword [1, 2] - [1, 8])
+      (number [1, 10] - [1, 11])
+      (operator [2, 4] - [2, 5])
+      (number [2, 6] - [2, 7])))
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:105:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

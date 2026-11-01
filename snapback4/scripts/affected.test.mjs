@@ -348,3 +348,34 @@ test('filesystem issue records require reference validation without widening pro
   const plan=select(['issues/20261024-maintained-activation.md']);
   assert.equal(plan.broad,false);assert.deepEqual(plan.rustPackages,[]);assert.deepEqual(plan.clientFiles,[]);assert.deepEqual(plan.checks,['ref-check']);
 });
+
+
+test('editor grammar inputs select the fence with a freshly built CLI', () => {
+  for (const path of [
+    'snapback4/crates/snapback4-lang/src/lexer.rs',
+    'snapback4/crates/snapback4-lang/src/parser.rs',
+    'snapback4/crates/snapback4-lang/src/parser/reserved.rs',
+    'snapback4/editors/vscode/package.json',
+    'snapback4/editors/vscode/syntaxes/quarry.tmLanguage.json',
+    'snapback4/editors/tree-sitter-quarry/grammar.js',
+    'snapback4/editors/tree-sitter-quarry/keywords.generated.js',
+    'snapback4/editors/tree-sitter-quarry/src/scanner.c',
+    'snapback4/editors/tree-sitter-quarry/queries/highlights.scm',
+    'snapback4/editors/tree-sitter-quarry/expected-errors.txt',
+    'snapback4/editors/tree-sitter-quarry/test/corpus/real-files.txt',
+    'snapback4/editors/tree-sitter-quarry/test/layout.test.mjs',
+    'snapback4/editors/tree-sitter-quarry/check.mjs',
+    'snapback4/editors/tree-sitter-quarry/package.json',
+    'snapback4/editors/tree-sitter-quarry/bun.lock',
+    'snapback4/scripts/generate-editor-grammar.mjs',
+    'snapback4/scripts/check-editor-grammar.mjs',
+  ]) {
+    const plan = selectAffected([path], { ...model, clientEvidence: {} });
+    const fence = plan.steps.find(step => step.id === 'editor-grammar');
+    assert(fence, path);
+    assert.deepEqual(fence.requires, ['build-cli'], path);
+    assert(ids(plan).indexOf('build-cli') < ids(plan).indexOf('editor-grammar'), path);
+    assert.deepEqual(fence.argv, ['node', 'scripts/check-editor-grammar.mjs']);
+    if (path.includes('/editors/') || path.includes('/scripts/')) assert(!plan.broad, path);
+  }
+});

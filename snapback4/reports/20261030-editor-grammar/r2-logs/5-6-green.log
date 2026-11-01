@@ -1,0 +1,14 @@
+✔ captured synthetic refutation is accepted without an invariant error (77.922917ms)
+✔ only authored and generated fixture refutations become invariant errors (1037.841375ms)
+✔ acknowledged security notes are hidden by disposition index; absent reviews retain notes (451.135875ms)
+✔ security-loosened: captured security refutation reaches Problems (75.141541ms)
+✔ security-notes-error: captured security refutation reaches Problems (78.407458ms)
+✔ pending security reviews keep their site and review instruction; acknowledged reviews are not pending (420.545167ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2207.474709

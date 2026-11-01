@@ -1,0 +1,10 @@
+✔ captured synthetic refutation is accepted without an invariant error (146.995542ms)
+✔ only authored and generated fixture refutations become invariant errors (680.93575ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 914.775708

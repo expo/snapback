@@ -1,0 +1,21 @@
+{
+  "comments": { "lineComment": "--" },
+  "brackets": [["{", "}"], ["[", "]"], ["(", ")"]],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}", "notIn": ["string", "comment"] },
+    { "open": "[", "close": "]", "notIn": ["string", "comment"] },
+    { "open": "(", "close": ")", "notIn": ["string", "comment"] },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
+    { "open": "'", "close": "'", "notIn": ["string", "comment"] }
+  ],
+  "surroundingPairs": [["{", "}"], ["[", "]"], ["(", ")"], ["\"", "\""], ["'", "'"]],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(?!--).*:\\s*(?:--.*)?$",
+    "unIndentedLinePattern": "^\\s*(?:--.*)?$"
+  },
+  "onEnterRules": [
+    { "beforeText": "^\\s*(?!--).*:\\s*(?:--.*)?$", "action": { "indent": "indent" } },
+    { "beforeText": "^\\s*\\S.*$", "afterText": "^\\s*(?:\\{|(?:and|or)\\s)", "action": { "indent": "indent" } },
+    { "beforeText": "^\\s+(?:\\{|(?:and|or)\\s).*$", "action": { "indent": "none" } }
+  ]
+}

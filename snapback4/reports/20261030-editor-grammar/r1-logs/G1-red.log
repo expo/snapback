@@ -1,0 +1,34 @@
+✖ hyphenated keywords require the complete lexer boundary (696.623375ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 838.527334
+
+✖ failing tests:
+
+test at test/layout.test.mjs:85:1
+✖ hyphenated keywords require the complete lexer boundary (696.623375ms)
+  AssertionError [ERR_ASSERTION]: until-revoked-extra
+  (source_file [0, 0] - [1, 0]
+    (statement [0, 0] - [1, 0]
+      (expression [0, 0] - [0, 26]
+        (keyword [0, 0] - [0, 6])
+        (keyword [0, 7] - [0, 20])
+        (operator [0, 20] - [0, 21])
+        (identifier [0, 21] - [0, 26]))))
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:88:5)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,82 @@
+$ tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs
+  real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 2992 bytes/ms
+
+✔ blank and comment lines ignore their indentation (651.245375ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (14.221042ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (13.436834ms)
+✔ inline tabs are allowed (12.560791ms)
+✔ empty and comment-only files (15.283375ms)
+✔ final significant line without LF (13.462459ms)
+✔ CRLF normalization (13.267833ms)
+✔ lone CR normalization (13.478958ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (39.656917ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (73.314208ms)
+✔ Unicode whitespace is not indentation produces a parse error (12.535625ms)
+✔ unclosed string produces a parse error (12.155416ms)
+✔ unknown punctuation at multiple sites produces a parse error (12.374167ms)
+✔ scanner serialization survives incremental changes to layout and grouping (78.270334ms)
+✔ CR grouping recovers leading tabs like LF (38.593833ms)
+✔ CR grouping ignores Unicode blank and comment lines (36.201333ms)
+✔ logical CR line starts survive incremental serialization (23.71275ms)
+✔ hyphenated keywords require the complete lexer boundary (82.713958ms)
+✔ leading tabs recover indent and preserve the following declaration (23.532875ms)
+✔ off-stack dedent pops to the enclosing level without inventing a new block (11.698792ms)
+✖ unclosed group recovers locally and flushes the enclosing block at EOF (12.277208ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 20
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1302.456083
+
+✖ failing tests:
+
+test at test/layout.test.mjs:102:1
+✖ unclosed group recovers locally and flushes the enclosing block at EOF (12.277208ms)
+  AssertionError [ERR_ASSERTION]: (source_file [0, 0] - [3, 0]
+    (declaration [0, 0] - [1, 0]
+      (declaration_keyword [0, 0] - [0, 5])
+      name: (declaration_name [0, 6] - [0, 7]
+        (identifier [0, 6] - [0, 7]))
+      (expression [0, 7] - [0, 10]
+        (parenthesized [0, 7] - [0, 9])
+        (operator [0, 9] - [0, 10])))
+    (ERROR [1, 0] - [2, 7]
+      (keyword [1, 2] - [1, 8])
+      (number [1, 10] - [1, 11])
+      (operator [2, 4] - [2, 5])
+      (number [2, 6] - [2, 7])))
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:105:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+error: script "test" exited with code 1

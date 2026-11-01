@@ -1,0 +1,34 @@
+✖ acknowledged security notes are hidden by disposition index; absent reviews retain notes (141.72125ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.959375
+
+✖ failing tests:
+
+test at editors/vscode/test/check-problems.test.mjs:44:1
+✖ acknowledged security notes are hidden by disposition index; absent reviews retain notes (141.72125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-KC34gV/snapback/schema.q:3:3: N_BROAD_READ broad read | review intent'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/check-problems.test.mjs:48:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-diagnostics-KC34gV/snapback/schema.q:3:3: N_BROAD_READ broad read | review intent' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,18 @@
+{
+  "name": "tree-sitter-quarry",
+  "version": "0.4.50",
+  "private": true,
+  "description": "Quarry highlighting grammar; snapback4-lang is the parser of record",
+  "license": "MIT",
+  "scripts": {
+    "generate": "node ../../scripts/generate-editor-grammar.mjs && tree-sitter generate",
+    "test": "tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs",
+    "parse-corpus": "node ../../scripts/check-editor-grammar.mjs --tree-sitter"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  },
+  "trustedDependencies": [
+    "tree-sitter-cli"
+  ]
+}

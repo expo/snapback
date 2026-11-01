@@ -13,6 +13,9 @@ serde_json = "1"
 sha2 = "0.10"
 
 [dev-dependencies]
+# Production-source editor census: tokenize all Rust literals, including macros.
+proc-macro2 = "=1.0.107"
+syn = "=2.0.119"
 snapback4-core = { path = "../snapback4-core", default-features = false, features = ["test-support"] }
 libc = "0.2"
 rusqlite = { version = "0.40.2", features = ["hooks"] }

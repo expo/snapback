@@ -1,0 +1,48 @@
+$ tree-sitter generate && tree-sitter test && node --test test/layout.test.mjs
+  real-files:
+      1. ✓ Table with access rules — apps/chat/snapback/schema.q
+      2. ✓ Projection continuation — apps/chat/snapback/schema.q
+      3. ✓ Require and insert — apps/chat/snapback/schema.q
+      4. ✓ Require and update — apps/chat/snapback/schema.q
+      5. ✓ Shape literal — apps/chat/snapback/schema.q
+      6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+      7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+      8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+      9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+     11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+     12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+
+Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 1232 bytes/ms
+
+✔ blank and comment lines ignore their indentation (707.493584ms)
+✔ all grouping kinds suppress layout; strings and comments do not alter grouping (17.372625ms)
+✔ Unicode whitespace on ignored lines matches Rust trim_start (17.536292ms)
+✔ inline tabs are allowed (16.039292ms)
+✔ empty and comment-only files (19.568917ms)
+✔ final significant line without LF (13.319917ms)
+✔ CRLF normalization (14.005125ms)
+✔ lone CR normalization (12.026292ms)
+✔ deeper shape, and-space and or-space continue across blank/comments (41.4345ms)
+✔ same-depth and/or, prefixes and tab separators do not continue (79.377167ms)
+✔ tab indentation produces a parse error (12.605583ms)
+✔ Unicode whitespace is not indentation produces a parse error (12.380875ms)
+✔ tabs before negative value produces a parse error (12.16575ms)
+✔ tabs inside grouping produces a parse error (17.273542ms)
+✔ dedent outside enclosing levels produces a parse error (12.459125ms)
+✔ unclosed grouping produces a parse error (16.075208ms)
+✔ unclosed string produces a parse error (12.662208ms)
+✔ unknown punctuation at multiple sites produces a parse error (12.103208ms)
+✔ scanner serialization survives incremental changes to layout and grouping (73.858042ms)
+✔ CR grouping still diagnoses leading tabs (14.911083ms)
+✔ CR grouping ignores Unicode blank and comment lines (37.0875ms)
+✔ logical CR line starts survive incremental serialization (36.455459ms)
+✔ hyphenated keywords require the complete lexer boundary (79.645375ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1389.315791

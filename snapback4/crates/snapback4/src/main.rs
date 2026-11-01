@@ -68,7 +68,7 @@ fn main() -> ExitCode {
     let help = options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty();
     // Informational requests never acquire launch custody, even with a stale wrapper PID.
     // Parsing is synchronous: hosts still adopt before any thread can start.
-    if !help && !options.flags.contains_key("version") && !matches!(verb, "--version" | "-V" | "version") { supervisor::adopt(); }
+    if !help && !options.flags.contains_key("version") && !matches!(verb, "--version" | "-V" | "version" | "grammar") { supervisor::adopt(); }
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);
     // Keep this first: lifecycle tests distinguish a pre-main process-launch
     // stall from a server that reached its own bounded readiness window.
@@ -117,6 +117,7 @@ fn main() -> ExitCode {
         return ExitCode::from(1);
     }
     let code = match verb {
+        "grammar" => cli_flags::grammar(options.json),
         "--version" | "-V" | "version" => {
             println!("snapback4 {}", env!("CARGO_PKG_VERSION"));
             0

@@ -1,0 +1,30 @@
+✖ leading tabs recover indent and preserve the following declaration (691.100334ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 782.757792
+
+✖ failing tests:
+
+test at editors/tree-sitter-quarry/test/layout.test.mjs:91:1
+✖ leading tabs recover indent and preserve the following declaration (691.100334ms)
+  AssertionError [ERR_ASSERTION]: a tab before an initial negative value still emits Indent
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/tree-sitter-quarry/test/layout.test.mjs:95:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

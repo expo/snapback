@@ -1,0 +1,2 @@
+AssertionError [ERR_ASSERTION]: ignored Unicode whitespace scope witness: "\u000b"
+    at main (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.mjs:116:9)

@@ -1,0 +1,10 @@
+# Paths relative to snapback4/. Only pre-expansion templates or Rust-syntax-refused
+# fixtures may be listed. Templates must contain placeholders and parse cleanly
+# after substitution; syntax fixtures must still produce ERROR/MISSING.
+# These three compiler-owned templates are expanded before Rust lexing/parsing.
+# Exact .replace vocabulary in bind/receipts.rs; $locals follows its ASCII loop.
+crates/snapback4-lang/src/bind/receipts.q # template: @ARG@ @FROM@ @THROUGH@ @CURSOR@ @SCOPE@ @GROUP@ @RUN_GROUP@ @MESSAGES@ @MEMBERS@ @POSITION@ @SENDER@ @MEMBER_GROUP@ @PRINCIPAL@ @COUNTER@ @FLOOR@ @COUNT@ @DELIVERED_FIELD@ @SEEN_FIELD@ @RUNS@ @FOLD@ @RECEIPT@ @DELIVERED@ @SEEN@ @MEMBER@ @PROGRESS@ @COMPACT@ $locals
+# bind/timeline.rs replaces only @T@; it has no dollar-local expansion.
+crates/snapback4-lang/src/bind/timeline.q # template: @T@
+# recipe/bridge.rs names array plus @PREFIX@; no dollar-local expansion.
+crates/snapback4-lang/src/recipe/bridge.q # template: @PROFILES@ @PRINCIPAL@ @POSTS@ @AUTHOR@ @POST_TIME@ @FOLLOWS@ @FOLLOWER@ @FOLLOWED@ @REPOSTS@ @ACTOR@ @ORIGINAL@ @REPOST_TIME@ @PREFIX@

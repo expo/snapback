@@ -1,0 +1,72 @@
+== fails
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(7)')
+✔ lang source closes over reverse dependencies and CLI consumers (5.149208ms)
+✔ integration test-only change selects one cargo target and no reverse dependents (1.226958ms)
+✔ a source change overrides test-only narrowing (0.336666ms)
+✔ client source selects package pool and reverse package dependents (0.583583ms)
+✔ client test-only change selects only that file (0.449625ms)
+✔ guide-only change selects guide, budget and packaged docs, not Rust source closure (0.382084ms)
+✔ snapback4/Cargo.lock fails broad with a per-file reason (0.311542ms)
+✔ snapback4/Cargo.toml fails broad with a per-file reason (0.188541ms)
+✔ snapback4/crates/snapback4-lang/build.rs fails broad with a per-file reason (0.198ms)
+✔ snapback4/crates/snapback4-lang/tests/support/mod.rs fails broad with a per-file reason (0.212083ms)
+✔ snapback4/packages/snapback4/test/helpers/server.mjs fails broad with a per-file reason (0.14675ms)
+✔ snapback4/surprise/input.bin fails broad with a per-file reason (0.185666ms)
+✔ proc macro fails broad (0.241791ms)
+✔ reverse closure handles chains, optional/dev cycles and isolated nodes (0.077ms)
+✔ root delegates Snapback 4 and preserves unknown root fallback (14.327541ms)
+✔ real cargo graph and transitive test imports catch maintained-column regression (8366.965708ms)
+✔ known-red snapshot needs the originating range, not a docs-only red HEAD diff (7810.429666ms)
+✔ worktree includes staged, unstaged, deletes, rename old/new and untracked paths (304.169625ms)
+✔ known-red selection contains every failing target in the archived complete suite (7986.657375ms)
+== passes
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(0)')
+== blocked
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(0)')
+BLOCKED: blocked by fails
+Receipt: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-affected-run-LRshRY/target/affected/268abe6cff95-1793422353923.json; FAIL
+== mutates-input
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'require('\''node:fs'\'').writeFileSync('\''input'\'', '\''after'\'')')
+✔ execution keeps going after failures and persists the complete failing receipt (556.804458ms)
+✔ root fail-closed and complete receipts delegate a broad Snapback 4 set (0.506375ms)
+✔ broad set includes every test.sh non-Rust/client obligation (0.323083ms)
+✔ real bare workspace imports rebuild the client and docs select executable consumers (8209.782458ms)
+Receipt: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-affected-mutation-Fa9JOA/target/affected/33be682e8dd2-1793422362782.json; FAIL
+== build-cli
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(0)')
+✔ committed execution refuses success if an initially unchanged tracked input changes (600.538916ms)
+✔ required target features, diagnostics movement and wasm measurement are selected (0.595417ms)
+✔ packages without owned tests widen to cover sibling consumers (0.252875ms)
+✔ measurement changes run their executable contract without mutating tracked metrology (0.139167ms)
+✔ client pool prerequisites are derived per file rather than unioned across the pool (0.175375ms)
+== build-wasm
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(9)')
+BLOCKED: wasm-only by build-wasm
+== pool
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'require('\''node:fs'\'').writeFileSync('\''target/runnable.json'\'', JSON.stringify(process.argv.slice(1)))' '--' 'cli-only' 'product-free')
+== after
+(cd '.' && timeout 10s env RUST_MIN_STACK=33554432 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 '/Users/ccheever/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node' '-e' 'process.exit(0)')
+Receipt: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-affected-pool-03wCC9/target/affected/79cd5701328e-1793422363396.json; FAIL
+✔ a failed wasm producer blocks only its consumers and independent pool files still run (891.390042ms)
+✔ documentation-shaped shared input snapback4/fixtures/input.md still fails broad (0.388875ms)
+✔ documentation-shaped shared input snapback4/packages/snapback4/test/helpers/input.md still fails broad (0.142417ms)
+✔ documentation-shaped shared input snapback4/crates/snapback4-lang/tests/fixtures/input.md still fails broad (0.1005ms)
+✔ documentation-shaped shared input snapback4/scripts/helpers/input.md still fails broad (0.083833ms)
+✔ documentation-shaped shared input snapback4/unknown/input.md still fails broad (0.081833ms)
+✔ computed and unresolved imports conservatively require a client dist rebuild (0.228125ms)
+✔ CI attempts independent setup and retains failure after verification (0.802875ms)
+✔ Rust guide implementation snapback4/crates/snapback4-lang/src/guide.rs retains reverse dependencies (0.304417ms)
+✔ Rust guide implementation snapback4/crates/snapback4-lang/src/guide/codes.rs retains reverse dependencies (0.36825ms)
+✔ embedded init template day2-proof.mjs selects its binary source and consumers (0.3595ms)
+✔ embedded init template previous/day2-proof-0.4.40.mjs selects its binary source and consumers (0.262541ms)
+✔ guide integration modules and named fixtures select their compiled consumer (2.215542ms)
+✔ filesystem issue records require reference validation without widening product scope (0.319125ms)
+✔ editor grammar inputs select the fence with a freshly built CLI (0.829ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34886.681

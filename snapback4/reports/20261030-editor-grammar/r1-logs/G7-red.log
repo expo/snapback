@@ -1,0 +1,65 @@
+✖ on-save surfaces missing node task failure (4.879375ms)
+✖ on-save surfaces missing snapback4 task failure (2.256458ms)
+✖ on-save surfaces compiler refusal task failure (1.215959ms)
+✔ successful and unrelated tasks stay quiet; queued saves still run (1.237333ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 104.674542
+
+✖ failing tests:
+
+test at editors/vscode/test/extension.test.mjs:23:110
+✖ on-save surfaces missing node task failure (4.879375ms)
+  AssertionError [ERR_ASSERTION]: task failure was silent
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/extension.test.mjs:28:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at editors/vscode/test/extension.test.mjs:23:110
+✖ on-save surfaces missing snapback4 task failure (2.256458ms)
+  AssertionError [ERR_ASSERTION]: task failure was silent
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/extension.test.mjs:28:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at editors/vscode/test/extension.test.mjs:23:110
+✖ on-save surfaces compiler refusal task failure (1.215959ms)
+  AssertionError [ERR_ASSERTION]: task failure was silent
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/editors/vscode/test/extension.test.mjs:28:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

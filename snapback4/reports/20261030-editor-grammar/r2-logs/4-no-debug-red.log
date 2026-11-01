@@ -1,0 +1,164 @@
+✖ fence self-tests use the alternate binary with no default debug binary (11117.124916ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11236.688792
+
+✖ failing tests:
+
+test at scripts/check-editor-grammar.test.mjs:24:1
+✖ fence self-tests use the alternate binary with no default debug binary (11117.124916ms)
+  AssertionError [ERR_ASSERTION]: 
+  tree-sitter generate: exit 0 (temporary build)
+  real-files:
+        1. ✓ Table with access rules — apps/chat/snapback/schema.q
+        2. ✓ Projection continuation — apps/chat/snapback/schema.q
+        3. ✓ Require and insert — apps/chat/snapback/schema.q
+        4. ✓ Require and update — apps/chat/snapback/schema.q
+        5. ✓ Shape literal — apps/chat/snapback/schema.q
+        6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+        7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+        8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+        9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+       12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+  
+  Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 1831 bytes/ms
+  
+  tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 2730 ms
+  tree-sitter generate: exit 0 (temporary build)
+  real-files:
+        1. ✓ Table with access rules — apps/chat/snapback/schema.q
+        2. ✓ Projection continuation — apps/chat/snapback/schema.q
+        3. ✓ Require and insert — apps/chat/snapback/schema.q
+        4. ✓ Require and update — apps/chat/snapback/schema.q
+        5. ✓ Shape literal — apps/chat/snapback/schema.q
+        6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+        7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+        8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+        9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+       12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+  
+  Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 4163 bytes/ms
+  
+  tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 1876 ms
+  tree-sitter generate: exit 0 (temporary build)
+  real-files:
+        1. ✓ Table with access rules — apps/chat/snapback/schema.q
+        2. ✓ Projection continuation — apps/chat/snapback/schema.q
+        3. ✓ Require and insert — apps/chat/snapback/schema.q
+        4. ✓ Require and update — apps/chat/snapback/schema.q
+        5. ✓ Shape literal — apps/chat/snapback/schema.q
+        6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+        7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+        8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+        9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+       12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+  
+  Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 4269 bytes/ms
+  
+  tree-sitter: 3 .q files, 0 quarry fences, 3 verified expected-error files; 2788 ms
+  tree-sitter generate: exit 0 (temporary build)
+  real-files:
+        1. ✓ Table with access rules — apps/chat/snapback/schema.q
+        2. ✓ Projection continuation — apps/chat/snapback/schema.q
+        3. ✓ Require and insert — apps/chat/snapback/schema.q
+        4. ✓ Require and update — apps/chat/snapback/schema.q
+        5. ✓ Shape literal — apps/chat/snapback/schema.q
+        6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+        7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+        8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+        9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+       12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+  
+  Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3122 bytes/ms
+  
+  tree-sitter generate: exit 0 (temporary build)
+  real-files:
+        1. ✓ Table with access rules — apps/chat/snapback/schema.q
+        2. ✓ Projection continuation — apps/chat/snapback/schema.q
+        3. ✓ Require and insert — apps/chat/snapback/schema.q
+        4. ✓ Require and update — apps/chat/snapback/schema.q
+        5. ✓ Shape literal — apps/chat/snapback/schema.q
+        6. ✓ First N by index after cursor — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+        7. ✓ View and and-continuation — crates/snapback4-lang/tests/fixtures/row-keyed-view.q
+        8. ✓ Effect declaration — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+        9. ✓ Job sweep with emit — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       10. ✓ Function and loop — crates/snapback4-lang/tests/fixtures/qe/helper-sweep.q
+       11. ✓ Shape declaration — crates/snapback4-lang/tests/fixtures/shape-overrides.q
+       12. ✓ Calendar month schedule — crates/snapback4-lang/src/guide/language.rs
+  
+  Total parses: 12; successful parses: 12; failed parses: 0; success percentage: 100.00%; average speed: 3565 bytes/ms
+  
+  tree-sitter: 4 .q files, 0 quarry fences, 3 verified expected-error files; 1618 ms
+  ✔ template substitution still rejects an unrelated unmatched parenthesis (2780.88675ms)
+  ✔ template substitution rejects unsupported @X@ in timeline (1903.848708ms)
+  ✔ template substitution rejects unsupported $x in timeline (2805.343917ms)
+  ✖ syntax exception checks the fixture in a real scratch project (1700.975458ms)
+  ✔ local unclosed-group recovery remains a located fence failure (1642.054584ms)
+  ✖ firstLine recognizes every exported declaration and comment with a word boundary (1.121916ms)
+  ℹ tests 6
+  ℹ suites 0
+  ℹ pass 4
+  ℹ fail 2
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  ℹ duration_ms 10954.649166
+  
+  ✖ failing tests:
+  
+  test at ../../../../../private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/tree-sitter-quarry/check.test.mjs:36:1
+  ✖ syntax exception checks the fixture in a real scratch project (1700.975458ms)
+    Error: tree-sitter: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/target/debug/snapback4 check --json failed (spawnSync /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/target/debug/snapback4 ENOENT)
+    undefined
+    undefined
+        at run (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/tree-sitter-quarry/check.mjs:30:60)
+        at checkTreeSitter (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/tree-sitter-quarry/check.mjs:77:23)
+        at probe (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/tree-sitter-quarry/check.test.mjs:24:5)
+        at TestContext.<anonymous> (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/tree-sitter-quarry/check.test.mjs:37:20)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  
+  test at ../../../../../private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/vscode/test/first-line.test.mjs:5:1
+  ✖ firstLine recognizes every exported declaration and comment with a word boundary (1.121916ms)
+    Error: editor grammar: binary absent: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/target/debug/snapback4; run cargo build -p snapback4 in snapback4/ or pass --binary <path>
+        at lexicalFacts (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/scripts/generate-editor-grammar.mjs:23:34)
+        at TestContext.<anonymous> (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/quarry-walk-DA7lS1/fixture/editors/vscode/test/first-line.test.mjs:6:21)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.start (node:internal/test_runner/test:1242:17)
+        at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  
+  
+  1 !== 0
+  
+      at file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:44:10
+      at scratch (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:9:9)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:24:86)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

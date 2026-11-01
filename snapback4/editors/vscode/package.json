@@ -1,0 +1,100 @@
+{
+  "name": "quarry",
+  "displayName": "Quarry",
+  "description": "Quarry syntax highlighting and Snapback 4 compiler diagnostics.",
+  "version": "0.4.50",
+  "publisher": "snapback4",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/snapback.git",
+    "directory": "snapback4/editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./extension.cjs",
+  "activationEvents": [
+    "onLanguage:quarry",
+    "onTaskType:quarry"
+  ],
+  "scripts": {
+    "package": "vsce package --no-dependencies --out ../../target/quarry.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.6.2",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.2.0"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "quarry",
+        "aliases": [
+          "Quarry",
+          "quarry"
+        ],
+        "extensions": [
+          ".q"
+        ],
+        "firstLine": "^\\s*(?:--|(?:invariant|backfill|maintain|mutation|rollback|schedule|extract|action|effect|alias|query|route|shape|table|down|view|job|use|fn)\\b)",
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quarry",
+        "scopeName": "source.quarry",
+        "path": "./syntaxes/quarry.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "quarry.check",
+        "title": "Quarry: Check workspace"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "quarry",
+        "required": [],
+        "properties": {}
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "quarry-check",
+        "owner": "quarry",
+        "source": "snapback4",
+        "fileLocation": "absolute",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): ([A-Z][A-Z0-9_]*) (.* \\| .*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "code": 4,
+          "message": 5
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Quarry",
+      "properties": {
+        "quarry.binary": {
+          "type": "string",
+          "default": "snapback4",
+          "description": "Snapback 4 executable. The workspace's node_modules/.bin is searched before PATH."
+        },
+        "quarry.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the Quarry check task after saving a .q file under the workspace's snapback directory."
+        }
+      }
+    }
+  }
+}

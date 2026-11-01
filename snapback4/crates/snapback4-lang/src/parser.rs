@@ -15,7 +15,7 @@ mod maintains;
 mod timeline;
 mod expected;
 mod types;
-mod reserved;
+pub mod reserved;
 pub(crate) use reserved::repeated_identity;
 mod programs;
 mod actions;

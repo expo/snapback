@@ -1,0 +1,530 @@
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused import: `super::*`
+  --> crates/snapback4-lang/src/bind/security/write_intent.rs:90:6
+   |
+90 |  use super::*;
+   |      ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/write_intent.rs:100:6
+    |
+100 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:191:6
+    |
+191 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:210:6
+    |
+210 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:220:6
+    |
+220 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:235:6
+    |
+235 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+   --> crates/snapback4-lang/src/bind/security/release_create.rs:249:6
+    |
+249 |  use super::*;
+    |      ^^^^^^^^
+
+warning: unused import: `super::*`
+  --> crates/snapback4-lang/src/bind/security/derived/subject.rs:18:27
+   |
+18 | #[cfg(test)]mod tests{use super::*;
+   |                           ^^^^^^^^
+
+warning: `snapback4-lang` (lib test) generated 8 warnings (run `cargo fix --lib -p snapback4-lang --tests` to apply 8 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.31s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_lang-0b02be1b330fcbce)
+
+running 218 tests
+test bind::program::flow::tests::transfers_and_termination_keep_their_statement_order ... ok
+test bind::rule_operator::tests::fields_move_into_the_mutation ... ok
+test bind::program::flow::tests::only_falling_paths_reach_later_statements_and_loops_own_their_transfers ... ok
+test bind::complete_form::tests::two_parties_and_a_grant_need_the_grant_in_each_query ... ok
+test bind::complete_form::tests::a_form_that_drops_a_party_narrows_and_one_that_keeps_every_disjunct_passes ... ok
+test bind::advisory_guards::tests::substituted_helper_output_is_bounded_before_allocation ... ok
+test bind::intent_aggregates::tests::aggregate_lone_range_uses_the_one_sided_fallback ... ok
+test bind::intent_aggregates::tests::aggregate_planning_preserves_observable_and_authored_order ... ok
+test bind::intent_aggregates::tests::aggregate_range_choice_is_canonical_and_prefers_finite_windows ... ok
+test bind::security::authority_walk::sec10_execution_controls::helper_only_writes_keep_the_complete_walk ... ok
+test bind::intent_aggregates::tests::digest_aggregate_seek_plan_is_independent_of_cap_admission ... ok
+test bind::key_bound::tests::bound_diagnostic_survives_an_independent_schema_error_and_links_indexes ... ok
+test bind::generated::tests::all_receipt_expression_sites_belong_to_the_author_clause ... ok
+test bind::key_bound::tests::declared_bounds_cover_unicode_composites_and_unbounded_text ... ok
+test bind::schema::tests::quarry_refuses_nullable_target_sync_group_keys ... ok
+test bind::schema::tests::e_sync_quotes_the_source_rule_and_names_the_split ... ok
+test bind::security::authority_walk::sec10_execution_controls::captured_helper_results_execute_once ... ok
+test bind::security::authority_walk::sec10_execution_controls::write_free_alias_graph_with_literal_defaults_compiles ... ok
+test bind::security::challenges::executed::sec10_deleted_metadata::deleting_ordinary_metadata_cannot_consume_a_complete_approval_prerequisite ... ok
+test bind::security::challenges::executed::sec10_resource_tests::copied_positive_stamp_cannot_refresh_a_consumed_receipt ... ok
+test bind::security::challenges::executed::sec10_resource_tests::a_note_policy_does_not_authorize_unchecked_stage_work ... ok
+test bind::security::challenges::executed::sec10_resource_tests::a_child_terminal_self_loop_cannot_hide_unfinished_children ... ok
+test bind::security::challenges::executed::sec10_resource_tests::existence_receipts_keep_the_selected_approvals_inspected_inputs ... ok
+test bind::security::challenges::executed::sec10_metadata_receipts::consumed_approval_keeps_checked_edit_metadata_as_data ... ok
+test bind::security::challenges::executed::sec10_resource_tests::conditional_freezes_do_not_erase_consumption_dependencies ... ok
+test bind::security::challenges::executed::sec10_resource_tests::a_filtered_receipt_does_not_freeze_an_unrelated_approvals_inputs ... ok
+test bind::security::challenges::executed::sec10_conditional_contracts::sibling_scope_keeps_the_unrestricted_branch_and_copied_inputs ... ok
+test bind::security::challenges::executed::sec10_resource_tests::positive_approval_counts_govern_sibling_effects ... ok
+test bind::security::challenges::executed::sec10_resource_tests::reparented_stage_work_checks_the_new_parents_window ... ok
+test bind::security::challenges::executed::sec10_resource_tests::ambiguous_bool_and_time_births_and_reissues_remain_unknown ... ok
+test bind::security::challenges::executed::sec10_resource_tests::clearing_approval_cannot_finish_with_changed_approved_inputs ... ok
+test bind::security::challenges::executed::sec10_resource_tests::retargeting_is_not_consuming_the_original_approval ... ok
+test bind::security::challenges::executed::sec10_resource_tests::shared_reapproval_helper_selects_the_executed_invocation ... ok
+test bind::security::challenges::executed::sec10_resource_tests::timestamp_receipts_preserve_exact_named_key_conditions ... ok
+test bind::security::challenges::executed::sec10_resource_tests::retained_positive_dependencies_cannot_hide_invalidated_upstream_inputs ... ok
+test bind::security::challenges::executed::sec10_resource_tests::an_old_parent_schema_gate_cannot_authorize_retargeted_work ... ok
+test bind::security::challenges::executed::sec10_resource_tests::uncertain_receipt_cuts_do_not_fall_back_to_a_raw_positive_flag ... ok
+test bind::security::challenges::executed::sec10_resource_tests::newly_issued_approval_can_be_consumed_but_not_refreshed_by_ordinary_edits ... ok
+test bind::security::challenges::executed::sec13_boundary_tests::atomic_anchor_restoration_is_not_movement ... ok
+test bind::security::challenges::executed::sec13_boundary_tests::an_old_invalid_event_cannot_refute_an_admitted_repair ... ok
+test bind::security::challenges::executed::sec10_snapshot_identity::changed_same_table_dereferences_cannot_refresh_trusted_receipts ... ok
+test bind::security::challenges::executed::sec10_resource_tests::upsert_issued_approvals_keep_their_inspected_inputs ... ok
+test bind::security::challenges::histories::directed_pruning_tests::correlated_boolean_arguments_are_explicitly_uncovered ... ok
+test bind::security::challenges::generated::sec9_boolean_roots::opposite_admitted_decisions_use_fresh_parent_rows ... ok
+test bind::security::challenges::executed::sec10_resource_tests::multiple_consumptions_preserve_conjunction_and_alternative_structure ... ok
+test bind::security::challenges::histories::sec11_observer_tests::live_observations_never_enter_serialized_or_debug_reports ... ok
+test bind::security::challenges::histories::sec11_observer_tests::the_observer_does_not_change_the_mutation_prefix_dedup_key ... ok
+test bind::security::challenges::generated::tests::a_multi_insert_creator_cannot_exceed_the_per_target_population_cap ... ok
+test bind::security::challenges::histories::sec9_role_order_tests::role_conditioned_principal_arguments_reach_the_first_creator_tuple ... ok
+test bind::security::challenges::executed::sec10_resource_tests::unchecked_reapproval_does_not_refresh_the_effect_receipt ... ok
+test bind::security::challenges::histories::sec9_clock_priority_tests::timestamp_payloads_preserve_depth_but_aliased_clock_guards_advance ... ok
+test bind::security::challenges::histories::sec10_payload_tests::lifecycle_replays_changed_optional_numeric_payloads ... ok
+test bind::security::challenges::histories::focused_read_dependencies_tests::opening_visibility_and_word_fields_remain_focused_dependencies ... ok
+test bind::security::challenges::executed::sec10_dynamic_recordings::dynamic_positive_recordings_retain_dependencies_across_transactions ... ok
+test bind::security::challenges::text_samples::tests::every_declared_format_obeys_both_bounds_including_email_limits ... ok
+test bind::security::challenges::text_samples::tests::a_valid_formatted_argument_can_create_beside_an_existing_unique_column_sample ... ok
+test bind::security::challenges::executed::sec10_resource_tests::filtered_consumption_preserves_nonapproval_conjuncts_and_alternatives ... ok
+test bind::security::challenges::text_samples::tests::generated_variants_preserve_unique_keys_and_boolean_alternatives ... ok
+test bind::security::challenges::wave27_budget_tests::focused_slice_preserves_general_work_and_reports_its_cut ... ok
+test bind::security::challenges::wave27_budget_tests::setup_can_replay_an_actual_write_after_a_previous_workflow_phase_is_spent ... ok
+test bind::security::challenges::text_samples::tests::generated_population_and_actual_creator_accept_formatted_columns_and_arguments ... ok
+test bind::security::challenges::executed::sec10_resource_tests::retained_creation_approval_requires_invalidation_or_exact_reapproval ... ok
+test bind::security::concrete::sec13_point_tests::a_nonunique_population_cannot_be_used_as_a_point ... ok
+test bind::security::concrete::sec13_point_tests::selected_point_window_requires_the_exact_live_nonnull_anchor ... ok
+test bind::security::concrete::tests::sum_reference_hops_use_the_population_element_type ... ok
+test bind::security::concrete::tests::viewer_literals_have_principal_context_without_generic_id_coercion ... ok
+test bind::security::challenges::executed::sec10_born_deleted_receipts::transaction_local_approval_birth_and_consumption_keep_uncertainty ... ok
+test bind::security::challenges::executed::sec10_resource_tests::wrapped_old_timestamps_do_not_gain_recording_custody ... ok
+test bind::security::derived::approval_checks::inline_checks::non_identity_checked_mappings_retain_dependencies_and_unknown_revalidation ... ok
+test bind::security::derived::approval_checks::inline_checks::actual_write_boundary_retains_key_and_field_helper_requirements ... ok
+test bind::security::derived::approval_checks::sec10_metadata_revalidation::cleared_edit_metadata_is_ordinary_replacement_data ... ok
+test bind::security::challenges::text_samples::tests::generated_lists_obey_leaf_formats_and_long_minima ... ok
+test bind::security::challenges::executed::sec10_deleted_population_receipts::deleted_count_and_exists_approvals_without_current_images_stay_unknown ... ok
+test bind::security::derived::approval_checks::inline_checks::truncated_helper_requirements_are_unknown_not_unchecked ... ok
+test bind::security::challenges::executed::sec10_resource_tests::completion_coupling_uses_all_actual_children_not_incidental_writes ... ok
+test bind::security::challenges::executed::sec10_resource_tests::existing_row_upserts_keep_parent_completion_and_child_window_contracts ... ok
+test bind::security::derived::approval_questions::tests::completion_judges_only_the_selected_false_to_true_write ... ok
+test bind::security::derived::approval_questions::tests::latest_subject_keeps_unknown_receipts_and_full_semantics ... ok
+test bind::security::derived::conservation::tests::amount_balance_keeps_composite_identity_and_requires_full_refund ... ok
+test bind::security::derived::approval_questions::tests::receipt_effects_are_questions_independent_of_operation_names ... ok
+test bind::security::challenges::executed::sec10_resource_tests::parent_window_coupling_requires_the_exact_changed_parent ... ok
+test bind::security::derived::assignment_questions::tests::scoped_role_repairs_do_not_reappear_as_global_owner_questions ... ok
+test bind::security::challenges::executed::sec10_resource_tests::creating_approvals_bind_checked_arguments_and_positive_defaults ... ok
+test bind::security::challenges::workflow::tests::retry_same_failed_parent_observes_the_second_create ... ok
+test bind::security::derived::principal_receipt_tests::principal_receipt_populations_keep_their_own_table_type ... ok
+test bind::security::derived::sec10_preconditions::negated_stage_preconditions_preserve_replacement_checks ... ok
+test bind::security::derived::subject::tests::another_approved_act_cannot_borrow_a_subject_prefix ... ok
+test bind::security::derived::declared_scan_policy_keeps_runtime_roles_deadlines_and_owner_design_change_authority ... ok
+test bind::security::derived::transition_questions::tests::actor_classification_changes_bind_the_actual_applicability ... ok
+test bind::security::derived::approval_questions::tests::unrelated_parent_targets_and_early_returns_supply_no_question ... ok
+test bind::security::derived::explicit_edit_policy_keeps_other_payload_freezes_and_observed_guard_contracts ... ok
+test bind::security::derived::subject::tests::qualified_subject_reapproval_uses_the_resolved_operation_identity ... ok
+test bind::security::challenges::intent_answers::regression_tests::saved_evidence_and_unsupported_reference_members_never_supply_truth ... ok
+test bind::security::challenges::intent_answers::tests::false_premises_and_wrong_targets_cannot_close_a_gate ... ok
+test bind::security::challenges::intent_answers::regression_tests::a_column_answer_must_name_that_column_and_write_excludes_delete_and_read ... ok
+test bind::security::challenges::intent_answers::tests::observed_next_image_does_not_hide_a_false_old_image ... ok
+test bind::security::derived::runtime_column_authority_is_not_independent_edit_intent_after_augmentation ... ok
+test bind::security::derived::inferred_freeze_disposal_requires_supported_global_column_intent ... ok
+test bind::security::derived::transition_questions::tests::valid_object_spreads_are_uncovered_without_panics_or_partial_hypotheses ... ok
+test bind::security::derived::workflow::tests::filtered_approval_keeps_its_population_focal ... ok
+test bind::security::derived::workflow::tests::sec11b_invariant_corpus_receipt ... ignored, SEC11b corpus equivalence receipt; configure the input/output paths
+test bind::security::derived::transition_questions::tests::external_stored_prerequisites_are_preserved_and_auxiliary_assertions_are_uncovered ... ok
+test bind::security::kernel::tests::kleene_unknown_is_neither_true_nor_false ... ok
+test bind::security::kernel::tests::no_boolean_assignment_is_a_concrete_refutation ... ok
+test bind::security::derived::transition_questions::tests::guarded_and_argument_currencies_are_material_even_without_a_money_write ... ok
+test bind::security::release_create::companion_admission_tests::companion_column_admission_is_not_a_new_setter_restriction ... ok
+test bind::security::release_create::companion_admission_tests::expanded_guard_argument_contract_is_not_predecessor_creator_continuity ... ok
+test bind::security::release_create::creator_payload_tests::companion_values_and_their_validation_contracts_are_creation_admission ... ok
+test bind::security::release_create::diagnostic_named_payload_tests::diagnostic_field_names_are_preserved_in_creator_payload_identity ... ok
+test bind::security::challenges::workflow::tests::approval_history_is_judged_on_the_actual_new_attempt ... ok
+test bind::security::release_create::exact_setter_program_tests::fallible_returns_and_dead_control_flow_are_not_exact_setters ... ok
+test bind::security::release_create::final_exists_reference_tests::final_existence_keys_keep_direct_and_multihop_read_authority ... ok
+test bind::security::release_create::multiple_creator_tests::a_companion_create_cannot_relax_a_different_argument_contract ... ok
+test bind::security::release_create::local_input_tests::changed_local_inputs_to_the_same_require_do_not_preserve_creator_admission ... ok
+test bind::security::release_create::operation_read_tests::point_read_assertion_to_require_is_not_a_new_setter_narrowing ... ok
+test bind::security::release_create::operation_read_tests::an_unreadable_role_row_does_not_establish_a_predecessor_audience ... ok
+test bind::security::release_create::predecessor_custody_tests::required_creator_reads_keep_their_predecessor_authority ... ok
+test bind::security::release_create::predecessor_custody_tests::an_existing_conditional_freeze_is_not_a_new_setter_restriction ... ok
+test bind::security::release_create::regression_tests::equivalent_negation_is_not_narrowing_and_argument_renames_do_not_escape ... ok
+test bind::security::release_create::regression_tests::upsert_is_a_candidate_but_an_unchanged_broad_branch_prevents_setter_narrowing ... ok
+test bind::security::release_create::release_shape_tests::a_setter_cannot_manufacture_its_narrower_role ... ok
+test bind::security::release_create::release_shape_tests::changed_sibling_creation_authority_breaks_predecessor_continuity ... ok
+test bind::security::release_create::release_shape_tests::reopening_an_immutable_field_requires_a_creation_audience_answer ... ok
+test bind::security::release_create::release_shape_tests::separate_companion_writes_cannot_supply_broad_predecessor_admission ... ok
+test bind::security::release_create::reviewed_admission_tests::a_new_setter_does_not_remove_an_existing_cell_restriction ... ok
+test bind::security::release_create::reviewed_admission_tests::changed_assertion_inputs_do_not_preserve_creator_admission ... ok
+test bind::security::release_create::reviewed_admission_tests::earlier_protected_writes_already_restrict_the_predecessor_setter ... ok
+test bind::security::release_create::reviewed_validation_tests::changed_reviewed_field_validation_cannot_broaden_predecessor_creation ... ok
+test bind::security::derived::transition_questions::tests::anchor_scope_and_domain_are_material_and_unrelated_targets_are_uncovered ... ok
+test bind::security::release_create::setter_authority_closure_tests::predecessor_setter_populations_need_the_same_transitive_validation ... ok
+test bind::security::release_create::schema_authority_dependency_tests::creator_schema_probes_retain_their_predecessor_authority ... ok
+test bind::security::release_create::setter_helper_admission_tests::helper_local_fallible_work_cannot_disappear_from_predecessor_admission ... ok
+test bind::security::release_create::setter_input_tests::a_constant_act_does_not_establish_a_column_wide_setter_audience ... ok
+test bind::security::release_create::setter_input_tests::dead_or_changed_setter_inputs_do_not_establish_narrowing ... ok
+test bind::security::release_create::trailing_tests::moving_a_trailing_guard_before_the_write_is_not_new_authority ... ok
+test bind::security::release_create::transitive_admission_tests::final_existence_closes_recursively_on_authority_tables ... ok
+test bind::security::write_advice::sec9_unknown_tests::live_reference_identity_does_not_become_an_always_true_audience ... ok
+test bind::security::write_intent::tests::clearing_or_initializing_a_sibling_does_not_exempt_an_edit ... ok
+test bind::security::write_intent::wave27_default_tests::scoped_membership_authority_is_not_default_initialization ... ok
+test bind::security::write_intent::wave27_scoped_authority_tests::mutation_require_only_custom_authority_is_a_grant ... ok
+test bind::security::release_create::tests::only_release_narrowing_with_an_existing_creator_selects_a_candidate ... ok
+test bind::security::write_intent::wave27_scoped_authority_tests::unprobed_scoped_role_default_is_a_grant ... ok
+test bind::timeline::tests::reserved_follower_index_requires_its_exact_definition ... ok
+test compilation_reuse::tests::exact_keys_and_independent_owned_results ... ok
+test diag::tests::suggests_the_nearest_name ... ok
+test emit::compat::tests::value_unions_deduplicate_through_optional_and_string_domains ... ok
+test compilation_reuse::tests::scopes_threads_and_oversized_inputs_do_not_share_entries ... ok
+test emit::rust::tests::a_table_becomes_a_struct_and_its_names_constants ... ok
+test lexer::tests::lexes_blocks_and_words ... ok
+test emit::rust::tests::names_follow_rust_conventions ... ok
+test parser::repairs::tests::invalid_or_overlapping_repair_offsets_have_no_rewrite ... ok
+test bind::security::challenges::generated::sec9_reach_tests::wave25_role_checked_creator_has_a_resource_root ... ok
+test parser::reserved::editor_tests::literal_census_keeps_all_word_shaped_literals ... ok
+test parser::reserved::editor_tests::literal_census_sees_guard_strings ... ok
+test parser::reserved::editor_tests::every_parser_candidate_word_has_one_editor_class ... ok
+test parser::reserved::editor_tests::literal_census_sees_inline_array_membership ... ok
+test parser::tests::parses_the_chat_schema ... ok
+test parser::tests::refuses_with_a_rewrite ... ok
+test release_bridge::tests::current_quota_immutability_and_lifetime_survive_a_widened_view ... ok
+test release_bridge::tests::aliased_current_endpoint_keeps_its_guard_on_a_union_view ... ok
+test release_bridge::tests::exact_extraction_eligibility_never_drops_current_guards_or_intent ... ok
+test release_bridge::tests::loosens_target_domains_preserving_its_operations_and_rules ... ok
+test release_bridge::tests::mixed_narrowing_keeps_current_domains_and_the_complete_current_closure ... ok
+test release_bridge::tests::view_trigger_uses_full_domains_and_identity_not_advice_strings ... ok
+test release_bridge::tests::mixed_domain_closure_refuses_missing_fields_and_incompatible_inputs ... ok
+test release_bridge_indexes_tests::changed_computed_unique_meaning_requires_a_view_before_conflicting_rows_exist ... ok
+test release_bridge_indexes_tests::current_unique_index_replaces_same_named_predecessor_nonunique_index ... ok
+test release_bridge_indexes_tests::a_declared_private_field_rename_keeps_the_guard_on_a_retained_old_export ... ok
+test release_bridge_indexes_tests::declared_plain_column_identity_is_not_an_index_meaning_change ... ok
+test release_bridge_indexes_tests::current_index_is_carried_with_its_endpoint ... ok
+test release_bridge_indexes_tests::equivalent_unique_key_name_is_not_a_current_index_alias ... ok
+test release_bridge_indexes_tests::equivalent_key_labels_keep_cross_table_column_read_authority ... ok
+test release_bridge_indexes_tests::explicitly_used_equivalent_unique_names_keep_both_workflows ... ok
+test release_bridge_indexes_tests::new_plain_index_uses_declared_predecessor_column_identity ... ok
+test bind::security::derived::workflow::tests::descendant_approval_policy_uses_the_same_visit ... ok
+test release_bridge_indexes_tests::plain_column_transport_never_collapses_independent_current_fields ... ok
+test release_bridge_indexes_tests::plain_index_transport_keeps_index_label_and_business_literals ... ok
+test release_bridge_indexes_tests::same_named_word_index_uses_current_field_selection ... ok
+test bind::security::derived::declared_column_edit_intent_disposes_only_its_inferred_approval_freeze ... ok
+test release_bridge_indexes_tests::renamed_unique_columns_keep_an_explicitly_used_legacy_key ... ok
+test release_bridge_indexes_tests::unused_keys_with_different_ordered_meanings_remain_ambiguous ... ok
+test release_bridge_indexes_tests::unused_equivalent_unique_names_do_not_make_implicit_old_lookups_ambiguous ... ok
+test release_bridge_policy::tests::a_shared_label_cannot_hide_a_different_key_or_uniqueness ... ok
+test release_bridge_policy::tests::a_window_keeps_its_audience_limit_and_complete_key ... ok
+test emit::rust::tests::colliding_and_reserved_quarry_names_emit_compilable_unique_rust ... ok
+test release_bridge_indexes_tests::same_named_changed_index_uses_current_context ... ok
+test release_bridge_policy::tests::equivalent_labels_keep_all_probe_operands_and_provenance ... ok
+test release_bridge_rules::tests::carries_current_guards_even_when_the_join_has_no_changed_columns ... ok
+test release_changes::tests::prerelease_intervals_include_the_later_stable_entry ... ok
+test release_compile::tests::complete_bytes_names_and_scope_control_reuse_and_owned_results ... ok
+test release_bridge_rules::tests::keeps_a_fitting_old_write_when_current_guards_transport_without_replacing_it ... ok
+test release_bridge_rules::tests::pauses_an_endpoint_that_requires_new_arguments ... ok
+test release_bridge_rules::tests::preserves_current_transition_guard_fields_and_authored_old_client_writes ... ok
+test release_presence_allowance::tests::only_an_exact_presence_tautology_is_unrestricted ... ok
+test repair::safe::tests::fixes_keep_cross_file_invariant_targets_and_independent_errors ... ok
+test bind::security::release_create::calibrated_source_pairs::each_requested_day_two_create_hole_retains_a_release_candidate ... ok
+test repair::safe::tests::nullable_guard_has_an_exact_source_span ... ok
+test repair::safe::tests::present_literal_unique_population_has_a_safe_bound_rewrite ... ok
+test repair::safe::tests::nullable_unique_population_is_never_repaired_with_first_one ... ok
+test repair::tests::count_star_prose_is_not_a_verified_replacement ... ok
+test repair::tests::fallback_probe_cannot_collide_with_authored_operations_or_modules ... ok
+test repair::tests::broken_syntax_names_and_types_are_suppressed_before_offering ... ok
+test repair::tests::compiling_repairs_that_change_point_or_page_class_are_suppressed ... ok
+test repair::tests::key_page_fallback_preserves_total_and_nullable_populations ... ok
+test source::tests::canonical_backend_sites_do_not_replace_authored_diagnostic_spelling ... ok
+test source::tests::explicit_index_search_sites_retain_authored_spelling ... ok
+test repair::tests::uncalled_helpers_still_need_a_checked_probe ... ok
+test bind::security::derived::transition_questions::tests::source_edges_do_not_depend_on_names_or_enum_order ... ok
+test bind::security::derived::transition_questions::tests::helper_reduction_cannot_erase_an_anchor_field_prerequisite ... ok
+test bind::security::challenges::generated::sec9_clock_reach_tests::future_payment_can_be_replayed_against_clock_intent ... ok
+test bind::security::derived::workflow::tests::spread_parent_reopening_cannot_establish_terminal_completion ... ok
+test bind::security::derived::transition_questions::tests::noops_reverted_deleted_and_expired_updates_do_not_supply_cards ... ok
+test bind::security::derived::assignment_questions::tests::an_unmodeled_lead_assignment_has_an_actual_private_column_read ... ok
+test bind::security::challenges::generated::sec10_clock_reach_tests::an_old_caller_date_reaches_the_named_order_transition ... ok
+test bind::security::derived::transition_questions::tests::guard_presence_cannot_hide_an_admitted_jump_and_secondary_types_bind_the_basis ... ok
+test bind::security::derived::assignment_questions::tests::another_coordinator_actually_reads_the_assigned_private_payload ... ok
+test bind::security::derived::approval_questions::tests::approval_questions_have_actual_targeted_replays ... ok
+test bind::security::derived::transition_questions::tests::actual_committed_edges_and_minimal_repairs ... ok
+
+test result: ok. 217 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 32.03s
+

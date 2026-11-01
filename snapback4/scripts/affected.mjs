@@ -177,6 +177,12 @@ export function selectAffected(changedFiles, model) {
       continue;
     }
     const p = path.slice(PREFIX.length);
+    const editorInput = /^crates\/snapback4-lang\/src\/(?:lexer\.rs$|parser(?:\.rs$|\/))/.test(p)
+      || /^editors\//.test(p) || /^scripts\/(?:generate|check)-editor-grammar\.mjs$/.test(p);
+    if (editorInput) { checks.add('editor-grammar'); why(path, 'generated Quarry editor grammar and corpus'); }
+    // Editors are an isolated leaf package, including their own pinned dev tools.
+    // Rust language inputs still take the ordinary reverse-dependency closure.
+    if (editorInput && (p.startsWith('editors/') || p.startsWith('scripts/'))) continue;
     if (/(?:generated|codegen|emit_types)/.test(p)) checks.add('generated');
     if (/\/(?:test[_-]support|tests\/(?:common|support))(?:\/|\.)/.test(p)) { widen(path, 'shared test support'); continue; }
     if (/(?:^|\/)(?:Cargo\.toml|Cargo\.lock|lean-toolchain|lake-manifest\.json|build\.rs|package\.json|bun\.lock|rust-toolchain(?:\.toml)?)$/.test(p) || p.startsWith('.cargo/')) {
@@ -256,7 +262,7 @@ export function selectAffected(changedFiles, model) {
     for (const crate of model.crates) fullCrates.add(crate.name);
     for (const pkg of model.packages) fullPackages.add(pkg.name);
     for (const file of model.fixtureFiles ?? []) fixtureFiles.add(file);
-    for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests', 'fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard']) checks.add(check);
+    for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests', 'fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard', 'editor-grammar']) checks.add(check);
     semantics = true;
   }
   for (const name of reverseClosure([...fullPackages], model.packages)) fullPackages.add(name);
@@ -291,7 +297,7 @@ export function selectAffected(changedFiles, model) {
   // Build every product used by selected tests, even for a test-only diff; never
   // trust ignored binaries/dist/wasm left over from another revision.
   const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
-  const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
+  const needCli = checks.has('editor-grammar') || broad || evidence.some(hit => /CLI|process consumer/.test(hit));
   const needClient = broad || evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit));
   const needWasm = needClient || checks.has('wasm-measurement') || evidence.some(hit => /wasm/.test(hit));
   if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
@@ -338,6 +344,7 @@ export function selectAffected(changedFiles, model) {
     'chat-check': ['snapback4/apps/chat', ['../../target/debug/snapback4', 'check']],
     'chat-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat', 'typecheck']],
     'expo-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat-expo', 'typecheck']],
+    'editor-grammar': ['snapback4', ['node', 'scripts/check-editor-grammar.mjs']],
     'release-guard': ['snapback4', ['bash', 'scripts/check-release-guard.sh']],
     guide: ['.', ['node', 'scripts/check-guide.mjs']],
     'docs-budget': ['snapback4', ['node', 'scripts/docs-budget.mjs']],
@@ -360,7 +367,7 @@ export function selectAffected(changedFiles, model) {
     if (step.id === 'build-wasm' || step.id.startsWith('typecheck:') || step.id === 'expo-typecheck') required.push('install-client');
     if (step.id === 'build-client') required.push('install-client', 'build-wasm');
     if (step.fileRequires) for (const [file, dependencies] of Object.entries(step.fileRequires)) step.fileRequires[file] = dependencies.filter(id => stepIds.has(id));
-    if (step.id === 'chat-check') required.push('build-cli');
+    if (step.id === 'chat-check' || step.id === 'editor-grammar') required.push('build-cli');
     if (step.id === 'chat-typecheck') required.push('install-client', 'chat-check');
     if (step.id === 'wasm-measurement') required.push('build-wasm');
     if (step.id === 'difftest:run-lean') required.push('lean-build');

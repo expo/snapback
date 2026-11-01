@@ -1,0 +1,29 @@
+✖ fence self-tests use the selected alternate binary for grammar and syntax checks (4735.173083ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4808.119084
+
+✖ failing tests:
+
+test at scripts/check-editor-grammar.test.mjs:24:1
+✖ fence self-tests use the selected alternate binary for grammar and syntax checks (4735.173083ms)
+  AssertionError [ERR_ASSERTION]: alternate binary never supplied lexical facts: []
+      at file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:35:3
+      at scratch (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:9:9)
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-quarry-grammar/snapback4/scripts/check-editor-grammar.test.mjs:24:96)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
