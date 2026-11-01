@@ -8,7 +8,7 @@ pub fn listing() -> String {
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
 pub fn aliases() -> String {
-    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` lists bounded sections for large cards):\n", ALIASES.len());
+    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` prints whole cards up to 18000 bytes; larger cards list sections):\n", ALIASES.len());
     for (word, target) in ALIASES {
         match super::alias_section(word) {
             Some((_, heading)) => out.push_str(&format!("{word} -> {target} --section {heading:?}\n")),

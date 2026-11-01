@@ -33,3 +33,13 @@ fn deploy_persistent_production_is_one_complete_heading() {
     let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(normalize(&shown).contains(&normalize(&recipe)), "the entire heading recipe survives paragraph normalization");
 }
+
+#[test]
+fn fitting_heading_does_not_lose_the_renderers_safety_margin() {
+    let source=format!("# Edge\n\n## Heading\n\n{}\n\n{}\n", "a".repeat(8800), "b".repeat(8900));
+    let card=guide::reader_card("edge",&source);
+    assert!(!card.contains("continued"));
+    let section=guide::section("edge",&card,"Heading").unwrap();
+    assert!(section.len()<=guide::REFERENCE_BYTES);
+    assert!(section.contains(&"b".repeat(8900)));
+}

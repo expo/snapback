@@ -160,7 +160,7 @@ pub const ALIASES: &[(&str, &str)] = &[
 ];
 
 /// Aliases that name one section of their card: `guide <alias>` prints that
-/// section (with a line naming it; `--full` still prints the card), and
+/// section (with a line naming it; `--full` prints the card when it fits the explicit bound), and
 /// `--section <alias>` or `--find <alias>` inside that card land there when
 /// no heading or line holds the word. Each entry is (alias, heading words).
 // @ref LLP 3000.007#20.1 — `guide pagination` opened the reads card's index, and `--section pagination` found nothing.

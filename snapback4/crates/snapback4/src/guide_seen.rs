@@ -92,7 +92,7 @@ fn render_at(root: &Path, name: &str, text: &str, force: bool, limit: usize, now
             new.join("\n")
         );
         if shared {
-            snapback4_lang::guide::bounded_default(name, &delta)
+            if limit == snapback4_lang::guide::REFERENCE_BYTES { snapback4_lang::guide::bounded_reference(name, &delta) } else { snapback4_lang::guide::bounded_default(name, &delta) }
         } else {
             delta
         }
@@ -110,7 +110,7 @@ fn render_at(root: &Path, name: &str, text: &str, force: bool, limit: usize, now
         let shows_new_fact = entries.iter().any(|(hash, block, _)| {
             !seen.contains(hash) && !block.starts_with('#') && visible.contains(hash)
         });
-        if has_new_fact && !shows_new_fact && text.len() <= snapback4_lang::guide::FULL_BYTES {
+        if has_new_fact && !shows_new_fact && text.len() <= limit {
             // A single large new block can fit the selection but not its delta
             // prefix. Reprint that bounded selection instead of starving it.
             shown = text.to_owned();
@@ -258,6 +258,9 @@ mod app_tests {
             single,
             "a fitting fact is never starved by the delta prefix"
         );
+        let explicit = format!("# This app's client usage\n\n## query a\n\n```ts\n{}\n```\n", "large fact ".repeat(1000));
+        let shown = render_at(&root, "api client", &explicit, false, snapback4_lang::guide::REFERENCE_BYTES, now_ms());
+        assert!(shown.contains(&"large fact ".repeat(1000)), "explicit new facts use the explicit bound, never starve");
         assert_eq!(render_in(&root, "api react", &react, true), react);
         std::fs::remove_dir_all(root).unwrap();
     }

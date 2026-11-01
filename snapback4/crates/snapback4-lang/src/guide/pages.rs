@@ -9,7 +9,7 @@ pub fn reader_card(name: &str, card: &str) -> String {
     let title = card.lines().next().unwrap_or("# Guide");
     // Package manuals keep TOK6's existing bounded pagination contract.
     let limit = if name.starts_with("package-reference ") { FULL_BYTES } else { REFERENCE_BYTES };
-    let room = limit.saturating_sub(title.len() + 350);
+    let mut room = limit.saturating_sub(title.len() + "Opening".len() + 7);
     let mut out = format!("{title}\n\nRead one section for your change. `guide {name} --sections` lists sections.\n\n");
     let mut heading = "Opening".to_owned();
     let mut page = String::new();
@@ -35,9 +35,10 @@ pub fn reader_card(name: &str, card: &str) -> String {
         if block.starts_with("## ") || block.starts_with("### ") {
             flush(&mut out, &mut page, &heading, part);
             heading = block.trim().trim_start_matches('#').trim().to_owned(); part = 1;
+            room = limit.saturating_sub(title.len() + heading.len() + 7);
             continue;
         }
-        let block = if block.len() > room && block.starts_with("```") {
+        let block = if block.trim_end().len() > room && block.starts_with("```") {
             // These complete sources are packed by pack-recipes.mjs.
             let reference=match name {
                 "testing" if block.contains("day2-accounts")=>"day2-accounts.mjs",
@@ -48,7 +49,7 @@ pub fn reader_card(name: &str, card: &str) -> String {
             format!("Complete reference: node_modules/snapback4/dist/recipes/{reference}. Read only this file when adapting that example.\n")
         } else { block };
         // Dense prose can exceed a section; split only prose at word boundaries.
-        let chunks = if block.len() > room {
+        let chunks = if block.trim_end().len() > room {
             let mut chunks = Vec::new(); let mut chunk = String::new();
             for word in block.split_inclusive(char::is_whitespace) {
                 if chunk.len() + word.len() > room && !chunk.is_empty() { chunks.push(std::mem::take(&mut chunk)); }
@@ -57,7 +58,10 @@ pub fn reader_card(name: &str, card: &str) -> String {
             if !chunk.is_empty() { chunks.push(chunk); } chunks
         } else { vec![block] };
         for chunk in chunks {
-            if page.len() + chunk.len() + 1 > room { flush(&mut out, &mut page, &heading, part); part += 1; }
+            if format!("{page}{chunk}").trim_end().len() > room && !page.is_empty() {
+                flush(&mut out, &mut page, &heading, part); part += 1;
+                room = limit.saturating_sub(title.len() + heading.len() + format!(" (continued {part})").len() + 7);
+            }
             page.push_str(&chunk); page.push('\n');
         }
     }
