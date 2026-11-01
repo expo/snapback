@@ -34,12 +34,12 @@ fn wave33_029_024_011_023_033_frozen_client_has_own_esm_api_and_inline_users() {
     fs::remove_dir_all(dir).unwrap();
 }
 #[test]
-fn wave33_001_022_011_021_full_lists_sections_and_repeats_delta() {
+fn wave33_001_022_011_021_honest_full_and_zero_new_reprints() {
     let dir=std::env::temp_dir().join(format!("dx16-guide-{}",std::process::id()));fs::create_dir_all(dir.join("snapback")).unwrap();
     let run=|args:&[&str]|String::from_utf8(Command::new(BIN).current_dir(&dir).args(args).output().unwrap().stdout).unwrap();
-    for name in ["deploy","production","evolution"] {let text=run(&["guide",name,"--full"]);assert!(text.len()<=8000);assert!(!text.contains("// day-two-production.mjs"));}
+    for name in ["deploy","production","evolution"] {let text=run(&["guide",name,"--full"]);assert!(text.len()<=snapback4_lang::guide::REFERENCE_BYTES+1);assert!(!text.contains("// day-two-production.mjs"));assert_eq!(text.contains("too long to print whole"),name!="evolution");}
     let day2=run(&["guide","day2","--repeat"]);assert!(day2.len()<=8000);assert!(day2.contains("Substitute the chosen pair in ALL examples below, including both proof runs"));
-    let first=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(first.contains("alias greet"));let again=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(again.contains("new: 0 blocks"));assert!(again.len()<first.len());
+    let first=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(first.contains("alias greet"));let again=Command::new(BIN).current_dir(&dir).args(["guide","deploy","--section","Keep v1 clients working"]).output().unwrap();assert!(again.status.success());assert_eq!(String::from_utf8(again.stdout).unwrap(),first);assert!(String::from_utf8_lossy(&again.stderr).contains("Repeat:"));
     assert_eq!(first,run(&["guide","deploy","--section","Keep v1 clients working","--repeat"]));
     let api=run(&["guide","api","proof","--sections"]);assert!(api.len()<=8000);for name in ["startServe","provisionAccounts","freshUser","proof-accounts/default.json"] {assert!(api.contains(name),"{name}");}
     let failed=Command::new(BIN).current_dir(&dir).args(["guide","deploy","--find","release NO_SUCH_WORD"]).output().unwrap();
