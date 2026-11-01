@@ -1580,7 +1580,8 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
             // Repeated headings (a card may have two "Example" sections) refuse as ambiguous.
             if !output.status.success() { assert!(text.contains("matches") && text.contains("sections of guide"), "{keyword} {heading}: {text}"); continue; }
             let body = text.split_once("\n\n").map(|(_, body)| body).unwrap_or(&text).trim_end();
-            assert!(body.starts_with("##") && card.contains(body), "{keyword} --section {heading}");
+            let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+            assert!(body.starts_with("##") && normalize(&card).contains(&normalize(body)), "{keyword} --section {heading}");
         }
     }
     let output = Command::new(BIN).args(["guide", "reads", "--section", "no such heading"]).output().unwrap();
