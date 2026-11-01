@@ -148,15 +148,15 @@ test('proof table references remain navigable alongside declaration references',
 });
 
 
-test('batched wiring lookups share schema facts while keeping new calls/signatures and forced reads',()=>{
+test('batched wiring lookups share facts, keep new calls and reprint zero-new selections',()=>{
  const cwd=mkdtempSync(join(root,'target/tok6-shared-'));
  try{
   mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use identity password\nquery answer():\n  return 42\n');
   const client=run(cwd,['guide','api','client']);assert.match(client,/Args: /);assert.match(client,/Plain: /);
   const react=run(cwd,['guide','api','react']);assert.match(react,/already shown: api react/);assert.doesNotMatch(react,/Args: /);assert.match(react,/React: /);assert.match(react,/Additional react signatures/);
   const auth=run(cwd,['guide','api','auth']);assert.doesNotMatch(auth,/Args: /);assert.match(auth,/Additional auth signatures/);assert.match(auth,/export function signup/);
-  const generated=run(cwd,['guide','api','generated']);assert.doesNotMatch(generated,/Args: /);assert.doesNotMatch(generated,/React: /);assert.doesNotMatch(generated,/Plain: /);
-  assert.match(run(cwd,['guide','api','generated','--repeat']),/Args: /);
+  const generated=run(cwd,['guide','api','generated']);assert.match(generated,/Args: /);assert.match(generated,/React: /);assert.match(generated,/Plain: /);
+  assert.equal(run(cwd,['guide','api','generated','--repeat']),generated,'zero-new selection reprints the same complete content');
   writeFileSync(join(cwd,'snapback/schema.q'),'use identity password\nquery answer():\n  return "changed"\n');
   assert.match(run(cwd,['guide','api','client']),/Result: `string`/);
  }finally{rmSync(cwd,{recursive:true,force:true});}
