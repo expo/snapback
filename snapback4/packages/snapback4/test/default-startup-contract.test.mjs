@@ -28,12 +28,17 @@ test('prediction and reference distinguish first-visit journal writes from next-
   assert.match(prediction, /a returning one with an empty journal and a compatible device predicts from held facts or queues/);
 });
 
-test('default-flip changelog entry has the next patch semver heading', () => {
+test('default-flip changelog entry retains its next patch semver heading', () => {
   const changelog = read('packages/snapback4/reference/CHANGELOG.md');
-  const [next, previous] = [...changelog.matchAll(/^## (.+)$/gm)].map(match => match[1]);
+  const entries = changelog.split(/^## /m).slice(1);
+  const index = entries.findIndex(entry => entry.includes('`createApp` with `webDevice()` now defaults to progressive startup'));
+  assert.notEqual(index, -1, 'the progressive default flip remains disclosed');
+  const next = entries[index].split('\n')[0];
+  const previous = entries[index + 1]?.split('\n')[0];
+  assert.match(next, /^\d+\.\d+\.\d+$/);
+  assert.match(previous ?? '', /^\d+\.\d+\.\d+$/);
   const parts = previous.split('.').map(Number);
   assert.equal(next, `${parts[0]}.${parts[1]}.${parts[2] + 1}`);
-  assert.match(changelog.split('\n## ')[1], /progressive startup/);
 });
 
 test('opening journal admission-barrier omission and its custody rationale are disclosed', () => {
