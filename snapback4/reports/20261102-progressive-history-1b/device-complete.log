@@ -1,0 +1,610 @@
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:480:51
+    |
+480 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+  --> crates/snapback4-device/tests/native_reads.rs:96:9
+   |
+96 |     let mut post = |engine: &mut Engine, viewer: &str, summary: &str, provider: Value| mutate(engine, "writePost", viewer, &[("promp...
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-device/tests/readauth/../../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:179:5
+    |
+179 | /     d.store().test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+180 | |         AuthAction::Insert {table_name:"_meta"} => Authorization::Deny,
+181 | |         _=>Authorization::Allow,
+182 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+179 |     let _ = d.store().test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:184:5
+    |
+184 |     d.store().test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+184 |     let _ = d.store().test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:198:5
+    |
+198 | /     (e.store()).test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+199 | |         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
+200 | |         _=>Authorization::Allow,
+201 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+198 |     let _ = (e.store()).test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:203:5
+    |
+203 |     (e.store()).test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+203 |     let _ = (e.store()).test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: `snapback4-device` (test "native_reads") generated 1 warning (run `cargo fix --test "native_reads" -p snapback4-device` to apply 1 suggestion)
+warning: function `roster_schema` is never used
+  --> crates/snapback4-device/tests/w13g_review/../../../snapback4-core/tests/common/acquisition.rs:51:8
+   |
+51 | pub fn roster_schema() -> Schema {
+   |        ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "w13g_probe") generated 1 warning
+warning: function `boundary` is never used
+  --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequences.rs:77:8
+   |
+77 | pub fn boundary(entries: u64) -> Pair {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `compound_write_case` is never used
+   --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequence_generated.rs:171:8
+    |
+171 | pub fn compound_write_case(shape: &str, effect: &str, sequence: bool, readable: bool, reads: usize, ceiling: Option<u64>) -> Case {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `compound_write_cases` is never used
+   --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequence_generated.rs:237:8
+    |
+237 | pub fn compound_write_cases() -> Vec<Case> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `snapback4_core::partition::PartitionRows`
+ --> crates/snapback4-device/tests/written_by.rs:3:5
+  |
+3 | use snapback4_core::partition::PartitionRows;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "own_keys") generated 4 warnings
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "sequence_disclosure") generated 3 warnings
+warning: `snapback4-device` (test "readauth") generated 1 warning
+warning: `snapback4-device` (test "written_by") generated 1 warning (run `cargo fix --test "written_by" -p snapback4-device` to apply 1 suggestion)
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+warning: `snapback4-device` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [optimized + debuginfo] target(s) in 4m 31s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_device-b76b0b406dbabf3b)
+
+running 67 tests
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::progressive_tests::progressive_does_not_bypass_an_existing_media_upgrade ... ok
+test device::progressive_tests::progressive_commit_failure_and_host_persistence_before_after_every_unit ... ok
+test device::cap_counts_tests::receipt_overlay_groups_include_empty_ids_deletes_and_moves_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::progressive_tests::progressive_format_refuses_old_backend_decoder_and_survives_adoption ... ok
+test device::delivery::interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::cap_counts_tests::receipt_overlay_groups_include_empty_ids_deletes_and_moves_sqlite ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test device::progressive_tests::acquisition_reuses_own_write_deferral_for_rows_cursor_floor_and_completion ... ok
+test device::publication_tests::leased_nonterminal_continuation_memory ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::publication_tests::leased_terminal_continuation_memory ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::search::tests::pagination_epoch_excludes_progress_but_delivery_fence_keeps_it ... ok
+test device::search::tests::delivery_state_preserves_a_scans_exhausted_read_counter ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::search::tests::retained_search_excludes_current_and_rejoined_images ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::search::tests::pagination_epoch_tracks_only_this_tables_membership_and_retention ... ok
+test device::upload::bounds::admission_and_recovery_share_exact_decoded_byte_edges ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test ffi::engine_stamp_is_available_without_opening_any_store ... ok
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test memory::compact_key::tests::split_keys_order_exactly_like_complete_bytes ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+test memory::tests::staged_sharing_accepts_only_the_exact_row_value ... ok
+test memory::tests::noncanonical_staged_rows_keep_canonical_metered_prices ... ok
+test memory::compact_index::tests::pages_match_a_tree_through_splits_updates_deletes_and_ranges ... ok
+test memory::tests::replacement_indexes_match_scalar_puts_and_rollback_with_counts_and_savepoints ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test memory::compact_index::tests::bulk_pages_accept_smaller_keys_and_remove_to_empty ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test device::union_hardening_tests::single_column_departure_scopes_keep_their_existing_retention_policy ... ok
+test device::union_hardening_tests::malformed_scope_schemas_refuse_on_both_stores ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::publication_tests::leased_terminal_continuation_sqlite ... ok
+test device::publication_tests::leased_nonterminal_continuation_sqlite ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-be1f31a71761f34e)
+
+running 3 tests
+test acquisition_crash_worker ... ok
+test acquisition_marker_parser_rejects_partial_counts ... ok
+test random_process_kills_preserve_atomic_acquisition_on_both_stores ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.72s
+
+     Running tests/adoption.rs (target/debug/deps/adoption-13a9ad8668766922)
+
+running 6 tests
+test defaulted_sum_keeps_zero_candidate_through_expiry_memory ... ok
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_memory ... ok
+test a_pending_old_image_keeps_its_mark_and_gains_default_index_entries_on_both_stores ... ok
+test defaulted_sum_keeps_zero_candidate_through_expiry_sqlite ... ok
+test defaulted_membership_group_agrees_with_rules_snapshot_and_stream_sqlite ... ok
+test literal_default_additions_reacquire_on_both_device_stores ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/asset_lists.rs (target/debug/deps/asset_lists-da3481a42bacc4de)
+
+running 22 tests
+test explicit_snapshot_head_memory ... ok
+test list_generation_memory ... ok
+test exact_media_column_memory ... ok
+test uncaptured_snapshot_memory ... ok
+test media_upgrade_restore_memory ... ok
+test overtaken_snapshot_memory ... ok
+test staged_overtaken_snapshot_memory ... ok
+test sparse_media_markers_memory ... ok
+test list_lifecycle_memory ... ok
+test media_upgrade_memory ... ok
+test stream_rewind_restore_memory ... ok
+test exact_media_column_sqlite ... ok
+test explicit_snapshot_head_sqlite ... ok
+test list_generation_sqlite ... ok
+test uncaptured_snapshot_sqlite ... ok
+test media_upgrade_restore_sqlite ... ok
+test overtaken_snapshot_sqlite ... ok
+test staged_overtaken_snapshot_sqlite ... ok
+test sparse_media_markers_sqlite ... ok
+test stream_rewind_restore_sqlite ... ok
+test list_lifecycle_sqlite ... ok
+test media_upgrade_sqlite ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/background_durability.rs (target/debug/deps/background_durability-3b42650a93e9f7f9)
+
+running 2 tests
+test normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark ... ok
+test delivery_wal_cuts_recover_copies_cursor_and_log_together ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-aa036211397f14b4)
+
+running 8 tests
+test whole_table_cap_server_and_memory_device ... ok
+test bounded_ints_server_and_memory_device ... ok
+test calendar_server_and_memory_device ... ok
+test tightening_server_and_memory_device ... ok
+test bounded_ints_server_and_sqlite_device ... ok
+test calendar_server_and_sqlite_device ... ok
+test whole_table_cap_server_and_sqlite_device ... ok
+test tightening_server_and_sqlite_device ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/bounded_following.rs (target/debug/deps/bounded_following-3e9408332842c401)
+
+running 11 tests
+test known_event_absence_memory ... ok
+test prediction_memory ... ok
+test cards_memory ... ok
+test owned_event_examination_cut_withholds_card ... ok
+test adoption_memory ... ok
+test prediction_sqlite ... ok
+test cards_sqlite ... ok
+test known_event_absence_sqlite ... ok
+test adoption_sqlite ... ok
+test inbox_memory ... ok
+test inbox_sqlite ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.98s
+
+     Running tests/branch_merge.rs (target/debug/deps/branch_merge-5de8932ee032004f)
+
+running 21 tests
+test memory_online_branches_ask_the_server ... ok
+test memory_page4_online_word_search_keeps_missing_holdings_unknown ... ok
+test memory_a_seat_branch_is_decided_on_a_device ... ok
+test memory_total_unique_membership_source_uses_implicit_id ... ok
+test memory_owner_membership_pages_use_acquired_groups ... ok
+test memory_page3_pure_membership_keeps_source_acquisition_fence ... ok
+test memory_page4_public_member_union_does_not_invent_offline_coverage ... ok
+test memory_branch_merge_over_held_groups ... ok
+test memory_owner_membership_expiry_and_source_horizon ... ok
+test memory_page3_role_union_keeps_complete_acquired_pages ... ok
+test memory_page4_exact_scope_uses_complete_acquired_discovery ... ok
+test sqlite_page4_public_member_union_does_not_invent_offline_coverage ... ok
+test sqlite_page4_online_word_search_keeps_missing_holdings_unknown ... ok
+test sqlite_a_seat_branch_is_decided_on_a_device ... ok
+test sqlite_online_branches_ask_the_server ... ok
+test sqlite_branch_merge_over_held_groups ... ok
+test sqlite_owner_membership_pages_use_acquired_groups ... ok
+test sqlite_total_unique_membership_source_uses_implicit_id ... ok
+test sqlite_owner_membership_expiry_and_source_horizon ... ok
+test sqlite_page3_role_union_keeps_complete_acquired_pages ... ok
+test sqlite_page4_exact_scope_uses_complete_acquired_discovery ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/codec.rs (target/debug/deps/codec-b5c43429ee5a957e)
+
+running 12 tests
+test owned_argument_errors_do_not_claim_positions_in_synthetic_text ... ok
+test constructed_field_maps_keep_the_baseline_tagged_bytes ... ok
+test owned_adapters_keep_programmatically_built_deep_trees ... ok
+test counting_writer_keeps_exact_meter_bytes ... ok
+test defaults_custom_formats_variants_and_tagged_values ... ok
+test cursor_tokens_keep_the_old_bytes_in_both_directions ... ok
+test old_store::newly_written_records_decode_with_the_old_plain_serde_apis ... ok
+test old_store::literal_old_memory_store_opens_without_record_rewrites ... FAILED
+test page_fast_path_keeps_json_validation_inside_unknown_fields ... ok
+test text_page_and_baseline_dispatch_agree_including_duplicate_keys_and_refusals ... ok
+test old_store::old_sqlite_store_opens_from_pre_funnel_values ... FAILED
+test reference_backends_and_loadable_corpus_keep_their_derive ... ok
+
+failures:
+
+---- old_store::literal_old_memory_store_opens_without_record_rewrites stdout ----
+
+thread 'old_store::literal_old_memory_store_opens_without_record_rewrites' (434871180) panicked at crates/snapback4-device/tests/codec/old_store.rs:49:5:
+assertion `left == right` failed
+  left: [('m', "device:backend"), ('m', "device:backend-identity"), ('m', "device:generation"), ('m', "device:acquisition-group-count")]
+ right: [('m', "device:backend"), ('m', "device:backend-identity"), ('m', "device:generation")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- old_store::old_sqlite_store_opens_from_pre_funnel_values stdout ----
+
+thread 'old_store::old_sqlite_store_opens_from_pre_funnel_values' (434871182) panicked at crates/snapback4-device/tests/codec/old_store.rs:147:5:
+assertion `left == right` failed: open must preserve raw record bytes
+  left: [[[Integer(1), Text("n1"), Text("{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}}")]], [[Integer(1), Text("q1"), Text("{\"id\":\"q1\",\"seq\":1,\"op\":\"add\",\"args\":{},\"new_ids\":[],\"predicted\":[],\"viewer\":\"\",\"now\":0,\"predictable\":false,\"sent_seq\":null,\"observed_seq\":null}")]], [[Text("notes"), Text("n1"), Text("{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}}")]], [[Text("[\"notes\",\"n1\"]"), Text("notes"), Text("{\"row\":{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}},\"acquired\":true}")]], [[Text("device:acquired-generation"), Text("1")], [Text("device:acquisition-group-count"), Text("0")], [Text("device:backend"), Text("{\"generation\":1,\"schema\":{\"tables\":{\"notes\":{\"columns\":{\"body\":{\"Text\":{\"max\":100}},\"id\":\"Id\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Public\":{\"reason\":\"fixture\"}},\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\",\"sync\":{\"audience\":\"Public\"}}},\"maintains\":[],\"operations\":{\"all\":{\"runs\":\"device\",\"sites\":[{\"site\":\"schema.q:6:10 (notes[])\",\"table\":\"notes\",\"index\":\"byId\",\"kind\":\"scan\",\"class\":\"held\",\"reason\":\"scan notes by byId: held, no horizon\",\"rewrite\":\"\"}],\"requires\":[]}}},\"programs\":[{\"name\":\"all\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"programs.all.0\",\"table\":\"notes\",\"index\":\"byId\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":10},\"after\":null,\"before\":null,\"range\":null,\"merge_site\":null,\"provenance\":\"Shape\"}}}]}]}")], [Text("device:backend-identity"), Text("11540dcf1182a321637b340388029b84f34519a98c70708ba43d2d2305cf7ab0")], [Text("device:generation"), Text("1")], [Text("schema_hash"), Text("b8373a4f1d72bc592c0395b4308deaaf9b82f05e24b2a9b13f92b427b771384b")], [Text("store_id"), Text("a740d7240cb2844742ec4aa72c1970fd")], [Text("time_audience_publications_v1"), Text("1")], [Text("version"), Text("snapback4-store-1")]]]
+ right: [[[Integer(1), Text("n1"), Text("{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}}")]], [[Integer(1), Text("q1"), Text("{\"id\":\"q1\",\"seq\":1,\"op\":\"add\",\"args\":{},\"new_ids\":[],\"predicted\":[],\"viewer\":\"\",\"now\":0,\"predictable\":false,\"sent_seq\":null,\"observed_seq\":null}")]], [[Text("notes"), Text("n1"), Text("{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}}")]], [[Text("[\"notes\",\"n1\"]"), Text("notes"), Text("{\"row\":{\"Row\":{\"body\":{\"String\":\"kept\"},\"id\":{\"Id\":\"n1\"}}},\"acquired\":true}")]], [[Text("device:acquired-generation"), Text("1")], [Text("device:backend"), Text("{\"generation\":1,\"schema\":{\"tables\":{\"notes\":{\"columns\":{\"body\":{\"Text\":{\"max\":100}},\"id\":\"Id\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true}},\"rules\":{\"read\":{\"Public\":{\"reason\":\"fixture\"}},\"insert\":\"Deny\",\"update\":\"Deny\",\"delete\":\"Deny\"},\"constraints\":[],\"leave\":\"until-revoked\",\"sync\":{\"audience\":\"Public\"}}},\"maintains\":[],\"operations\":{\"all\":{\"runs\":\"device\",\"sites\":[{\"site\":\"schema.q:6:10 (notes[])\",\"table\":\"notes\",\"index\":\"byId\",\"kind\":\"scan\",\"class\":\"held\",\"reason\":\"scan notes by byId: held, no horizon\",\"rewrite\":\"\"}],\"requires\":[]}}},\"programs\":[{\"name\":\"all\",\"kind\":\"Query\",\"args\":{},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"programs.all.0\",\"table\":\"notes\",\"index\":\"byId\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":10},\"after\":null,\"before\":null,\"range\":null,\"merge_site\":null,\"provenance\":\"Shape\"}}}]}]}")], [Text("device:backend-identity"), Text("11540dcf1182a321637b340388029b84f34519a98c70708ba43d2d2305cf7ab0")], [Text("device:generation"), Text("1")], [Text("schema_hash"), Text("b8373a4f1d72bc592c0395b4308deaaf9b82f05e24b2a9b13f92b427b771384b")], [Text("store_id"), Text("a740d7240cb2844742ec4aa72c1970fd")], [Text("time_audience_publications_v1"), Text("1")], [Text("version"), Text("snapback4-store-1")]]]
+
+
+failures:
+    old_store::literal_old_memory_store_opens_without_record_rewrites
+    old_store::old_sqlite_store_opens_from_pre_funnel_values
+
+test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+
+error: test failed, to rerun pass `-p snapback4-device --test codec`

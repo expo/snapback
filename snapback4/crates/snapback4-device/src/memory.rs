@@ -106,6 +106,9 @@ enum Undo {
     Staged(String, Option<(String, Rc<str>)>),
 }
 
+#[cfg(test)]
+thread_local! { pub(crate) static FAIL_COMMIT: Cell<bool> = const { Cell::new(false) }; }
+
 const SCHEMA_HASH: &str = "memory:schema";
 
 #[derive(Default)]
@@ -669,6 +672,8 @@ impl Rows for MemoryTx<'_> {
 
 impl DeviceTx for MemoryTx<'_> {
     fn commit(self) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        if FAIL_COMMIT.with(|fail| fail.replace(false)) { return Err(RuntimeError::Store("injected commit failure".into())); }
         let state = self.store.state.borrow();
         let mut changes = self.store.changes.borrow_mut();
         for dirty in self.dirty.borrow().iter() {

@@ -1,0 +1,599 @@
+test page_loss::overwritten_collector::sqlite ... ok
+test page_loss::interrupted_twice_5_0::sqlite ... ok
+test page_loss::still_whole_6::memory ... ok
+test page_loss::still_whole_5::memory ... ok
+test page_loss::repeated_count_loses_first_cursor::sqlite ... ok
+test page_loss::whole_and_different_6::memory ... ok
+test page_loss::repeated_owned_site_keeps_only_last_cursor_memory ... ok
+test page_loss::whole_and_different_4::memory ... ok
+test plain_page_continues::memory ... ok
+test program_return_still_exits_nested_loops_memory ... ok
+test page_loss::still_whole_4::sqlite ... ok
+test page_loss::still_whole_6::sqlite ... ok
+test returning_helper_inside_merge_setup_keeps_page::memory ... ok
+test returning_helper_keeps_matching_page::memory ... ok
+test returning_helper_keeps_merge_page::memory ... ok
+test page_loss::still_whole_5::sqlite ... ok
+test page_loss::whole_and_different_6::sqlite ... ok
+test page_loss::whole_and_different_4::sqlite ... ok
+test plain_page_continues::sqlite ... ok
+test program_return_still_exits_nested_loops_sqlite ... ok
+test returning_helper_inside_merge_setup_keeps_page::sqlite ... ok
+test returning_helper_keeps_matching_page::sqlite ... ok
+test returning_helper_keeps_merge_page::sqlite ... ok
+test page_loss::repeated_owned_site_keeps_only_last_cursor_sqlite ... ok
+test page_loss::generated_row_coverage_memory ... ok
+test page_loss::generated_row_coverage_sqlite ... ok
+
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.11s
+
+     Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-8aed72e4b9680c52)
+
+running 3 tests
+test browser_can_rewrite_a_kept_legacy_violation_then_delete_it ... ok
+test browser_device_refuses_the_same_key_as_server_without_partial_writes ... ok
+test time_key_bytes_and_order_match_on_every_store ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/intent_variants.rs (target/debug/deps/intent_variants-6da815cfb44b08db)
+
+running 4 tests
+test presence_and_search_variants_memory ... ok
+test nullable_search_browse_memory ... ok
+test presence_and_search_variants_sqlite ... ok
+test nullable_search_browse_sqlite ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/intent_views.rs (target/debug/deps/intent_views-3c5e8145ef4116ec)
+
+running 16 tests
+test union_unknown_branch_memory ... ok
+test union_offline_memory ... ok
+test ordered_wrapped_view_memory ... ok
+test literal_id_order_memory ... ok
+test nullable_ordering_memory ... ok
+test union_offline_sqlite ... ok
+test nullable_membership_memory ... ok
+test union_unknown_branch_sqlite ... ok
+test ordered_wrapped_view_sqlite ... ok
+test literal_id_order_sqlite ... ok
+test nullable_ordering_sqlite ... ok
+test nullable_membership_sqlite ... ok
+test view_source_heap_memory ... ok
+test view_rejected_heap_memory ... ok
+test view_source_heap_sqlite ... ok
+test view_rejected_heap_sqlite ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-85da2f8fa31357e2)
+
+running 2 tests
+test memory ... ok
+test sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/live_parent.rs (target/debug/deps/live_parent-e60d55d92ca56dd7)
+
+running 7 tests
+test interrupted_acquisition_memory ... ok
+test authoritative_memory_seed_admits_before_collecting_and_rolls_back ... ok
+test authoritative_memory_restore_recaptures_and_admits_the_whole_call ... ok
+test transfer_memory ... ok
+test authoritative_memory_seed_prepays_all_source_index_vectors ... ok
+test interrupted_acquisition_sqlite ... ok
+test transfer_sqlite ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/matching_order.rs (target/debug/deps/matching_order-a83f27ac102719bd)
+
+running 6 tests
+test composite_order_offline_memory ... ok
+test named_order_meter_boundary_memory ... ok
+test named_order_meter_boundary_sqlite ... ok
+test composite_order_offline_sqlite ... ok
+test ordered_search_offline_memory ... ok
+test ordered_search_offline_sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-df77956ee3cfcb33)
+
+running 2 tests
+test mixed_keys_match_named_on_memory_device ... ok
+test mixed_keys_match_named_on_sqlite_device ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/monotonic_ids.rs (target/debug/deps/monotonic_ids-f98dc89c7d83b9a8)
+
+running 2 tests
+test frozen_millisecond_mutation_order_memory ... ok
+test frozen_millisecond_mutation_order_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-59c9af30b0e26748)
+
+running 5 tests
+test parent_totals_memory_coverage_and_expiry ... ok
+test parent_totals_sqlite_coverage_and_expiry ... ok
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+test rewritten_builder_own_state_memory_reopen ... ok
+test rewritten_builder_own_state_sqlite_reopen ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+
+     Running tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-61aafa5d33f6d013)
+
+running 17 tests
+test nullable_key_write_targets_and_transition_probes_require_guards ... ok
+test guards_follow_control_flow_without_leaking_across_rule_branches ... ok
+test private_null_population_memory ... ok
+test shorter_total_key_memory ... ok
+test both_spellings_lower_to_the_same_point_without_a_shorter_total_key ... ok
+test partial_named_keys_still_need_a_bound ... ok
+test maintained_null_groups_memory ... ok
+test competing_index_keeps_unique_points_and_rule_probes ... ok
+test nullable_unique_writes_memory ... ok
+test private_null_population_sqlite ... ok
+test shorter_total_key_sqlite ... ok
+test maintained_null_groups_sqlite ... ok
+test nullable_unique_writes_sqlite ... ok
+test named_keys_server_and_memory ... ok
+test nullable_point_arguments_require_presence_for_every_spelling ... ok
+test named_keys_server_and_sqlite ... ok
+test calibration_29_named_direct_lookup_compiles ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/native.rs (target/debug/deps/native-e90f703d3b8039fe)
+
+running 8 tests
+test native_device_read_transactions_do_not_reserve_the_writer ... ok
+test native_device_store_and_sidecars_are_owner_only ... ok
+test smoke_counts_held_rows_without_exporting_contents_and_survives_reopen ... ok
+test snapshot_catchup_publishes_one_consistent_base_before_replaying_writes ... ok
+test finding_1_another_owner_adopting_b_does_not_bless_this_owners_a_programs ... ok
+test a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_partition ... ok
+test pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reopen ... ok
+test finding_4_delayed_legacy_page_does_not_erase_an_advanced_owners_history ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/native_following.rs (target/debug/deps/native_following-d980d5147ec532d1)
+
+running 2 tests
+test native_following_memory ... ok
+test native_following_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+     Running tests/native_reads.rs (target/debug/deps/native_reads-8c3b663a0c2d06e3)
+
+running 8 tests
+test a_bad_cached_module_is_removed_instead_of_advertised ... ok
+test adopt_needs_no_fallible_cache_cleanup_after_install ... ok
+test an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen ... ok
+test native_cache_is_bound_to_its_digest_and_backend_generation ... ok
+test a_native_read_cannot_write_and_a_missing_read_is_named ... ok
+test a_device_keeps_the_module_across_a_reopen ... ok
+test the_same_module_answers_the_same_on_the_server_and_on_both_devices ... ok
+test finding_6_each_native_owner_is_bound_to_incarnation_and_module ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+     Running tests/natural_forms.rs (target/debug/deps/natural_forms-b7f7991829f8d702)
+
+running 5 tests
+test spread_server_and_memory_device ... ok
+test migration_text_primitives_match_the_server_on_both_device_stores ... ok
+test default_text_server_and_memory_device ... ok
+test spread_server_and_sqlite_device ... ok
+test default_text_server_and_sqlite_device ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-abc5785a2ed1741f)
+
+running 9 tests
+test reference_null_equality_guards_keep_logical_edge_admission ... ok
+test rule_presence_facts_keep_reference_image_and_hop_limits ... ok
+test nullable_point_presence_requires_admission_before_narrowing ... ok
+test memory_guards_hops_and_nullable_points ... ok
+test sqlite_guards_hops_and_nullable_points ... ok
+test horizon_null::null_hop_with_horizon_memory ... ok
+test horizon_null::null_hop_with_horizon_sqlite ... ok
+test null_runtime::expired_null_ties_memory ... ok
+test null_runtime::expired_null_ties_sqlite ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+     Running tests/own_keys.rs (target/debug/deps/own_keys-f7e62623e2ed8819)
+
+running 6 tests
+test source_and_keys_share_the_unchanged_write_meter_and_rollback ... ok
+test snapshot_and_catchup_payloads_never_disclose_another_owners_keys ... ok
+test adoption_failure_never_publishes_an_empty_key_set ... ok
+test memory ... ok
+test failed_partition_publication_keeps_absence_unavailable ... ok
+test sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-51e33758facf3db8)
+
+running 2 tests
+test costs ... ignored, explicit million-key storage/adoption measurement
+test fixture_costs ... ignored, explicit read-only builder-store copy comparison
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-c880eb10a0df6739)
+
+running 11 tests
+test maintained_partial_groups_are_not_points ... ok
+test lane_planning_cannot_drop_point_admission ... ok
+test nonunique_points_refuse_in_code_and_rules_in_every_order ... ok
+test predicate_guards_memory ... ok
+test required_unique_superkeys_remain_points_but_caps_do_not_prove_uniqueness ... ok
+test predicate_guards_sqlite ... ok
+test null_and_nonnull_ties_memory ... ok
+test null_and_nonnull_ties_sqlite ... ok
+test maintained_group_rules_memory ... ok
+test guards_narrow_scan_and_view_predicates_without_leaking ... ok
+test maintained_group_rules_sqlite ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-8bb0ba6d484f0d91)
+
+running 2 tests
+test replay_refreshes_predicted_memory ... ok
+test replay_refreshes_predicted_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/progressive_history.rs (target/debug/deps/progressive_history-bb9b1b98ea75ce80)
+
+running 10 tests
+test native_progressive_restart_child ... ok
+test native_progressive_commit_survives_a_new_process ... ok
+test one_commit_two_floored_groups_and_an_unwalked_group_is_held ... ok
+test exhaustion_alone_never_writes_legacy_acquired ... ok
+test real_server_own_write_image_defers_acquisition_and_survives_reopen ... ok
+test quiescent_whole_snapshot_oracle_including_facts_and_restarts ... ok
+test tier1_and_group_read_admission_survive_reopen_on_both_stores ... ok
+test inflight_insert_edit_delete_and_order_key_move ... ok
+test revoke_rejoin_and_delayed_old_page_obey_both_policies ... ok
+test generation_replacement_and_restore_clear_progress_and_preserve_staging ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-934a60492e0ffe0c)
+
+running 8 tests
+test memory_bound_quarry_insert ... ok
+test memory_discarded_if_absent ... ok
+test memory_discarded_quarry_insert ... ok
+test memory_empty_default ... ok
+test sqlite_bound_quarry_insert ... ok
+test sqlite_empty_default ... ok
+test sqlite_discarded_if_absent ... ok
+test sqlite_discarded_quarry_insert ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-42b79527f611a335)
+
+running 2 tests
+test memory_total_results_guards_and_rule_hops ... ok
+test sqlite_total_results_guards_and_rule_hops ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/query_unavailable.rs (target/debug/deps/query_unavailable-8cb3e19f265ae976)
+
+running 2 tests
+test server_marks_aborted_lists_without_changing_partial_pages_or_nullable_results ... ok
+test unknown_aggregate_inside_a_list_is_unavailable_on_both_device_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/read_through.rs (target/debug/deps/read_through-9a94a7e53ce6f470)
+
+running 9 tests
+test chain_memory ... ok
+test chain_sqlite ... ok
+test retained_parent_queues_without_a_row ... ok
+test inherited_expiry_and_monotone_clock ... ok
+test clock_publication_and_replay_are_atomic ... ok
+test pending_chain_and_queue ... ok
+test nonexpiring_parent_counts_reserve_source_scratch ... ok
+test reused_parent_capture_and_retained_history ... ok
+test parent_delete_coverage ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-906f42b5e0bf33b3)
+
+running 3 tests
+test expired_unswept_matching_child_queues_parent_delete ... ok
+test reused_deadline_is_part_of_current_capture_identity ... ok
+test authoritative_replay_invalidates_written_and_withdrawn_tables ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/readauth.rs (target/debug/deps/readauth-2f223e881fdd8bb9)
+
+running 88 tests
+test mixed_memory ... ok
+test outcomes::chat_edit_memory ... ok
+test outcomes::app_edit_memory ... ok
+test mixed_sqlite ... ok
+test outcomes::app_edit_sqlite ... ok
+test outcomes::chat_edit_sqlite ... ok
+test outcomes::create_room_memory ... ok
+test outcomes::language_edit_memory ... ok
+test outcomes::create_room_sqlite ... ok
+test outcomes::language_edit_sqlite ... ok
+test parent_guards::rows_a_caller_cannot_read_never_change_their_answer ... ok
+test parent_guards::the_parent_owner_reads_a_decided_page_and_everyone_else_is_unchanged ... ok
+test readable_insert_memory ... ok
+test readable_update_memory ... ok
+test readable_insert_sqlite ... ok
+test outcomes::write_forms_memory ... ok
+test readable_upsert_memory ... ok
+test readable_update_sqlite ... ok
+test regressions::hidden_inside_prediction_memory ... ok
+test parent_guards::both_device_stores_leave_the_decided_page_to_the_server ... ok
+test readable_upsert_sqlite ... ok
+test regressions::later_grant_memory ... ok
+test regressions::hidden_inside_prediction_sqlite ... ok
+test outcomes::standalone_repost_memory ... ok
+test regressions::offline_moderation_upgrade_memory ... ok
+test outcomes::write_forms_sqlite ... ok
+test regressions::later_grant_sqlite ... ok
+test regressions::offline_upgrade_memory ... ok
+test outcomes::standalone_post_memory ... ok
+test regressions::retained_grant_memory ... ok
+test regressions::two_mutation_revocation_memory ... ok
+test regressions::offline_moderation_upgrade_sqlite ... ok
+test regressions::offline_upgrade_sqlite ... ok
+test regressions::retained_grant_sqlite ... ok
+test regressions::two_mutation_revocation_sqlite ... ok
+test round2::existential_aggregate_memory ... ok
+test outcomes::recipe_repost_memory ... ok
+test round2::hidden_before_visible_memory ... ok
+test outcomes::standalone_post_sqlite ... ok
+test outcomes::recipe_post_memory ... ok
+test round2::live_maintain_memory ... ok
+test round2::existential_aggregate_sqlite ... ok
+test outcomes::standalone_repost_sqlite ... ok
+test round2::hidden_before_visible_sqlite ... ok
+test round2::live_maintain_sqlite ... ok
+test round2::service_disjunct_memory ... ok
+test round2::counterfactual_branch_memory ... ok
+test round2::aggregate_authority_witnesses_memory ... ok
+test round2::service_disjunct_sqlite ... ok
+test outcomes::recipe_repost_sqlite ... ok
+test timing::grant_later_memory ... ok
+test outcomes::recipe_post_sqlite ... ok
+test timing::grant_once_memory ... ok
+test timing::grant_later_sqlite ... ok
+test round2::expired_authority_witnesses_memory ... ok
+test timing::reading_probe_meter_memory ... ok
+test timing::grant_once_sqlite ... ok
+test timing::revoke_later_memory ... ok
+test timing::write_then_delete_memory ... ok
+test timing::reading_probe_meter_sqlite ... ok
+test unevaluable_rule_memory ... ok
+test timing::revoke_later_sqlite ... ok
+test timing::write_then_delete_sqlite ... ok
+test unreadable_insert_memory ... ok
+test unreadable_update_memory ... ok
+test unevaluable_rule_sqlite ... ok
+test unreadable_insert_sqlite ... ok
+test unreadable_upsert_memory ... ok
+test where_guards::undecided_where_guards_memory ... ok
+test unreadable_update_sqlite ... ok
+test where_guards::where_guards_memory ... ok
+test unreadable_upsert_sqlite ... ok
+test where_guards::undecided_where_guards_sqlite ... ok
+test where_guards::where_guards_sqlite ... ok
+test round2::nested_read_ladder_memory ... ok
+test round2::counterfactual_branch_sqlite ... ok
+test round2::witness_fetch_budget_memory ... ok
+test round2::nested_read_ladder_sqlite ... ok
+test round2::mixed_probe_boundary_memory ... ok
+test outcomes::bridge_publish_memory ... ok
+test outcomes::bridge_repost_sqlite ... ok
+test outcomes::bridge_repost_memory ... ok
+test round2::mixed_probe_boundary_sqlite ... ok
+test round2::aggregate_authority_witnesses_sqlite ... ok
+test outcomes::bridge_publish_sqlite ... ok
+test round2::expired_authority_witnesses_sqlite ... ok
+test round2::witness_fetch_budget_sqlite ... ok
+test census::authoring_census ... ok
+
+test result: ok. 88 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s
+
+     Running tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-d31ed962b8de38da)
+
+running 24 tests
+test maintains::recorded_membership::clockless_orphan_import_memory ... ok
+test maintains::recorded_membership::actual_gaps_reset_held_and_rejoined_memory ... ok
+test maintains::recorded::clique_answers_on_both_stores ... ok
+test maintains::recorded_membership::continuous_renewal_keeps_coverage_memory ... ok
+test maintains::recorded::a_retained_only_public_target_does_not_predict_on_both_stores ... ok
+test maintains::recorded_membership::prediction_clock_json_memory ... ok
+test maintains::recorded_membership::clockless_orphan_import_sqlite ... ok
+test maintains::recorded_membership::live_replacement_passes_unswept_members_memory ... ok
+test maintains::recorded_membership::actual_gaps_reset_held_and_rejoined_sqlite ... ok
+test maintains::recorded::membership_expiry_before_sweep_and_scope_on_both_stores ... ok
+test maintains::recorded_membership::prediction_clock_json_sqlite ... ok
+test maintains::recorded::activation_has_no_events_and_reacquires_both_stores ... ok
+test maintains::recorded_membership::membership_boundary_8189_memory ... ok
+test maintains::recorded_membership::membership_boundary_8190_memory ... ok
+test maintains::recorded_membership::membership_boundary_8191_memory ... ok
+test maintains::recorded_membership::membership_over_budget_memory ... ok
+test maintains::recorded_membership::continuous_renewal_keeps_coverage_sqlite ... ok
+test maintains::recorded_membership::live_replacement_passes_unswept_members_sqlite ... ok
+test maintains::recorded_membership::membership_boundary_8189_sqlite ... ok
+test maintains::recorded_membership::membership_boundary_8190_sqlite ... ok
+test maintains::recorded::recorded_prediction_stream_and_reopen_on_both_stores ... ok
+test maintains::recorded_membership::membership_boundary_8191_sqlite ... ok
+test maintains::recorded::forged_payloads_refuse_on_both_stores ... ok
+test maintains::recorded_membership::membership_over_budget_sqlite ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests/reference_actions.rs (target/debug/deps/reference_actions-34dd6fa442e1d179)
+
+running 4 tests
+test authoritative_memory_sweeps_resume_and_wrap_past_restricted_roots ... ok
+test the_device_projection_prices_every_delete_as_the_server_does ... ok
+test reference_actions_memory ... ok
+test reference_actions_sqlite ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/repair_b.rs (target/debug/deps/repair_b-fb7baec0400de887)
+
+running 110 tests
+test lifecycle::incomplete_echo_requires_its_capture_bound ... ok
+test lifecycle::un_echoed_response_keeps_capture_while_live_and_is_fenced_after_reopen ... ok
+test lifecycle::empty_capture_ends_when_its_response_applies ... ok
+test malformed_bounds_roll_back ... ok
+test multirow_prediction_survives_partial_page ... ok
+test legacy_terminal_releases_private_effects_and_receipts ... ok
+test lifecycle::receipt_during_first_snapshot_binds_its_private_identity ... ok
+test captures_follow_each_request_and_end_on_deferred_apply ... ok
+test lifecycle::interrupted_snapshot_returns_its_mode_with_its_cursor ... ok
+test folded_create_update_and_delete_recreate_preserve_indexes ... ok
+test resumption::generation_adoption_compares_published_identity::memory ... ok
+test resumption::dropping_images_invalidates_published_observations::memory ... ok
+test identity_reset_clears_declarations_without_retiring_private_receipts ... ok
+test lifecycle::replacement_retires_receipts_of_discarded_private_effects ... ok
+test resumption::malformed_terminal_page_cannot_create_a_permanent_deferral::memory ... ok
+test resumption::replacement_before_first_publication_discards_private_incarnation::memory ... FAILED
+test known_gap_refusal_delete_recreate_and_reopen ... ok
+test resumption::replacement_retires_known_receipt_above_private_snapshot_cut::memory ... ok
+test resumption::sending_during_interrupted_snapshot_selects_a_restart::memory ... ok
+test lifecycle::replacement_binds_checkpoint_receipts_before_reset ... ok
+test resumption::unrelated_receipt_cannot_be_retired_by_replacement_watermark::memory ... ok
+test round4::observed_incarnation_is_known_before_first_apply::memory ... ok
+test resumption::generation_adoption_compares_published_identity::sqlite ... ok
+test resumption::malformed_terminal_page_cannot_create_a_permanent_deferral::sqlite ... ok
+test resumption::replacement_before_first_publication_discards_private_incarnation::sqlite ... FAILED
+test resumption::dropping_images_invalidates_published_observations::sqlite ... ok
+test plain_counter_and_crash_and_termination ... ok
+test resumption::sending_during_interrupted_snapshot_selects_a_restart::sqlite ... ok
+test round4::observed_incarnation_is_known_before_first_apply::sqlite ... ok
+test request_bound_does_not_swallow_new_admissions ... ok
+test resumption::replacement_retires_known_receipt_above_private_snapshot_cut::sqlite ... ok
+test resumption::unrelated_receipt_cannot_be_retired_by_replacement_watermark::sqlite ... ok
+test round5::capture_survives_send_and_inspection_until_its_reply_is_rejected::memory ... ok
+test round5::deferred_continuation_requires_its_request_cursor::memory ... ok
+test round5::dequeue_rebases_surviving_predictions::memory ... ok
+test round4::replacement_discards_slot_and_its_receipts::memory ... ok
+test round5::legacy_live_tail_publishes_with_an_unsent_prediction::memory ... ok
+test round5::publishing_an_omitted_identity_uses_the_staged_identity::memory ... ok
+test round5::replacement_start_is_not_the_ordinary_cursor::memory ... ok
+test round5::capture_survives_send_and_inspection_until_its_reply_is_rejected::sqlite ... ok
+test replacing_pages_use_the_same_publication_predicate ... ok
+test round5::snapshot_catchup_uses_its_own_request_floor::memory ... ok
+test round5::send_after_terminal_snapshot_drains_multiple_catchup_pages::memory ... ok
+test round4::private_incarnation_survives_generation_and_retires_its_receipts::memory ... ok
+test round5::terminal_snapshot_gap_is_rejected::memory ... ok
+test round5::dequeue_rebases_surviving_predictions::sqlite ... ok
+test round5::deferred_continuation_requires_its_request_cursor::sqlite ... ok
+test round6::abandoned_capture_after_deferral_includes_later_send::memory ... ok
+test round5::legacy_live_tail_publishes_with_an_unsent_prediction::sqlite ... ok
+test round5::publishing_an_omitted_identity_uses_the_staged_identity::sqlite ... ok
+test round6::late_response_cannot_erase_new_revision_capture::memory ... ok
+test round6::first_page_identity_is_bound_before_replacement::memory ... ok
+test round5::replacement_start_is_not_the_ordinary_cursor::sqlite ... ok
+test round6::snapshot_cut_is_consumed_before_live_requests::memory ... ok
+test round5::terminal_snapshot_gap_is_rejected::sqlite ... ok
+test round5::send_after_terminal_snapshot_drains_multiple_catchup_pages::sqlite ... ok
+test round4::row_reset_preserves_incarnation_and_retires_its_receipts::memory ... ok
+test round6::terminal_gap_refuses_ordinary_snapshot_and_catchup::memory ... ok
+test round5::snapshot_catchup_uses_its_own_request_floor::sqlite ... ok
+test round6::snapshot_cut_is_consumed_before_live_requests::sqlite ... ok
+test round6::late_response_cannot_erase_new_revision_capture::sqlite ... ok
+test round6::abandoned_capture_after_deferral_includes_later_send::sqlite ... ok
+test round8::first_private_identity_already_owns_its_restore_evidence::memory ... ok
+test round7::teardown_loses_send_revision_after_durable_admission ... ok
+test round8::capped_dequeue_keeps_the_published_image::memory ... ok
+test round8::fresh_snapshot_below_captured_private_head_is_restore::memory ... ok
+test round7::snapshot_catchup_installs_intermediate_and_terminal_events ... ok
+test round7::snapshot_disposes_an_advanced_ordinary_slot ... ok
+test round6::first_page_identity_is_bound_before_replacement::sqlite ... ok
+test round8::inline_observation_retains_repair_b_restore_evidence::memory ... ok
+test round8::healthy_pagination_and_stale_responses_do_not_report_restore::memory ... ok
+test round8::inline_recovery_fences_private_and_published_cuts_without_retiring_predictions::memory ... ok
+test round8::first_private_identity_already_owns_its_restore_evidence::sqlite ... ok
+test round8::only_an_explicit_new_incarnation_releases_the_restore_halt::memory ... ok
+test round4::replacement_discards_slot_and_its_receipts::sqlite ... ok
+test round8::only_validated_pages_advance_private_restore_evidence::memory ... ok
+test round8::inline_observation_retains_repair_b_restore_evidence::sqlite ... ok
+test round6::terminal_gap_refuses_ordinary_snapshot_and_catchup::sqlite ... ok
+test round7::receipt_arms_restore_before_replaying_relative_survivors ... ok
+test round8::inline_recovery_fences_private_and_published_cuts_without_retiring_predictions::sqlite ... ok
+test round8::replacement_and_reopen_preserve_disposed_image_head::memory ... ok
+test round7::receipt_without_identity_rebinds_on_first_real_store ... ok
+test round8::round10_image_head_only_advance_fences_without_false_restore::memory ... ok
+test round8::private_cursor_restore_is_durable_through_refill::memory ... ok
+test round8::fresh_snapshot_below_captured_private_head_is_restore::sqlite ... ok
+test round8::only_validated_pages_advance_private_restore_evidence::sqlite ... ok
+test round8::round10_later_declaration_cannot_erase_captured_restore_proof::memory ... ok
+test round8::only_an_explicit_new_incarnation_releases_the_restore_halt::sqlite ... ok
+test lifecycle::incomplete_declaration_does_not_defer_a_safe_gapped_page ... ok
+test round8::round10_schema_adoption_compares_request_progress_atomically::memory ... ok
+test round8::private_image_head_survives_reopen_before_first_restore_observation::memory ... ok
+test lifecycle::every_reset_clears_one_publication_state ... ok
+test round8::round10_request_owns_private_restore_evidence::memory ... ok
+test round8::healthy_pagination_and_stale_responses_do_not_report_restore::sqlite ... ok
+test round8::round10_image_head_only_advance_fences_without_false_restore::sqlite ... ok
+test round8::round10_later_declaration_cannot_erase_captured_restore_proof::sqlite ... ok
+test round8::replacement_and_reopen_preserve_disposed_image_head::sqlite ... ok
+test staged_identity_publishes_with_the_snapshot ... ok
+test several_deferred_receipts_and_indexes ... ok
+test round4::private_incarnation_survives_generation_and_retires_its_receipts::sqlite ... ok
+test round8::round10_schema_adoption_compares_request_progress_atomically::sqlite ... ok
+test round4::row_reset_preserves_incarnation_and_retires_its_receipts::sqlite ... ok
+test round8::capped_dequeue_keeps_the_published_image::sqlite ... ok
+test round8::round10_request_owns_private_restore_evidence::sqlite ... ok
+test round8::private_image_head_survives_reopen_before_first_restore_observation::sqlite ... ok
+test round8::private_cursor_restore_is_durable_through_refill::sqlite ... ok
+test generation_reset_reacquires_images_and_preserves_known_execution_guard ... ok
+test newly_declared_commit_participates_in_deferral ... ok
+test overlapping_captures_do_not_change_the_answered_declaration ... ok
+test undeclared_is_kept_and_predicts_when_declared ... ok
+
+failures:
+
+---- resumption::replacement_before_first_publication_discards_private_incarnation::memory stdout ----
+
+thread 'resumption::replacement_before_first_publication_discards_private_incarnation::memory' (434190402) panicked at crates/snapback4-device/tests/repair_b.rs:47:65:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_PREDICT", family: "prediction", message: "this read needs a table that has not completed acquisition", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- resumption::replacement_before_first_publication_discards_private_incarnation::sqlite stdout ----
+
+thread 'resumption::replacement_before_first_publication_discards_private_incarnation::sqlite' (434190405) panicked at crates/snapback4-device/tests/repair_b.rs:47:65:
+called `Result::unwrap()` on an `Err` value: Refusal { code: "E_PREDICT", family: "prediction", message: "this read needs a table that has not completed acquisition", detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
+
+
+failures:
+    resumption::replacement_before_first_publication_discards_private_incarnation::memory
+    resumption::replacement_before_first_publication_discards_private_incarnation::sqlite
+
+test result: FAILED. 108 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.77s
+
+error: test failed, to rerun pass `-p snapback4-device --test repair_b`

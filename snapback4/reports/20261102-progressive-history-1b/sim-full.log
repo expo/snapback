@@ -1,0 +1,1310 @@
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (run `cargo fix --lib -p snapback4-core` to apply 4 suggestions)
+warning: `snapback4-core` (lib) generated 24 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:478:51
+    |
+478 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-sim v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-sim)
+warning: variable does not need to be mutable
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ----^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `meter_sum`
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_meter_sum`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-sim` (test "maintain_measurement") generated 2 warnings (run `cargo fix --test "maintain_measurement" -p snapback4-sim` to apply 2 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2m 57s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_sim-0430c52f0cd4c2a1)
+
+running 17 tests
+test disk::tests::a_failed_fsync_loses_the_buffer_and_says_so ... ok
+test disk::tests::unsynced_writes_die_with_the_process ... ok
+test rng::tests::same_seed_same_stream ... ok
+test replica::scope_membership_uses_only_the_ordered_audience_columns ... ok
+test rng::tests::chance_bounds ... ok
+test demo::tests::same_seed_same_trace ... ok
+test demo::tests::a_partition_heals ... ok
+test demo::tests::different_seeds_differ ... ok
+test chat::tests::shared_chat_observations_keep_freshness_history_and_first_failure ... ok
+test chat::tests::shared_chat_observation_detects_a_regression_at_the_next_event ... ok
+test chat::tests::day_two_rule_change_rederives_every_partition ... ok
+test chat::tests::a_leave_tombstones_the_group_on_the_device ... ok
+test demo::tests::faults_and_kills_keep_the_invariants_and_then_converge ... ok
+test chat::tests::day_two_narrowing_and_rename_refuse_the_queued_write_typed ... ok
+test chat::tests::day_two_additive_and_widening_keep_every_queued_write ... ok
+test chat::tests::a_seed_replays_to_the_same_digest ... ok
+test chat::tests::the_chat_world_converges_under_faults ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+
+     Running tests/adoption.rs (target/debug/deps/adoption-3a5bcff0891f25f2)
+
+running 5 tests
+test literal_defaults_adopt_three_old_rows_without_writes_and_build_the_index ... ok
+test rules_and_residual_probe_equalities_read_literal_defaults_in_old_images ... ok
+test a_unique_index_and_cap_see_the_materialized_default_and_narrowing_that_fits_adopts ... ok
+test rule_probe_materializes_defaulted_maintain_source_groups ... ok
+test contextual_defaults_narrow_populated_tables_but_adopt_empty_ones_and_still_fill_inserts ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/clique.rs (target/debug/deps/clique-0ec46ef28b20f797)
+
+running 255 tests
+test a_new_optional_column_with_a_constraint_is_additive ... ok
+test action_lease_is_capped_by_the_live_family_and_collection_keeps_its_binding ... ok
+test actions_queue_once_check_rules_and_validate_inputs ... ok
+test actions_retry_backoff_give_up_and_the_eighth_expired_lease_are_terminal ... ok
+test advancing_the_dev_clock_never_extends_a_bound_action_past_its_family ... ok
+test actions_claim_viewer_sessions_expire_fence_and_revoke_on_settlement ... ok
+test a_ranked_feed_is_scored_by_a_job_and_composed_on_the_device ... ok
+test a_bare_table_read_is_the_empty_prefix ... ok
+test a_service_is_admitted_by_its_name_and_a_device_defers_presence ... ok
+test a_job_sweeps_in_chunks_and_its_rows_reach_the_partition ... ok
+test a_search_matches_word_prefixes_newest_first ... ok
+test an_added_aggregate_is_built_from_existing_rows ... ok
+test an_emit_is_claimed_and_settled_by_a_worker ... ok
+test a_schedule_fires_once_per_boundary ... ok
+test clique_digest_uses_two_counters_and_push_preview_concatenates_text ... ok
+test clique_around_seeks_to_the_quote_and_groups_reactions ... ok
+test an_expired_row_is_absent_then_swept ... ok
+test created_equalities_check_the_current_created_row_and_program_reads_stay_authorized ... ok
+test ceremony_run_two_probes_one_row_with_or_without_the_second_index ... ok
+test an_asset_is_served_by_its_home_rows_read_rule ... ok
+test column_defaults_fill_inserts_and_upserts_but_do_not_replace_explicit_values ... ok
+test development_advances_preserve_remaining_effect_lease_time_and_overdue_claims ... ok
+test actions_durable_replay_survives_reopen_and_result_bounds_are_terminal ... ok
+test clique_insights_builds_seven_days_with_one_loop ... ok
+test digest::markers_are_private_unsynced_and_cannot_be_forged ... ok
+test digest::remind_seeks_immutable_time_instead_of_breaking_in_id_order ... ok
+test digest::period_digest_and_viewer_inbox_agree_before_the_expiry_sweep ... ok
+test following::following_candidates_at_scale ... ignored, design comparison: run explicitly with --ignored --nocapture
+test clique_receipt_helper_skips_sender_and_late_joiners ... ok
+test digest::two_queued_runs_share_markers_and_an_empty_period_stays_silent ... ok
+test digest::schedule_cursor_and_markers_survive_restart_and_manual_rerun ... ok
+test digest::chat_overflow_refuses_before_admitting_a_partial_total ... ok
+test action_admission_authority_survives_refresh_but_not_revocation_or_expiry ... ok
+test digest::each_recipient_rechecks_live_state_after_earlier_chunks ... ok
+test digest::refusal_before_or_after_emit_or_marker_rolls_back_the_whole_recipient ... ok
+test following::removal::following_merge_predicate_keeps_each_discovery_binding ... ok
+test following::hybrid_prototype_compiles ... ok
+test a_feed_fans_out_on_write ... ok
+test following::existing_recipe_has_complete_follow_lifecycle ... ok
+test following::removal::following_removal_fills_live_pages_and_continues_through_removed_entries ... ok
+test following::removal::following_removal_heap_cut_stops_at_the_tombstone_key ... ok
+test a_snapshot_is_paged ... ok
+test clique_trending_ranks_the_whole_day_and_marks_a_day_past_the_ceiling_incomplete ... ok
+test following::removal::following_removal_n1_hidden_absent_probe_sweep ... ok
+test following::removal::observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test following::promotion::w11r1c_later_newcomers_refuse_until_the_publicly_identifiable_blocker_frees_a_slot ... ok
+test following::promotion::w11a_promotion_with_one_free_slot_continues_delivery ... ok
+test following::promotion::w11a_promotion_rolls_back_other_followers_routes ... ok
+test following::promotion::w11a_promotion_refuses_saturated_first_follower ... ok
+test grace_effects::grace_effects_aliases_short_circuit_and_unrelated_emits_keep_ownership ... ok
+test grace_effects::grace_effects_clique_send_keeps_each_recipients_push_separate ... ok
+test following::slots::following_count_deletion_is_reader_owned ... ok
+test grace_effects::grace_effects_deadline_and_replay_deliver_once ... ok
+test grace_effects::grace_effects_first_claim_consumes_presence_and_retries_keep_the_same_effect ... ok
+test grace_effects::grace_effects_live_absent_and_grace_have_distinct_admission ... ok
+test grace_effects::invariant::w15a5_live_alias_families_preserve_deferred_effects_and_payloads ... ok
+test grace_effects::grace_effects_reconnect_and_restart_preserve_the_decision ... ok
+test grace_effects::invariant::w15a5_minimal_and_conjunction_fit_final_i1 ... ok
+test digest::membership_bound_is_enforced_before_a_digest_can_skip_a_chat ... ok
+test grace_effects::invariant::w15a6_composition_inherits_only_conjunction_excess ... ok
+test grace_effects::review::w15a4_alias_dag_independent_guard_is_bounded ... ok
+test grace_effects::review::w15a4_setup_marks_are_per_definition_across_reassignment ... ok
+test grace_effects::review::w15a4_alias_dag_independent_operand_is_bounded ... ok
+test grace_effects::review::w15a4_complementary_guards_hedge_without_changing_rows_or_result ... ok
+test grace_effects::review::w15a4_shared_payload_keeps_the_ordinary_boolean ... ok
+test following::slots::following_w7r2_decrement_delete_and_refollow ... ok
+test grace_effects::unconfirmed::w15a_held_deadline_reconnect_and_replay_survive_restart ... ok
+test grace_effects::unconfirmed::w15a_queries_and_row_or_result_decisions_keep_base_values_and_meters ... ok
+test grace_effects::unconfirmed::w15a_mixed_dependencies_wait_for_latest_and_any_timely_arrival_satisfies ... ok
+test grace_effects::w15a_fifty_members_write_one_effect_and_dependency_per_recipient ... ok
+test grace_effects::w15a_held_poll_records_a_deferred_effect ... ok
+test grace_effects::w15a_open_poll_without_a_reconnect_record_does_not_satisfy ... ok
+test following::w10b_wired_repost_resolves_an_event_reference ... ok
+test grace_effects::w7r1_multiple_necessary_absences_respect_each_deadline ... ok
+test grace_effects::w7r1_payload_and_alternative_guards_do_not_cancel ... ok
+test grace_effects::w7r1_payload_dependency_cannot_extend_or_satisfy_an_absence_guard ... ok
+test grace_effects::unconfirmed::w15a_unchanged_forms_keep_base_values_arms_and_all_meter_fields ... ok
+test lane_domains::w13c2_empty_billion_lane_range_stops_at_descriptor_heap_ceiling ... ok
+test lane_domains::w13c2_lists_empty_domains_duplicates_and_range_setup ... ok
+test jobs_and_schedules_are_checked ... ok
+test lane_domains::w13c2_nonuniform_hidden_absent_pages_match_including_the_logical_meter ... ok
+test lane_domains::w13c2_nonuniform_hidden_images_have_byte_identical_pages_and_meters ... ok
+test merge_continuation::cases::a_predicate_cursor_does_not_take_page_ownership_and_shapes_stay_complete ... ok
+test merge_continuation::cases::a_v1_matching_predicate_does_not_overflow ... ok
+test merge_continuation::cases::a_v2_plain_predicate_does_not_overflow ... ok
+test following::removal::following_removal_does_not_observe_or_delete_another_readers_private_rows ... ok
+test following::removal::following_removal_cut_never_returns_unchecked_events ... ok
+test grace_effects::unconfirmed::w15a_aliases_keep_payload_values_and_independent_conditions ... ok
+test lane_domains::w13c2_ranking_range_matches_typed_lanes_and_oracle ... ok
+test merge_continuation::cases::control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate ... ok
+test merge_continuation::cases::control_a_inner_meter_cut_is_still_incomplete ... ok
+test merge_continuation::cases::control_direct_unique_suffix_keeps_its_scoped_token ... ok
+test merge_continuation::cases::control_c1_c2b_opening_cut_has_no_continuation_even_with_buffered_siblings ... ok
+test merge_continuation::cases::d01_old_descriptor_refused_and_paved_token_bytes_unchanged ... ok
+test grace_effects::w7r1_heap_boundary_is_independent_of_grace ... ok
+test merge_continuation::cases::control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal ... ok
+test merge_continuation::cases::d01_equal_suffix_unique_and_non_unique_every_admitting_path ... ok
+test merge_continuation::cases::d53_duplicate_pop_stops_before_an_unknown_head ... ok
+test merge_continuation::cases::ticket_merge_cursor_bypasses_cursor_index ... ok
+test merge_continuation::cases::ticket_merge_equal_suffix_skip ... ok
+test merge_continuation::cases::d52_d54_further_term_lookahead_cut_continues ... ok
+test following::removal::following_removal_purges_promoted_pushes_and_allows_fresh_reposts ... ok
+test merge_continuation::shape_pages::reference_predicate_cut_retries_the_unfinished_row ... ok
+test following::removal::following_removal_measures_the_purge_body_under_unchanged_default_meters ... ok
+test merge_continuation::shape_pages::w13h_auxiliary_shape_does_not_rewind_the_returned_raw_page ... ok
+test merge_continuation::cases::ticket_merge_next_after_non_uniform ... ok
+test following::removal::following_removal_foreign_tombstone_preserves_private_worlds ... ok
+test merge_continuation::cases::d51_filter_drain_cut_continues ... ok
+test merge_continuation::cases::control_c2c_later_meter_cut_does_not_strand_the_owner ... ok
+test lane_domains::w13c2_five_thousand_lanes_cut_without_cursor ... ok
+test merge_continuation::cases::control_c3_direct_filtered_cut_keeps_last_rule_visible_position ... ok
+test merge_continuation::shape_pages::w13h_collector_shape_embedding_raw_page_keeps_main_position ... ok
+test merge_continuation::shape_pages::w13h_collector_wrapping_raw_page_keeps_main_position ... ok
+test merge_continuation::shape_pages::w13h_conditional_cursor_field_does_not_hide_the_page_owner ... ok
+test following::follow_backfill_purge_reposts_and_promotion_are_exact ... ok
+test merge_continuation::shape_pages::w13h_conditional_same_shape_keeps_partial_rows_without_rewind ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_without_exhaustion_keeps_next ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_raw_keeps_its_owner ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_record_raw_keeps_its_position ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_record_shaped_keeps_its_rows ... ok
+test merge_continuation::shape_pages::w13h_finite_helper_composition_terminates ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_shaped_keeps_its_rows ... ok
+test merge_continuation::shape_pages::w13h_cursorless_return_also_drops_an_unfinished_shape ... ok
+test merge_continuation::shape_pages::w13h_incompatible_record_alternatives_are_refused_at_the_join ... ok
+test merge_continuation::shape_pages::w13h_collector_wrapping_conditional_page_keeps_main_position ... ok
+test digest::parked_digest_replacement_skips_completed_profiles ... ok
+test merge_continuation::shape_pages::w13h_conditional_return_keeps_the_raw_position_for_both_arms ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_record_field_keeps_its_page ... ok
+test digest::hub_seeks_the_period_in_one_chunk_and_ordinal_history_parks_on_examined ... ok
+test merge_continuation::shape_pages::w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership ... ok
+test digest::single_profile_stops_at_the_exact_examined_envelope ... ok
+test merge_continuation::shape_pages::w13h_inline_returned_read_retries_the_starved_preview ... ok
+test merge_continuation::shape_pages::w13h_conditional_value_successive_shape_keeps_its_rows ... ok
+test merge_continuation::shape_pages::w13h_loop_same_shape_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::shape_pages::w13h_inherited_cap_cuts_range_merge_shapes ... ok
+test merge_continuation::shape_pages::w13h_inherited_cap_cuts_list_merge_shapes ... ok
+test merge_continuation::cases::d02_non_uniform_outcome_withholds_next_in_both_orders_and_paths ... ok
+test merge_continuation::shape_pages::w13h_loop_carried_record_keeps_owner_position_and_rows ... ok
+test merge_continuation::shape_pages::w13h_drain_cut_keeps_only_fully_shaped_emissions ... ok
+test merge_continuation::shape_pages::w13h_loop_carried_page_keeps_partial_rows_without_an_owner ... ok
+test merge_continuation::shape_pages::w13h_nested_shape_cut_control_preserves_its_outer_row ... ok
+test merge_continuation::shape_pages::w13h_loop_unknown_record_keeps_the_sibling_owner ... ok
+test merge_continuation::shape_pages::w13h_multiple_backedges_keep_the_sibling_raw_position ... ok
+test merge_continuation::shape_pages::w13h_raw_page_returned_beside_its_shape_keeps_its_own_position ... ok
+test merge_continuation::shape_pages::w13h_grouped_9000_walk_never_emits_an_empty_preview ... ok
+test merge_continuation::shape_pages::w13h_rescan_collector_keeps_partial_shapes_and_main_position ... ok
+test merge_continuation::shape_pages::w13h_container_transport_never_erases_a_possible_raw_page ... ok
+test merge_continuation::shape_pages::w13h_unfinishable_predicate_retries_without_skipping_then_withholds_next ... ok
+test merge_continuation::shape_pages::w13h_canonical_bound_read_retries_direct_eager_and_lazy_pages ... ok
+test merge_continuation::shape_pages::w13h_used_auxiliary_summary_does_not_rewind_the_returned_raw_page ... ok
+test merge_continuation::shape_pages::w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow ... ok
+test merge_cursor::cursor_replays_across_generations_only_with_the_same_descriptor ... ok
+test merge_cursor::equal_ordering_keys_continue_and_projection_copies_deduplicate ... ok
+test merge_continuation::shape_pages::w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer ... ok
+test merge_continuation::shape_pages::w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions ... ok
+test merge_continuation::shape_pages::w13h_item_and_alias_collectors_keep_partial_rows_without_rewind ... ok
+test papercuts::w9c_emit_only_bounded_lists_record_effects_on_server ... ok
+test papercuts::w9c_unique_hook_and_legacy_refusals_on_server ... ok
+test papercuts::w9c_unique_hook_preserves_hidden_collision_refusal ... ok
+test merge_cursor::cross_table_hidden_cut_never_skips ... ok
+test merge_cursor::single_table_hidden_cut_never_skips ... ok
+test merge_continuation::shape_pages::w13h_unknown_sibling_and_field_alias_keep_the_unique_owner ... ok
+test prefix_reads::first_witness::cases::matching_exists_eager_first_witness ... ok
+test prefix_reads::first_witness::cases::matching_exists_lazy_first_witness ... ok
+test prefix_reads::w13c_existence_cut_before_a_live_match_returns_no_scalar_on_a_capped_answer ... ok
+test prefix_reads::w13c_hidden_prefix_worlds_are_identical_and_expired_only_is_false ... ok
+test prefix_reads::w13c_lane_source_inline_seek_matches_locals_and_direct_page ... ok
+test prefix_reads::first_witness::cases::matching_exists_eager_grouped_walk ... ok
+test prefix_reads::first_witness::cases::matching_exists_lazy_grouped_walk ... ok
+test prefix_reads::w13c_undefined_compiler_temporaries_are_internal_with_operation_and_site ... ok
+test prefix_reads::w13c_whole_group_loop_merge_and_exists_run_without_spurious_overflow ... ok
+test merge_continuation::shape_pages::w13h_page_or_empty_in_either_order_keeps_rows_without_an_owner ... ok
+test read_cut::held_query_compiles_with_device_dispatch_and_a_server_refusal ... ok
+test read_cut::nonuniform_full_response_sweep_including_cut ... ok
+test read_cut::point_probe_cut_cannot_disappear ... ok
+test row_preserving_pages::cases::w13i_cursor_notes_keep_their_existing_triggers ... ok
+test merge_cursor::uniform_eager_and_lazy_cuts_never_skip ... ok
+test row_preserving_pages::cases::w13i_group_carries_the_membership_page ... ok
+test row_preserving_pages::cases::w13i_dropping_helpers_and_unrelated_values_have_no_owner ... ok
+test merge_continuation::shape_pages::w13h_two_page_loop_keeps_unique_sibling_owner_but_not_two_sites ... ok
+test row_preserving_pages::cases::w13i_nested_group_sort_carries_the_membership_page ... ok
+test row_preserving_pages::cases::w13i_original_probe_walks_direct_and_merged_pages_to_completion ... ok
+test merge_continuation::shape_pages::w13h_loop_exits_keep_main_ownership_without_trimming ... ok
+test row_preserving_pages::cases::w13ir1_diagnostics_group_sites ... ok
+test row_preserving_pages::cases::w13ir1_diagnostics_nested_sites ... ok
+test row_preserving_pages::cases::w13ir1_diagnostics_nonowners_have_no_sites ... ok
+test row_preserving_pages::cases::w13i_sort_carries_the_membership_page ... ok
+test row_preserving_pages::cases::w13ir1_diagnostics_sort_sites ... ok
+test search_directory::w10c_directory_uses_the_cards_single_query_and_resets_its_cursor ... ok
+test row_preserving_pages::cases::w13i_group_does_not_extend_the_returned_shape_mark ... ok
+test search_global::forms::w13e_both_forms_report_unknown_history_at_a_device_horizon ... ok
+test row_preserving_pages::cases::w13i_helpers_preserve_a_meter_cut_and_continue_its_filtered_source ... ok
+test prefix_reads::w13c_nine_thousand_row_uniform_loop_is_meter_capped ... ok
+test prefix_reads::first_witness::cases::first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress ... ok
+test merge_continuation::shape_pages::w13h_page_or_null_record_keeps_owner_and_rows ... ok
+test prefix_reads::w13c_rule_exists_keeps_one_probe_across_expired_siblings ... ok
+test merge_continuation::shape_pages::w13h_successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages ... ok
+test search_global::forms::w13e_dense_100 ... ok
+test search_global::forms::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page ... ok
+test search_global::lazy::w13f_flattened_drain_cut_continues_after_32_emissions ... ok
+test search_global::forms::w13e_grouped_cut_continues_through_9000_memberships ... ok
+test search_global::lazy::w13f_further_terms_and_duplicate_words_preserve_one_ordered_walk ... ok
+test search_global::lazy::w13f_dense_100 ... ok
+test search_global::lazy::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped ... ok
+test search_global::w7r1b_server_search_cursor_positions_and_descriptors ... ok
+test search_reads_are_checked ... ok
+test sum_over_a_page_and_a_bare_return ... ok
+test time_indexes::w13c2_adoption_builds_time_keys_and_rebuilds_changed_period_and_offset ... ok
+test time_indexes::w13c2_bucket_order_seeks_and_cursor_cross_boundaries ... ok
+test time_indexes::w13c2_moving_time_reindexes_and_daily_unique_uses_the_named_refusal ... ok
+test merge_continuation::shape_pages::w13h_record_or_null_keeps_its_value_without_an_owner ... ok
+test trending::lanes::column_lane_ties_rewrite_and_zero_stays_indexed ... ok
+test trending::lanes::column_oracle_clock_and_zeros_in_one_merge ... ok
+test trending::lanes::column_ranking_keeps_source_write_authority ... ok
+test trending::lanes::w14a_one_cursor_with_a_concurrent_like_and_score_crossing_limit ... ok
+test search_global::lazy::w13f_hidden_worlds_have_identical_pages_and_dev_meters ... ok
+test merge_continuation::shape_pages::w13j_unfinishable_merge_shapes_refuse_in_both_directions ... ok
+test trending::lanes::w15c_equal_scores_continue_across_page_and_drain_cuts_in_both_directions ... ok
+test trending::trending_equal_score_equal_time_pages_match_immediate ... ok
+test trending::trending_recipe_candidate_expiry_is_live_before_and_after_sweep ... ok
+test trending::trending_recipe_schedule_converges_without_widening_write_rules ... ok
+test trending::w12a_fresh_ranking_changes_in_the_source_transaction_without_a_schedule ... ok
+test search_global::lazy::w13f_flattened_opening_cut_stays_terminal ... ok
+test trending::w12a_fresh_ranking_seed_ties_boundaries_and_meter ... ok
+test merge_continuation::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read ... ok
+test uniform_word_expansion::search_45_words_walks_20_20_5 ... ok
+test uniform_word_expansion::search_expired_both_traversals_fit_and_admitted_nonuniform_two_worlds ... ok
+test uniform_word_expansion::search_expired_meter_boundary_is_existing_time_hidden_work ... ok
+test uniform_word_expansion::search_long_bodies_are_precharged_before_store_decode_and_row_tokenisation ... ok
+test uniform_word_expansion::search_nested_cursor_ir_is_borrowed_without_per_lane_clones ... ok
+test uniform_word_expansion::search_non_uniform_still_stops_at_32 ... ok
+test uniform_word_expansion::search_opening_and_heap_cuts ... ok
+test trending::w12r1a_fresh_ranking_heap_cut_with_full_size_bodies ... ok
+test trending::w12r1a_exhausted_count_projection_is_unavailable ... ok
+test uniform_word_expansion::search_thousand_words_borrow_eight_4k_literals_and_continue_many_pages ... ok
+test trending::lanes::w14a_partial_boundary_hour_is_charged_and_can_cut ... ok
+test w7a_saturated_author_keeps_own_posts_and_ghost_reposts_refuse ... ok
+test trending::lanes::column_first_page_includes_unliked_posts_without_scanning_the_population ... ok
+test w7a_wired_writes_respect_the_private_routing_prediction_boundary ... ok
+test uniform_word_expansion::search_uniform_word_counts_and_worlds ... ok
+test w6a_wired_following_is_bounded_and_removes_app_events ... ok
+test w6r1_wired_following_privacy_tombstones_and_broadcast ... ok
+test merge_cursor::hidden_absent_wire_pairs_near_the_examined_ceiling ... ok
+test following::slots::following_w7r2_churn_at_accounting_cap ... ok
+test read_cut::calibration_uniform_words_continue_and_hidden_prefix_has_a_walk_bound ... ok
+test a_feed_read_costs_the_same_at_five_and_five_hundred_follows ... ok
+test following::following_is_full_and_complete_at_the_envelope ... ok
+test search_global::lazy::w13f_clique_every_row_hits_in_1000_lanes ... ok
+test search_global::forms::w13e_dense_500 ... ok
+test following::following_removes_source_events_at_the_envelope ... ok
+test trending::lanes::w14a_population_and_group_lifetime ... ok
+test search_global::lazy::w13f_dense_500 ... ok
+test search_global::forms::w13e_newest_measures_complete_page_and_opening_envelope ... ok
+test search_global::forms::w13e_dense_1000 ... ok
+test search_global::lazy::w13f_dense_1000 ... ok
+
+test result: ok. 254 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 65.15s
+
+     Running tests/condition_authority.rs (target/debug/deps/condition_authority-2b2808b792cd83d6)
+
+running 2 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w2_serialized_conditions_refuse_writes_under_blocks_shapes_and_scan_filters ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+
+     Running tests/decorated_search.rs (target/debug/deps/decorated_search-4b440e0174841e27)
+
+running 11 tests
+test generated_handles_only_mark_actual_source_identity ... ok
+test decoration_deadline_is_a_value_refresh_not_a_page_expiry ... ok
+test combined_page_only_decorates_selected_current_hits ... ok
+test device_word_cut_preserves_metadata_with_point_decorations ... ok
+test decoration_exhaustion_refuses_instead_of_changing_the_page ... ok
+test page_and_pinned_metadata_match_bare_and_points_are_deduplicated ... ok
+test projection_can_omit_id_and_order_without_losing_source_keys ... ok
+test unsafe_integer_order_keys_are_exact_in_selection_and_source_wire ... ok
+test word_expansion_and_device_word_cut_are_owned_by_the_bare_page ... ok
+test scale_page_adds_only_distinct_decoration_reads ... ok
+test established_w13_scale_corpus_adds_only_distinct_keys ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.80s
+
+     Running tests/device.rs (target/debug/deps/device-4b1f941d553ba28f)
+
+running 3 tests
+test a_send_is_predicted_and_counts ... ok
+test the_devices_words_hold ... ok
+test a_thread_pages_locally_with_the_servers_cursors ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/digest_count.rs (target/debug/deps/digest_count-36924cfb66984ca0)
+
+running 1 test
+test dropping_count_results_does_not_remove_sqlite_decode_allocations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.26s
+
+     Running tests/exhaustive.rs (target/debug/deps/exhaustive-f65700760e4eac30)
+
+running 2 tests
+test deeper ... ignored, opt-in: SNAPBACK4_EXHAUSTIVE_DEPTH (default 3); minutes at depth 3
+test every_sequence_of_two_writes_keeps_disclosure_and_authority ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.51s
+
+     Running tests/expiry_reference_actions.rs (target/debug/deps/expiry_reference_actions-51142d624d062cd1)
+
+running 7 tests
+test commit_retirement_and_expired_same_id_replacement_apply_actions ... ok
+test a_blocked_expiry_table_yields_to_later_tables_at_limit_one ... ok
+test same_id_replacement_reloads_maintained_columns_after_cascade_retirement ... ok
+test a_read_through_blocker_below_a_cascade_is_preflighted_and_does_not_starve_later_roots ... ok
+test sweep_applies_every_action_and_advances_past_a_restricted_root ... ok
+test row_keyed_view_source_expiry_retires_through_reference_actions ... ok
+test read_through_closure_probe_is_admitted_before_a_low_ceiling_delete ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/filters.rs (target/debug/deps/filters-4099d45cffb108dc)
+
+running 5 tests
+test a_filled_uniform_filter_is_complete_without_a_cursor_too ... ok
+test predicate_probe_cut_withholds_row_and_direct_cursor_uses_its_visible_key ... ok
+test uniform_filtered_pages_advance_past_more_rejections_than_the_ceiling ... ok
+test a_filled_page_positions_after_its_last_returned_row ... ok
+test no_cursor_discloses_a_hidden_key_and_a_hidden_run_ends_empty ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/helper_pages.rs (target/debug/deps/helper_pages-ac4fb97819a4c4d8)
+
+running 43 tests
+test early_return_in_if_else_if_keeps_page ... ok
+test continuing_scalar_is_incomplete ... ok
+test nested_returning_helper_keeps_page ... ok
+test page_loss::auxiliary_field ... ok
+test interrupted_6 ... ok
+test interrupted_5 ... ok
+test interrupted_1 ... ok
+test interrupted_4 ... ok
+test interrupted_3 ... ok
+test exhausted_returning_helper_is_complete ... ok
+test exhausted_scalar_is_complete ... ok
+test interrupted_12 ... ok
+test interrupted_2 ... ok
+test early_return_in_for_keeps_page ... ok
+test page_loss::auxiliary_breaks ... ok
+test accumulated_helper_page_continues ... ok
+test page_loss::different_result_4 ... ok
+test page_loss::interrupted_twice_4_1 ... ok
+test page_loss::direct_return_4 ... ok
+test page_loss::interrupted_twice_0_5 ... ok
+test page_loss::direct_return_0 ... ok
+test page_loss::different_result_1 ... ok
+test page_loss::interrupted_twice_5_0 ... ok
+test page_loss::interrupted_twice_1_1 ... ok
+test page_loss::auxiliary_finishes ... ok
+test page_loss::still_whole_5 ... ok
+test page_loss::repeated_count_exhausted ... ok
+test page_loss::still_whole_4 ... ok
+test page_loss::repeated_count_loses_first_cursor ... ok
+test auxiliary_lost_page_is_incomplete ... ok
+test page_loss::direct_return_1 ... ok
+test page_loss::overwritten_collector ... ok
+test page_loss::whole_and_different_4 ... ok
+test page_loss::whole_and_different_6 ... ok
+test page_loss::still_whole_6 ... ok
+test program_return_still_exits_nested_loops_without_a_cursor ... ok
+test returning_helper_inside_merge_setup_keeps_page ... ok
+test plain_page_continues ... ok
+test returning_helper_keeps_merge_page ... ok
+test returning_helper_keeps_matching_page ... ok
+test page_loss::repeated_owned_site_keeps_only_last_cursor ... ok
+test owned_page_cannot_mask_lost_sibling ... ok
+test page_loss::generated_row_coverage ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.08s
+
+     Running tests/helper_sweep.rs (target/debug/deps/helper_sweep-d15243968ed2d3a6)
+
+running 1 test
+test helper_and_inline_digest_emit_the_same_effects_across_chunks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/intent_integration.rs (target/debug/deps/intent_integration-687e0835b223443e)
+
+running 3 tests
+test target_queries_and_nine_derived_views_run_together ... ok
+test full_target_following_shapes_delivery_and_lifecycle ... ok
+test predicate_stream_and_target_digest_sweep_preserve_authority_restart_and_once ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running tests/loopbar.rs (target/debug/deps/loopbar-f4674b721f08237f)
+
+running 6 tests
+test a_nullable_unique_merge_does_not_skip_equal_null_keys ... ok
+test a_literal_after_an_optional_identity_is_an_id ... ok
+test a_merged_feed_continues_when_one_lane_fills_the_page ... ok
+test a_cursorless_page_with_more_rows_is_complete ... ok
+test lazy_merge_matches_the_eager_union_on_every_page ... ok
+test a_wide_feed_reads_heads_and_returns_the_complete_newest_page ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/maintain_measurement.rs (target/debug/deps/maintain_measurement-04a520470e58880c)
+
+running 2 tests
+test accepted_maintain_costs ... ignored, explicit 50,000/100,000-row measurement; never part of the blocking suite
+test existing_engine_maintain_costs ... ignored, measurement only; scans the 50,000/100,000-row envelopes explicitly
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/maintains.rs (target/debug/deps/maintains-70bef30e354f0f77)
+
+running 16 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test contribution_transitions_coalesce_and_match_a_fold ... ok
+test overflow_rolls_back_the_source_targets_and_value_index ... ok
+test filtered_computed_zero_sum_candidate_survives_independent_expiry ... ok
+test generated_composite_aggregate_groups_keep_fixed_digest_identities ... ok
+test changing_calendar_offset_rebuilds_keys_without_source_backfill ... ok
+test calendar_is_euclidean_and_rank_matches_an_exact_sort_after_changes ... ok
+test scoped_value_order_and_seven_day_scalars_match_the_oracle ... ok
+test adoption_rebuilds_filters_buckets_and_defaults_without_source_writes ... ok
+test expiring_computed_groups_seek_selected_sources_and_sweep_once ... ok
+test adoption_assesses_final_filtered_sums_and_default_changes_without_rewriting_sources ... ok
+test chips_transition_cap_cursor_and_outsider ... ok
+test anchored_calendar_keys_match_on_server_memory_and_sqlite ... ok
+test hidden_filtered_keyed_overflow_residual_is_value_free_and_atomic ... ok
+test hidden_filter_work_has_one_wire_and_meter_observation ... ok
+test hidden_filter_work_delete_has_one_observation_per_target_outcome ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.92s
+
+     Running tests/maintains_recorded.rs (target/debug/deps/maintains_recorded-65adab6821e49b06)
+
+running 19 tests
+test round1::a_recorded_column_cannot_have_an_application_default ... ok
+test round1::program_insert_applies_reference_default_before_capture ... ok
+test round1::literal_field_lookup_and_nullable_required_target_time ... ok
+test round1::malformed_target_fields_are_errors_not_null_captures ... ok
+test round1::ranking_and_trending_project_recorded_keys ... ok
+test activation_assesses_sums_using_the_new_capture_groups ... ok
+test round1::uncovered_large_target_reserves_before_fetch_then_requires_coverage ... ok
+test round1::ordinary_updates_and_upsert_update_preserve_capture ... ok
+test round1::mixed_capture_repair_and_unrelated_rebuild_keep_separate_event_scopes ... ok
+test round1::capture_and_reimport_propagate_store_read_errors_without_null_writes ... ok
+test round1::later_unrelated_rebuild_and_live_sum_repair_log_their_changes ... ok
+test clique_fixture_matches_the_hand_copied_model ... ok
+test equivalence_after_deletion_reuse_and_unswept_expiry ... ok
+test predicate_changes_read_recorded_facts_and_new_paths_capture_once ... ok
+test round1::activation_capture_persists_after_reopen_and_empty_capture_has_no_gap ... ok
+test forged_program_payloads_and_system_jobs_are_refused_including_noop_updates ... ok
+test activation_dangling_expired_reused_and_removed_paths ... ok
+test untrusted_import_refuses_forgery_and_trusted_restore_keeps_history ... ok
+test round1::separate_import_commits_and_winning_forgery ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/maintains_review.rs (target/debug/deps/maintains_review-34f8a4be6aaaae30)
+
+running 3 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test review2_hidden_occupancy_has_bounded_physical_work_and_scratch ... ok
+test review2_hidden_and_absent_worlds_keep_identical_observations ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.77s
+
+     Running tests/membership.rs (target/debug/deps/membership-9c8e1375af70524b)
+
+running 29 tests
+test page4_conformance::existing_scoped_word_index_can_gain_only_the_missing_reverse_source_index ... ok
+test page4_conformance::negative_covering_grant_requires_the_new_capability_and_local_negation_is_analyzer_only ... ok
+test absorption_is_local_to_or_and_requires_a_total_unique_plain_self_key ... ok
+test page4_conformance::lean_gate_prices_every_filter_product_pin_before_comparison ... ok
+test page4_conformance::equality_filter_note_prints_one_matching_index_and_query ... ok
+test page4_conformance::asserted_maintained_row_keeps_output_type_and_never_becomes_computation ... ok
+test page4_conformance::standalone_static_grant_leaves_coexist_with_membership_lanes ... ok
+test owner_or_total_unique_source_id_expires_as_one_complete_lane ... ok
+test page4_conformance::online_membership_word_search_uses_exact_discovery_without_replication ... ok
+test page4_conformance::named_plain_page_and_pinned_membership_keep_every_party_complete ... ok
+test owner_or_membership_page_ignores_an_expired_unswept_witness ... ok
+test page4_conformance::author_id_scope_is_complete_and_discovery_cut_publishes_nothing ... ok
+test page3_compound_status_and_role_revocation_preserve_current_authority ... ok
+test owner_or_membership_cursor_observes_revocation_and_acquisition_after_its_position ... ok
+test page4_conformance::owner_public_member_union_orders_and_deduplicates_every_audience ... ok
+test page4_conformance::compound_prefix_and_indexed_vacancy_are_complete_for_all_callers ... ok
+test page4_conformance::required_parent_snapshot_key_is_total_but_never_proves_a_copied_audience ... ok
+test page4_conformance::exact_where_witness_keeps_only_its_scope_even_for_the_system ... ok
+test page4_conformance::negative_readable_static_grant_and_finite_status_ranges_are_complete ... ok
+test page4_conformance::exact_vacancy_pages_publish_only_rule_visible_exhaustion ... ok
+test page4_conformance::two_party_exact_parent_witness_fixes_one_component_per_lane ... ok
+test literal_and_other_table_probes_do_not_absorb_membership_equality ... ok
+test page4_conformance::parent_snapshot_keys_keep_completeness_when_the_page_is_assigned_and_cut_is_not_absence ... ok
+test page4_mixed_audiences_revoke_between_pages_without_dropping_owned_rows ... ok
+test self_witness_receipt_aggregate_is_complete_through_delivery_read_and_leave ... ok
+test page5_product_fixed_membership_and_vacancy_publish_complete_pages ... ok
+test page4_conformance::two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete ... ok
+test self_witness_roster_and_directory_are_complete_without_disclosing_other_chats ... ok
+test extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/membership_search.rs (target/debug/deps/membership_search-d2e49e3f4023d6ae)
+
+running 24 tests
+test drain_cut_keeps_a_cursor_after_fully_emitted_hits ... ok
+test edges::carriage_return_search_text_withholds_the_runtime_repair ... ok
+test edges::compact_refill_heap_failure_is_an_explicit_refusal ... ok
+test every_drain_cut_either_explains_opening_or_advances ... ok
+test message_and_rule_witness_declarations_do_not_share_a_decode_reservation ... ok
+test matches_existing_completed_answers_with_ties_words_expiry_and_unused_payload ... ok
+test forty_overlapping_words_keep_one_result_per_id_and_charge_rescans ... ok
+test later_word_head_can_win_in_either_output_direction ... ok
+test membership_revocation_between_pages_rechecks_authority ... ok
+test actual_size_admission_uses_the_active_heap_ceiling ... ok
+test edges::public_witness_default_must_fit_before_materialization ... ok
+test edges::adopted_default_prepay_is_replaced_by_the_retained_row_charge ... ok
+test private_payload_sizes_do_not_select_actual_size_admission ... ok
+test edges::final_result_copy_preserves_the_compact_refusal ... ok
+test edges::stored_public_witness_field_does_not_reserve_its_unused_default ... ok
+test edges::calendar_repair_executes_the_same_offset_boundary_predicate ... ok
+test refusal_counts_authorized_keys_exactly_without_hidden_memberships ... ok
+test opening_refusal_names_visible_count_site_envelope_and_grouped_rewrite ... ok
+test oversized_declaration_with_tiny_payload_keeps_existing_complete_answer ... ok
+test edges::public_witness_materialization_uses_actual_stored_fields_and_active_ceiling ... ok
+test edges::eligible_heap_ceiling_sweep_never_returns_a_heap_null_page ... ok
+test edges::cursor_delivery_boundaries_never_return_null ... ok
+test refusal_rewrite_compiles_on_its_schema_and_keeps_filters_in_both_searches ... ok
+test edges::stored_megabyte_payload_overflow_refuses_after_internal_emission ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+     Running tests/native.rs (target/debug/deps/native-c13ddd4b8f54d989)
+
+running 13 tests
+test a_write_past_the_ceiling_parks_a_native_job_and_rolls_the_chunk_back ... ignored, 8,192 writes through the debug host take about 20 s; run with --ignored
+test only_a_job_can_be_native ... ok
+test a_native_job_without_a_module_parks_and_says_so ... ok
+test a_legacy_declaration_only_native_hash_parks_without_executing ... ok
+test a_trap_parks_a_native_job_with_the_reason ... ok
+test read_only_native_query_never_constructs_a_manifest ... ok
+test a_refused_write_parks_a_native_job_and_rolls_the_chunk_back ... ok
+test a_schedule_fires_a_native_job ... ok
+test a_scheduled_native_run_binds_the_module_at_the_boundary ... ok
+test a_native_job_scores_the_feed_and_the_ordinary_query_serves_it ... ok
+test a_native_continuation_keeps_its_module_binding_across_restart ... ok
+test a_native_continuation_parks_when_module_bytes_change_and_new_work_runs ... ok
+test a_native_job_resumes_by_the_state_it_returns ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.08s
+
+     Running tests/ordinary_search.rs (target/debug/deps/ordinary_search-51eb5b9ff3721647)
+
+running 19 tests
+test audience_proof_requires_the_exact_sync_target_and_prefix ... ok
+test an_optional_index_label_over_budget_keeps_the_baseline ... ok
+test emitted_row_identity_excludes_projected_ids ... ok
+test mutable_scope_composes_with_the_same_point_overlap_boundary ... ok
+test unsupported_audiences_and_authored_guards_do_not_infer ... ok
+test audience_proof_is_complete_authorized_and_bounded ... ok
+test guards_explicit_predicates_held_and_nonmembers_keep_their_meaning ... ok
+test empty_needle_keeps_existing_browse_and_variant_fence ... ok
+test search_overlap_is_a_bounded_authorized_point_under_the_page_meter ... ok
+test readable_discovery_with_an_oversized_key_keeps_the_baseline ... ok
+test ordinary_opening_refusal_and_drain_cuts_keep_consumed_positions ... ok
+test system_search_keeps_the_original_evaluator ... ok
+test ordinary_server_matches_explicit_pages ... ok
+test a_standalone_bare_program_provisions_its_scoped_index ... ok
+test denied_discovery_cannot_add_or_reject_an_optional_index ... ok
+test a_hidden_population_does_not_change_the_inferred_page_or_receipt ... ok
+test unchanged_builder_programs_keep_identical_device_ir ... ok
+test scope_after_an_equality_pin_still_gets_a_complete_paginated_plan ... ok
+test membership_scales_fit_or_refuse_without_claiming_an_opening ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.65s
+
+     Running tests/page_admission.rs (target/debug/deps/page_admission-2c5af86fa57f1f86)
+
+running 15 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w14b_expiry_rewrite_names_the_statement_boundary_and_keeps_job_door ... ok
+test w3_serialized_nonlooping_merge_without_merge_site_is_refused ... ok
+test w5_query_verdicts_charge_the_allowance_without_the_mutation_attempt ... ok
+test w3_predicting_bound_word_page_is_refused_independently_of_hidden_population ... ok
+test w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling ... ok
+test w2_hidden_word_expansion_and_effectful_expiring_pages_are_refused_at_check ... ok
+test w3_upsert_condition_is_one_compiler_refusal_and_update_condition_is_admitted ... ok
+test w2_a_mutation_binding_a_nonuniform_page_is_refused_with_zero_or_ten_thousand_hidden_rows ... ok
+test w4_live_maintain_probe_equalities_ignore_expired_contributions ... ok
+test w5_uniform_denied_short_circuit_pages_have_identical_complete_observations ... ok
+test w5_uniform_allowed_short_circuit_pages_have_identical_complete_observations ... ok
+test w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation ... ok
+test w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle ... ok
+test w4_live_maintain_existence_walk_has_one_probe_with_bounded_expired_sources ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s
+
+     Running tests/progressive_history.rs (target/debug/deps/progressive_history-5ee5a58d84c85d0e)
+
+running 1 test
+test bounded_schedules_converge_through_inflight_changes_and_crash_reopen ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/reference_exhaustive.rs (target/debug/deps/reference_exhaustive-55765fc76f3ce43d)
+
+running 1 test
+test every_short_sequence_cascades_restricts_and_discloses_as_the_rules_say ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+
+     Running tests/residency.rs (target/debug/deps/residency-200626ccdf3ca9d1)
+
+running 17 tests
+test w9r2_scan_modifier_sources ... ok
+test upsert_residency_explains_insert_prediction_without_changing_eligibility ... ok
+test a_final_exists_proof_that_exhausts_the_meter_queues_instead_of_refusing ... ok
+test clique_operations_have_words_sites_and_api_documentation ... ok
+test server_sites_prevent_prediction_and_explicit_online_only_never_syncs ... ok
+test a_new_id_guard_warns_without_falsely_removing_eligibility_and_names_the_runtime_key ... ok
+test online_only_opts_a_maintain_out_and_class_changes_name_the_site ... ok
+test inference_refuses_noninvertible_rules_and_requires_an_ambiguous_recipient ... ok
+test w9r2_matching_full_source ... ok
+test w9r2_matching_horizon_source ... ok
+test muse_membership_audience_iterations_compile_as_one_inference_edit ... ok
+test w9r1a_temporary_audience_coverage_does_not_promise_completeness ... ok
+test w9r2_matching_online_source ... ok
+test w9r1a_truncated_held_page_coverage_does_not_promise_completeness ... ok
+test inference_preserves_all_three_audiences_and_the_cold_partition ... ok
+test w9r1a_clique_source_coverage_has_nonvacuous_positive_and_negative_controls ... ok
+test service_read_grants_preserve_the_device_audience_snapshot_and_stream_bytes ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/retained_release.rs (target/debug/deps/retained_release-6f807132fc90cdb0)
+
+running 3 tests
+test trace::literal_column_restoration_cannot_keep_dormant_images_on_either_store ... ok
+test trace::release_changes_reacquire_union_arms_and_merged_pages_without_old_membership ... ok
+test trace::retained_releases_never_mix_shapes_on_late_reordered_pages_and_reopen ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/review_corrections.rs (target/debug/deps/review_corrections-adc4a4bd35323072)
+
+running 32 tests
+test expired_rows_do_not_consume_the_acquisition_horizon ... ok
+test an_unfinished_aggregate_discards_the_page_without_skipping_its_group ... ok
+test an_expired_unswept_grant_does_not_hide_its_replacement_interval ... ok
+test a_capped_maintained_scan_is_unavailable_without_a_cursor ... ok
+test emit_only_job_chunks_commit_work_for_the_effect_worker ... ok
+test a_capped_maintained_point_is_unavailable ... ok
+test json_numbers_are_checked_at_every_untyped_depth ... ok
+test drained_partitions_cover_successful_writes_without_viewer_events ... ok
+test expired_rows_are_absent_to_reads_but_conservatively_occupy_caps_until_swept ... ok
+test cursorless_nonunique_scans_keep_live_siblings_after_an_expired_batch ... ok
+test asset_narrowing_and_removed_homes_share_the_activation_commit ... ok
+test failed_derived_rebuild_and_sql_commit_keep_previous_activation ... ok
+test job_chunks_enforce_final_exists_and_rollback_the_whole_chunk ... ok
+test inserted_constraint_images_survive_later_updates_and_deletes ... ok
+test expired_sources_recompute_a_zero_sum_for_point_and_scan_reads ... ok
+test a_stale_engine_cannot_park_or_enqueue_a_new_owners_jobs ... ok
+test projected_reads_retain_the_next_visible_expiry ... ok
+test expired_memberships_suppress_server_history_before_the_sweep ... ok
+test an_expiring_point_read_charges_its_live_row_once ... ok
+test a_legacy_grant_cannot_borrow_a_later_rejoins_lifetime ... ok
+test checked_narrowing_is_atomic_for_types_unique_and_caps ... ok
+test program_only_activation_does_not_walk_or_rebuild_unchanged_maintains ... ok
+test released_assets_can_move_and_be_reclaimed_before_collection ... ok
+test projection_removes_fields_and_dropped_tables_do_not_resurrect ... ok
+test detached_sync_reads_do_not_reserve_the_writer_and_detect_activation ... ok
+test updating_one_created_row_keeps_sibling_facts ... ok
+test schedules_do_not_rewind_and_changed_shapes_start_at_the_next_boundary ... ok
+test opening_an_older_store_backfills_missing_live_sum_candidates_once ... ok
+test output_budget_refuses_indivisible_results_and_rolls_back_mutations ... ok
+test current_release_is_checked_under_activation_lock_and_attach_never_adopts ... ok
+test restart_and_competing_owner_use_semantic_generations ... ok
+test aggregate_rebuild_walks_multiple_source_and_target_pages ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/reviews.rs (target/debug/deps/reviews-41ad2a1a7eee9d1f)
+
+running 30 tests
+test a_maintained_table_cannot_expire ... ok
+test a_never_live_replacement_keeps_its_live_predecessors_revocation ... ok
+test a_never_live_grant_stays_silent_across_watermarks ... ok
+test a_born_row_moved_to_another_recipient_reaches_only_it ... ok
+test a_row_revived_within_its_commit_survives ... ok
+test a_grant_live_at_its_commit_still_revokes_when_it_expires ... ok
+test m3_e_bound_names_the_ceiling_not_the_count ... ok
+test a_live_chain_still_revokes_when_a_page_ends_at_its_never_live_join ... ok
+test an_already_expired_grant_is_retired_in_its_commit ... ok
+test a_same_commit_expired_sibling_is_no_predecessor ... ok
+test a_recreated_row_keeps_the_deletion_of_its_first_incarnation ... ok
+test a_grant_inserted_already_expired_reaches_nobody ... ok
+test h1_check_notes_a_page_that_is_never_complete ... ok
+test a_held_grant_renewed_and_revoked_in_one_commit_still_revokes ... ok
+test a_grant_born_renewed_and_revoked_in_one_commit_reaches_nobody ... ok
+test a_truncated_own_page_never_grants_a_later_membership_early ... ok
+test an_already_expired_content_row_is_retired_and_counts_stay_true ... ok
+test p1_a_principal_named_public_is_only_itself ... ok
+test a_closed_membership_suppresses_join_time_history ... ok
+test a_born_grant_expired_recreated_and_revoked_reaches_nobody ... ok
+test h4_a_miss_and_a_hidden_hit_cost_the_same ... ok
+test retirement_reaches_no_total_the_commit_never_held ... ok
+test p3_a_commit_larger_than_the_page_streams_whole ... ok
+test m1_a_hoisted_false_range_costs_what_an_empty_one_costs ... ok
+test two_born_siblings_share_their_birth ... ok
+test revoke_regrant_revoke_in_one_commit_revokes_once ... ok
+test p4_a_grant_that_ends_in_its_commit_delivers_nothing ... ok
+test p2_p5_p7_p8_the_validator_refuses_unsound_audiences ... ok
+test h1_a_non_uniform_scan_is_capped_whatever_the_meter_found ... ok
+test undoing_a_replacement_keeps_the_predecessors_revocation ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/roster.rs (target/debug/deps/roster-1090c66e7b6678b7)
+
+running 2 tests
+test a_global_roster_is_one_group_inferred_from_the_read_rule ... ok
+test every_sequence_of_three_roster_writes_keeps_disclosure_and_authority ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+
+     Running tests/search_merge.rs (target/debug/deps/search_merge-b27db521532b94d0)
+
+running 11 tests
+test matching_merge_refusals_name_the_admitted_rewrite_and_51_lanes_get_a_note ... ok
+test further_terms_filter_and_query_expression_is_outside_lane_bindings ... ok
+test more_than_eight_word_heads_keep_one_verdict_and_exhaust_without_gaps ... ok
+test meter_for_two_scopes_times_three_words_times_twenty_rows ... ok
+test nonuniform_matching_lanes_keep_per_row_authority_and_the_note ... ok
+test empty_scopes_and_named_scopes_use_the_same_matching_form ... ok
+test r1a_search_where_reads_an_independent_members_page ... ok
+test round3::r3_admitted_hidden_words_do_not_starve_later_lanes ... ok
+test matching_lanes_authorize_order_deduplicate_and_continue ... ok
+test uniform_wide_words_continue_nonuniform_is_named_and_denied_lanes_cannot_cut ... ok
+test r1a_prefix_denied_nonuniform_scope_never_discovers_hidden_words ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/security.rs (target/debug/deps/security-74b3ee717c73f3a7)
+
+running 12 tests
+test dimensions_and_duration_are_admitted_before_any_upload_file_exists ... ok
+test catchup_cannot_recover_deleted_expired_or_replaced_content ... ok
+test hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal ... ok
+test stores_sidecars_assets_and_existing_files_are_owner_only ... ok
+test revocation_suppresses_history_without_deleting_the_devices_retained_copy ... ok
+test a_detached_upload_cannot_resurrect_a_dropped_stores_directory ... ok
+test asset_sweep_separates_catalog_guards_from_file_io ... ok
+test once_applies_to_the_placed_uploaders_view_and_ranges_do_not_consume_it ... ok
+test staged_upload_cleans_up_when_its_generation_changes ... ok
+test hidden_put_uses_update_authority_and_old_owner_can_deny_it ... ok
+test an_in_memory_store_leaves_no_assets_directory_behind ... ok
+test audience_self_grants_and_unguarded_retargeting_are_refused_at_check ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/time_audiences.rs (target/debug/deps/time_audiences-b4d8b5d50e93ef0d)
+
+running 4 tests
+test simulated_server_publishes_at_the_exact_virtual_clock_boundary ... ok
+test future_membership_grants_no_group_until_its_opening_commit ... ok
+test future_rows_occupy_caps_but_delete_and_expiry_disclose_nothing ... ok
+test simulated_transport_retries_pending_absence_with_the_original_write_id ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/timed_search.rs (target/debug/deps/timed_search-10470d0cc19a0f1e)
+
+running 2 tests
+test future_word_heads_leave_live_siblings_and_continuations_unchanged ... ok
+test future_membership_scope_head_keeps_the_shared_word_live ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/topn_complete.rs (target/debug/deps/topn_complete-f0a2883b429d8a7f)
+
+running 2 tests
+test bound_meter_collectors_and_lane_discovery ... ok
+test cursorless_top_n_and_composed_preview_are_complete ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/union.rs (target/debug/deps/union-7df27f7af5541258)
+
+running 31 tests
+test every_world_deeper ... ignored, opt-in: SNAPBACK4_EXHAUSTIVE_DEPTH (default 3)
+test owner_or_team_deeper ... ignored, opt-in: SNAPBACK4_EXHAUSTIVE_DEPTH (default 3)
+test cascade::retained_action_event_price_counts_every_union_arm ... ok
+test epochs::a_changed_membership_default_is_a_new_audience ... ok
+test scopes::epoch_identity_changes_for_each_interpretation_and_inherited_lifetime_input ... ok
+test epochs::an_expiring_move_into_another_audience_names_nothing_there ... ok
+test epochs::a_scope_of_an_earlier_audience_is_not_streamed ... ok
+test epochs::a_row_recreated_elsewhere_in_one_commit_still_revokes_where_it_was ... ok
+test epochs::a_row_moved_between_two_held_groups_of_one_audience_stays ... ok
+test epochs::a_renewal_inside_the_acquiring_commit_reads_nothing_of_that_commit ... ok
+test epochs::an_expiry_default_change_starts_a_new_epoch_and_discloses_no_expired_ids ... ok
+test epochs::an_audience_epoch_keeps_an_old_scope_from_closing_a_rejoined_group ... ok
+test epochs::a_stream_from_before_the_epoch_reads_no_earlier_group_log ... ok
+test epochs::an_obsolete_scope_does_not_shift_a_later_window_acquisition ... ok
+test scopes::rebirth_chains_disclose_only_commit_boundary_audiences ... ok
+test scopes::two_prefix_scopes_spare_both_column_keepers_without_crossing_groups ... ok
+test epochs::removed_roster_joins_never_expand_under_an_owner_only_audience ... ok
+test scopes::a_rebound_already_expired_grant_never_names_its_new_group ... ok
+test scopes::renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids ... ok
+test epochs::a_leave_keeps_every_spared_row_however_many_come_first ... ok
+test epochs::a_first_post_epoch_renewal_keeps_history_without_granting_acquisition_history ... ok
+test scopes::epoch_leave_rejoin_create_is_blocking_on_both_stores ... ok
+test cascade::cascade_retires_union_rows_and_scopes_on_both_stores ... ok
+test scopes::roster_and_team_scopes_interleave_with_both_tables_owner_changes ... ok
+test scopes::a_large_roster_scope_walks_interleaved_owners_across_500_row_batches ... ok
+test scopes::snapshots_at_every_small_page_size_certify_each_union_arm_on_both_stores ... ok
+test owner_or_staff_every_sequence_of_two_writes ... ok
+test two_parties_every_sequence_of_two_writes ... ok
+test three_parties_every_sequence_of_two_writes ... ok
+test owner_or_team_every_sequence_of_two_writes ... ok
+test two_columns_plus_group_every_sequence_of_two_writes ... ok
+
+test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 25.39s
+
+     Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-17971b11d0081b94)
+
+running 2 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test contextual_projection_preserves_every_published_observation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/wave12_language.rs (target/debug/deps/wave12_language-f418077fbde0a460)
+
+running 1 test
+test server_executes_all_wave12_semantic_surfaces_together ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-072e5117d7747d69)
+
+running 43 tests
+test semantics::boolean_errors_name_nullable_operand_source_and_statement_position_has_own_code ... ok
+test semantics::external_bounded_predicates_cannot_smuggle_reads_into_the_fixed_draw ... ok
+test semantics::future_opening_caps_do_not_supply_a_physical_population_bound ... ok
+test semantics::conditional_updates_may_guard_the_supplied_clock_value ... ok
+test semantics::external_ir_deletes_cannot_activate_unbounded_dormant_actions ... ok
+test semantics::copied_scopes_offer_an_optional_cap_without_changing_the_caller_query ... ok
+test semantics::immutable_compound_operands_resolve_in_their_capture_time_environment ... ok
+test semantics::historical_vacancy_admission_requires_the_actual_unique_point ... ok
+test semantics::immutable_volatile_captures_keep_assignment_versions ... ok
+test semantics::guards_may_establish_clock_equality_and_must_not_be_refused ... ok
+test semantics::immutable_changes_against_always_hidden_targets_are_notes_not_false_refusals ... ok
+test semantics::enclosing_writes_prevent_false_clock_refusals_in_branches_loops_and_helpers ... ok
+test semantics::lean_keeps_sync_presence_and_names_unmodelled_readthrough ... ok
+test semantics::opening_boundary_index_is_inferred_without_an_authored_index ... ok
+test semantics::clocks_and_fresh_ids_refuse_but_reused_insert_values_are_quiet ... ok
+test semantics::opaque_compound_key_siblings_do_not_erase_a_pinned_column_proof ... ok
+test semantics::immutable_patches_split_proven_changes_notes_and_proven_equality ... ok
+test semantics::ordered_whole_child_deletes_silence_restrict_but_previews_and_hidden_populations_do_not ... ok
+test semantics::loop_carried_clock_reuse_is_uncertain_in_either_branch_order ... ok
+test semantics::non_null_filter_refines_loop_and_shape_snapshots_but_not_other_rows_or_phase ... ok
+test semantics::other_writers_and_conditional_inserts_do_not_constrain_historical_storage ... ok
+test semantics::opaque_mutable_insert_fields_do_not_erase_immutable_equality ... ok
+test semantics::private_count_uses_the_proved_immutable_parent_field_without_turning_hidden_into_zero ... ok
+test semantics::prior_writes_may_already_have_stored_the_invocations_clock ... ok
+test semantics::private_count_proof_cannot_be_reacquired_for_an_old_snapshot_after_parent_rebirth ... ok
+test semantics::snapshot_identity_cannot_resolve_an_opaque_branch_key_again_at_the_write ... ok
+test semantics::whole_caps_and_unique_enum_alternatives_do_not_ask_for_cursors ... ok
+test semantics::zero_offsets_preserve_pinned_clock_and_exact_snapshot_equality ... ok
+test semantics::compound_negative_membership_keeps_extra_equalities_and_all_callers ... ok
+test semantics::finite_parent_and_child_policy_walks_exhaust_without_claiming_uncapped_reads ... ok
+test semantics::dormant_cascades_need_bounds_only_after_a_delete_source_appears ... ok
+test semantics::uncertain_immutable_values_keep_runtime_equality_and_name_the_column ... ok
+test semantics::private_conflicts_cannot_be_statically_refused_when_hidden_fields_are_ignored ... ok
+test semantics::unique_membership_lanes_filter_one_point_and_continue_in_merge_order ... ok
+test semantics::oversized_caps_do_not_shadow_existing_uniform_grants ... ok
+test semantics::upserts_with_proven_fresh_unused_identities_are_insert_only_and_quiet ... ok
+test semantics::public_but_unopened_targets_may_ignore_the_immutable_clock ... ok
+test semantics::bounded_reservation_precedes_even_a_readable_points_private_rule_probe ... ok
+test semantics::dormant_descendants_are_not_misreported_as_cycles_below_capped_edges ... ok
+test semantics::job_viewer_blocks_invalidate_literal_object_and_freshness_proofs ... ok
+test semantics::capped_private_walk_admission_is_independent_of_hidden_occupancy ... ok
+test semantics::admitted_capped_private_walks_hide_candidate_and_witness_meter_counts ... ok
+test semantics::lifetime_free_external_rule_ties_still_fetch_one_raw_witness ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/work_intent.rs (target/debug/deps/work_intent-27988cfd574a3389)
+
+running 12 tests
+test device_streaming_totals_require_coverage_and_emits_claim_no_keys ... ok
+test unstable_sweeps_and_carried_locals_are_refused_and_constraint_refusals_do_not_retry ... ok
+test canonical_keys_are_ordered_values_and_outbox_failure_rolls_back_the_key ... ok
+test domain_scalars_keep_admission_rules_expiry_and_meter_cuts ... ok
+test replay_consumes_canonical_keys_and_effect_names_have_separate_domains ... ok
+test automatic_sweep_freezes_bounds_across_reopen_but_replays_prelude ... ok
+test sweep_upper_bound_excludes_later_inserts_and_break_return_match_chunk ... ok
+test inner_job_domain_uses_job_meter_without_truncating_at_query_ceiling ... ok
+test varying_cost_retries_and_reopens_at_committed_cursor ... ok
+test impossible_item_parks_without_committing_its_key_or_writes ... ok
+test recipient_heavy_digest_streams_below_unchanged_heap_ceiling ... ok
+test scheduled_digest_for_busy_chat_and_one_hundred_memberships_retries_and_restarts ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.39s
+
+     Running tests/work_intent_review.rs (target/debug/deps/work_intent_review-0b0d0abbc868f9b6)
+
+running 5 tests
+test schema_capped_non_uniform_count_and_sum_keep_their_execution_path ... ok
+test explicitly_paged_job_prelude_loop_remains_a_prelude ... ok
+test resolved_inner_aggregates_preserve_the_non_uniform_outer_page ... ok
+test permanent_effect_keys_consume_the_write_meter_and_rollback_with_effects ... ok
+test adaptive_single_item_chunks_do_not_fetch_a_second_large_row ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-b3c8bf340a52bad4)
+
+running 4 tests
+test allowed_prefix_visits_and_excludes_rows_denied_by_the_read_rule ... ok
+test a_wide_key_domain_near_the_job_examined_ceiling_keeps_one_cursor ... ok
+test adaptive_non_uniform_sweep_reads_one_large_candidate_at_a_time ... ok
+test inner_job_domain_refuses_before_decoding_the_unaffordable_suffix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-65148d5f8437171c)
+
+running 3 tests
+test a_growing_retained_cursor_can_exhaust_the_heap_allowance ... ok
+test hoisted_prefix_coverage_governs_count_sum_and_exists ... ok
+test saved_filter_local_coverage_governs_count_sum_and_exists ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-c67ad65281578574)
+
+running 3 tests
+test uniform_schema_capped_aggregates_stream_and_withhold_cut_totals ... ok
+test three_large_inner_domain_rows_fit_after_decode_scratch_is_released ... ok
+test inner_domain_near_the_examined_ceiling_retains_rows_without_unused_keys ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/write_authority.rs (target/debug/deps/write_authority-bce0d188ff46dff5)
+
+running 35 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test p2_a_predicting_mutation_still_refuses_e_structural_fanout ... ok
+test a_readable_maintain_notes_the_declared_hidden_delta_channel ... ok
+test a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_private ... ok
+test s05_a_readable_clash_names_the_declared_key ... ok
+test w1_the_merged_image_is_not_in_result_current_or_the_program ... ok
+test s05_upsert_on_a_hidden_row_is_not_found_when_the_update_rule_refuses ... ok
+test s05_upsert_on_a_hidden_row_succeeds_when_the_update_rule_admits_and_returns_no_row ... ok
+test w1_replayed_ops_returns_the_withheld_body ... ok
+test w1_the_writers_stream_and_snapshot_do_not_gain_the_row ... ok
+test p2_the_pass_is_atomic ... ok
+test w3_historical_w_receipt_is_resanitized_on_replay ... ok
+test s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule ... ok
+test w2_cap_refusals_never_name_retained_group_values ... ok
+test w1_e_conflict_current_is_withheld_and_the_code_does_not_tell_hidden_from_absent ... ok
+test w1_an_immutable_patch_on_a_hidden_row_ignores_matching_and_mismatching_guesses ... ok
+test w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent ... ok
+test w1_not_found_and_e_rule_are_one_word_on_an_unreadable_row ... ok
+test w2_complete_patch_upsert_with_a_foreign_asset_is_one_word_absent_or_hidden ... ok
+test w3_hidden_maintain_overflow_never_serializes_the_retained_contribution ... ok
+test w3_live_aggregate_overflow_uses_the_same_value_free_refusal ... ok
+test w2_receipts_store_the_replay_body_before_revocation_including_diagnostics ... ok
+test w3_hidden_upsert_ignores_immutables_and_absent_upsert_inserts_them ... ok
+test w3_explicit_foreign_asset_guess_does_not_test_hidden_placement ... ok
+test wa2_retained_composite_key_never_enters_refusal ... ok
+test m3_visible_count_in_the_program_matches_a_query_of_the_same_prefix ... ok
+test w4_ignored_immutable_patch_preserves_maintains_and_delivery ... ok
+test wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id ... ok
+test wa5_hidden_write_replay_returns_only_sanitized_receipt ... ok
+test m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_would_not ... ok
+test wa5_revoked_result_and_conflict_current_are_not_retrievable ... ok
+test p2_rows_written_still_aborts_at_1024 ... ok
+test wa2_secondary_hidden_collision_does_not_borrow_target_authority ... ok
+test w4_created_equality_upsert_reserves_before_lookup ... ok
+test w2_hidden_refusal_restores_read_rule_probe_work_too ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+
+   Doc-tests snapback4_sim
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

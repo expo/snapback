@@ -32,6 +32,8 @@ mod search;
 mod recorded;
 mod expiry_clock;
 mod boundary;
+mod acquisition;
+pub use acquisition::{AcquisitionProgress, AcquisitionUnit};
 mod store_identity;
 pub use store_identity::StoreObservation;
 
@@ -46,8 +48,14 @@ pub struct Backend {
 impl<'de> Deserialize<'de> for Backend {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
-        struct Wire { generation: u64, schema: Schema, programs: Vec<Program> }
-        let Wire { generation, mut schema, programs } = Wire::deserialize(deserializer)?;
+        struct Wire { generation: Option<u64>, schema: Schema, programs: Vec<Program>, progressive_generation: Option<u64> }
+        let wire = Wire::deserialize(deserializer)?;
+        if wire.generation.is_some() && wire.progressive_generation.is_some() {
+            return Err(serde::de::Error::custom("ambiguous backend generation"));
+        }
+        let generation = wire.generation.or(wire.progressive_generation).ok_or_else(|| serde::de::Error::missing_field("generation"))?;
+        let mut schema = wire.schema;
+        let programs = wire.programs;
         for program in &programs {
             if program.kind == snapback4_core::ir::ProgramKind::Mutation
                 && schema.prediction_reservation_refusal(program).is_some()
@@ -79,6 +87,11 @@ pub struct SyncState {
     pub receipt_outcomes: bool,
     pub outbox_status: bool,
     pub acquired: bool,
+    pub acquisition_cursor: Option<String>,
+    pub acquisition_exhausted: bool,
+    pub acquired_tables: Vec<String>,
+    pub floored_groups: usize,
+    pub replacement_required: bool,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_refusal: Option<Refusal>,
@@ -115,6 +128,8 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acquire: Option<AcquisitionProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preserved: Option<Vec<String>>,
     /// Pinned server time of this authoritative page; old transports may omit it.
@@ -432,6 +447,7 @@ pub(crate) fn reset_for_install<T: DeviceTx>(tx: &T, metadata: &BTreeMap<String,
         // not the incarnation that authenticated it or executed its receipts.
         let identity = tx.meta(deferred::IDENTITY)?;
         reset_publication(tx, !drop_images)?;
+        acquisition::reset(tx)?;
         deferred::stage_identity(tx, identity.as_deref())?;
     }
     Ok(())
@@ -497,7 +513,7 @@ impl<S: DeviceStore> Device<S> {
         let keep_images = false;
         let keep_acquired = false;
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
+        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), acquisition::backend_text(&backend, acquisition::upgraded(&store)?)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
@@ -514,6 +530,7 @@ impl<S: DeviceStore> Device<S> {
         // revision was lost. Published replay evidence and private pages stay.
         let tx = store.transaction()?;
         if kept.is_none() { tx.set_meta(media::FORMAT, media::ROW_FORMAT)?; }
+        boundary::initialize_count(&tx)?;
         predictions::abandon_capture(&tx)?;
         tx.commit()?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
@@ -626,7 +643,7 @@ impl<S: DeviceStore> Device<S> {
         // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — a release can hide restored data even when its added columns have literal defaults.
         let keep_acquired = false;
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
+        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), acquisition::backend_text(&backend, acquisition::upgraded(&self.store)?)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
@@ -726,7 +743,13 @@ impl<S: DeviceStore> Device<S> {
         let transfer = if media_upgrade { snapshot_transfer.or(Some(0)) } else { deferred::cursor(&tx)?.or(snapshot_transfer) };
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = !media_upgrade && restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: transfer.unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState {
+            acquisition_cursor: tx.meta(acquisition::CURSOR)?.filter(|s| !s.is_empty()),
+            acquisition_exhausted: acquisition::exhausted(&tx)?,
+            acquired_tables: acquisition::tables(&tx)?,
+            floored_groups: boundary::count(&tx)?,
+            replacement_required: media_upgrade || tx.meta(acquisition::REPLACEMENT)?.is_some(),
+            receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: transfer.unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)
@@ -748,6 +771,7 @@ impl<S: DeviceStore> Device<S> {
         deferred::stage_identity(&tx, identity.as_deref())?;
         tx.set_meta(WATERMARK, "0")?;
         tx.delete_meta(&[ACQUIRED])?;
+        acquisition::reset(&tx)?;
         tx.delete_meta(&[history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.commit()?;
         self.snapshot_owner = None;
@@ -811,6 +835,8 @@ impl<S: DeviceStore> Device<S> {
             return Err(RuntimeError::Generation("device watermark would move backwards".into()));
         }
         deferred::validate(page)?;
+        acquisition::validate(&tx, &self.schema, page)?;
+        if page.acquire.is_some() { acquisition::stamp(&tx)?; }
         let declaration = predictions::declaration(&tx, page)?;
         let mut touched = BTreeSet::new();
         let replacing = page.snapshot || page.snapshot_catchup;
@@ -949,7 +975,7 @@ impl<S: DeviceStore> Device<S> {
         // A staged snapshot reaches here only after catch-up publishes its
         // confirmed rows. Commit readiness with those rows, even at seq zero;
         // a later interrupted refresh retains the prior acquired partition.
-        if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
+        acquisition::publish(&tx, &self.schema, page, replacing, self.generation)?;
         deferred::acknowledge(&tx, page.watermark, &acknowledgements)?;
         predictions::publish_declaration(&tx, declaration)?;
         delivery::publish(&tx, &self.schema, &delivery_candidates, self.delivery_now)?;
@@ -1014,11 +1040,12 @@ impl<S: DeviceStore> Device<S> {
                 unknown = true;
                 return Err(error.refusal());
             }
-            if let Err(error) = require_acquired(&tx, &self.schema, &program) {
+            let boundaries = boundary::Boundaries::load(&tx, false)?;
+            if let Err(error) = acquisition::require_read(&tx, &self.schema, &program, &boundaries) {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
                 return Err(error.refusal());
             }
-            let reading = history::Reading { scopes: Some(&self.read_scopes), tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
+            let reading = history::Reading { scopes: Some(&self.read_scopes), tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries, retained: std::cell::Cell::new(false) };
             let (result, coverage, history_only, facts) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
@@ -1409,3 +1436,6 @@ mod publication_round7;
 
 #[cfg(test)]
 mod union_hardening_tests;
+
+#[cfg(test)]
+mod progressive_tests;

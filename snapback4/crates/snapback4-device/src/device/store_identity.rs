@@ -14,7 +14,7 @@ pub(super) fn restore_images_at<T: DeviceTx>(tx: &T) -> Result<u64, RuntimeError
 pub(super) fn adoption_capture<T: DeviceTx>(tx: &T) -> Result<BTreeMap<String, Option<String>>, RuntimeError> {
     let mut capture = BTreeMap::new();
     for key in [BACKEND_REQUIRED, STORE_ID, SEND_REVISION, BACKEND_IDENTITY, GENERATION, NATIVE_DIGEST,
-        WATERMARK, ACQUIRED, RESTORE_REFUSED, deferred::IDENTITY, deferred::CURSOR,
+        WATERMARK, ACQUIRED, acquisition::CURSOR, acquisition::REPLACEMENT, RESTORE_REFUSED, deferred::IDENTITY, deferred::CURSOR,
         deferred::IMAGES_AT, SNAPSHOT_OWNER, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT] {
         capture.insert(key.to_owned(), tx.meta(key)?);
     }
@@ -109,6 +109,8 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     };
     if same_identity && head.is_some_and(|head| head < floor) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
+        acquisition::reset(tx)?;
+        tx.delete_meta(&[ACQUIRED, boundary::BOUNDARIES, boundary::REPORT])?;
         delivery::clear_current(tx)?;
     }
     // A halt belongs to the incarnation, even when rows are cleared, a
@@ -154,6 +156,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         tx.clear_rows()?;
         tx.base_clear()?;
         reset_publication(tx, false)?;
+        acquisition::reset(tx)?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;

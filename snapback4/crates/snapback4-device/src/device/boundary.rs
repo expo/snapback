@@ -5,6 +5,24 @@ use snapback4_core::rows::AcquiredBoundary;
 pub(super) const BOUNDARIES: &str = "device:acquisition-boundaries:";
 pub(super) const STAGED: &str = "device:snapshot:boundaries:";
 pub(super) const REPORT: &str = "device:acquisition-report";
+pub(super) const COUNT: &str = "device:acquisition-group-count";
+
+fn floored(value: Option<&str>) -> bool {
+    value.is_some_and(|s| s == "whole" || (!s.is_empty() && snapback4_core::value::decode_bytes_hex(s).is_some()))
+}
+
+// Derived progress only, never coverage evidence. Rebuild on opening so legacy
+// stores need no eager migration and an older writer cannot leave a stale count.
+pub(super) fn initialize_count<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+    let count = Boundaries::load(tx, false)?.floored_groups();
+    let kept = tx.meta(COUNT)?;
+    // Missing already means zero; opening a legacy store need not rewrite it.
+    if (count != 0 || kept.is_some()) && kept.as_deref() != Some(&count.to_string()) {
+        tx.set_meta(COUNT, &count.to_string())?;
+    }
+    Ok(())
+}
+pub(super) fn count<T: DeviceTx>(tx: &T) -> Result<usize, RuntimeError> { Ok(meta_u64(tx, COUNT)? as usize) }
 // None (an empty metadata value) is unfinished; strings are whole, a hex key,
 // or unknown until a replacement snapshot discards earlier retained copies.
 #[derive(Default)]
@@ -24,6 +42,16 @@ impl Boundaries {
         let prefix = if staged { STAGED } else { BOUNDARIES };
         Ok(Self { values: tx.meta_prefix(prefix)?.into_iter().map(|(k, v)| (k[prefix.len()..].to_owned(), (!v.is_empty()).then_some(v))).collect(), ..Self::default() })
     }
+    pub fn has_table(&self, name: &str) -> Result<bool, RuntimeError> {
+        for (k, floor) in &self.values {
+            let (table, _, _): (String, String, String) = decoded(k)?;
+            if table == name && floor.is_some() { return Ok(true); }
+        }
+        Ok(false)
+    }
+    pub fn floored_groups(&self) -> usize {
+        self.values.values().filter(|v| floored(v.as_deref())).count()
+    }
     /// Stream application addresses only the groups on this page. A read
     /// transaction instead loads the namespace once for all its merge lanes.
     pub fn editing(staged: bool) -> Self { Self { editing: Some(staged), ..Self::default() } }
@@ -38,6 +66,15 @@ impl Boundaries {
     }
     pub fn save(&self, tx: &dyn crate::store::StreamTx, staged: bool) -> Result<(), RuntimeError> {
         let prefix = if staged { STAGED } else { BOUNDARIES };
+        // @ref LLP 3000.001.001#8-progress-and-ui — status counts commit/defer with the floors; ordinary pages still address only their changed groups.
+        let count = if staged { None } else if self.editing.is_none() { Some(self.floored_groups() as i64) } else {
+            let mut count = tx.meta(COUNT)?.as_deref().map(decoded::<i64>).transpose()?.unwrap_or(0);
+            for (k, value) in &self.values {
+                count += i64::from(floored(value.as_deref())) - i64::from(floored(tx.meta(&format!("{prefix}{k}"))?.as_deref()));
+            }
+            for k in &self.removed { count -= i64::from(floored(tx.meta(&format!("{prefix}{k}"))?.as_deref())); }
+            Some(count)
+        };
         // A replacement publishes all staged groups and removes absent ones.
         // Ordinary pages compare only their cached, individually addressed entries.
         if self.editing.is_none() {
@@ -51,9 +88,14 @@ impl Boundaries {
             if tx.meta(&stored)?.as_deref() != Some(value) { tx.set_meta(&stored, value)?; }
         }
         for k in &self.removed { tx.delete_meta(&[&format!("{prefix}{k}")])?; }
+        if let Some(count) = count {
+            if count < 0 { return Err(RuntimeError::Store("invalid acquisition group count".into())); }
+            let value = count.to_string();
+            if tx.meta(COUNT)?.as_deref() != Some(&value) { tx.set_meta(COUNT, &value)?; }
+        }
         Ok(())
     }
-    pub fn marker(&mut self, tx: &dyn crate::store::StreamTx, schema: &Schema, marker: &wire::Acquisition, snapshot: bool) -> Result<(), RuntimeError> {
+    pub fn marker(&mut self, tx: &dyn crate::store::StreamTx, schema: &Schema, marker: &wire::Acquisition, snapshot: bool, progressive: bool) -> Result<(), RuntimeError> {
         let valid = (|| {
             let table = schema.table(&marker.table)?;
             // Acquisition markers belong only to a single-audience window.
@@ -80,7 +122,12 @@ impl Boundaries {
             if marker.floor.is_some() && self.values.get(&k).and_then(|v| v.as_deref()) == Some("unknown") { return Ok(()); }
             let table = schema.table(&marker.table).expect("validated table");
             // @ref LLP 3000.007#18.2 — a join cannot certify retained copies from an earlier membership; a full snapshot replaces them.
-            let retained = !snapshot && marker.floor.is_none() && table.leave == LeavePolicy::DeliveredHistory
+            let group = encoded(&marker.group)?;
+            let groups = if progressive { history::load(tx, history::GROUPS)? } else { Default::default() };
+            let current = progressive && groups.get(&marker.table).and_then(|g| g.get(&group))
+                .is_none_or(|membership| *membership == history::Membership::Held);
+            // @ref LLP 3000.001.001#61-the-acquisition-page — held unwalked puts are not retained copies from a previous membership.
+            let retained = !current && !snapshot && marker.floor.is_none() && table.leave == LeavePolicy::DeliveredHistory
                 && (self.values.contains_key(&k) || !tx.scan(&marker.table, &marker.index,
                     &audience_prefix(table).iter().zip(&marker.group).map(|(c, v)| wire::column_from_json(&table.columns[c], v)).collect::<Result<Vec<_>, _>>().map_err(RuntimeError::Input)?,
                     &Bounds::default(), Dir::Asc, 1)?.is_empty());

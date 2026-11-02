@@ -207,7 +207,9 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
     for position in 0..=page.events.len() {
         while markers.peek().is_some_and(|marker| marker.at == position) {
             let marker = markers.next().unwrap();
-            boundaries.marker(tx, schema, marker, false)?;
+            let progressive = page.acquire.is_some() || tx.meta(acquisition::CURSOR)?.is_some();
+            let revoked = acquisition::scoped(schema, &page.events[..position], &marker.table, &marker.group)?;
+            boundaries.marker(tx, schema, marker, false, progressive && !revoked)?;
             // A boundary can complete after puts on this very page. Upgrade
             // against that completed evidence before any subsequent move.
             if marker.floor.is_some() && let Some(admissions) = admissions {
@@ -254,7 +256,8 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
         }
     }
     boundaries.save(tx, false)?;
-    history::events(tx, schema, &page.events, &page.joined, false)?;
+    acquisition::history(tx, schema, page)?;
+    acquisition::events(tx, page, touched)?;
     touched.extend(page.joined.keys().cloned());
     touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
     Ok(())

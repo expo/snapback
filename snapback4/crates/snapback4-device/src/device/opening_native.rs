@@ -9,6 +9,7 @@ use super::*;
 pub(super) fn open<S: DeviceStore>(mut store: S, backend: Backend, metadata: BTreeMap<String, String>, expected: BTreeMap<String, Option<String>>, reset: bool, backend_identity: String, first: bool) -> Result<Device<S>, RuntimeError> {
     let (native, native_digest, store_identity) = store.install_open(&backend.schema, &metadata, reset, &expected, |tx| {
         if first { tx.set_meta(media::FORMAT, media::ROW_FORMAT)?; }
+        boundary::initialize_count(tx)?;
         predictions::abandon_capture(tx)?;
         let digest = tx.meta(NATIVE_DIGEST)?;
         let module = tx.meta(NATIVE)?;

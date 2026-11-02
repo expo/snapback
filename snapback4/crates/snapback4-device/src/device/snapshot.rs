@@ -71,7 +71,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> 
     boundary::validate_positions(page)?;
     for position in 0..=page.events.len() {
         while markers.peek().is_some_and(|marker| marker.at == position) {
-            boundaries.marker(tx, schema, markers.next().unwrap(), page.snapshot)?;
+            boundaries.marker(tx, schema, markers.next().unwrap(), page.snapshot, false)?;
         }
         let Some(event) = page.events.get(position) else { break };
         let table = schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
