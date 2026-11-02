@@ -113,7 +113,7 @@ Render profiles, quotes and reactions from their own queries beside the page;
 `guide receipts` shows the separate receipt query. A decoration that loads or
 refuses must not take history with it. Use ordinary search for current and retained hits in either link state
 (`guide search`).
-Ordinary history asks the server before acquisition or beyond its horizon,
+Ordinary history asks the server before its group is covered or beyond its horizon,
 and keeps a left group's retained page local.
 
 Comments start with `--`. Blocks indent with two spaces. A file holds

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Cold acquisition negotiates `progressive-acquisition-v1`: horizonless tables
+  first, then whole-horizon groups, with supported foreground history reads
+  prioritized. Covered queries can answer locally before full acquisition;
+  `useAcquisition().usable` reports durable whole-table and floored-group counts.
+  `acquired` and successful explicit `sync()` still mean the full walk and
+  catch-up finished; received `rows`/`tables` are counts, not coverage. Older
+  peers and re-acquisition keep staged publication; prediction keeps its gate.
+
 ## 0.4.52
 
 ### Guide changes

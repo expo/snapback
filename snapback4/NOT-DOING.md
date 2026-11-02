@@ -86,6 +86,8 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Moves
 
+- **2026-11-02 — progressive cold history (LLP 3000.001.001).** Unblocks an offline-usable inbox and open conversation before full acquisition. Taken off: the whole-partition publication barrier for cold single-audience acquisition. Stands: one watermark, no result cache, no exact horizon maintenance, staged re-acquisition.
+
 - **2026-10-24 — a bounded server read grant moves onto the doing-list** (author's G6 commission, LLP 3000.009.001.000.002 §4.2). It unblocks zero-flight Postgres hits after G5's measured validation CPU limit. Taken off the doing-list: mandatory per-hit database validation for the explicitly qualified, single-owner Linux deployment. Unqualified clocks/failover and lost/uncertain epochs use G5; device result caches and cross-revision promotion remain excluded.
 
 - **2026-10-24 — Postgres server revision-equality read reuse** (LLP

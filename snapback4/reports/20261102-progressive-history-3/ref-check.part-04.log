@@ -1,0 +1,25 @@
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/qualify-linux-proot.mjs:2: broken ref: LLP 3000.021 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/qualify-linux.mjs:4: broken ref: LLP 3000.021 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/qualify-revocation-retention.mjs:1: broken ref: LLP 3000.023 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/release-transitions-cases.mjs:1: broken ref: LLP 3000.000.000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/run-client-tests.mjs:2: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/stamp-device.mjs:1: broken ref: LLP 3000.001.000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-command-group.mjs:3: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-command-owner.mjs:1: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-file-owner.mjs:1: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-npm-cache.mjs:1: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-owned-command.mjs:3: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-platform-audit.mjs:2: broken ref: LLP 3000.011.003.000.000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-postgres-serve.py:3: broken ref: LLP 3000.009.001.000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-postgres.sh:51: broken ref: LLP 3000.009.001.000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-processes.mjs:12: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-processes.mjs:107: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-processes.mjs:178: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-processes.mjs:204: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-processes.mjs:221: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-progress-reporter.mjs:1: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-signals.mjs:6: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test-work-bounds.mjs:1: broken ref: LLP 3000 not found under llp/
+ERROR reports/20261101-publication-0.4.52/release-evidence/archive-corrected-full-rerun-red/publication-source-audit-inputs/scripts/test.sh:156: broken ref: LLP 3000 not found under llp/
+ERROR reports/20260922-sync-generation/measure.mjs:1: broken ref: LLP 3000.007.001 not found under llp/
+ref-check: FAIL — 0 LLP docs, 4224 refs in 25344 files, 4224 errors, 0 unchecked

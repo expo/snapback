@@ -174,7 +174,7 @@ Render `messageReceipts`, profiles, quotes and reactions from their own
 queries beside history. A decoration that loads or refuses leaves the page
 intact. Use ordinary search for current and retained hits in either link state
 (`guide search`). An ordinary history can ask the
-server before acquisition or past its horizon; a left group's retained page
+server before its group is covered or past its horizon; a left group's retained page
 stays local.
 
 The manual recipe's contiguous intervals assume no deletion or expiry; the

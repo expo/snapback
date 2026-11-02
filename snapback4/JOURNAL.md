@@ -111025,3 +111025,44 @@ The full fence passes 1,138 .q files and 215 guide fences with three declared te
 ### 2026-10-31 — check --quick: an honest sub-second iteration path
 
 Budget cuts could not reach 1 s without silently losing witnessed questions, so the default check keeps its search and `check --quick` skips it, along with the server typecheck and native build. Its verdict names what did not run and it saves no check evidence. See LLP 3000.036.004.000.000 "Quick check". Hard part: the upgrade notice is the one effect it shares with check, which the comparison had to allow for.
+
+
+## 2026-11-02 — progressive history increment 1, chunk 3: recorded surfaces and development timings
+
+Reconciled the sync card, acquisition/write prose and package reference with the built cold walk: horizonless tables whole and first, then floored groups with supported foreground history first; partial reads use their own coverage while prediction still needs full acquisition. The first cold unit pins the stream at head: earlier memberships come from the walk, later joins arrive through ordinary expansion. Successful explicit `client.sync()` exhausts the walk; hooks publish per unit. `acquired` remains full completion, `rows`/`tables` remain received images, and `usable` counts published whole tables/floored groups. Older peers and replacement retain staged acquisition. The client card stayed at its existing size; the guide's pinned fact text was reconciled without raising budgets. The parent has one dated pointer; LLP 3000.001.001 §13 records implementation paths, HOLD and bounded SKIP choices, witness coverage and missing cases. Draft status remains.
+
+Measured the existing `witness/scale.mjs` default seed (40 groups × 500 messages × 10 members) through the shipped wasm in Node on this Apple M5 Max (18 logical CPUs, Node 24.18.0, one-minute host load 6.68–8.28), three sequential fresh processes/stores per path. The measurement-only persistence journal fsyncs each batch. Added fixture queries isolate a tier-1 inbox without its maintained count and a history scan without the starter's `require`; the original schema, declarations and queries remain. Legacy removes only the protocol advertisement and asserts no `acquire` request. Each early checkpoint was reopened offline in a new process and checked against expected row ids. Medians: progressive inbox 172.425 ms, foreground 267.596 ms, full 2500.125 ms; legacy 1133.121 / 1147.326 / 1185.997 ms. Progressive median full acquisition regressed 110.804% (90 requests versus 5); sampled peak JS heap medians were 78,819,248 and 76,756,776 B. No median memory reduction is established. Individual runs and medians are in `metrics/witness.jsonl` and the chunk report. These are instrumented development measurements, not Chromium/IndexedDB, native or §10.2 heavy-fixture qualification; the slowdown has not been accepted.
+
+The supervisor measured the web device at base commit 18c70392f2 (2,416,839 B raw / 737,887 B gzip) and after chunks 1a+1b (2,440,792 B raw / 746,060 B gzip): +23,953 B raw / +8,173 B gzip, attributable to the device-side progressive acquisition code (cursor/facts persistence, per-read admission, boundary count, backend-record discriminator). Chunk 2b changed Rust. Ran `bash scripts/build-wasm.sh` once on the final Rust tree (exit 1, expected budget overrun):
+
+```text
+wasm 2442606 B raw, 746547 B gzip (budget 739004: OVER by 7543 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Did not edit `metrics/wasm-budget.json`; the supervisor owns final gzip + 500 B at landing. `issues/20260913-snapback4-wasm-device-diet.md` remains the standing place to recover the bytes.
+
+`cargo test -p snapback4-lang --test guide` after shortening prose, removing the optional client-card addition and updating the one stale fact assertion:
+
+```text
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+```
+
+`node scripts/docs-budget.mjs`:
+
+```text
+docs budget: README 9/320 physical lines
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 0.00s
+```
+
+`node scripts/affected.mjs --base origin/main --worktree --run` used a report-local guard to keep receipts inside `snapback4/` and stop before a second wasm build or the excluded browser stages. Exit 125, incomplete; not a pass. Verbatim summaries:
+
+```text
+# 32 commands, 7 whole Rust packages, 490 client files; broad=true
+Checked 649 installs across 627 packages (no changes) [195.00ms]
+    Finished `dev` profile [unoptimized] target(s) in 40.14s
+STOP: affected build-wasm not run; final standalone wasm build runs once. Browser suites not run (sandbox); affected run incomplete.
+```
+
+The client build passed. Earlier guide assertion failures and two measurement setup failures (the fixture query's `media.` namespace), followed by successful checks/runs, are retained in `reports/20261102-progressive-history-3/`. The first ref-check invocation used the wrong working directory and found no LLP corpus; the report records its corrected root invocation separately. `react.test.mjs` and `witness/idb.mjs`: not run (sandbox). No loopback-binding failure occurred in these six measurements, so no bind retry was needed. No product behavior, contract, default negotiation, budget, acceptance status or publication changed in this chunk. No commit; the supervisor owns the landing.
+
+Corrected repository-root `./ref-check --verbose` (exit 0): `ref-check: ok — 583 LLP docs, 12978 refs in 51354 files, 0 errors, 0 unchecked`. Final `git diff --check` emitted no diagnostics.

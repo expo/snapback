@@ -743,20 +743,35 @@ facts permit, and follows the server's stream for the rest. The device keeps the
 backend too, so a device that starts with no network opens on what it
 holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
 and catches up when the link returns. A device needs a kept backend to open
-offline. Merely installing that backend does not acquire its partition: until
-a snapshot and catch-up finish, partition-dependent reads fall back to the
-server or stay `loading`, and writes queue without invented predictions.
-`client.acquired` and React's `useAcquired()` become true after the snapshot
-and catch-up finish for the current store, including an empty partition.
-`useAcquisition()` returns `{ acquired, rows, tables }`: `rows` counts snapshot
-row images durably applied during this runtime's current acquisition, and
+offline. Merely installing that backend does not acquire its partition. Cold
+progressive acquisition publishes horizonless tables whole and first, then
+groups at their declared horizon, prioritizing the open conversation when its
+ordinary newest-first history observation supplies a supported hint. Queries
+are admitted per read: whole-table facts and server-named group floors must
+cover the read and its dependencies. Unknown reads fall back to the server or
+stay `loading`; writes keep the global acquisition gate for prediction.
+`client.acquired` and React's `useAcquired()` still mean full acquisition:
+the walk and final stream catch-up finished for this store, including an empty
+partition. Legacy and replacement snapshots retain their staged publication.
+The server must advertise `progressive-acquisition-v1` and the device must
+expose the supporting durable progress state. Without both, the client sends
+no new acquisition fields and uses the legacy path. A partial device reopening
+against an old server takes a staged replacement. Union, inherited, maintained,
+timeline and owner-key shapes retain their existing coverage rules.
+`useAcquisition()` returns `{ acquired, rows, tables, usable }`: `rows` counts
+received row images durably applied during this runtime's current acquisition, and
 `tables` maps source table names to those counts. Counts reset when an
 acquisition restarts or its store is replaced; a warm reopen can be acquired
 with zero rows received in this runtime. These are progress counts, not estimates
-of the total or permission to read a partly acquired partition.
+of the total or permission to read a partly acquired partition. `usable.tables`
+counts eligible horizonless tables acquired whole; `usable.groups` counts
+published horizoned group floors. These facts survive reopening and publish
+per unit with the rows. They are neither row counts, percentages nor permission
+for an arbitrary query; `useQuery` independently uses its per-read coverage.
 
 Keep the UI usable while preparing offline access. Ordinary reads fall back to
-the server until acquisition completes; `held` reads still require the device.
+the server while their local facts are unknown; a covered inbox or floored
+conversation answers locally before `acquired`. `held` reads require the device.
 This component runs inside `<AppProvider app={app}>`:
 
 ```tsx
@@ -764,10 +779,10 @@ import { useAcquisition, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 
 function Inbox() {
-  const { acquired, rows, tables } = useAcquisition();
+  const { acquired, rows, usable } = useAcquisition();
   const read = useQuery(api.inbox, {});
   return <>
-    {!acquired && <p role="status">Preparing offline: {rows} rows across {Object.keys(tables).length} tables</p>}
+    {!acquired && <p role="status">Syncing offline history: {usable.tables} whole tables, {usable.groups} groups usable; {rows} row images received</p>}
     {"data" in read ? <ul>{read.data.map(room => <li key={room.conversationId}>{room.conversationId}</li>)}</ul>
       : <p>{"denied" in read ? read.denied.message : "Loading conversations…"}</p>}
   </>;
@@ -782,6 +797,9 @@ only for an operation that needs offline prediction immediately. A sync
 interrupted by link loss or a refused partition can return without acquisition,
 so `acquired` remains the authority.
 `await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
+On a cold or partly acquired progressive device it drives the walk to exhaustion
+and resolves acquired on success. Background rounds and hooks publish each unit
+as it becomes usable; they do not wait for that explicit call to finish.
 Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
 the public method resolves without a value. A transient network failure must
 not block opening. An opener's catch should close and rethrow only an unexpected
@@ -1880,7 +1898,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `usePersonaApp(persona, open)` | the `App` for a development persona, or null: opens it with `open(persona)`, closes it on switch and unmount |
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useLocalStatus()` | executable engine, acquired replica, and typed local unavailability |
-| `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
+| `useAcquired()`, `useAcquisition()` | full acquisition; received row counts and durable usable table/group counts |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`, a file's `name`), `denied` or `error` (`why`) |
 | `useUpload(op, argument, id?)` | durable capture, typed upload progress, retry and cancellation; see guide package-reference offline-uploads |
 | `useSaveAsset()` | `{ save(id, name?), saving, why }`: a file saved on demand, through the browser's download |
@@ -4864,8 +4882,8 @@ needed.
 
 Keep the conversation and its messages with `retain delivered-history`. Pin the screen by conversation ID; the inbox
 depends on membership and drops that row when its member row is deleted. The bare history is an ordinary query with no
-membership `require`: table rules still protect every server read. The local client asks the server before acquisition
-or beyond coverage, and keeps a left group's retained rows local, offline and online, through remount and reopen. An
+membership `require`: table rules still protect every server read. The local client asks the server while that read
+lacks coverage, and keeps a left group's retained rows local, offline and online, through remount and reopen. An
 online-only client cannot recover those retained rows.
 
 ```quarry

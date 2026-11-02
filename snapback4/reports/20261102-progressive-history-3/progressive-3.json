@@ -1,0 +1,107 @@
+{
+  "at": "2026-11-02T14:36:23.590Z",
+  "witness": "progressive-history-node-wasm-scale",
+  "mode": "progressive",
+  "run": 3,
+  "measurement": "first durably usable tier-1 inbox, foreground history, full acquisition; offline process reopen of checkpoint",
+  "development": true,
+  "qualification": false,
+  "host": {
+    "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "node": "v24.18.0",
+    "loadBefore": [
+      6.97705078125,
+      7.9033203125,
+      10.44140625
+    ],
+    "loadAfter": [
+      7.34814453125,
+      7.95458984375,
+      10.4296875
+    ]
+  },
+  "sourceCommit": "eb9dd81af9c810a196e341043fdd79404487c1ed",
+  "artifacts": {
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "f459ee879d5435a4e5c91668f0500184809ae380cb1a54e22f645069f4ece646",
+    "target/debug/snapback4": "aaf02c8b39f9cb9e9db403799f644bd2644036fd00b4b648439aa9eaa96fb6ea",
+    "apps/chat/snapback/schema.q": "b8d23970b69a291428b8d14b0b4989f2525097262d6a4dade5ea8b069e7ab58a",
+    "packages/snapback4/dist/local.js": "092fd0196ad2c8a1c7d57728369c1edaea16f7e78e1b87ebac37f35b740faeb1",
+    "packages/snapback4/dist/local-acquisition.js": "2517c6e54c225c12eeae01493b5136973d12f927ffab73ddfb953d0fcf4e8e0a",
+    "reports/20261102-progressive-history-3/measure.mjs": "30f9cc79bcf138978eeadd218e6b7cac59d4b971bd765320552abcc51c16a094"
+  },
+  "fixture": {
+    "source": "witness/lib.mjs scaleSeed; witness/scale.mjs default 40/500/10",
+    "groups": 40,
+    "messages": 500,
+    "members": 10,
+    "rows": 20440,
+    "seedSha256": "1ee933f8aa4e62e25d78dcf0b16e251caff5e7891dd733838c6c5156056e7204",
+    "extraSource": "query progressiveInbox():\n  return memberships[viewer] first 50 by byPrincipalConversation\n    { conversationId, conversation: conversations[.conversationId] }\nquery progressiveHistory(conversationId: conversations, c: cursor ?):\n  return messages[conversationId] after c last 50 by byConvTime\n",
+    "finalGroup": "c039"
+  },
+  "limits": "Node wasm + fsynced append journal, debug server on loopback, no added network delay; added queries omit maintained count and require; no Chromium/IndexedDB, UI, native, cold-browser or power-loss qualification; seed/startup server time excluded",
+  "heapMeasurement": "sampled Node JS heapUsed after device calls and at 20ms intervals; not wasm heap or exact peak",
+  "sync": {
+    "pages": 90,
+    "acquirePages": 45,
+    "snapshotPages": 0,
+    "bytes": 5546557
+  },
+  "checkpoints": {
+    "inbox": {
+      "ms": 172.97400000000016,
+      "acquired": false,
+      "wholeTables": [
+        "conversations",
+        "memberships"
+      ],
+      "flooredGroups": 0,
+      "rows": 40,
+      "complete": true,
+      "idsSha256": "51b3fccc781bb1f08c4916aecc0d408d7571e5ea3c28e890ef6d9661bbc81f3e",
+      "offlineReopen": {
+        "ok": true,
+        "acquired": false,
+        "rows": 40,
+        "complete": true,
+        "fresh": false,
+        "idsSha256": "51b3fccc781bb1f08c4916aecc0d408d7571e5ea3c28e890ef6d9661bbc81f3e"
+      }
+    },
+    "foreground": {
+      "ms": 267.69383400000015,
+      "acquired": false,
+      "wholeTables": [
+        "conversations",
+        "memberships"
+      ],
+      "flooredGroups": 1,
+      "rows": 50,
+      "complete": true,
+      "idsSha256": "8d3a94338a9e00a5eda105d6f8c57c7cae8acf6f36975e1791919933cf1dddd4",
+      "offlineReopen": {
+        "ok": true,
+        "acquired": false,
+        "rows": 50,
+        "complete": true,
+        "fresh": false,
+        "idsSha256": "8d3a94338a9e00a5eda105d6f8c57c7cae8acf6f36975e1791919933cf1dddd4"
+      }
+    }
+  },
+  "ok": true,
+  "serverSeedMs": 3330.2,
+  "firstGroup": {
+    "tier": 2,
+    "table": "messages",
+    "group": [
+      "c039"
+    ]
+  },
+  "fullAcquisitionMs": 2500.1254590000003,
+  "peakJsHeapBytes": 78819248
+}

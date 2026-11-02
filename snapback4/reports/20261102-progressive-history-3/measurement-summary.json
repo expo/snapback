@@ -1,0 +1,199 @@
+{
+  "at": "2026-11-02T14:37:36.430Z",
+  "witness": "progressive-history-node-wasm-scale-summary",
+  "development": true,
+  "qualification": false,
+  "sourceCommit": "eb9dd81af9c810a196e341043fdd79404487c1ed",
+  "host": {
+    "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "node": "v24.18.0",
+    "loadBefore": [
+      8.16162109375,
+      8.18115234375,
+      10.70068359375
+    ],
+    "loadAfter": [
+      8.28369140625,
+      8.20703125,
+      10.68017578125
+    ]
+  },
+  "fixture": {
+    "source": "witness/lib.mjs scaleSeed; witness/scale.mjs default 40/500/10",
+    "groups": 40,
+    "messages": 500,
+    "members": 10,
+    "rows": 20440,
+    "seedSha256": "1ee933f8aa4e62e25d78dcf0b16e251caff5e7891dd733838c6c5156056e7204",
+    "extraSource": "query progressiveInbox():\n  return memberships[viewer] first 50 by byPrincipalConversation\n    { conversationId, conversation: conversations[.conversationId] }\nquery progressiveHistory(conversationId: conversations, c: cursor ?):\n  return messages[conversationId] after c last 50 by byConvTime\n",
+    "finalGroup": "c039"
+  },
+  "modes": {
+    "progressive": {
+      "individual": [
+        {
+          "run": 1,
+          "inboxMs": 172.42495899999994,
+          "foregroundMs": 267.59633399999984,
+          "fullAcquisitionMs": 2459.567417,
+          "peakJsHeapBytes": 79282864,
+          "loadBefore": [
+            8.16162109375,
+            8.18115234375,
+            10.70068359375
+          ],
+          "loadAfter": [
+            8.28369140625,
+            8.20703125,
+            10.68017578125
+          ],
+          "sync": {
+            "pages": 90,
+            "acquirePages": 45,
+            "snapshotPages": 0,
+            "bytes": 5546557
+          }
+        },
+        {
+          "run": 2,
+          "inboxMs": 170.72633300000007,
+          "foregroundMs": 260.7729169999998,
+          "fullAcquisitionMs": 2507.5106249999994,
+          "peakJsHeapBytes": 61273160,
+          "loadBefore": [
+            7.4541015625,
+            8.03662109375,
+            10.53271484375
+          ],
+          "loadAfter": [
+            7.236328125,
+            7.96923828125,
+            10.4794921875
+          ],
+          "sync": {
+            "pages": 90,
+            "acquirePages": 45,
+            "snapshotPages": 0,
+            "bytes": 5546557
+          }
+        },
+        {
+          "run": 3,
+          "inboxMs": 172.97400000000016,
+          "foregroundMs": 267.69383400000015,
+          "fullAcquisitionMs": 2500.1254590000003,
+          "peakJsHeapBytes": 78819248,
+          "loadBefore": [
+            6.97705078125,
+            7.9033203125,
+            10.44140625
+          ],
+          "loadAfter": [
+            7.34814453125,
+            7.95458984375,
+            10.4296875
+          ],
+          "sync": {
+            "pages": 90,
+            "acquirePages": 45,
+            "snapshotPages": 0,
+            "bytes": 5546557
+          }
+        }
+      ],
+      "median": {
+        "inboxMs": 172.42495899999994,
+        "foregroundMs": 267.59633399999984,
+        "fullAcquisitionMs": 2500.1254590000003,
+        "peakJsHeapBytes": 78819248
+      }
+    },
+    "legacy": {
+      "individual": [
+        {
+          "run": 1,
+          "inboxMs": 1135.3790000000004,
+          "foregroundMs": 1153.1374170000004,
+          "fullAcquisitionMs": 1190.562875,
+          "peakJsHeapBytes": 76843464,
+          "loadBefore": [
+            8.09716796875,
+            8.1748046875,
+            10.61083984375
+          ],
+          "loadAfter": [
+            7.4541015625,
+            8.03662109375,
+            10.53271484375
+          ],
+          "sync": {
+            "pages": 5,
+            "acquirePages": 0,
+            "snapshotPages": 3,
+            "bytes": 5218326
+          }
+        },
+        {
+          "run": 2,
+          "inboxMs": 1130.4536249999996,
+          "foregroundMs": 1146.421417,
+          "fullAcquisitionMs": 1182.0870840000002,
+          "peakJsHeapBytes": 76756776,
+          "loadBefore": [
+            7.236328125,
+            7.96923828125,
+            10.4794921875
+          ],
+          "loadAfter": [
+            6.97705078125,
+            7.9033203125,
+            10.44140625
+          ],
+          "sync": {
+            "pages": 5,
+            "acquirePages": 0,
+            "snapshotPages": 3,
+            "bytes": 5218326
+          }
+        },
+        {
+          "run": 3,
+          "inboxMs": 1133.1207909999998,
+          "foregroundMs": 1147.3258330000003,
+          "fullAcquisitionMs": 1185.9967499999998,
+          "peakJsHeapBytes": 76736040,
+          "loadBefore": [
+            7.34814453125,
+            7.95458984375,
+            10.4296875
+          ],
+          "loadAfter": [
+            6.67919921875,
+            7.791015625,
+            10.34228515625
+          ],
+          "sync": {
+            "pages": 5,
+            "acquirePages": 0,
+            "snapshotPages": 3,
+            "bytes": 5218326
+          }
+        }
+      ],
+      "median": {
+        "inboxMs": 1133.1207909999998,
+        "foregroundMs": 1147.3258330000003,
+        "fullAcquisitionMs": 1185.9967499999998,
+        "peakJsHeapBytes": 76756776
+      }
+    }
+  },
+  "fullAcquisitionMedianChangePercent": 110.80373609792784,
+  "limits": "Node wasm + fsynced append journal, debug server on loopback, no added network delay; added queries omit maintained count and require; no Chromium/IndexedDB, UI, native, cold-browser or power-loss qualification; seed/startup server time excluded",
+  "heapMeasurement": "sampled Node JS heapUsed after device calls and at 20ms intervals; not wasm heap or exact peak",
+  "ok": true
+}

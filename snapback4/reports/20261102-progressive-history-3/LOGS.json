@@ -1,0 +1,20 @@
+{
+  "affected.log": {
+    "parts": [
+      "affected.part-01.log",
+      "affected.part-02.log"
+    ],
+    "lines": 1879,
+    "sha256": "6153f3f95f5937c0a502fb95eeb38f706d15da8bef4326fd860d9815fa346aca"
+  },
+  "ref-check.log": {
+    "parts": [
+      "ref-check.part-01.log",
+      "ref-check.part-02.log",
+      "ref-check.part-03.log",
+      "ref-check.part-04.log"
+    ],
+    "lines": 4225,
+    "sha256": "be6268a8560e31f07436f512ea7cf3afa8399c3d4ecd9ed267571dd0f5454a9c"
+  }
+}

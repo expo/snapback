@@ -1,0 +1,45 @@
+{
+  "docs-budget-final.log": [
+    "docs budget: README 9/320 physical lines",
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 0.00s"
+  ],
+  "wasm.log": [
+    "wasm 2442606 B raw, 746547 B gzip (budget 739004: OVER by 7543 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)",
+    "wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md)."
+  ],
+  "affected.part-02.log": [
+    "# 32 commands, 7 whole Rust packages, 490 client files; broad=true",
+    "Checked 649 installs across 627 packages (no changes) [195.00ms]",
+    "STOP: affected build-wasm not run; final standalone wasm build runs once. Browser suites not run (sandbox); affected run incomplete."
+  ],
+  "client-build.log": [
+    "guide api app: 504/2400 tokens",
+    "guide api witness: 210/2400 tokens",
+    "guide api react: 1191/2400 tokens",
+    "guide api proof: 1529/2400 tokens",
+    "guide api client: 1165/2400 tokens",
+    "guide api auth: 503/2400 tokens"
+  ],
+  "guide.log": [
+    "test result: FAILED. 138 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s"
+  ],
+  "docs-budget.log": [
+    "docs budget: README 9/320 physical lines",
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 0.00s"
+  ],
+  "guide-verified.log": [
+    "test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s"
+  ],
+  "ref-check.part-04.log": [
+    "ref-check: FAIL \u2014 0 LLP docs, 4224 refs in 25344 files, 4224 errors, 0 unchecked"
+  ],
+  "ref-check-root.log": [
+    "ref-check: ok \u2014 583 LLP docs, 12978 refs in 51354 files, 0 errors, 0 unchecked"
+  ],
+  "guide-complete.log": [
+    "test result: FAILED. 138 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s"
+  ],
+  "guide-final.log": [
+    "test result: FAILED. 137 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s"
+  ]
+}

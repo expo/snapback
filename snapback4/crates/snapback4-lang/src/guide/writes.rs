@@ -96,9 +96,9 @@ receives pending with its id. Late responses are consumed and discarded.
 `createApp` and device mutation intent recover on reopen; raw online callers
 retain their retry id, and action callers collect the same server action id.
 
-`useAcquisition()` reports `{ acquired, rows, tables }` as snapshot pages commit.
-Keep the UI usable through server fallback while it prepares offline access.
-`client.acquired` and `useAcquired()` report completed snapshot and catch-up
+`useAcquisition()` counts received `rows`/`tables` and published `usable` tables/groups alongside `acquired`.
+Covered reads answer locally; unknown reads fall back while acquiring.
+`client.acquired` and `useAcquired()` report completed walk (or snapshot) and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.
 The online tier has no partition and reports false. In an opener, use
 `if (client.link() === "online") await client.sync()` before exposing a screen

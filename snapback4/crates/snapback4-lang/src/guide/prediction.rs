@@ -67,7 +67,7 @@ mutation falliblePost(body: text <=200, recipient: principal):
   return null
 ```
 
-`pending` means the write has not settled; `sent` means the server committed it. A predicted row carries `pending: true`; a pending write may have no predicted row. Writes that do not predict show pending with `usePendingWrite(op)` from `snapback4/react`; pass a saved mutation id as its second argument to observe that write after reload. See `guide writes` for terminal receipts and acquisition. `client.acquired` and `useAcquired()` say whether snapshot and catch-up finished; unacquired writes without a row report `queued without a row: not acquired yet`.
+`pending` means the write has not settled; `sent` means the server committed it. A predicted row carries `pending: true`; a pending write may have no predicted row. Writes that do not predict show pending with `usePendingWrite(op)` from `snapback4/react`; pass a saved mutation id as its second argument to observe that write after reload. See `guide writes` for terminal receipts and acquisition. `client.acquired` and `useAcquired()` say whether the walk (or snapshot) and catch-up finished; unacquired writes without a row report `queued without a row: not acquired yet`.
 
 The web device trusts the backend compiler's structural admission; it does not repeat that analysis locally. It still validates arguments, rows, rules, coverage and runtime budgets. A hand-built or corrupted backend can therefore produce local query answers or predictions where a native device reports a structural refusal. The server rechecks every submitted mutation before committing it.
 

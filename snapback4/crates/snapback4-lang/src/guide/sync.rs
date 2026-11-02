@@ -1,4 +1,5 @@
 // @ref LLP 3000.021#3.1 — history is an ordinary page on the sync horizon index.
+// @ref LLP 3000.001.001#61-the-acquisition-page — cold units publish on one watermark; replacement stays staged.
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
@@ -151,7 +152,8 @@ aggregates and word searches have separate coverage requirements; this
 ordering note does not cover them.
 Use `last N by .at, .id` for the example above, keeping the
 audience predicate and cursor. A query on the window's own index, newest first,
-can answer offline within the acquired boundary, including timestamp ties.
+can answer offline within the acquired boundary, including timestamp ties,
+before `client.acquired` becomes true, once its read-rule dependencies are whole.
 Other orders need the server; a held query stays local with incomplete coverage.
 `online only` currently applies to tables and views, not query headers.
 
@@ -168,12 +170,16 @@ schema-specific repair; see the sync-declaration refusal below.
 See `guide language` for a compiled example and `guide rules` for lifetime details.
 
 ### Acquisition and its boundary
+Cold progressive acquisition walks horizonless tables whole and first, then groups at their declared horizon, prioritizing the open conversation inferred from an ordinary newest-first history observation. Each unit publishes durably; a floored group can answer locally while the rest downloads.
+The first unit pins the ordinary stream at the server head: memberships before the pin come from the walk; joins after it arrive on the stream with their expansion.
+`acquired` means the walk finished and its final stream catch-up published. Successful explicit `sync()` waits for this; background hooks publish per unit. `useAcquisition().usable` counts whole tables and floored groups, not rows or a total.
+Unknown reads still use server fallback; mutation prediction keeps the full-acquisition gate. This needs both the server's `progressive-acquisition-v1` advertisement and a supporting device; older peers use atomic full acquisition. Union, inherited, maintained, timeline and owner-key shapes gain no early whole-table coverage.
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the
 boundary. A join reacquiring retained history leaves the horizon unknown until
-a full replacement snapshot acquires the group again. Boundaries persist with
-acquisition and publish with staged snapshot rows only after catch-up. The additive sync field
+a full replacement snapshot acquires the group again. Cold units persist boundaries
+with their rows; re-acquisition keeps staged snapshot publication after catch-up. The additive sync field
 `acquisitions` contains `{ at, table, index, group, floor? }` markers before
 `events[at]` (or at the end): missing `floor` begins acquisition; completion
 carries `whole` or the hex-encoded index key. A completion without a matching
@@ -185,15 +191,10 @@ the group's end with fewer than N readable rows, including none. Expired and
 unreadable rows do not consume horizon slots. A cold snapshot uses the same
 readable-row selection; at a stable state and clock its floor matches the join's.
 Without a horizon an acquiring join delivers every current readable row.
-A continuous renewal expands no rows and preserves the original grant's acquisition
-if it has not yet been delivered. Contiguous renewals committed before the preceding
-grant expires keep that membership open; a revocation or expiry gap breaks the chain.
-Within one commit, a grant followed by continuous renewals acquires once at the
-grant; a revoked grant acquires nothing, and a rejoin starts a new chain.
-A join whose membership is already closed when served acquires nothing, even for
-publicly readable retained history.
-A row written after the join may arrive in the acquisition and again as a later
-put; applying it twice replaces the same row by id. A later deletion still deletes.
+A continuous renewal expands no rows and preserves the original grant's undelivered acquisition. Contiguous renewals before expiry keep membership open; revocation or an expiry gap breaks the chain.
+Within one commit, a grant followed by continuous renewals acquires once at the grant; a revoked grant acquires nothing, and a rejoin starts a new chain.
+A join already closed when served acquires nothing, even for publicly readable retained history.
+A row written after the join may arrive in acquisition and again as a later put; applying it twice replaces the same row by id. A later deletion still deletes.
 Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Empty groups consume page room too, so even a page with no rows can continue.
@@ -371,7 +372,7 @@ Custom persistence providers stay on the default device. The bundler must
 package the Worker entry and wasm asset; Vite and the Clique Metro web export
 are exercised by browser witnesses. These are fixture measurements,
 not a cold-start deadline for other declarations.
-On eb1000 (96 logical CPUs, AMD EPYC 9454, Chromium 151), five fresh-device
+Earlier staged-path measurements on eb1000 (96 logical CPUs, AMD EPYC 9454, Chromium 151): five fresh-device
 runs have median acquisition times of 1.89 s (default) and 2.10 s (Worker):
 100 memberships, 500 Following edges, 500 held messages, 3.65 MB response bodies.
 A 1,000-membership account with 90,500 messages / 105,034 rows takes 18.40 s
