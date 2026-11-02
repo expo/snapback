@@ -1,0 +1,435 @@
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+   Compiling snapback4-device v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-device)
+warning: `snapback4-core` (lib) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:480:51
+    |
+480 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: function `roster_schema` is never used
+  --> crates/snapback4-device/tests/w13g_review/../../../snapback4-core/tests/common/acquisition.rs:51:8
+   |
+51 | pub fn roster_schema() -> Schema {
+   |        ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "w13g_probe") generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 57.15s
+     Running tests/progressive_history.rs (target/debug/deps/progressive_history-bb9b1b98ea75ce80)
+
+running 14 tests
+test native_progressive_restart_child ... ok
+test tier1_whole_fact_waits_for_key_move_stream_repair_on_both_stores ... ok
+test native_progressive_commit_survives_a_new_process ... ok
+test interrupted_legacy_snapshot_restarts_staged_on_both_stores ... ok
+test one_commit_two_floored_groups_and_an_unwalked_group_is_held ... ok
+test exhaustion_beyond_the_pin_waits_for_the_stream ... ok
+test real_server_own_write_image_defers_acquisition_and_survives_reopen ... ok
+test packed_page_facts_survive_reopen_and_match_the_quiescent_oracle ... ok
+test quiescent_whole_snapshot_oracle_including_facts_and_restarts ... ok
+test revoke_rejoin_and_delayed_old_page_obey_both_policies ... ok
+test inflight_insert_edit_delete_and_order_key_move ... ok
+test tier1_and_group_read_admission_survive_reopen_on_both_stores ... ok
+test empty_group_rejoin_requires_staged_replacement_on_both_stores ... ok
+test generation_replacement_and_restore_clear_progress_and_preserve_staging ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/w13g_probe.rs (target/debug/deps/w13g_probe-bd485543d468e1de)
+
+running 142 tests
+test raw_boundary_keys_at_the_thousand_group_envelope ... ok
+test renewal_review::cold_horizon_together::memory ... ok
+test renewal_review::cold_horizonless_split::memory ... ok
+test renewal_review::cold_horizon_split::memory ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::cold_horizonless_together::memory ... ok
+test renewal_review::gap_horizon_split::memory ... ok
+test renewal_review::gap_horizon_together::memory ... ok
+test renewal_review::gap_horizonless_split::memory ... ok
+test renewal_review::cold_horizon_split::sqlite ... ok
+test renewal_review::cold_horizonless_split::sqlite ... ok
+test renewal_review::cold_horizon_together::sqlite ... ok
+test growth_red ... ok
+test conversation_ordinal_probe_preserves_the_crossing_page ... ok
+test renewal_review::cold_horizonless_together::sqlite ... ok
+test renewal_review::gap_horizonless_together::memory ... ok
+test empty_join_publishes_whole_and_invalidates_coverage ... ok
+test crossing_page_red ... ok
+test continuous_renewal_keeps_and_gap_reacquisition_replaces ... ok
+test renewal_review::revoke_horizon_split::memory ... ok
+test renewal_review::gap_horizon_split::sqlite ... ok
+test renewal_review::revoke_horizon_together::memory ... ok
+test mutable_keys_held_updates_deletes_and_reopen ... ok
+test renewal_review::revoke_horizonless_together::memory ... ok
+test renewal_review::gap_horizon_together::sqlite ... ok
+test renewal_review::revoke_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew::horizonless_split::memory ... ok
+test refresh_publishes_new_floor_and_schema_reacquisition_clears_it ... ok
+test renewal_review::gap_horizonless_split::sqlite ... ok
+test paired_hidden_worlds_have_identical_observations ... ok
+test renewal_review::same_commit::grant_renew::horizonless_together::memory ... ok
+test renewal_review::gap_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_split::memory ... ok
+test empty_acquired_is_whole_and_never_acquired_is_unknown ... ok
+test join_selection_delivers_each_worlds_current_readable_keys ... ok
+test persisted_boundary_bytes_at_one_thousand_groups ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_together::memory ... ok
+test renewal_review::revoke_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_together::memory ... ok
+test renewal_review::revoke_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_split::memory ... ok
+test renewal_review::revoke_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_together::memory ... ok
+test renewal_review::revoke_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_split::sqlite ... ok
+test renewal_review::unlimited_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_split::sqlite ... ok
+test review::current::group_acquisition_stops_at_n_readable_rows_without_lookahead ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_split::sqlite ... ok
+test review::current::ordinary_stream_delivers_current_readable_images ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_split::sqlite ... ok
+test review::current::stable_group_snapshot_and_stream_have_identical_rows_and_floor ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_split::sqlite ... ok
+test review::ordinary_stream_does_not_rewrite_boundaries ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_split::sqlite ... ok
+test review::recheck::current_selection_includes_previously_unselected_row_memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_together::sqlite ... ok
+test review::recheck::current_selection_replaces_deleted_selected_row_memory ... ok
+test renewal_review::unlimited_horizon_split::sqlite ... ok
+test review::recheck::membership_collision_join_memory ... ok
+test review::recheck::membership_collision_scope_memory ... ok
+test review::recheck::changed_unselected_images_do_not_block_memory ... ok
+test review::recheck::current_selection_includes_previously_unselected_row_sqlite ... ok
+test review::deleted_historical_selection_acquires_remaining_current_row ... ok
+test review::recheck::moved_survivor_deleted_floor_memory ... ok
+test review::recheck::current_selection_replaces_deleted_selected_row_sqlite ... ok
+test review::gap_key_below_new_floor_stays_unknown_until_snapshot ... ok
+test review::current::current_join_paged_duplicates_moves_expiry_and_below_floor_memory ... ok
+test review::recheck::moved_survivor_hidden_floor_memory ... ok
+test review::recheck::whole_selection_with_no_current_rows_memory ... ok
+test review::gap_deletion_stays_unknown_until_snapshot ... ok
+test review::recheck::written_unselected_same_key_memory ... ok
+test review::recheck::written_unselected_round_trip_memory ... ok
+test review::deleted_floor_is_not_disclosed ... ok
+test review::recheck::membership_collision_join_sqlite ... ok
+test review::recheck::membership_collision_row_controls_memory ... ok
+test review::recheck::written_unselected_same_key_sqlite ... ok
+test review::skipped_snapshot_page_is_refused_before_publication ... ok
+test review::recheck::membership_collision_scope_sqlite ... ok
+test review::recheck::moved_survivor_deleted_floor_sqlite ... ok
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+test review::recheck::moved_survivor_hidden_floor_sqlite ... ok
+test review::recheck::whole_selection_with_no_current_rows_sqlite ... ok
+test whole_group_stays_complete_to_its_end ... ok
+test review::recheck::written_unselected_round_trip_sqlite ... ok
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+test staged_completion_and_unsolicited_boundary_and_legacy_wire ... ok
+test review::recheck::changed_unselected_images_do_not_block_sqlite ... ok
+test review::unreadable_floor_is_not_disclosed ... ok
+test review::current::current_join_paged_duplicates_moves_expiry_and_below_floor_sqlite ... ok
+test review::recheck::membership_collision_row_controls_sqlite ... ok
+test review::thousand_lane_merge_loads_boundaries_once ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test review::five_thousand_empty_groups_make_bounded_progress ... ok
+
+test result: ok. 142 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.42s
+

@@ -83,10 +83,11 @@ export function foregroundHint(backend: BackendJson | null, name: string, args: 
 export class LocalAcquisition {
   pending = false;
   private streamDue = false;
+  private drainPages = 0;
   private started = false;
   private readonly served = new Map<string, AcquisitionGroup>();
   private oneTurn: AcquisitionGroup | undefined;
-  reset() { this.pending = false; this.streamDue = false; this.started = false; this.served.clear(); this.oneTurn = undefined; }
+  reset() { this.pending = false; this.streamDue = false; this.drainPages = 0; this.started = false; this.served.clear(); this.oneTurn = undefined; }
   hintOnce(hint: AcquisitionGroup | undefined) { if (hint) this.oneTurn = hint; }
   // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — explicit sync retains full-acquisition readiness while background rounds publish one unit at a time.
   async sync(afterCall: () => Promise<boolean>, once: () => Promise<boolean>, active: () => boolean): Promise<void> {
@@ -125,7 +126,7 @@ export class LocalAcquisition {
   // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — unpublished replies neither skip units nor advance progress.
   applied(page: SyncPage, published: boolean) {
     this.streamDue = !!page.acquire || !published || page.more === true;
-    if (!published) return;
+    if (!published) return false;
     for (const event of (page.events ?? []) as { table: string; kind: string }[]) {
       // Forget scheduling skips on authority changes. Coverage remains device-owned.
       if (event.kind === "scope") for (const [id, group] of this.served) if (group.table === event.table) this.served.delete(id);
@@ -138,5 +139,12 @@ export class LocalAcquisition {
       this.served.set(key(group), group);
       if (this.served.size > 32) this.served.delete(this.served.keys().next().value!);
     }
+    // @ref LLP 3000.001.001#42-two-tiers-then-the-walk — bound ordinary drains under continuous traffic. Only a published page can yield; a deferred publication or replacement still owns its required drain.
+    if (page.acquire) { this.drainPages = 0; return false; }
+    if (!page.more || ++this.drainPages >= 4) {
+      this.drainPages = 0; this.streamDue = false;
+      return true;
+    }
+    return false;
   }
 }

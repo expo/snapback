@@ -42,6 +42,21 @@ test("progress reports published usable facts, revocation, and received row imag
   assert.equal(read().usable.groups, 0); assert.equal(read().acquired, false);
 });
 
+test("bounded drain turns never bypass deferred publication or a replacement fence", () => {
+  const walk = new LocalAcquisition();
+  walk.request(compatible, state0, [], false);
+  walk.applied({ acquire: { unit: null }, events: [], more: true }, true);
+  for (let n = 0; n < 8; n++) {
+    assert.equal(walk.applied({ events: [], more: true }, false), false);
+    assert.deepEqual(walk.request(compatible, state0, [], false), { stream: true });
+  }
+  for (let n = 0; n < 4; n++) assert.equal(walk.applied({ events: [], more: true }, true), n === 3);
+  const partial = { ...state0, acquisition_cursor: "durable" };
+  assert.equal(walk.request(compatible, partial, [], false).acquire.cursor, "durable");
+  assert.deepEqual(walk.request(compatible, { ...partial, adoption_capture: { "device:deferred:cursor": "7" } }, [], false), { stream: true });
+  assert.equal(walk.request(compatible, { ...partial, replacement_required: true }, [], false), undefined);
+});
+
 for (const tier of ["process", "wasm"]) {
   test(`${tier}: online fallback renders during acquisition and older pages do not enlarge the replica`, { timeout: hangBudget(120) }, async t => {
     const f = await fixture(t, tier), client = await f.open();
@@ -212,13 +227,18 @@ for (const tier of ["process", "wasm"]) {
     client.onWrite(w => { if (w.id === writeId) { settledDuringAcquisition = !client.acquired; acquisitionsAtSend = f.order.slice(orderStart).filter(kind => kind === "acquire").length; } });
     const started = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
     f.intercept(async body => { if (body.acquire && !held) { held = true; entered(); await gate; } });
-    let traffic = 0;
+    let traffic = 0, drains = 0, acquiredDuringBacklog = false;
+    const backlogPages = 24;
     const hints = ["c", "b", "empty", "a"];
     f.onApply(async page => {
+      if (!page.acquire) drains++;
+      else if (drains > 0 && drains < backlogPages) acquiredDuringBacklog = true;
+      // Replenish faster than the two-event transport page DURING drains.
+      // A finite cap makes a broken scheduler fail an assertion, not hang.
+      if (drains < backlogPages) for (let n = 0; n < 3; n++) {
+        assert.equal((await f.post("/m/add", { args: { c: "d", body: `traffic ${++traffic}` } })).state, "sent");
+      }
       if (!page.acquire) return;
-      // Keep real stream traffic arriving while the cursor's fairness bit must
-      // still take normal steps between the changing foreground priorities.
-      assert.equal((await f.post("/m/add", { args: { c: "d", body: `traffic ${++traffic}` } })).state, "sent");
       stopTwin(); twin.close(); stop(); observed.close();
       observed = client.observe(query("history"), { c: hints[(traffic - 1) % hints.length], page: null }, { keep: false });
     });
@@ -234,6 +254,9 @@ for (const tier of ["process", "wasm"]) {
     const firstWrite = f.order.indexOf("write", orderStart);
     assert.equal(f.order.slice(orderStart, firstWrite).filter(kind => kind === "acquire").length, 1,
       "queued POST precedes the next acquisition unit; onWrite follows its ordinary receipt catch-up");
+    const blockedAt = f.order.indexOf("acquire", orderStart);
+    assert.ok(f.order.slice(blockedAt, firstWrite).filter(kind => kind === "stream").length <= 4,
+      `a queued send must dispatch within four draining pages: ${JSON.stringify(f.order.slice(orderStart, firstWrite))}`);
     await waitFor(() => client.acquired, "foreground switching starved the background walk");
     observed.close();
     const served = f.pages.filter(p => p.acquire?.unit?.tier === 2).map(p => p.acquire.unit.group[0]);
@@ -242,6 +265,8 @@ for (const tier of ["process", "wasm"]) {
     assert.ok(f.requests.filter(r => r.acquire?.hint?.group[0] === "d").length <= 1);
     assert.ok(f.pages.some(p => p.acquire?.skipped?.some(s => s.group[0] === "d")));
     assert.equal((await f.state()).acquisition_exhausted, true);
+    assert.ok(acquiredDuringBacklog, "acquisition must advance before the live stream runs out");
+    assert.ok(f.pages.filter(p => !p.acquire && p.more).length >= 4, "fixture sustained nonterminal drains");
     assert.equal(localStatus(client).getSnapshot().state, "ready");
     assert.equal(acquisition(client).read().acquired, true);
     assert.equal(f.maxInflight(), 1);
@@ -266,6 +291,20 @@ for (const tier of ["process", "wasm"]) {
     assert.ok(f.requests.slice(start).every(r => !Object.hasOwn(r, "acquire")));
     assert.equal(f.requests[start].from, 0);
     assert.ok(f.applies.some(a => a.page.stage_snapshot));
+    assert.equal((await history(reopened, "b")).complete, true);
+  });
+
+  test(`${tier}: interrupted legacy snapshot reopens against an advertising server through staging`, { timeout: hangBudget(120) }, async t => {
+    const f = await fixture(t, tier, { legacy: true }), client = await f.open();
+    await f.through(client, () => f.applies.some(a => a.page.snapshot && a.page.more));
+    assert.equal(client.acquired, false); await client.close();
+    f.advertise(true); f.allow(true);
+    const start = f.requests.length, reopened = await f.open();
+    await reopened.sync();
+    assert.equal(reopened.acquired, true);
+    assert.ok(f.requests.slice(start).every(r => !Object.hasOwn(r, "acquire")));
+    assert.equal(f.requests[start].from, 0);
+    assert.ok(f.applies.filter(a => a.page.stage_snapshot).length > 1);
     assert.equal((await history(reopened, "b")).complete, true);
   });
 }

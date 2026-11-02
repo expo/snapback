@@ -927,11 +927,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         after = undefined;
         if (page.snapshot) { catchingUp = true; continue; }
-        // @ref LLP 3000.001.001#42-two-tiers-then-the-walk — one unit and its ordinary drain per turn; queued interactive work precedes the next unit.
+        // @ref LLP 3000.001.001#42-two-tiers-then-the-walk — one unit and a bounded ordinary drain per turn; queued interactive work precedes the next unit.
         if (progressiveTurn) {
-          acquisitionWalk.applied(page, published);
-          if (page.acquire || page.more || !published) continue;
-          progressiveCaughtUp = true; break;
+          if (!acquisitionWalk.applied(page, published)) continue;
+          progressiveCaughtUp = !page.more; break;
         }
         if (!page.more && published) {
           partitionCurrent = true;

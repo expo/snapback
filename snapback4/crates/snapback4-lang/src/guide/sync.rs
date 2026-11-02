@@ -170,7 +170,7 @@ schema-specific repair; see the sync-declaration refusal below.
 See `guide language` for a compiled example and `guide rules` for lifetime details.
 
 ### Acquisition and its boundary
-Cold progressive acquisition walks horizonless tables whole and first, then groups at their declared horizon, prioritizing the open conversation inferred from an ordinary newest-first history observation. Whole units pack into bounded pages; each page publishes durably with its coverage.
+Cold progressive acquisition walks horizonless tables first, then whole horizon groups, prioritizing the open conversation inferred from an ordinary newest-first history observation. Units pack into bounded pages and rows publish durably as they arrive. A horizonless table becomes usable after stream repair reaches its finishing page's image head. Ordinary drains yield to queued writes and acquisition under live traffic; deferred publication still drains before the next acquisition.
 The first page pins the ordinary stream at the server head: memberships before the pin come from the walk; joins after it arrive on the stream with their expansion.
 `acquired` means the walk finished and its final stream catch-up published. Successful explicit `sync()` waits for this; background hooks publish per page. `useAcquisition().usable` counts whole tables and floored groups, not rows or a total.
 Unknown reads still use server fallback; mutation prediction keeps the full-acquisition gate. This needs both the server's `progressive-acquisition-v1` advertisement and a supporting device; older peers use atomic full acquisition. Union, inherited, maintained, timeline and owner-key shapes gain no early whole-table coverage.
@@ -178,7 +178,7 @@ An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the
 boundary. A join reacquiring retained history leaves the horizon unknown until
-a full replacement snapshot acquires the group again. Cold units persist boundaries
+a full replacement snapshot acquires the group again, even if the device held no rows when it left. An interrupted legacy snapshot restarts staged after reopen, including when the server now advertises progressive acquisition. Cold units persist boundaries
 with their rows; re-acquisition keeps staged snapshot publication after catch-up. The additive sync field
 `acquisitions` contains `{ at, table, index, group, floor? }` markers before
 `events[at]` (or at the end): missing `floor` begins acquisition; completion

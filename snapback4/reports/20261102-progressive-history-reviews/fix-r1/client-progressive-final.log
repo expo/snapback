@@ -1,0 +1,61 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (1.360125ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.309834ms)
+✔ bounded drain turns never bypass deferred publication or a replacement fence (0.151917ms)
+✔ process: online fallback renders during acquisition and older pages do not enlarge the replica (4911.14475ms)
+✔ process: cold pin skips historical joins and publishes tier 1 then the hinted group (2432.600209ms)
+✔ process: one explicit cold sync resolves acquired with every table whole and group floored (431.426542ms)
+✔ process: a join committed after the pin still expands and becomes usable (2384.15375ms)
+✔ process: tier 1 inbox survives offline reopen before any history is usable (2344.995958ms)
+✔ process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2467.110458ms)
+✔ process: revocation during acquisition withdraws usable group (until-revoked) (3488.306458ms)
+✔ process: revocation during acquisition withdraws usable group (delivered) (3404.201916ms)
+✔ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (5959.682541ms)
+✔ process: old server uses legacy snapshots without any acquire request (699.940125ms)
+✔ process: old device uses legacy snapshots without any acquire request (765.769042ms)
+✔ process: a partial walk reopens against an old server through staged replacement (1750.945833ms)
+✔ process: interrupted legacy snapshot reopens against an advertising server through staging (1481.395083ms)
+✔ wasm: online fallback renders during acquisition and older pages do not enlarge the replica (1984.537084ms)
+✔ wasm: cold pin skips historical joins and publishes tier 1 then the hinted group (2343.952166ms)
+✔ wasm: one explicit cold sync resolves acquired with every table whole and group floored (429.763833ms)
+✔ wasm: a join committed after the pin still expands and becomes usable (2408.144167ms)
+✔ wasm: tier 1 inbox survives offline reopen before any history is usable (2516.139959ms)
+✔ wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2554.076958ms)
+✔ wasm: revocation during acquisition withdraws usable group (until-revoked) (3469.868917ms)
+✔ wasm: revocation during acquisition withdraws usable group (delivered) (3416.493375ms)
+✔ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (2056.163708ms)
+✔ wasm: old server uses legacy snapshots without any acquire request (414.8215ms)
+✔ wasm: old device uses legacy snapshots without any acquire request (392.845084ms)
+✔ wasm: a partial walk reopens against an old server through staged replacement (1461.233833ms)
+✖ wasm: interrupted legacy snapshot reopens against an advertising server through staging (2318.402916ms)
+﹣ browser React hooks and IndexedDB close/reopen (0.876167ms) # not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+✔ packed scheduler remembers every served group and retains the 32-entry cap (0.235583ms)
+✔ process: packed pages publish usable counts for every unit together (2393.767042ms)
+✔ wasm: packed pages publish usable counts for every unit together (2366.969083ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 31
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 63299.457666
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:297:3
+✖ wasm: interrupted legacy snapshot reopens against an advertising server through staging (2318.402916ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:304:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

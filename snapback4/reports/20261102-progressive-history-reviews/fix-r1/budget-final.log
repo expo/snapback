@@ -1,0 +1,258 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (run `cargo fix --lib -p snapback4-core` to apply 4 suggestions)
+   Compiling snapback4-core v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-core)
+warning: unused import: `LedgerTransaction`
+ --> crates/snapback4-core/src/store_port/tests.rs:2:50
+  |
+2 | use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
+  |                                                  ^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `name`
+  --> crates/snapback4-core/src/store/ff1_fix_tests.rs:38:17
+   |
+38 |     let (st,dir,name)=store(pg);
+   |                 ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/store/release_cycle_tests.rs:117:9
+    |
+117 |     let mut fresh = engine(FRESH_PROBED_EXTRACTION);
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable `else` clause
+ --> crates/snapback4-core/src/store_port/tests.rs:8:65
+  |
+8 |     let AnyStore::Sqlite(handles::SqliteStore(sqlite)) = &store else { panic!("SQLite fixture") };
+  |     ----------------------------------------------------------- ^^^^
+  |     |
+  |     assigning to binding pattern will always succeed
+  |
+  = note: this pattern always matches, so the else clause is unreachable
+  = note: `#[warn(irrefutable_let_patterns)]` on by default
+
+warning: function `cancelled_race_winner` is never used
+   --> crates/snapback4-core/src/engine/effects/test_cases.rs:185:15
+    |
+185 | pub(crate) fn cancelled_race_winner(tx: &impl OutboxTransaction) {
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `settle_race_loser` is never used
+   --> crates/snapback4-core/src/engine/effects/test_cases.rs:189:15
+    |
+189 | pub(crate) fn settle_race_loser(tx: &impl OutboxTransaction) -> Result<(),RuntimeError> {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `claim_one` is never used
+   --> crates/snapback4-core/src/engine/effects/test_cases.rs:195:15
+    |
+195 | pub(crate) fn claim_one(tx: &impl OutboxTransaction, worker: &str) -> Vec<EffectRun> {
+    |               ^^^^^^^^^
+
+warning: function `with_check_hook` is never used
+  --> crates/snapback4-core/src/engine/program_batch_fault.rs:58:26
+   |
+58 | pub(in crate::engine) fn with_check_hook<T>(
+   |                          ^^^^^^^^^^^^^^^
+
+warning: function `flush` is never used
+  --> crates/snapback4-core/src/engine/wf_profile.rs:25:15
+   |
+25 | pub(crate) fn flush() {
+   |               ^^^^^
+
+warning: function `confirmed` is never used
+  --> crates/snapback4-core/src/engine/wf_profile.rs:39:15
+   |
+39 | pub(crate) fn confirmed(at:Instant) {CONFIRMED.with(|c|c.set(Some(at)));}
+   |               ^^^^^^^^^
+
+warning: `snapback4-core` (lib test) generated 28 warnings (18 duplicates) (run `cargo fix --lib -p snapback4-core --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 30.92s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-58859d70cec4996b)
+
+running 3 tests
+test partition::delivery::tests::batch_reservation_is_bounded_before_decode ... ok
+test partition::delivery::tests::delivery_budget_refuses_before_retaining_event_8193 ... ok
+test partition::delivery::tests::tier1_decode_chunks_include_prior_packed_payloads_in_the_heap_budget ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 842 filtered out; finished in 0.01s
+

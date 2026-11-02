@@ -119,11 +119,11 @@ fn unit(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
         if let Some((name, _, _)) = tables.get(at.table) {
             out.acquire.unit = Some(AcquisitionUnit { tier: 1, table: (*name).into(), group: None });
             out.acquire.hint_ignored = hint.is_some();
-            let (page, whole) = snapshot::walk(tx, schema, principal, Some(at), limit.min(budget.row_room()), now, true)?;
+            let (page, whole) = snapshot::walk(tx, schema, principal, Some(at), limit.min(budget.row_room()), now, true, Some(budget))?;
             out.page.acquisitions = page.acquisitions;
             for event in page.events {
-                budget.push(&mut out.page.events, LogEvent { seq: from, ord: 0, table: event.table,
-                    kind: event.kind.word().into(), id: event.id, data: event.data }, 0)?;
+                out.page.events.push(LogEvent { seq: from, ord: 0, table: event.table,
+                    kind: event.kind.word().into(), id: event.id, data: event.data });
             }
             if let Some(name) = whole.filter(|name| whole_eligible(schema, name)) { out.acquire.whole_tables.push(name); }
             at = match page.next {

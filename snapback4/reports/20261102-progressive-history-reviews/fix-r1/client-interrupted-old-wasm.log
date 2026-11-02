@@ -1,0 +1,29 @@
+✖ wasm: interrupted legacy snapshot reopens against an advertising server through staging (2615.843375ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2948.408958
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:297:3
+✖ wasm: interrupted legacy snapshot reopens against an advertising server through staging (2615.843375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:304:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

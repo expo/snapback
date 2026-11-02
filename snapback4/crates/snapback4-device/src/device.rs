@@ -748,7 +748,9 @@ impl<S: DeviceStore> Device<S> {
             acquisition_exhausted: acquisition::exhausted(&tx)?,
             acquired_tables: acquisition::tables(&tx)?,
             floored_groups: boundary::count(&tx)?,
-            replacement_required: media_upgrade || tx.meta(acquisition::REPLACEMENT)?.is_some(),
+            // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — a reopened owner must restart an interrupted legacy snapshot before progressive acquisition.
+            replacement_required: media_upgrade || tx.meta(acquisition::REPLACEMENT)?.is_some()
+                || tx.meta(SNAPSHOT_OWNER)?.is_some_and(|owner| Some(owner) != self.snapshot_owner),
             receipt_outcomes: true, outbox_status: true, acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: transfer.unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
@@ -970,6 +972,7 @@ impl<S: DeviceStore> Device<S> {
             deferred::events(&tx, &self.schema, self.generation, page, &mut touched, &mut delivery_candidates)?;
         }
         debug_assert!(tx.meta_prefix(deferred::PREFIX)?.is_empty(), "publication requires a disposed deferred slot");
+        acquisition::completing_tables(&tx, watermark, page.watermark, &mut touched)?;
         // @ref LLP 3000.001.001#61-the-acquisition-page — the validated cold pin commits here with its rows, cursor and coverage, never in snapshot staging.
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.

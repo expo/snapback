@@ -124,11 +124,13 @@ impl Boundaries {
             // @ref LLP 3000.007#18.2 — a join cannot certify retained copies from an earlier membership; a full snapshot replaces them.
             let group = encoded(&marker.group)?;
             let groups = if progressive { history::load(tx, history::GROUPS)? } else { Default::default() };
-            let current = progressive && groups.get(&marker.table).and_then(|g| g.get(&group))
-                .is_none_or(|membership| *membership == history::Membership::Held);
+            let membership = groups.get(&marker.table).and_then(|g| g.get(&group));
+            let current = progressive && membership.is_none_or(|m| *m == history::Membership::Held);
+            // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — even an empty departed group must stay unknown on rejoin until replacement.
+            let departed = membership.is_some_and(|m| *m != history::Membership::Held);
             // @ref LLP 3000.001.001#61-the-acquisition-page — held unwalked puts are not retained copies from a previous membership.
             let retained = !current && !snapshot && marker.floor.is_none() && table.leave == LeavePolicy::DeliveredHistory
-                && (self.values.contains_key(&k) || !tx.scan(&marker.table, &marker.index,
+                && (departed || self.values.contains_key(&k) || !tx.scan(&marker.table, &marker.index,
                     &audience_prefix(table).iter().zip(&marker.group).map(|(c, v)| wire::column_from_json(&table.columns[c], v)).collect::<Result<Vec<_>, _>>().map_err(RuntimeError::Input)?,
                     &Bounds::default(), Dir::Asc, 1)?.is_empty());
             self.removed.remove(&k);

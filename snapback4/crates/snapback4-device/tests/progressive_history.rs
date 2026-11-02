@@ -234,6 +234,105 @@ fn scopes<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
 }
 stores!(revoke_rejoin_and_delayed_old_page_obey_both_policies, scopes);
 
+// @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — departure is durable even when no history was ever downloaded.
+fn empty_rejoin<H: Host>(h: &mut H) {
+    for retained in [false, true] {
+        let name = if retained { "empty-retain" } else { "empty-drop" };
+        let (mut e, b) = fixture(retained); let mut d = h.open(name, Some(b)).unwrap();
+        tier1(&mut e, &mut d);
+        assert!(d.store().raw_rows("messages").is_empty());
+        assert!(d.store().boundary_entries().is_empty());
+        mutate(&mut e, "leave", &[("m", id("pa"))]); drain(&mut e, &mut d);
+        assert!(d.store().boundary_entries().is_empty());
+        e.seed_at([("participants".into(), object([("id", id("pa2")), ("threadId", id("a")),
+            ("personId", id("dev:alice"))]))], 100).unwrap();
+        // Acquire before the join stream, while the persisted membership is Left.
+        let p = acquire(&mut e, &mut d, Some("a"), 1); d.apply(&p, false).unwrap();
+        h.close(name, d); let mut d = h.open(name, None).unwrap();
+        let (read, unknown, _) = history(&mut d, "a");
+        assert_eq!(unknown, retained, "an empty retained rejoin must route to the server");
+        assert_eq!(read.unwrap().complete, !retained);
+        if retained {
+            assert_eq!(d.store().boundary_entries()[0].1, "unknown", "departure alone withholds the new floor");
+            // A previously persisted erroneous floor cannot bypass membership
+            // coverage on reopen either (the read-side defense is independent).
+            let (key, _) = d.store().boundary_entries().into_iter().next().unwrap();
+            let floor = p.acquisitions.last().unwrap().floor.clone().unwrap();
+            h.close(name, d); h.patch_meta(name, &[(&key, Some(floor))]);
+            d = h.open(name, None).unwrap();
+            let (read, unknown, _) = history(&mut d, "a");
+            assert!(unknown && !read.unwrap().complete);
+        }
+        drain(&mut e, &mut d);
+        let p = acquire(&mut e, &mut d, Some("a"), 1); d.apply(&p, false).unwrap();
+        assert_eq!(history(&mut d, "a").1, retained, "Rejoined remains unknown too");
+        for (i, mut p) in snapshot_pages(&mut e, "dev:alice", 2).into_iter().enumerate() {
+            p.stage_snapshot = true; d.apply(&p, i == 0).unwrap();
+        }
+        let mut p = stream(&mut e, &mut d, 100); p.snapshot_catchup = true;
+        d.apply(&p, false).unwrap();
+        let (read, unknown, _) = history(&mut d, "a");
+        assert!(!unknown); assert!(read.unwrap().complete);
+    }
+}
+stores!(empty_group_rejoin_requires_staged_replacement_on_both_stores, empty_rejoin);
+
+fn tier1_key_move<H: Host>(h: &mut H) {
+    let (mut e, b) = compile(r#"
+use personas alice
+table items:
+  ownerId: principal
+  rank: int
+  immutable ownerId
+  by aOrder: ownerId, rank
+  read <- .ownerId = viewer
+  update <- .ownerId = viewer
+  sync
+query existsItem(i: items):
+  return exists items[i]
+mutation move(i: items, rank: int):
+  update items[i] {rank: rank}
+"#);
+    e.seed_at([("x", 100), ("y", 50)].map(|(key, rank)| ("items".into(), object([
+        ("id", id(key)), ("ownerId", id("dev:alice")), ("rank", Value::Int(rank))]))), 100).unwrap();
+    let mut d = h.open("move", Some(b)).unwrap();
+    let first = acquire(&mut e, &mut d, None, 1);
+    assert_eq!(first.events[0].id, "x"); d.apply(&first, false).unwrap();
+    mutate(&mut e, "move", &[("i", id("y")), ("rank", Value::Int(200))]);
+    let finish = acquire(&mut e, &mut d, None, 1);
+    assert_eq!(finish.acquire.as_ref().unwrap().whole_tables, ["items"]);
+    assert!(finish.events.is_empty()); assert!(finish.images_at.unwrap() > first.watermark);
+    d.apply(&finish, false).unwrap();
+    for _ in 0..2 {
+        let (result, unknown, _) = d.query_with_coverage("existsItem", "dev:alice", &json!({"i":"y"}), 100);
+        assert!(unknown, "a key skipped by the moving walk is unknown, not false: {result:?}");
+        assert!(d.sync_state_read().unwrap().acquired_tables.is_empty());
+        h.close("move", d); d = h.open("move", None).unwrap();
+    }
+    drain(&mut e, &mut d);
+    let (result, unknown, _) = d.query_with_coverage("existsItem", "dev:alice", &json!({"i":"y"}), 100);
+    let result = result.unwrap(); assert!(!unknown && result.complete); assert_eq!(result.data, Value::Bool(true));
+    assert_eq!(d.sync_state_read().unwrap().acquired_tables, ["items"]);
+}
+stores!(tier1_whole_fact_waits_for_key_move_stream_repair_on_both_stores, tier1_key_move);
+
+fn interrupted_snapshot<H: Host>(h: &mut H) {
+    let (mut e, b) = fixture(false); let mut d = h.open("interrupted", Some(b)).unwrap();
+    let mut first = snapshot_pages(&mut e, "dev:alice", 1).remove(0);
+    first.stage_snapshot = true; assert!(first.more); d.apply(&first, true).unwrap();
+    h.close("interrupted", d); let mut d = h.open("interrupted", None).unwrap();
+    let state = d.sync_state_read().unwrap();
+    assert!(!state.snapshot_catchup && !state.acquired);
+    assert!(state.replacement_required, "the advertised client must restart the abandoned staged owner");
+    for (i, mut p) in snapshot_pages(&mut e, "dev:alice", 2).into_iter().enumerate() {
+        p.stage_snapshot = true; d.apply(&p, i == 0).unwrap();
+    }
+    let mut p = stream(&mut e, &mut d, 100); p.snapshot_catchup = true; d.apply(&p, false).unwrap();
+    assert!(d.sync_state_read().unwrap().acquired);
+    assert!(!d.sync_state_read().unwrap().replacement_required);
+}
+stores!(interrupted_legacy_snapshot_restarts_staged_on_both_stores, interrupted_snapshot);
+
 fn atomic_commit<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
     let (mut e, b) = fixture(false); let mut d = h.open("three", Some(b)).unwrap();
     tier1(&mut e, &mut d);

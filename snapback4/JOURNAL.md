@@ -111142,3 +111142,22 @@ Delta over chunk 3: +2,328 raw / +749 gzip B. This build preceded the Node
 wrapper correction and was not repeated; the runtime for all measurements
 was verified as Node 24.18.0. Budget unchanged. No agents, remote work,
 commits, stash, rebase, restore or push; the supervisor owns landing. STOP 2c.
+
+
+## 2026-11-02 — Progressive history, review fix round 1
+
+The supervisor commissioned five confirmed defects from the blind reviews of
+4817becce8. Fixed in this worktree without committing: a horizonless table
+withholds its whole fact until the sole applied watermark reaches the finishing
+page's image head; empty delivered-history departures also invalidate a rejoin
+floor; reopened staged owners require staged restart; progressive network turns
+yield after four published ordinary pages under continuing traffic; tier-1
+materialization reserves decode batches against the shared delivery budget.
+Prediction's global gate, retained Left-range coverage and deferred publication
+fences stand. No contract or budget change, no wasm rebuild.
+
+Regression tests reproduce all five defects before their fixes (including
+server-driven key movement, both device stores, an advertised-server restart
+and traffic injected during draining). The final results, exact command
+summaries, counterfactual details and sandbox exclusions are in
+[the fix report](./reports/20261102-progressive-history-reviews/fix-r1/REPORT.md).

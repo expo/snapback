@@ -1,0 +1,41 @@
+✖ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1809.20225ms)
+✖ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1677.327708ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3590.058125
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:202:3
+✖ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1809.20225ms)
+  AssertionError [ERR_ASSERTION]: a queued send must dispatch within four draining pages, while more remains true
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:242:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:202:3
+✖ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1677.327708ms)
+  AssertionError [ERR_ASSERTION]: a queued send must dispatch within four draining pages, while more remains true
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:242:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -144,6 +144,14 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
         Ok(history::coverage_state(self.schema, &self.groups, name, history::Coverage::Range(index, prefix))? == history::CoverageState::Held)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
+        // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — a progressive floor never certifies a live rejoined range. Left ranges keep their separate retained coverage.
+        // Legacy joins also label first acquisitions Rejoined; preserve that
+        // boundary contract until the partition adopts progressive semantics.
+        if self.tx.meta(acquisition::FORMAT)?.is_some()
+            && self.schema.table(table).is_some_and(|t| t.leave == LeavePolicy::DeliveredHistory)
+            && coverage_state(self.schema, &self.groups, table, Coverage::Range(index, prefix))? == CoverageState::Unknown {
+            return Ok(None);
+        }
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }
     fn search_retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {

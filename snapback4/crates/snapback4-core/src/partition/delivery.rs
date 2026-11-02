@@ -22,7 +22,7 @@ impl Budget {
         RuntimeError::Bound { kind, actual, ceiling, site: SITE.into() }
     }
 
-    fn scratch_chunk(&self, table: &Table, rows: usize) -> Result<usize, RuntimeError> {
+    pub(super) fn scratch_chunk(&self, table: &Table, rows: usize) -> Result<usize, RuntimeError> {
         let rows = rows.min(BATCH_ROWS);
         if rows == 0 { return Err(Self::refusal(MeterKind::Examined, self.rows.saturating_add(1), ROW_CEILING)); }
         let ceiling = Ceilings::default().heap_bytes;
@@ -44,6 +44,12 @@ impl Budget {
     }
 
     pub(super) fn push(&mut self, out: &mut Vec<LogEvent>, event: LogEvent, key_bytes: usize) -> Result<(), RuntimeError> {
+        self.retain(&event, key_bytes)?;
+        out.push(event);
+        Ok(())
+    }
+
+    pub(super) fn retain(&mut self, event: &LogEvent, key_bytes: usize) -> Result<(), RuntimeError> {
         let data_heap = event.data.as_ref().map_or(0, Value::retained_heap_bytes);
         let retained = (std::mem::size_of::<LogEvent>() as u64)
             .saturating_add(event.table.capacity() as u64)
@@ -68,7 +74,6 @@ impl Budget {
         self.rows = rows;
         self.heap = heap;
         self.wire = wire_total;
-        out.push(event);
         Ok(())
     }
 }
@@ -145,6 +150,31 @@ mod tests {
         );
         assert!(matches!(Budget::new().acquisition_chunk(&oversized),
             Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })));
+    }
+
+    #[test]
+    fn tier1_decode_chunks_include_prior_packed_payloads_in_the_heap_budget() {
+        let table = crate::schema::public_table(
+            [("payload".into(), crate::schema::ColumnType::Text { max: 8192 })].into(),
+            Default::default(),
+        );
+        let mut budget = Budget::new();
+        let row = crate::value::object([("payload", Value::String("x".repeat(8192)))]);
+        let ceiling = Ceilings::default().heap_bytes;
+        let decode = crate::rows::disclosed::decode_reservation(&table);
+        let mut admitted = 0;
+        while let Ok(chunk) = budget.scratch_chunk(&table, 8192) {
+            assert!(chunk <= BATCH_ROWS);
+            assert!(budget.heap + (chunk as u64 + 1) * decode <= ceiling);
+            let event = LogEvent { seq: 1, ord: 0, table: "payloads".into(),
+                kind: "put".into(), id: "row".into(), data: Some(row.clone()) };
+            budget.retain(&event, 0).unwrap();
+            admitted += 1;
+        }
+        assert!(admitted > BATCH_ROWS && admitted < 8192);
+        assert!(matches!(budget.scratch_chunk(&table, 8192),
+            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })));
+        assert!(budget.heap < ceiling);
     }
 
     #[test]

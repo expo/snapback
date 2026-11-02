@@ -5,7 +5,7 @@ pub(super) const CURSOR: &str = "device:acquisition-cursor";
 const TABLES: &str = "device:acquired-table:";
 const COMPLETE_AT: &str = "device:acquisition-complete-at";
 pub(super) const REPLACEMENT: &str = "device:acquisition-replacement";
-const FORMAT: &str = "device:progressive-format";
+pub(super) const FORMAT: &str = "device:progressive-format";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AcquisitionUnit {
@@ -100,7 +100,8 @@ pub(super) fn events(tx: &dyn crate::store::StreamTx, page: &StreamPage, touched
     let Some(progress) = &page.acquire else { return Ok(()) };
     tx.set_meta(CURSOR, progress.cursor.as_deref().unwrap_or(""))?;
     for name in &progress.whole_tables {
-        tx.set_meta(&format!("{TABLES}{name}"), &page.watermark.to_string())?;
+        // @ref LLP 3000.001.001#51-coverage-facts — mutable ordering keys can escape a paginated walk; stream repair must reach its finishing image head before absence is known.
+        tx.set_meta(&format!("{TABLES}{name}"), &page.images_at.expect("validated acquisition head").to_string())?;
         touched.insert(name.clone());
     }
     if progress.exhausted {
@@ -139,10 +140,23 @@ pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &S
 }
 
 pub(super) fn tables<T: DeviceTx>(tx: &T) -> Result<Vec<String>, RuntimeError> {
-    Ok(tx.meta_prefix(TABLES)?.into_iter().map(|(key, _)| key[TABLES.len()..].to_owned()).collect())
+    let watermark = meta_u64(tx, WATERMARK)?;
+    tx.meta_prefix(TABLES)?.into_iter().filter_map(|(key, head)| match decoded::<u64>(&head) {
+        Ok(head) if watermark >= head => Some(Ok(key[TABLES.len()..].to_owned())),
+        Ok(_) => None,
+        Err(error) => Some(Err(error)),
+    }).collect()
 }
 
 pub(super) fn exhausted<T: DeviceTx>(tx: &T) -> Result<bool, RuntimeError> { Ok(tx.meta(COMPLETE_AT)?.is_some()) }
+
+pub(super) fn completing_tables<T: DeviceTx>(tx: &T, from: u64, through: u64, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
+    for (key, value) in tx.meta_prefix(TABLES)? {
+        let head = decoded::<u64>(&value)?;
+        if from < head && head <= through { touched.insert(key[TABLES.len()..].to_owned()); }
+    }
+    Ok(())
+}
 
 // This target is completion evidence, not another applied cut. WATERMARK remains
 // the sole partition cut; a busy stream can pass the target without quiescing.
@@ -183,9 +197,10 @@ pub(super) fn require_read<T: DeviceTx>(tx: &T, schema: &Schema, program: &Progr
     if tx.meta(BACKEND_REQUIRED)?.is_some_and(|s| !s.is_empty()) || program.native {
         return require_acquired(tx, schema, program);
     }
+    let whole = tables(tx)?;
     for site in snapback4_core::ir::read_sites(program) {
         if schema.table(&site.table).is_some_and(|t| t.sync.is_some())
-            && tx.meta(&format!("{TABLES}{}", site.table))?.is_none()
+            && !whole.contains(&site.table)
             && !boundaries.has_table(&site.table)? {
             return Err(RuntimeError::Prediction("this read needs a table that has not completed acquisition".into()));
         }

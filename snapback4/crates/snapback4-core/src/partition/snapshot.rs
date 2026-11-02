@@ -10,10 +10,10 @@ use super::*;
 /// reaches it as the log's join or scope.
 #[cfg(feature = "sqlite")]
 pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize, now: i64) -> Result<SnapshotPage, RuntimeError> {
-    Ok(walk(tx, schema, principal, cursor, limit, now, false)?.0)
+    Ok(walk(tx, schema, principal, cursor, limit, now, false, None)?.0)
 }
 
-pub(super) fn walk(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize, now: i64, one_table: bool) -> Result<(SnapshotPage, Option<String>), RuntimeError> {
+pub(super) fn walk(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize, now: i64, one_table: bool, mut budget: Option<&mut delivery::Budget>) -> Result<(SnapshotPage, Option<String>), RuntimeError> {
     let watermark = match &cursor {
         Some(cursor) => cursor.watermark,
         None => tx.next_seq()? - 1,
@@ -78,7 +78,12 @@ pub(super) fn walk(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cur
                     acquisitions.push(acquisition(table_name, &horizon.by, group, events.len(), None));
                 }
             }
-            let (rows, exhausted, scanned, work) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some((schema, principal)))?;
+            // @ref LLP 3000.001.001#61-the-acquisition-page — tier 1 shares the packed reply's budget; reserve bounded decode scratch before reading any candidate batch.
+            let chunk = match budget.as_ref() {
+                Some(budget) => budget.scratch_chunk(table, room.min(budget.row_room()))?,
+                None => room,
+            };
+            let (rows, exhausted, scanned, work) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, chunk, now, Some((schema, principal)))?;
             // Empty groups still emit transitions and must consume page room.
             used += work.max(1);
             for (row, key) in rows {
@@ -90,10 +95,13 @@ pub(super) fn walk(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cur
                     Audience::Column(_) => partition_of(principal),
                     Audience::Target { .. } => group_partition(table_name, group),
                 }};
-                events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
+                let image = LogEvent { seq: watermark, ord: 0, table: table_name.into(), kind: "put".into(), id, data: Some(row) };
+                if let Some(budget) = budget.as_mut() { budget.retain(&image, key.len())?; }
+                events.push(Event { partition, table: image.table, kind: EventKind::Put, id: image.id, data: image.data });
             }
             if scanned.is_some() { at.after = scanned; }
             if !exhausted {
+                if used < limit { continue; }
                 at.group = Some(group.clone());
                 return Ok((SnapshotPage { acquisitions, events, watermark, next: Some(at), held }, None));
             }

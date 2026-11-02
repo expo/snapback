@@ -74,6 +74,19 @@ fn tier2(e: &mut Engine) -> String {
 }
 
 #[test]
+fn tier1_admits_decode_scratch_before_materializing_payloads() {
+    // The declared decode reservation cannot fit even one row plus lookahead.
+    // Actual 8 KiB payloads fit the output budget: checking only after walk()
+    // succeeds would miss the pre-materialization admission entirely.
+    let mut e = engine("table payloads:\n  body: text <=16777216\n  public 'fixture'\n  sync\n");
+    e.seed_at([("payloads".into(), object([("id", id("row")),
+        ("body", Value::String("x".repeat(8192)))]))], 100).unwrap();
+    let result = e.acquisition_page_at("alice", None, None, &[], 0, 8192, 100, &[]);
+    assert!(matches!(result, Err(snapback4_core::error::RuntimeError::Bound {
+        kind: snapback4_core::error::MeterKind::HeapBytes, .. })), "tier-1 decode must be admitted first");
+}
+
+#[test]
 fn cold_first_unit_pins_the_head_but_later_and_non_cold_units_keep_from() {
     let mut e = fixture();
     e.mutate("edit", Some("own-edit"), Context::new("alice", BTreeMap::from([
