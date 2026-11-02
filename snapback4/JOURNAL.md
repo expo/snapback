@@ -111184,3 +111184,7 @@ commands, final suite summaries, counterfactual details and sandbox exclusions
 are in [the round-2 fix report](./reports/20261102-progressive-history-reviews/fix-r2/REPORT.md).
 No new protocol field, coverage fact, watermark, refusal code, contract change,
 wasm rebuild or commit.
+
+### 2026-11-02 — progressive acquisition: the web device budget is raised to 748,952 B gzip
+
+Supervisor landing step for LLP 3000.001.001 increment 1 (chunks 1a, 1b, 2, 2b, 2c, 3 and two blind-review fix rounds). The web device measures 2,447,903 B raw / 748,452 B gzip on Darwin (Node 24.18.0, Binaryen 132.0.0); the base commit 18c70392f2 measured 2,416,839 B raw / 737,887 B gzip, so the increment costs +31,064 B raw / +10,565 B gzip. `metrics/wasm-budget.json` is set to the measured gzip + exactly 500 B, in the established form, with the attribution in its `why`: the durable walk cursor and per-table whole facts with effective heads, per-read admission over the dependency closure, the boundary count, the backend-record discriminator, the cold stream pin, packed-page application, bounded drains and the Left/Rejoined guard. No runtime ceiling changes. `issues/20260913-snapback4-wasm-device-diet.md` remains the place to recover the bytes. `bash scripts/build-wasm.sh` exits 0 at this budget.
