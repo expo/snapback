@@ -1,0 +1,10 @@
+You are one code reviewer. Do not spawn agents, clone anything, run remote commands, or edit files. Read only. You are in a checkout of the Snapback repository at branch sb4/progressive-history. You may build and run tests inside `snapback4/` (cargo and bun from that directory; Node 24 via volta) but must not modify files or git state.
+
+This is ROUND 2 of a blind two-family review. Round 1 (on 4817becce8) found five defects, recorded verbatim with the fixes' report in `snapback4/reports/20261102-progressive-history-reviews/` (`r1.astra.md`, `r1.grok.md`, `fix-r1/REPORT.md`). The spec is `llp/3000.001.001-prioritized-progressively-usable-history.rfc.md` (§§3–9 contract/design, §10.1 witnesses).
+
+Your job, in order:
+1. For each of the five round-1 defects (Astra 1–4, Grok 1), read the fix in the code (file:line) and its regression test, and state: FIXED / NOT FIXED / FIXED BUT the test would pass without the fix (say why). Do not take the fix report's word for it.
+2. Did any fix introduce a new problem? Look specifically at: the deferred whole-table fact (can a tier-1 read be admitted before the fact is effective? can the fact be lost on reopen or generation change?), the bounded drain (can a required drain — deferred publication, authority fence, pin — be skipped or starved; can `acquired` flip with the stream behind?), the staged-snapshot restart path (double-application, lost pending writes), the budget-admitted tier-1 walk (can a page be refused forever or split a unit incorrectly), and the Left/Rejoined "unknown" marker (can it hide a legitimately Held cold group).
+3. Any remaining soundness defect of the kind round 1 looked for (complete:true over unobserved data; partial progress writing ACQUIRED; disclosure beyond the current audience; old-peer compatibility; prediction before acquired).
+
+Report concrete defects only, most serious first, each with file:line, failing scenario and the fix you would make. End with the five-item verdict table and one line: READY / NOT READY with a confidence from 0 to 1.
