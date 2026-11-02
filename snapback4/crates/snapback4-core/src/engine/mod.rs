@@ -1261,6 +1261,9 @@ impl Engine {
             })?),
             None => None,
         };
+        if cursor.as_ref().is_some_and(|cursor| cursor.tier != 0 || cursor.priority_used) {
+            return Err(RuntimeError::Input("an acquisition cursor cannot resume a legacy snapshot".into()));
+        }
         let tx = self.store.read_transaction()?;
         let now = time_audience::observe_reader_time(&self.schema, &tx, now)?;
         let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit, now)?;
@@ -1327,6 +1330,10 @@ pub use row_views::ViewChunk;
 mod receipts;
 #[cfg(feature = "sqlite")]
 mod sync_evidence;
+#[cfg(feature = "sqlite")]
+mod acquisition;
+#[cfg(feature = "sqlite")]
+pub use acquisition::CertifiedAcquisition;
 #[cfg(feature = "sqlite")]
 pub use sync_evidence::CertifiedStream;
 

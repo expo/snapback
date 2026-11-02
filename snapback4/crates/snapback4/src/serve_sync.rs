@@ -1,6 +1,8 @@
 //! Request-side generation discovery; row-page wire forms remain in serve.rs.
 use super::*;
 use snapback4_core::error::RuntimeError;
+#[path = "serve_acquire.rs"]
+mod acquire;
 
 enum SyncOutcome<T> {
     Generation(Json),
@@ -51,7 +53,8 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
     }
     let device: snapback4_core::device_protocol::DeviceEngine = serde_json::from_str(crate::device_handshake::header(&request).expect("checked handshake")).expect("checked handshake");
     let input = match serde_json::from_str::<SyncRequest>(body) {
-        Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) =>
+        Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128)
+            && input.acquire.as_ref().is_none_or(|acquire| acquire.skip.len() <= 32 && input.after.is_none()) =>
         {
             input
         }
@@ -71,7 +74,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
             return;
         }
     }
-    let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store } = input;
+    let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store, acquire: mut acquisition } = input;
     let store_id = match shared.read_head() {
         Ok((id, _)) => id,
         Err(error) => {
@@ -79,8 +82,15 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
         }
     };
     // An old snapshot cursor belongs to its database, not merely its schema.
-    if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
+    if requested_store.as_ref().is_some_and(|id| id != &store_id) {
+        after = None;
+        if let Some(acquire) = &mut acquisition { acquire.cursor = None; acquire.skip.clear(); }
+    }
     let limit = limit.clamp(1, 10_000);
+    if let Some(acquisition) = acquisition {
+        return acquire::serve(request, shared, now, principal, device, requested_generation,
+            store_id, from, limit, pending, acquisition);
+    }
     if from == 0 && !stream {
         // `after` is the previous snapshot page's opaque `next` token.
         let (outcome, generation) = {
@@ -213,6 +223,8 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SyncRequest {
+    #[serde(default)]
+    acquire: Option<acquire::AcquireRequest>,
     #[serde(default)]
     generation: Option<u64>,
     #[serde(default)]

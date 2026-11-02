@@ -1,0 +1,5 @@
+ERROR snapback4/crates/snapback4-core/src/partition/acquire.rs:78: broken ref: no anchor #6.1-the-acquisition-page in llp/3000.001.001-prioritized-progressively-usable-history.rfc.md
+ERROR snapback4/crates/snapback4-core/src/partition/acquire.rs:164: broken ref: no anchor #6.2-the-walk-its-cursor-and-completion in llp/3000.001.001-prioritized-progressively-usable-history.rfc.md
+ERROR snapback4/crates/snapback4-core/src/partition/snapshot.rs:115: broken ref: no anchor #6.1-the-acquisition-page in llp/3000.001.001-prioritized-progressively-usable-history.rfc.md
+ERROR snapback4/crates/snapback4-core/src/engine/acquisition.rs:14: broken ref: no anchor #6.1-the-acquisition-page in llp/3000.001.001-prioritized-progressively-usable-history.rfc.md
+ref-check: FAIL — 583 LLP docs, 12957 refs in 51318 files, 4 errors, 0 unchecked

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Schema, error::Refusal};
 
 pub const FLOOR: &str = "0.4.24";
+pub const PROGRESSIVE_ACQUISITION: &str = "progressive-acquisition-v1";
 pub const GENERATION: &str = "sync-generation-v1";
 pub const ARGUMENT_ALIAS: &str = "argument-alias-v1";
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -14,6 +15,8 @@ pub struct DeviceEngine {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Compatibility {
+    // @ref LLP 3000.001.001#9-scope-compatibility-and-costs — optional server protocols do not raise device admission requirements.
+    pub advertised: Vec<&'static str>,
     pub server_version: &'static str,
     pub minimum_version: &'static str,
     pub capabilities: Vec<String>,
@@ -33,7 +36,7 @@ pub fn compatibility(schema: &Schema) -> Compatibility {
         capabilities.push(ARGUMENT_ALIAS.into());
     }
     capabilities.push(GENERATION.into()); capabilities.sort();
-    Compatibility { server_version: env!("CARGO_PKG_VERSION"), minimum_version: FLOOR, capabilities }
+    Compatibility { advertised: vec![PROGRESSIVE_ACQUISITION], server_version: env!("CARGO_PKG_VERSION"), minimum_version: FLOOR, capabilities }
 }
 fn version(text: &str) -> Option<(u32, u32, u32)> {
     let mut parts = text.split('.');
