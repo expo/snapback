@@ -13,6 +13,8 @@ export interface ProgressiveState {
   adoption_capture?: Record<string, string | null>;
 }
 export interface AcquisitionPage {
+  /** The first cold unit adopts images_at; subsequent drains use sync_state.watermark. */
+  pinned?: boolean;
   unit: { tier: number; table: string; group?: unknown[] } | null;
   cursor: string | null;
   exhausted: boolean;
@@ -85,6 +87,13 @@ export class LocalAcquisition {
   private oneTurn: AcquisitionGroup | undefined;
   reset() { this.pending = false; this.streamDue = false; this.started = false; this.served.clear(); this.oneTurn = undefined; }
   hintOnce(hint: AcquisitionGroup | undefined) { if (hint) this.oneTurn = hint; }
+  // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — explicit sync retains full-acquisition readiness while background rounds publish one unit at a time.
+  async sync(afterCall: () => Promise<boolean>, once: () => Promise<boolean>, active: () => boolean): Promise<void> {
+    if (!active() || !await afterCall()) return;
+    // Release the network owner between units so queued writes and observation
+    // hints can run. A refused/offline round ends this call without claiming ready.
+    while (this.pending && active()) if (!await once()) return;
+  }
   replacement(compatibility: DeviceCompatibility | undefined, value: unknown): boolean {
     const state = progressiveState(value);
     // A partly walked store cannot finish via an old server's terminal ordinary

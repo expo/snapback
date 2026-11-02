@@ -181,6 +181,11 @@ fn exhausted_waits<H: Host>(h: &mut H) {
     loop {
         let p = acquire(&mut e, &mut d, None, 100); let done = p.acquire.as_ref().unwrap().exhausted;
         d.apply(&p, false).unwrap(); assert!(!d.sync_state_read().unwrap().acquired);
+        if p.acquire.as_ref().unwrap().pinned {
+            // Put the final image head beyond the pin so exhaustion still needs
+            // ordinary catch-up; a quiescent walk is already at its last head.
+            mutate(&mut e, "edit", &[("m", id("a4")), ("body", Value::String("after pin".into()))]);
+        }
         if done { break; }
     }
     let s = d.sync_state_read().unwrap(); assert!(s.acquisition_exhausted && s.acquisition_cursor.is_none());
@@ -188,7 +193,7 @@ fn exhausted_waits<H: Host>(h: &mut H) {
     // Final completion is bounded by the captured image head, not a quiet account.
     drain(&mut e, &mut d); assert!(d.sync_state_read().unwrap().acquired);
 }
-stores!(exhaustion_alone_never_writes_legacy_acquired, exhausted_waits);
+stores!(exhaustion_beyond_the_pin_waits_for_the_stream, exhausted_waits);
 
 fn inflight<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
     for stream_first in [false, true] {
@@ -253,6 +258,10 @@ stores!(one_commit_two_floored_groups_and_an_unwalked_group_is_held, atomic_comm
 fn lifecycle<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
     for mode in ["generation", "replacement", "restore"] {
         let (mut e, b) = fixture(true); let mut d = h.open(mode, Some(b.clone())).unwrap();
+        // Bind the server identity on the first publication. Introducing it
+        // after the cold pin correctly looks like replacing an applied store.
+        let mut first = acquire(&mut e, &mut d, None, 2);
+        first.store_id = Some("old".into()); d.apply(&first, false).unwrap();
         tier1(&mut e, &mut d); let mut p = acquire(&mut e, &mut d, None, 1);
         p.store_id = Some("old".into()); d.apply(&p, false).unwrap();
         let mut replacement = b.clone();

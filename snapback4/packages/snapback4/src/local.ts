@@ -1673,7 +1673,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async sync() {
       accelerate();
       if (attaching) await attaching;
-      if (!closed && !sessionDead && !versionBlocked() && coreReady) await network.afterCall();
+      await acquisitionWalk.sync(network.afterCall, network.once, () => !closed && !sessionDead && !versionBlocked() && coreReady);
     },
     refreshSession: refreshCurrent,
     async logoutAll() {

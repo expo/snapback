@@ -74,6 +74,31 @@ fn tier2(e: &mut Engine) -> String {
 }
 
 #[test]
+fn cold_first_unit_pins_the_head_but_later_and_non_cold_units_keep_from() {
+    let mut e = fixture();
+    e.mutate("edit", Some("own-edit"), Context::new("alice", BTreeMap::from([
+        ("m".into(), id("a4")), ("body".into(), Value::String("new".into()))])).at(100)).unwrap();
+    let head = e.seq().unwrap();
+    let first = e.acquisition_page_at("alice", None, None, &[], 0, 1, 100, &["own-edit".into()]).unwrap();
+    assert!(head > 0 && first.acquire.pinned);
+    assert_eq!(first.page.watermark, head);
+    assert_eq!(first.page.images_at, Some(head));
+    assert!(!first.page.more);
+    assert!(first.acknowledged.is_empty());
+    assert_eq!(first.committed_above, BTreeMap::from([("own-edit".into(), head)]));
+    // Even a continuation at zero must not pin again.
+    for from in [0, head - 1, head] {
+        let later = e.acquisition_page_at("alice", first.acquire.cursor.as_deref(), None, &[], from, 1, 100, &[]).unwrap();
+        assert!(!later.acquire.pinned);
+        assert_eq!(later.page.watermark, from);
+        assert_eq!(later.page.more, from < head);
+    }
+    let warm = e.acquisition_page_at("alice", None, None, &[], head - 1, 1, 100, &[]).unwrap();
+    assert!(!warm.acquire.pinned);
+    assert_eq!(warm.page.watermark, head - 1);
+}
+
+#[test]
 fn two_tiers_in_schema_order_match_the_quiescent_snapshot_rows_and_floors() {
     for limit in [1, 2, 3, 100] {
         let mut e = fixture();

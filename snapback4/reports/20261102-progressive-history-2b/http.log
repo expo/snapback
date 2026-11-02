@@ -1,0 +1,1134 @@
+   Compiling snapback4-core v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-core)
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+   Compiling snapback4-lang v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+   Compiling snapback4-device v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-device)
+warning: `snapback4-core` (lib) generated 6 warnings (1 duplicate) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:480:51
+    |
+480 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4)
+warning: unused import: `display::summary`
+  --> crates/snapback4/tests/../src/scale.rs:21:16
+   |
+21 | pub(crate) use display::summary;
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:22:16
+   |
+22 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analyze_bound` is never used
+  --> crates/snapback4/tests/../src/scale.rs:90:15
+   |
+90 | pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+   |               ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+
+warning: struct `History` is never constructed
+  --> crates/snapback4/tests/../src/scale/following.rs:11:19
+   |
+11 | pub(crate) struct History {
+   |                   ^^^^^^^
+
+warning: constant `GUARANTEE` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:20:7
+   |
+20 | const GUARANTEE: &str = "each page is a correct prefix of the frozen viewer/edge/birth domain; bounded requests continue to completi...
+   |       ^^^^^^^^^
+
+warning: constant `COST` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:21:7
+   |
+21 | const COST: &str = "discovery O(D+F); retained pages O(F/64 + (N+X) log F), plus index seeks and authorized card shaping; no unrelat...
+   |       ^^^^
+
+warning: function `certificate` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:22:15
+   |
+22 | pub(crate) fn certificate(schema: &Schema, program: &Program) -> Option<History> {
+   |               ^^^^^^^^^^^
+
+warning: function `line` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:34:15
+   |
+34 | pub(crate) fn line(schema: &Schema, program: &Program) -> Option<String> {
+   |               ^^^^
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `snapshot` is never used
+  --> crates/snapback4/tests/day5_evidence.rs:17:4
+   |
+17 | fn snapshot(root:&Path)->BTreeMap<PathBuf,Vec<u8>> {
+   |    ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "day5_evidence") generated 1 warning
+warning: `snapback4` (test "witness") generated 3 warnings
+warning: `snapback4` (test "scale_intent") generated 10 warnings (10 duplicates)
+warning: `snapback4` (test "scale_windows_expiry") generated 10 warnings (run `cargo fix --test "scale_windows_expiry" -p snapback4` to apply 2 suggestions)
+warning: unused variable: `b`
+   --> crates/snapback4/tests/roll_views.rs:743:13
+    |
+743 |         let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+    |             ^ help: if this is intentional, prefix it with an underscore: `_b`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `b`
+    --> crates/snapback4/tests/roll_views.rs:1334:9
+     |
+1334 |     let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+     |         ^ help: if this is intentional, prefix it with an underscore: `_b`
+
+warning: method `line` is never used
+ --> crates/snapback4/tests/../src/scale/display.rs:4:19
+  |
+3 | impl Certificate {
+  | ---------------- method in this implementation
+4 |     pub(crate) fn line(&self) -> String {
+  |                   ^^^^
+
+warning: `snapback4` (test "roll_views") generated 2 warnings (run `cargo fix --test "roll_views" -p snapback4` to apply 2 suggestions)
+warning: `snapback4` (test "scale_row_ranges") generated 10 warnings (10 duplicates)
+warning: `snapback4` (test "scale_extremum_expressions") generated 11 warnings (10 duplicates)
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:22:16
+   |
+22 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `History` is never constructed
+  --> crates/snapback4/tests/../src/scale/following.rs:11:19
+   |
+11 | pub(crate) struct History {
+   |                   ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "scale") generated 7 warnings (5 duplicates) (run `cargo fix --test "scale" -p snapback4` to apply 1 suggestion)
+warning: `snapback4` (test "scale_variants") generated 10 warnings (10 duplicates)
+warning: `snapback4` (test "intent_issue_tracker") generated 9 warnings (8 duplicates)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:357:5
+    |
+357 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `count as decision_count` and `render`
+   --> crates/snapback4/src/verbs/security_reviews.rs:133:34
+    |
+133 | pub(super) use decisions::{print,render,render_mode,count as decision_count};
+    |                                  ^^^^^^             ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `libc::_dyld_get_image_header`: Use the `mach2` crate instead
+  --> crates/snapback4/src/verbs/security/http_image.rs:28:29
+   |
+28 |     let header=unsafe{libc::_dyld_get_image_header(0)} as u64;
+   |                             ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::BTreeSet`
+   --> crates/snapback4/src/verbs/security_reviews/binding.rs:118:5
+    |
+118 | use std::collections::BTreeSet;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: `snapback4` (test "expiry_writes") generated 10 warnings (10 duplicates)
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `install` is never used
+  --> crates/snapback4/src/host_limits.rs:13:15
+   |
+13 | pub(crate) fn install(capacity: Capacity) {
+   |               ^^^^^^^
+
+warning: function `initialize` is never used
+  --> crates/snapback4/src/host_limits.rs:32:15
+   |
+32 | pub(crate) fn initialize() {
+   |               ^^^^^^^^^^
+
+warning: method `resolve_detached` is never used
+   --> crates/snapback4/src/serve_identity.rs:189:19
+    |
+ 49 | impl Admission {
+    | -------------- method in this implementation
+...
+189 |     pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:69:4
+   |
+69 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: methods `background` and `has_waiters` are never used
+   --> crates/snapback4/src/serve_lock.rs:65:12
+    |
+ 45 | impl<T, C: Clock> FairMutex<T, C> {
+    | --------------------------------- methods in this implementation
+...
+ 65 |     pub fn background(&self) -> FairGuard<'_, T, C> {
+    |            ^^^^^^^^^^
+...
+108 |     pub fn has_waiters(&self) -> bool {
+    |            ^^^^^^^^^^^
+
+warning: field `contended` is never read
+   --> crates/snapback4/src/serve_lock.rs:131:135
+    |
+131 | ...ct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: b...
+    |       --------- field in this struct                                                                                             ^^^^^^^^^
+
+warning: method `contended` is never used
+   --> crates/snapback4/src/serve_lock.rs:133:12
+    |
+132 | impl<T, C: Clock> FairGuard<'_, T, C> {
+    | ------------------------------------- method in this implementation
+133 |     pub fn contended(&self) -> bool { self.contended }
+    |            ^^^^^^^^^
+
+warning: method `with_lease` is never used
+  --> crates/snapback4/src/serve_committer.rs:56:19
+   |
+26 | impl Writer {
+   | ----------- method in this implementation
+...
+56 |     pub(super) fn with_lease(
+   |                   ^^^^^^^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: method `take_reader` is never used
+   --> crates/snapback4/src/serve_readers.rs:197:19
+    |
+140 | impl Shared {
+    | ----------- method in this implementation
+...
+197 |     pub(super) fn take_reader(&self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+    |                   ^^^^^^^^^^^
+
+warning: function `mutation_acknowledgement` is never used
+  --> crates/snapback4/src/serve_head.rs:95:15
+   |
+95 | pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::Mutatio...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `borrowed_response_head` is never used
+   --> crates/snapback4/src/serve_head.rs:127:15
+    |
+127 | pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::ReadSnapshot<'_>, head: u64) -> Result<(String, u64), R...
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `human_period` is never used
+    --> crates/snapback4/src/verbs.rs:1003:4
+     |
+1003 | fn human_period(ms: u64) -> String {
+     |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:495:15
+    |
+495 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: function `review` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:21:15
+   |
+21 | pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>)->Resul...
+   |               ^^^^^^
+
+warning: function `review_snapshot` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:25:15
+   |
+25 | pub(super) fn review_snapshot(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Result<Vec<Dispositi...
+   |               ^^^^^^^^^^^^^^^
+
+warning: methods `has_decisions` and `dispositions` are never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:32:19
+   |
+30 | impl ReviewSnapshot{
+   | ------------------- methods in this implementation
+31 |     pub(super) fn capture(project:&Project)->Result<Self,String>{Ok(Self{file:read_file(project)?})}
+32 |     pub(super) fn has_decisions(&self)->bool{!self.file.entries.is_empty()}
+   |                   ^^^^^^^^^^^^^
+33 |     pub(super) fn dispositions(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Vec<Disposition>{self.disposit...
+   |                   ^^^^^^^^^^^^
+
+warning: function `count` is never used
+  --> crates/snapback4/src/verbs/security_reviews/decisions.rs:16:25
+   |
+16 | pub(in crate::verbs) fn count(dispositions: &[Disposition]) -> usize {
+   |                         ^^^^^
+
+warning: function `exposure` is never used
+   --> crates/snapback4/src/verbs/security.rs:101:15
+    |
+101 | pub(super) fn exposure(report:&Report){
+    |               ^^^^^^^^
+
+warning: method `pause_next_background` is never used
+   --> crates/snapback4/src/serve_lock.rs:114:19
+    |
+ 45 | impl<T, C: Clock> FairMutex<T, C> {
+    | --------------------------------- method in this implementation
+...
+114 |     pub(super) fn pause_next_background(&self, holding: bool) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+    |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `WAIT` is never used
+  --> crates/snapback4/src/serve_read_index.rs:20:11
+   |
+20 |     const WAIT: Duration = Duration::from_millis(8);
+   |           ^^^^
+
+warning: `snapback4` (bin "snapback4") generated 30 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+warning: `snapback4` (bin "snapback4" test) generated 20 warnings (17 duplicates) (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 14s
+     Running unittests src/main.rs (target/debug/deps/snapback4-781b29a98925e790)
+
+running 2 tests
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=unlimited; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+test serve::tests::sync_generation_tests::progressive::progressive_acquisition_memory_http ... ok
+test serve::tests::sync_generation_tests::progressive::progressive_acquisition_reader_http ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 782 filtered out; finished in 0.03s
+
+     Running tests/aggregate_identity_upgrade.rs (target/debug/deps/aggregate_identity_upgrade-6868ec535786c5ba)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/check.rs (target/debug/deps/check-6e843951fc008910)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 107 filtered out; finished in 0.00s
+
+     Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-f10a2c1f92d10a11)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/check_notes.rs (target/debug/deps/check_notes-6f648d3bf7de1410)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/check_quick.rs (target/debug/deps/check_quick-b18f598cfaf88ff2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/cli_friction.rs (target/debug/deps/cli_friction-d801a5312d0449bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.00s
+
+     Running tests/clock.rs (target/debug/deps/clock-22cd303a42d42a2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.00s
+
+     Running tests/column_commit.rs (target/debug/deps/column_commit-6cec7fccf5da99cc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/committer_ratchet.rs (target/debug/deps/committer_ratchet-44b8eda769ecce14)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/day3.rs (target/debug/deps/day3-9f43aba84ea6886e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/day4.rs (target/debug/deps/day4-7243d45ced582d4f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/day5_evidence.rs (target/debug/deps/day5_evidence-08789384da4a40d0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/day5_previews.rs (target/debug/deps/day5_previews-d6bf886ddaaed0fb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/day5_starters.rs (target/debug/deps/day5_starters-b827fc22229f8bca)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/delivery_page.rs (target/debug/deps/delivery_page-4dda9162902aadd6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-c3ecfdc68e700b90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+
+     Running tests/dev_reset.rs (target/debug/deps/dev_reset-259a17723e66d00f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/dx11.rs (target/debug/deps/dx11-8080ffc620f9c37d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/dx11_refusals.rs (target/debug/deps/dx11_refusals-b51aa1a107a44d90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/dx12_output.rs (target/debug/deps/dx12_output-d2cfe74b00810f80)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/dx13.rs (target/debug/deps/dx13-d6b73d68033aa2f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/dx14_output.rs (target/debug/deps/dx14_output-20b67f0e5c1311fb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/dx15_inspection.rs (target/debug/deps/dx15_inspection-55c66ad66245050d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/dx16.rs (target/debug/deps/dx16-7caf437ac461ca1a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/dx7_gates.rs (target/debug/deps/dx7_gates-6f35807716590d5f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-e514ae2ac48432fc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.00s
+
+     Running tests/familiar.rs (target/debug/deps/familiar-106678dba228b9bc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-6486c4941792ee2d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/fix.rs (target/debug/deps/fix-819be2d6bb501eb5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/following_view.rs (target/debug/deps/following_view-1de5e183e1d236cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/http.rs (target/debug/deps/http-54bab0cac6b92e90)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/http_emfile.rs (target/debug/deps/http_emfile-d49befdc21d6f669)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/init.rs (target/debug/deps/init-68b52fbbaaf398b7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 0.00s
+
+     Running tests/init_dx3.rs (target/debug/deps/init_dx3-2a38429413a863b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/init_production.rs (target/debug/deps/init_production-0e7720fa845793c1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/init_ver1.rs (target/debug/deps/init_ver1-ec385915f33a2c12)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-1a0d515f835626db)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/latency.rs (target/debug/deps/latency-e2530b223e8aa1c4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-aea3fec270f7053d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-1c50d6124969e5dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-5392253bd185a5ea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/overload.rs (target/debug/deps/overload-32e21a4f843f19de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/promote.rs (target/debug/deps/promote-1f304da8e1f2c69e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/read_latency.rs (target/debug/deps/read_latency-cf403d129498c9d0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/rel3.rs (target/debug/deps/rel3-16fa7b2dcbf46283)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/rel4.rs (target/debug/deps/rel4-4c65be59846cdf5c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/replay.rs (target/debug/deps/replay-a6be6a4b95845b6f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s
+
+     Running tests/roll_views.rs (target/debug/deps/roll_views-b7d1a9a2ab5a4ed7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+
+     Running tests/run_admission.rs (target/debug/deps/run_admission-748d3719e47832a2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/scaf1.rs (target/debug/deps/scaf1-da0b5c6b9e24e375)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/scale.rs (target/debug/deps/scale-107f9ba08c1f6116)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/scale_curves.rs (target/debug/deps/scale_curves-32c171b79a24d36e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-546249f9e42d86d6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+     Running tests/scale_intent.rs (target/debug/deps/scale_intent-1ec9d927330d634e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-50b38a1e467c8e68)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/scale_variants.rs (target/debug/deps/scale_variants-f34c7aa82ec694fd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
+
+     Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-07de2190e9309e21)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/security_reviews.rs (target/debug/deps/security_reviews-d93d30aa3b3c4f96)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/security_wave19.rs (target/debug/deps/security_wave19-51510a43b9d38130)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/store_handle_census.rs (target/debug/deps/store_handle_census-0a659f1726506157)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-4fac6e89e39f0fc7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/surf4.rs (target/debug/deps/surf4-86d2c8b27e42005f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-70b4ab674db64d89)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
+
+     Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-5cbf446594ce61b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-51c5abaec23ad668)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-8125a1a4f3769811)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_design.rs (target/debug/deps/timeline_design-0aa0ecb43d6e99d7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/tok1.rs (target/debug/deps/tok1-bc79676719c06861)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/tok2_output.rs (target/debug/deps/tok2_output-1c90582b97608364)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/tok3.rs (target/debug/deps/tok3-da1a7b8c6c28252d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/token_live.rs (target/debug/deps/token_live-121bff16f13ff4d0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+
+     Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-b584cb348969fed9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/wave26_security.rs (target/debug/deps/wave26_security-5e2a429efd6a6924)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/witness.rs (target/debug/deps/witness-9d8cb435f8963226)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 79 filtered out; finished in 0.00s
+
+     Running tests/witness_web.rs (target/debug/deps/witness_web-bd7bcbaf463773a4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/work_records.rs (target/debug/deps/work_records-6f33d03153559871)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/written_by.rs (target/debug/deps/written_by-124eea7c9acc6275)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

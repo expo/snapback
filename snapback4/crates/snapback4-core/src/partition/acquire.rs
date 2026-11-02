@@ -19,6 +19,10 @@ pub struct AcquisitionUnit {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AcquisitionProgress {
+    /// Only a null-cursor request from zero pins the cold stream at images_at.
+    /// Later units leave the applied watermark at the request's `from`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     pub unit: Option<AcquisitionUnit>,
     pub cursor: Option<String>,
     pub exhausted: bool,
@@ -75,7 +79,7 @@ fn resume(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     Ok(false)
 }
 
-// @ref LLP 3000.001.001#61-the-acquisition-page — one unit, current images, no log progress and the existing join selection/budget.
+// @ref LLP 3000.001.001#61-the-acquisition-page — the cold first unit pins the stream; later units reuse its position and the existing join selection/budget.
 pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     cursor: Option<SnapshotCursor>, hint: Option<&AcquisitionGroup>, skip: &[AcquisitionGroup],
     from: u64, limit: usize, now: i64,
@@ -83,6 +87,8 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     if skip.len() > 32 { return Err(RuntimeError::Input("acquisition accepts at most 32 skipped groups".into())); }
     let head = tx.next_seq()? - 1;
     if from > head { return Err(RuntimeError::Input("acquisition watermark is ahead of the server head".into())); }
+    let pinned = cursor.is_none() && from == 0;
+    let watermark = if pinned { head } else { from };
     let mut at = cursor.unwrap_or(SnapshotCursor { tier: 1, ..Default::default() });
     if !matches!(at.tier, 1 | 2) || at.watermark != 0
         || at.tier == 2 && (at.arm != 0 || at.after.is_some() || at.taken != 0) {
@@ -90,8 +96,8 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     }
     let mut out = AcquisitionPage {
         page: StreamPage { images_at: Some(head), acquisitions: vec![], events: vec![],
-            joined: Default::default(), watermark: from, more: from < head },
-        acquire: AcquisitionProgress { unit: None, cursor: None, exhausted: false,
+            joined: Default::default(), watermark, more: watermark < head },
+        acquire: AcquisitionProgress { pinned, unit: None, cursor: None, exhausted: false,
             whole_tables: vec![], hint_ignored: false, skipped: vec![] },
     };
     if at.tier == 1 {

@@ -29,6 +29,10 @@ pub(super) fn decode_cursor(value: Option<String>) -> Result<Option<u64>, Runtim
     value.filter(|v| !v.is_empty()).map(|v| decoded(&v)).transpose()
 }
 
+fn receipt_cut(page: &StreamPage) -> u64 {
+    if page.acquire.as_ref().is_some_and(|p| p.pinned) { 0 } else { page.watermark }
+}
+
 pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
     boundary::validate_positions(page)?;
     if !page.more && page.images_at.is_some_and(|head| head > page.watermark) {
@@ -37,14 +41,15 @@ pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
     if page.acknowledged.values().any(|seq| *seq > page.watermark) {
         return Err(RuntimeError::Input("acknowledgement is beyond the applied watermark".into()));
     }
-    if page.committed_above.values().any(|seq| *seq <= page.watermark || page.images_at.is_none_or(|head| *seq > head)) {
+    // @ref LLP 3000.001.001#61-the-acquisition-page — a cold pin preserves receipt evidence over the requested (0, head] interval.
+    if page.committed_above.values().any(|seq| *seq <= receipt_cut(page) || page.images_at.is_none_or(|head| *seq > head)) {
         return Err(RuntimeError::Input("committed_above must satisfy watermark < sequence <= images_at".into()));
     }
     Ok(())
 }
 
 pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Program>, page: &StreamPage, published: u64, declaration: predictions::Declaration) -> Result<bool, RuntimeError> {
-    if page.images_at.is_some_and(|head| head <= page.watermark) { return Ok(false); }
+    if page.images_at.is_some_and(|head| head <= receipt_cut(page)) { return Ok(false); }
     // Exactly the replay eligibility this page would publish, evaluated before
     // its acknowledgements can remove a prediction from the visible overlay.
     let prospective = (declaration.0, declaration.2);

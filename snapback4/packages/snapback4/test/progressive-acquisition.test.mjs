@@ -54,7 +54,7 @@ for (const tier of ["process", "wasm"]) {
     let firstUnit = false;
     f.onApply(page => { if (page.acquire) firstUnit = true; });
     const early = hold(body => firstUnit && body.stream);
-    f.allow(true); const opening = client.sync();
+    f.allow(true); // The background follow loop publishes the unit.
     try {
       await early.started;
       const before = f.queries.length, answer = await history(client, "b");
@@ -62,11 +62,11 @@ for (const tier of ["process", "wasm"]) {
       assert.deepEqual(answer.data.map(r => r.id), ["b4", "b3"]);
       assert.ok(f.queries.length > before, "unknown local history rendered its online answer");
       assert.equal((await f.raw("history", { c: "b", page: null })).unknown, true);
-    } finally { f.allow(false); early.release(); await opening; f.intercept(undefined); f.onApply(undefined); }
+    } finally { f.allow(false); early.release(); f.intercept(undefined); f.onApply(undefined); }
     const observed = client.observe(query("history"), { c: "a", page: null }, { keep: false });
     await f.through(client, s => s.floored_groups === 1); observed.close();
     const later = hold(body => !!body.acquire);
-    f.allow(true); const continuing = client.sync();
+    f.allow(true);
     try {
       await later.started;
       const newest = await history(client, "a"), before = f.queries.length;
@@ -77,17 +77,57 @@ for (const tier of ["process", "wasm"]) {
       const local = await f.raw("history", { c: "a", page: newest.next });
       assert.equal(local.complete, false); assert.deepEqual(local.data, [], "server fallback did not persist older history");
       assert.equal(client.acquired, false);
-    } finally { f.allow(false); later.release(); await continuing; f.intercept(undefined); }
+    } finally { f.allow(false); later.release(); f.intercept(undefined); }
   });
-  test(`${tier}: unmodified seed log expands old joins during tier 1 and converges`, { timeout: hangBudget(120) }, async t => {
-    const f = await fixture(t, tier, { seedLog: true }), client = await f.open();
+  test(`${tier}: cold pin skips historical joins and publishes tier 1 then the hinted group`, { timeout: hangBudget(120) }, async t => {
+    const f = await fixture(t, tier), client = await f.open();
+    const observed = client.observe(query("history"), { c: "c", page: null }, { keep: false });
     await f.through(client, s => s.acquired_tables.length === 2);
-    assert.equal((await f.state()).floored_groups, 5);
+    assert.equal((await f.state()).floored_groups, 0);
+    const first = f.pages.find(p => p.acquire);
+    assert.equal(first.acquire.pinned, true);
+    assert.ok(first.watermark > 0); assert.equal(first.watermark, first.images_at);
+    await f.through(client, s => s.floored_groups === 1);
+    const firstGroup = f.pages.findIndex(p => p.acquire?.unit?.tier === 2);
+    assert.deepEqual(f.pages[firstGroup].acquire.unit.group, ["c"]);
+    assert.equal(f.pages.slice(0, firstGroup).filter(p => !p.acquire).flatMap(p => p.acquisitions ?? []).length, 0,
+      "no historical join expansions before the first tier-2 unit");
+    assert.ok(f.requests.every(r => !(r.from === 0 && r.stream === true)));
     assert.equal(client.acquired, false);
-    t.diagnostic("Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.");
+    observed.close();
     f.allow(true);
-    await waitFor(async () => { await client.sync(); return client.acquired; }, "natural log walk did not finish");
+    await client.sync(); assert.equal(client.acquired, true);
     for (const c of f.groups) assert.equal((await history(client, c)).complete, true);
+  });
+  test(`${tier}: one explicit cold sync resolves acquired with every table whole and group floored`, { timeout: hangBudget(120) }, async t => {
+    const f = await fixture(t, tier), client = await f.open();
+    f.allow(true); await client.sync();
+    assert.equal(client.acquired, true);
+    const state = await f.state();
+    assert.equal(state.acquired, true); assert.equal(state.acquisition_exhausted, true);
+    assert.deepEqual(state.acquired_tables, ["participants", "threads"]);
+    assert.equal(state.floored_groups, f.groups.length);
+    assert.ok(f.pages.some(p => p.acquire?.pinned));
+    assert.ok(f.requests.every(r => !(r.from === 0 && r.stream === true)));
+  });
+  test(`${tier}: a join committed after the pin still expands and becomes usable`, { timeout: hangBudget(120) }, async t => {
+    const f = await fixture(t, tier), client = await f.open();
+    await f.through(client, s => s.watermark > 0);
+    const pin = (await f.state()).watermark;
+    assert.equal((await f.post("/seed", [
+      { table: "threads", row: { id: "later", subject: "joined after pin" } },
+      { table: "participants", row: { id: "plater", threadId: "later", personId: "dev:alice" } },
+      { table: "messages", row: { id: "later1", conversation: "later", body: "new group", at: 1 } },
+    ])).seeded, 3);
+    await f.through(client, s => s.acquired_tables.length === 2);
+    assert.ok((await f.state()).watermark > pin);
+    assert.ok(f.pages.some(p => !p.acquire && p.acquisitions?.some(a => a.group[0] === "later" && a.floor)));
+    assert.ok(!f.pages.some(p => p.acquire?.unit?.tier === 2));
+    assert.equal((await f.state()).floored_groups, 1);
+    f.online(false);
+    const read = await history(client, "later");
+    assert.equal(read.complete, true); assert.deepEqual(read.data.map(r => r.id), ["later1"]);
+    assert.equal(client.acquired, false);
   });
   test(`${tier}: tier 1 inbox survives offline reopen before any history is usable`, { timeout: hangBudget(120) }, async t => {
     const f = await fixture(t, tier), client = await f.open();
@@ -183,18 +223,18 @@ for (const tier of ["process", "wasm"]) {
       observed = client.observe(query("history"), { c: hints[(traffic - 1) % hints.length], page: null }, { keep: false });
     });
     f.allow(true);
-    const syncing = client.sync(); await started;
+    await started;
     const write = await client.mutate({ kind: "mutation", name: "add" }, { c: "d", body: "during acquisition" }, { waitSeconds: 0 });
     writeId = write.id;
     assert.equal(write.state, "pending");
     assert.equal((await f.core().call({ op: "queued" })).ok.find(e => e.id === write.id).predictable, false);
-    release(); await syncing;
+    release();
     await waitFor(async () => (await client.write(write.id))?.state === "sent" && acquisitionsAtSend !== undefined, "send was starved by acquisition");
     assert.equal(settledDuringAcquisition, true, "send settled before exhaustion");
     const firstWrite = f.order.indexOf("write", orderStart);
     assert.equal(f.order.slice(orderStart, firstWrite).filter(kind => kind === "acquire").length, 1,
       "queued POST precedes the next acquisition unit; onWrite follows its ordinary receipt catch-up");
-    await waitFor(async () => { await client.sync(); return client.acquired; }, "foreground switching starved the walk");
+    await waitFor(() => client.acquired, "foreground switching starved the background walk");
     observed.close();
     const served = f.pages.filter(p => p.acquire?.unit?.tier === 2).map(p => p.acquire.unit.group[0]);
     assert.equal(new Set(served).size, served.length, JSON.stringify(served));

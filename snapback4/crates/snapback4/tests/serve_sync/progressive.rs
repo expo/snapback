@@ -40,6 +40,14 @@ fn exercise(reader: bool) {
     assert_eq!(p["acquire"]["unit"], json!({"tier": 1, "table": "items"}));
     assert_eq!(p["acquire"]["exhausted"], true);
     assert!(p["acquire"]["cursor"].is_null());
+    assert!(p["acquire"].get("pinned").is_none());
+    let cold = body(&host.request("POST", "/sync", &headers,
+        &json!({"from": 0, "pending": ["own-bump"], "acquire": {"cursor": null}}).to_string()));
+    assert_eq!(cold["acquire"]["pinned"], true);
+    assert_eq!(cold["watermark"], cold["images_at"]);
+    assert_eq!(cold["watermark"], committed["seq"]);
+    assert_eq!(cold["committed_above"]["own-bump"], committed["seq"]);
+    assert_eq!(cold["acknowledged"], json!({}));
 
     // Literal old-shaped requests retain the byte-exact legacy reply shape.
     let legacy = host.request("POST", "/sync", &headers, r#"{"from":0,"pending":["own-bump"]}"#);

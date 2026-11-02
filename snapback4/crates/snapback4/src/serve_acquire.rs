@@ -5,6 +5,8 @@ use snapback4_core::partition::{AcquisitionGroup, AcquisitionProgress};
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct AcquireRequest {
+    /// Null starts the walk. With from=0 the reply pins the cold stream at its
+    /// image head; the device must publish nothing before accepting that pin.
     pub cursor: Option<String>,
     #[serde(default)]
     hint: Option<AcquisitionGroup>,
@@ -14,6 +16,8 @@ pub(super) struct AcquireRequest {
 
 #[derive(serde::Serialize)]
 struct AcquisitionReply {
+    /// `pinned` identifies the first cold unit; only it advances watermark to
+    /// images_at. Receipts remain split against the request's from, not the pin.
     acquire: AcquisitionProgress,
     #[serde(flatten)]
     stream: StreamReply,
@@ -70,7 +74,7 @@ pub(super) fn serve(request: Request, shared: &Shared, now: i64, principal: Stri
                     acquisitions: page.acquisitions, acknowledged: answer.acknowledged,
                     committed_above: answer.committed_above, images_at: page.images_at,
                     events: SyncEvents::Stream(page.events), generation, store_id, joined: page.joined,
-                    more: page.more, now, snapshot: false, watermark: from,
+                    more: page.more, now, snapshot: false, watermark: page.watermark,
                     preserved: None, changes: Json::Null,
                 },
             }, true, Some(overflow), Some(shared));

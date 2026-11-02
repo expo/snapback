@@ -1,0 +1,35 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (0.839458ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.306708ms)
+✔ process: online fallback renders during acquisition and older pages do not enlarge the replica (3301.677375ms)
+✔ process: cold pin skips historical joins and publishes tier 1 then the hinted group (2176.289542ms)
+✔ process: one explicit cold sync resolves acquired with every table whole and group floored (310.69875ms)
+✔ process: a join committed after the pin still expands and becomes usable (2278.181375ms)
+✔ process: tier 1 inbox survives offline reopen before any history is usable (2329.817666ms)
+✔ process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2302.631833ms)
+✔ process: revocation during acquisition withdraws usable group (until-revoked) (3289.1915ms)
+✔ process: revocation during acquisition withdraws usable group (delivered) (2325.495584ms)
+✔ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1355.553666ms)
+✔ process: old server uses legacy snapshots without any acquire request (270.783458ms)
+✔ process: old device uses legacy snapshots without any acquire request (275.870417ms)
+✔ process: a partial walk reopens against an old server through staged replacement (1366.86625ms)
+✔ wasm: online fallback renders during acquisition and older pages do not enlarge the replica (1300.806667ms)
+✔ wasm: cold pin skips historical joins and publishes tier 1 then the hinted group (2248.244916ms)
+✔ wasm: one explicit cold sync resolves acquired with every table whole and group floored (275.176208ms)
+✔ wasm: a join committed after the pin still expands and becomes usable (2290.799875ms)
+✔ wasm: tier 1 inbox survives offline reopen before any history is usable (2315.953459ms)
+✔ wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2272.94325ms)
+✔ wasm: revocation during acquisition withdraws usable group (until-revoked) (3317.31975ms)
+✔ wasm: revocation during acquisition withdraws usable group (delivered) (3281.70625ms)
+✔ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1358.401166ms)
+✔ wasm: old server uses legacy snapshots without any acquire request (226.537791ms)
+✔ wasm: old device uses legacy snapshots without any acquire request (265.959416ms)
+✔ wasm: a partial walk reopens against an old server through staged replacement (1359.73675ms)
+﹣ browser React hooks and IndexedDB close/reopen (0.094542ms) # not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+ℹ tests 27
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 42217.519375

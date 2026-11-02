@@ -84,8 +84,10 @@ fn bounded_schedules_converge_through_inflight_changes_and_crash_reopen() {
             if schedule&bit!=0 { let args=if id.is_empty(){BTreeMap::new()}else{BTreeMap::from([("m".into(),Value::Id(id.into()))])};
                 e.mutate(op,None,Context::new("alice",args).at(100)).unwrap(); }
         }
-        if schedule&8!=0 { catchup(&mut e,&mut d); assert!(d.apply(&p,false).is_err());
-            let p=acquisition(&mut e,&mut d);d.apply(&p,false).unwrap();
+        if schedule&8!=0 { catchup(&mut e,&mut d);
+            if schedule&7!=0 { assert!(d.apply(&p,false).is_err());
+                let p=acquisition(&mut e,&mut d);d.apply(&p,false).unwrap(); }
+            else { d.apply(&p,false).unwrap(); } // At the unchanged pin, re-serving is idempotent.
         } else { d.apply(&p,false).unwrap(); }
         // The old in-flight image may legitimately lag until catch-up. Check
         // the current server oracle only after the stream repairs that image.

@@ -5,13 +5,13 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
 import { after } from "./teardown.mjs";
 import { captureStdout } from "./server-output.mjs";
 import { waitFor } from "./wait.mjs";
 import { createLocalClient } from "../../dist/local.js";
 import { processDevice } from "../../dist/native.js";
 import { memoryPersistence, webDevice } from "../../dist/web.js";
+import { acquisition } from "../../dist/acquisition.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -55,7 +55,7 @@ mutation leave(m: participants):
   delete participants[m]
 `;
 
-export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false, seedLog = false } = {}) {
+export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-progressive-acquisition-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), retained ? source.replace("  sync to participants[.conversation]", "  retain delivered-history\n  sync to participants[.conversation]") : source);
@@ -81,14 +81,8 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
     ...g === "empty" ? [] : [1, 2, 3, 4].map(n => ({ table: "messages", row: { id: `${g}${n}`, conversation: g, body: `${g}${n}`, at: 1 } })),
   ]);
   assert.equal((await post("/seed", rows)).seeded, rows.length);
-  // Isolate the RFC's partial-unit states: a quiescent pre-existing row image,
-  // with no historical seed/join events to expand every group on the first drain.
-  // Keep the server head intact. New mutations use its real ordinary log. A
-  // separate seedLog witness exercises the unmodified, join-expanding server.
-  if (!seedLog) {
-    const db = new DatabaseSync(join(directory, ".snapback4/store.sqlite"));
-    try { db.exec("DELETE FROM _log"); } finally { db.close(); }
-  }
+  // Keep the seed log intact: the first unit's pin, not fixture surgery, must
+  // prevent historical join expansion from bypassing the priority walk.
   const persist = memoryPersistence(), deviceDir = join(directory, "device"); mkdirSync(deviceDir);
   let core, online = true, allow = false, intercept, onApply, advertised = !legacy;
   const requests = [], pages = [], applies = [], queries = [], order = [];
@@ -143,7 +137,15 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
   const through = async (client, predicate) => {
     allow = true;
     onApply = async () => { if (await predicate(await state())) allow = false; };
-    await waitFor(async () => { await client.sync(); return predicate(await state()); }, "acquisition did not reach the requested publication");
+    // Drive the follow loop and the hook's actual subscription surface. Explicit
+    // sync deliberately waits for the entire walk and is tested separately.
+    const progress = acquisition(client), unsubscribe = progress.subscribe(() => {});
+    try {
+      await waitFor(async () => {
+        const s = await state(), usable = progress.read().usable;
+        return await predicate(s) && usable.tables === s.acquired_tables.length && usable.groups === s.floored_groups;
+      }, "background acquisition did not reach the requested publication");
+    } finally { unsubscribe(); }
     onApply = undefined;
   };
   return { open, backend, post, state, raw, through, requests, pages, applies, queries, order, groups,

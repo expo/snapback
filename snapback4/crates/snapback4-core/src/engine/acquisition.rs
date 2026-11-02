@@ -11,6 +11,9 @@ pub struct CertifiedAcquisition {
 }
 
 impl Engine {
+    /// Starting at cursor=None, from=0 pins the reply watermark at images_at.
+    /// Receipt evidence still uses the requested cut, including (0, head] on
+    /// that first unit; subsequent units retain watermark=from.
     // @ref LLP 3000.001.001#61-the-acquisition-page — image head and own-write deferral evidence belong to the unit's one read transaction.
     pub fn acquisition_page_at(&mut self, principal: &str, cursor: Option<&str>,
         hint: Option<&partition::AcquisitionGroup>, skip: &[partition::AcquisitionGroup],

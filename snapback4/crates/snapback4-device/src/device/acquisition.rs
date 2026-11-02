@@ -17,6 +17,9 @@ pub struct AcquisitionUnit {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AcquisitionProgress {
+    /// Adopt images_at as the sole applied watermark with the first cold unit.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     pub unit: Option<AcquisitionUnit>,
     pub cursor: Option<String>,
     pub exhausted: bool,
@@ -39,6 +42,22 @@ pub(super) fn validate<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) 
         || page.images_at.is_none_or(|head| head < page.watermark)
         || progress.whole_tables.iter().any(|name| !whole_eligible(schema, name)) {
         return Err(RuntimeError::Input("invalid progressive acquisition facts".into()));
+    }
+    // @ref LLP 3000.001.001#61-the-acquisition-page — a pin can skip historical joins only before any partition state has published.
+    if progress.pinned {
+        let started = meta_u64(tx, WATERMARK)? != 0 || tx.meta(ACQUIRED)?.is_some()
+            || tx.meta(CURSOR)?.is_some() || tx.meta(COMPLETE_AT)?.is_some()
+            || deferred::cursor(tx)?.is_some() || !tx.meta_prefix(TABLES)?.is_empty()
+            || !tx.meta_prefix(boundary::BOUNDARIES)?.is_empty();
+        if started || page.images_at != Some(page.watermark)
+            || page.requested_watermark.is_some_and(|from| from != 0) {
+            return Err(RuntimeError::Generation("a stream pin requires a cold empty partition; restart acquisition".into()));
+        }
+        for name in schema.tables.keys() {
+            if tx.base_has_table(name)? || !tx.scan(name, "byId", &[], &Bounds::default(), Dir::Asc, 1)?.is_empty() {
+                return Err(RuntimeError::Generation("a stream pin requires a cold empty partition; restart acquisition".into()));
+            }
+        }
     }
     if let Some(unit) = &progress.unit {
         let valid = schema.table(&unit.table).and_then(|t| t.sync.as_ref()).is_some_and(|s|

@@ -834,8 +834,8 @@ impl<S: DeviceStore> Device<S> {
         if page.watermark < watermark {
             return Err(RuntimeError::Generation("device watermark would move backwards".into()));
         }
-        deferred::validate(page)?;
         acquisition::validate(&tx, &self.schema, page)?;
+        deferred::validate(page)?;
         if page.acquire.is_some() { acquisition::stamp(&tx)?; }
         let declaration = predictions::declaration(&tx, page)?;
         let mut touched = BTreeSet::new();
@@ -970,6 +970,7 @@ impl<S: DeviceStore> Device<S> {
             deferred::events(&tx, &self.schema, self.generation, page, &mut touched, &mut delivery_candidates)?;
         }
         debug_assert!(tx.meta_prefix(deferred::PREFIX)?.is_empty(), "publication requires a disposed deferred slot");
+        // @ref LLP 3000.001.001#61-the-acquisition-page — the validated cold pin commits here with its rows, cursor and coverage, never in snapshot staging.
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.
         // A staged snapshot reaches here only after catch-up publishes its
