@@ -271,7 +271,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   });
   const installNative = nativeInstaller(() => ({ backend, generation, link, closed }), next => { backend = next; }, call, doFetch, base, requestCredentials);
   let nativeReady = false;
-  const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());
+  const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE" || !!acquisitionWalk.failure, () => deliveryQueue?.available());
   let submissions = 0, seq = 0;
   const journalCuts = new QueryCuts();
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
@@ -312,7 +312,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const acquiredListeners = new Set<(value: boolean) => void>();
   function setAcquired(value: boolean) {
     if (value) progress.acquired(true); else if (acquired) progress.reset();
-    if (coreReady && !coreFailure && !sessionDead && !closed) localState.set({ state: value ? "ready" : "syncing", executable: true, acquired: value });
+    if (coreReady && !coreFailure && !sessionDead && !closed && !acquisitionWalk.failure) localState.set({ state: value ? "ready" : "syncing", executable: true, acquired: value });
     if (acquired === value) return;
     acquired = value;
     for (const listener of acquiredListeners) listener(value);
@@ -809,6 +809,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
         if (denied && !generationChanged && !responsePageTooLarge(denied)) {
           if (overloaded(refusal(denied))) setLink("online");
+          if (progressiveTurn && acquisitionWalk.refuse(denied)) localState.set({ state: "unavailable", executable: false, acquired: false, why: denied });
           await refusePartition(denied, pageRevision);
           return false;
         }

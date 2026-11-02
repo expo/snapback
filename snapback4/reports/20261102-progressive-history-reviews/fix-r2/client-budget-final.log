@@ -1,0 +1,57 @@
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (8864.285125ms)
+snapback4: the server refused the partition: E_BOUND: heap bytes reached the ceiling 16777216
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (11320.185667ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (7887.403875ms)
+snapback4: the server refused the partition: E_BOUND: heap bytes reached the ceiling 16777216
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (15574.585583ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3654.314167ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47570.3195
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (11320.185667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'syncing'
+  - 'unavailable'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:39:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'syncing',
+    expected: 'unavailable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (15574.585583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'syncing'
+  - 'unavailable'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:39:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'syncing',
+    expected: 'unavailable',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

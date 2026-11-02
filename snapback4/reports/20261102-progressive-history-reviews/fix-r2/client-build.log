@@ -1,0 +1,7 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs
+guide api app: 504/2400 tokens
+guide api witness: 210/2400 tokens
+guide api react: 1191/2400 tokens
+guide api proof: 1529/2400 tokens
+guide api client: 1165/2400 tokens
+guide api auth: 503/2400 tokens

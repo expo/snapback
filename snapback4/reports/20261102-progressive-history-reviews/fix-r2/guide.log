@@ -1,0 +1,411 @@
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:109:13
+    |
+109 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::authority::AuthorityTransaction`
+   --> crates/snapback4-core/src/store/port/fixtures.rs:131:13
+    |
+131 |         use crate::authority::AuthorityTransaction;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `add_commit_timing` is never used
+  --> crates/snapback4-core/src/round_trips.rs:27:15
+   |
+27 | pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=de...
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: struct `RollbackCount` is never constructed
+  --> crates/snapback4-core/src/round_trips.rs:98:19
+   |
+98 | pub(crate) struct RollbackCount(Cell<bool>);
+   |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `disarm` are never used
+   --> crates/snapback4-core/src/round_trips.rs:100:19
+    |
+ 99 | impl RollbackCount {
+    | ------------------ associated items in this implementation
+100 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+103 |     pub(crate) fn disarm(&self) {
+    |                   ^^^^^^
+
+warning: `snapback4-core` (lib) generated 20 warnings (15 duplicates) (run `cargo fix --lib -p snapback4-core` to apply 2 suggestions)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:481:51
+    |
+481 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.52 (/Users/ccheever/projects/snapback-ph-20261102/snapback4/crates/snapback4-lang)
+warning: unused variable: `handle_index`
+   --> crates/snapback4-lang/tests/guide.rs:554:9
+    |
+554 |     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle...
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_index`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "guide") generated 1 warning (run `cargo fix --test "guide" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 15m 47s
+     Running tests/guide.rs (target/debug/deps/guide-4bc010de0f1b7f5d)
+
+running 139 tests
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::missing_row_question_opens_client ... ok
+test client::connection_presence_keeps_its_card ... ok
+test client::loading_or_absent_opens_client ... ok
+test audit::time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test client::witness_card_explains_scene_adoption_and_product_toolchain ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test a_piped_card_shows_its_first_section_and_truncation_hint ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test client::headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card ... ok
+test bounded_discovery_never_prints_a_partial_quarry_fence ... ok
+test definitions::assets_once_contract_retains_metadata_and_renders_opened ... ok
+test definitions::dense_literal_search_retains_matching_rows_inside_the_existing_byte_budget ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test client::published::package_has_one_markdown_entry_and_embeds_every_manual ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::refusal_actions::shipping_why_prefixes_respect_current_witness_and_advice_boundaries ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test following_cards_pin_examinations ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test guide1::continued_parts_and_packed_fences_fit_their_destination_allowance ... ok
+test guide1::deploy_persistent_production_is_one_complete_heading ... ok
+test guessed_section_words_land_on_one_section_even_in_another_card ... ok
+test guide1::fitting_heading_does_not_lose_the_renderers_safety_margin ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test guide1::honest_full_prints_small_cards_and_explains_large_ones ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test language_following_uses_the_declaration ... ok
+test natural_words_find_their_cards ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test prediction_card_compiles_clean ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test rollback::every_packaged_card_has_consistent_release_rollback_claims ... ok
+test rules::admitted_hidden_updates ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test rules::insert_rule_refusals ... ok
+test rules::delete_rule_refusals ... ok
+test rules::insert_collision_visibility ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::nullable_idioms_are_executed_from_the_language_card_not_unchecked_prose ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test start::staging_is_visible_in_the_default_builder_cards ... ok
+test start::start_routes_to_one_compiling_workflow_before_feature_reference_reads ... ok
+test rules::update_rule_refusals ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test surf::farm_conceptual_section_words_land_without_a_miss ... ok
+test rules::update_conditions ... ok
+test surf::surf_cards_match_current_auth_rules_assets_and_protocol ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test the_keywords_are_one_list ... ok
+test terminal_and_compatibility_overviews_carry_the_first_nonempty_section ... ok
+test start::workflow_calendar_anniversary_clamps_leap_day_and_preserves_utc_time ... ok
+test the_listing_fits_a_screen_and_aliases_have_their_own_command ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test the_template_compiles_clean ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test the_language_card_compiles_and_runs ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test wave10_dx::docs_use_engine_file_types_period_boundaries_and_projection_identity ... ok
+test wave10_dx::upgrade_card_version_and_nullable_count_are_bound_to_the_emitted_surface ... ok
+test wave30_dx14::wave30_001r_004r_dense_guide_content_and_functions_have_a_direct_door ... ok
+test wave30_dx14::wave30_018r_035e_headline_sweep_catches_rows_before_the_coalesced_period ... ok
+test rules::update_collision_visibility ... ok
+test wave9_dx::jobs_catch_up_sweep_includes_rows_before_the_latest_period_and_repeats ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test the_readme_quarry_compiles_clean ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test every_alias_is_a_section_or_find_word_inside_its_card ... ok
+test audit::every_emitted_code_is_explained ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test every_card_compiles_clean ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.29s
+

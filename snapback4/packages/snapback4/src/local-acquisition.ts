@@ -1,6 +1,7 @@
 import type { BackendJson } from "./backend.ts";
 import type { DeviceCompatibility } from "./device-version.ts";
 import type { SyncPage } from "./local-sync.ts";
+import type { Refusal } from "./contract.ts";
 
 export interface AcquisitionGroup { table: string; group: unknown[] }
 export interface ProgressiveState {
@@ -82,12 +83,18 @@ export function foregroundHint(backend: BackendJson | null, name: string, args: 
 /** Scheduling only. The durable cursor and coverage always belong to the device. */
 export class LocalAcquisition {
   pending = false;
+  failure: Refusal | undefined;
   private streamDue = false;
   private drainPages = 0;
   private started = false;
   private readonly served = new Map<string, AcquisitionGroup>();
   private oneTurn: AcquisitionGroup | undefined;
-  reset() { this.pending = false; this.streamDue = false; this.drainPages = 0; this.started = false; this.served.clear(); this.oneTurn = undefined; }
+  reset() { this.pending = false; this.failure = undefined; this.streamDue = false; this.drainPages = 0; this.started = false; this.served.clear(); this.oneTurn = undefined; }
+  // @ref LLP 3000.001.001#8-progress-and-ui — budget-cut tier-1 prefixes are successful pages. A genuine indivisible overflow surfaces once and waits for identity/reset or reopen, not an endless syncing loop.
+  refuse(why: Refusal): boolean {
+    if (why.code !== "E_BOUND" || why.family !== "bound" || why.retryable) return false;
+    this.pending = false; this.failure = why; return true;
+  }
   hintOnce(hint: AcquisitionGroup | undefined) { if (hint) this.oneTurn = hint; }
   // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — explicit sync retains full-acquisition readiness while background rounds publish one unit at a time.
   async sync(afterCall: () => Promise<boolean>, once: () => Promise<boolean>, active: () => boolean): Promise<void> {

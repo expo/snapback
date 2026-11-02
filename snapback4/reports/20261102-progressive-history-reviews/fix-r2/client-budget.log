@@ -1,0 +1,61 @@
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (11843.634709ms)
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (1379.315375ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (4642.737667ms)
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (1279.314292ms)
+✖ process: inbox milestone waits for the last rule dependency and survives offline reopen (1326.711875ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20849.369333
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (1379.315375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:83:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:30:15)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (1279.314292ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1
+  
+      at fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:83:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:30:15)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-budget.test.mjs:51:1
+✖ process: inbox milestone waits for the last rule dependency and survives offline reopen (1326.711875ms)
+  TypeError: Cannot read properties of undefined (reading 'id')
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:68:71)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7)

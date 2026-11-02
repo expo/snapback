@@ -75,15 +75,62 @@ fn tier2(e: &mut Engine) -> String {
 
 #[test]
 fn tier1_admits_decode_scratch_before_materializing_payloads() {
-    // The declared decode reservation cannot fit even one row plus lookahead.
-    // Actual 8 KiB payloads fit the output budget: checking only after walk()
-    // succeeds would miss the pre-materialization admission entirely.
+    // A worst-case declaration is not the allocation made by the row decoder.
+    // Fall back to one actual row when a reserved batch cannot fit.
     let mut e = engine("table payloads:\n  body: text <=16777216\n  public 'fixture'\n  sync\n");
     e.seed_at([("payloads".into(), object([("id", id("row")),
         ("body", Value::String("x".repeat(8192)))]))], 100).unwrap();
-    let result = e.acquisition_page_at("alice", None, None, &[], 0, 8192, 100, &[]);
-    assert!(matches!(result, Err(snapback4_core::error::RuntimeError::Bound {
-        kind: snapback4_core::error::MeterKind::HeapBytes, .. })), "tier-1 decode must be admitted first");
+    let result = e.acquisition_page_at("alice", None, None, &[], 0, 8192, 100, &[]).unwrap();
+    assert_eq!(result.page.events.len(), 1);
+    assert_eq!(result.page.events[0].id, "row");
+    if let Some(cursor) = result.acquire.cursor {
+        let end = page(&mut e, Some(&cursor), None, &[], 8192);
+        assert!(end.acquire.exhausted);
+        assert_eq!(end.acquire.whole_tables, ["payloads"]);
+    } else { assert_eq!(result.acquire.whole_tables, ["payloads"]); }
+}
+
+#[test]
+fn tier1_heap_pages_keep_every_admitted_row_and_resume_without_false_whole() {
+    for count in [1200, 2400] {
+        let mut e = engine("table payloads:\n  body: text <=262144\n  public 'fixture'\n  sync\n");
+        e.seed_at((0..count).map(|n| ("payloads".into(), object([
+            ("id", id(&format!("row{n:04}"))), ("body", Value::String("x".repeat(8192)))]))), 100).unwrap();
+        let mut cursor = None;
+        let mut seen = BTreeSet::new();
+        let mut pages = 0;
+        loop {
+            let p = page(&mut e, cursor.as_deref(), None, &[], 8192);
+            pages += 1;
+            assert!(pages < 20, "finite budget-bounded progress");
+            for event in &p.page.events { assert!(seen.insert(event.id.clone()), "cursor replayed {}", event.id); }
+            if p.acquire.exhausted {
+                assert_eq!(p.acquire.whole_tables, ["payloads"]);
+                assert_eq!(seen.len(), count);
+                break;
+            }
+            assert!(!p.page.events.is_empty());
+            assert!(p.acquire.whole_tables.is_empty(), "a budget stop is not a whole-table fact");
+            assert_ne!(p.acquire.cursor, cursor);
+            let next = SnapshotCursor::decode(p.acquire.cursor.as_deref().unwrap()).unwrap();
+            assert_eq!(next.taken, seen.len());
+            assert_eq!(next.after.as_ref().unwrap().last().unwrap(), &id(&p.page.events.last().unwrap().id));
+            cursor = p.acquire.cursor;
+        }
+        assert!(pages > 1, "the table must span heap-bounded pages, even below the row limit");
+    }
+}
+
+#[test]
+fn tier1_single_actual_row_overflow_is_a_typed_refusal() {
+    let mut e = engine("table payloads:\n  body: text <=20000000\n  public 'fixture'\n  sync\n");
+    e.seed_at([("payloads".into(), object([("id", id("large")),
+        ("body", Value::String("x".repeat(17 << 20)))]))], 100).unwrap();
+    let error = e.acquisition_page_at("alice", None, None, &[], 0, 1, 100, &[]).err().unwrap();
+    assert!(matches!(error, snapback4_core::error::RuntimeError::Bound {
+        kind: snapback4_core::error::MeterKind::HeapBytes, actual, ceiling, .. }
+        if actual > ceiling && actual < 18 << 20), "charge actual bytes: {error:?}");
+    assert_eq!(error.refusal().code, "E_BOUND");
 }
 
 #[test]

@@ -111,7 +111,8 @@ pub(super) fn events(tx: &dyn crate::store::StreamTx, page: &StreamPage, touched
 }
 
 pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &StreamPage) -> Result<(), RuntimeError> {
-    let progressive = page.acquire.is_some() || tx.meta(CURSOR)?.is_some();
+    // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — replacement clears CURSOR but FORMAT and its read guard survive; fresh joins must be Held for that same lifetime.
+    let progressive = page.acquire.is_some() || tx.meta(FORMAT)?.is_some();
     let before = if progressive { history::load(tx, history::GROUPS)? } else { Default::default() };
     history::events(tx, schema, &page.events, &page.joined, false)?;
     if !progressive { return Ok(()); }
@@ -187,7 +188,7 @@ pub(super) fn reset<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
 }
 
 // @ref LLP 3000.001.001#52-a-safe-read-before-full-acquisition — admit query programs to existing per-range coverage; prediction retains require_acquired.
-pub(super) fn require_read<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, boundaries: &boundary::Boundaries) -> Result<(), RuntimeError> {
+pub(super) fn require_read<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, boundaries: &boundary::Boundaries, cache: &mut BTreeMap<String, BTreeSet<String>>) -> Result<(), RuntimeError> {
     match require_acquired(tx, schema, program) {
         Ok(()) => return Ok(()),
         Err(RuntimeError::Prediction(_)) => {},
@@ -198,14 +199,38 @@ pub(super) fn require_read<T: DeviceTx>(tx: &T, schema: &Schema, program: &Progr
         return require_acquired(tx, schema, program);
     }
     let whole = tables(tx)?;
-    for site in snapback4_core::ir::read_sites(program) {
-        if schema.table(&site.table).is_some_and(|t| t.sync.is_some())
-            && !whole.contains(&site.table)
-            && !boundaries.has_table(&site.table)? {
+    let dependencies = cache.entry(program.name.clone()).or_insert_with(|| read_dependencies(schema, program));
+    for name in dependencies.iter() {
+        if schema.table(name).is_some_and(|t| t.sync.is_some())
+            && !whole.contains(name)
+            && !boundaries.has_table(name)? {
             return Err(RuntimeError::Prediction("this read needs a table that has not completed acquisition".into()));
         }
     }
     Ok(())
+}
+
+// @ref LLP 3000.001.001#52-a-safe-read-before-full-acquisition — admission includes implicit rule inputs, not just authored reads. Cache syntax dependencies, never answers or coverage, until backend adoption.
+fn read_dependencies(schema: &Schema, program: &Program) -> BTreeSet<String> {
+    let mut pending: Vec<_> = snapback4_core::ir::read_sites(program).into_iter().map(|site| site.table).collect();
+    let mut seen = BTreeSet::new();
+    while let Some(name) = pending.pop() {
+        if !seen.insert(name.clone()) { continue; }
+        let Some(table) = schema.table(&name) else { continue; };
+        let mut probes = Vec::new();
+        // Reuse the interpreter's rule-reference census (including references
+        // inside probe keys); cycle detection also handles self-membership.
+        for rule in std::iter::once(&table.rules.read).chain(table.column_reads.values()) {
+            snapback4_core::engine::rules::probe_sites(rule, &mut probes);
+        }
+        pending.extend(probes.into_iter().map(|(table, _)| table));
+        if let Some(through) = &table.through { pending.push(through.parent.clone()); }
+        if let Some(maintain) = schema.maintain_for(&name) {
+            pending.push(maintain.source.clone());
+            if let Some(key) = &maintain.row_key { pending.push(key.table.clone()); }
+        }
+    }
+    seen
 }
 
 pub(super) fn scoped(schema: &Schema, events: &[StreamEvent], name: &str, group: &[serde_json::Value]) -> Result<bool, RuntimeError> {
@@ -214,4 +239,42 @@ pub(super) fn scoped(schema: &Schema, events: &[StreamEvent], name: &str, group:
         if scope_group(table, event)?.iter().map(wire::to_json).collect::<Vec<_>>() == group { return Ok(true); }
     }
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_dependencies_follow_inherited_rules_and_transitive_self_probes() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), r#"
+table participants:
+  group: parents
+  person: principal
+  unique group, person
+  cap 50 by group
+  read <- exists participants[.group, viewer]
+  sync by .person
+table parents:
+  read <- exists participants[.id, viewer]
+  sync to participants[.id] by .person
+table children:
+  parent: parents
+  immutable parent
+  read through .parent
+  sync
+table grandchildren:
+  child: children
+  immutable child
+  read through .child
+  sync
+query one(c: grandchildren):
+  return grandchildren[c]
+"#.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let program = &bound.programs[0].program;
+        assert_eq!(snapback4_core::ir::read_sites(program).into_iter().map(|s| s.table).collect::<Vec<_>>(), ["grandchildren"]);
+        assert_eq!(read_dependencies(&bound.schema, program),
+            ["children", "grandchildren", "parents", "participants"].into_iter().map(str::to_owned).collect());
+    }
 }

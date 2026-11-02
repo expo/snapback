@@ -111161,3 +111161,26 @@ server-driven key movement, both device stores, an advertised-server restart
 and traffic injected during draining). The final results, exact command
 summaries, counterfactual details and sandbox exclusions are in
 [the fix report](./reports/20261102-progressive-history-reviews/fix-r1/REPORT.md).
+
+
+## 2026-11-02 — Progressive history, review fix round 2
+
+Fixed the three confirmed defects in the blind reviews of 77ff5f62ec. Partial
+query admission now includes transitive read-rule and inherited read-through
+dependencies, using the interpreter’s probe census and a per-program syntax
+cache cleared on adoption. Tier-1 scratch exhaustion publishes an admitted
+prefix; when the declared maximum admits no scratch row, the walk decodes one
+actual row without lookahead. Only an indivisible actual overflow refuses, and
+the client surfaces that typed refusal instead of silently retrying. A fresh
+ordinary join becomes Held for the durable progressive format’s lifetime,
+including after generation adoption and staged replacement cleared its cursor;
+actual Left/Rejoined groups keep their existing unknown live coverage.
+
+The regressions were observed failing without the corresponding fixes. The
+native 20,440-row measurement fixture reaches its inbox milestone after both
+conversations and memberships become effective and reopens offline at that
+partial point. This is a correctness witness, not a new timing claim. Full
+commands, final suite summaries, counterfactual details and sandbox exclusions
+are in [the round-2 fix report](./reports/20261102-progressive-history-reviews/fix-r2/REPORT.md).
+No new protocol field, coverage fact, watermark, refusal code, contract change,
+wasm rebuild or commit.

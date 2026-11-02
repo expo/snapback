@@ -1,0 +1,15 @@
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (9804.265833ms)
+snapback4: the server refused the partition: E_BOUND: heap bytes reached the ceiling 16777216
+✔ process: a genuine single-row heap overflow surfaces a typed local refusal (8013.191625ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (5790.882833ms)
+snapback4: the server refused the partition: E_BOUND: heap bytes reached the ceiling 16777216
+✔ wasm: a genuine single-row heap overflow surfaces a typed local refusal (9670.274834ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3553.63225ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37179.992417

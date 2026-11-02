@@ -280,6 +280,7 @@ pub struct Device<S: DeviceStore> {
     pub(crate) read_scopes: RefCell<serde_json::Value>,
     schema: Schema,
     programs: BTreeMap<String, Program>,
+    acquisition_reads: BTreeMap<String, BTreeSet<String>>,
     generation: u64,
     backend_identity: String,
     store_identity: Option<String>,
@@ -560,6 +561,7 @@ impl<S: DeviceStore> Device<S> {
             store,
             schema: backend.schema,
             programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
+            acquisition_reads: BTreeMap::new(),
             generation: backend.generation,
             backend_identity,
             store_identity,
@@ -665,6 +667,7 @@ impl<S: DeviceStore> Device<S> {
         }
         self.schema = backend.schema;
         self.programs = snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p)));
+        self.acquisition_reads.clear();
         self.generation = backend.generation;
         self.backend_identity = backend_identity;
         self.store_identity = adopted_store;
@@ -1045,7 +1048,7 @@ impl<S: DeviceStore> Device<S> {
                 return Err(error.refusal());
             }
             let boundaries = boundary::Boundaries::load(&tx, false)?;
-            if let Err(error) = acquisition::require_read(&tx, &self.schema, &program, &boundaries) {
+            if let Err(error) = acquisition::require_read(&tx, &self.schema, &program, &boundaries, &mut self.acquisition_reads) {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
                 return Err(error.refusal());
             }

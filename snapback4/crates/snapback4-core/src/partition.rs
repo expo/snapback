@@ -637,6 +637,11 @@ pub fn snapshot(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i
 /// keys and whether the group is done.
 #[cfg(feature = "sqlite")]
 fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>) -> Result<(Vec<(Value, Vec<u8>)>, bool, Option<Vec<Value>>, usize), RuntimeError> {
+    group_rows_from_mode(tx, table_name, table, sync, group, after, taken, room, now, viewer, true)
+}
+
+#[cfg(feature = "sqlite")]
+fn group_rows_from_mode(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, viewer: Option<(&Schema, &str)>, lookahead: bool) -> Result<(Vec<(Value, Vec<u8>)>, bool, Option<Vec<Value>>, usize), RuntimeError> {
     // Select through U's horizon, then fetch only the projected count image.
     // The horizon's order columns stay on U; they never become view payload.
     if let Some((schema, principal)) = viewer
@@ -644,7 +649,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         let k = m.row_key.as_ref().unwrap();
         let member = &schema.tables[&k.table];
         if let Some(member_sync) = member.sync.as_ref().filter(|s| s.horizon.is_some()) {
-            let (members, exhausted, continuation, work) = group_rows_from(tx, &k.table, member, member_sync, group, after, taken, room, now, viewer)?;
+            let (members, exhausted, continuation, work) = group_rows_from_mode(tx, &k.table, member, member_sync, group, after, taken, room, now, viewer, lookahead)?;
             let mut rows = Vec::new();
             let mut aggregate = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
             for (member, key) in members {
@@ -682,7 +687,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             table_name == t.table("Posts") && (!t.fully_synced(schema, false) || !t.fully_synced(schema, true))
         })
     });
-    let target = remaining.min(if filtered { room } else { room.saturating_add(1) });
+    let target = remaining.min(if filtered || !lookahead { room } else { room.saturating_add(1) });
     let mut examined = 0;
     loop {
         let batch = target.saturating_sub(if filtered { examined } else { live.len() }).min(256).max(1);

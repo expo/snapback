@@ -55,10 +55,10 @@ mutation leave(m: participants):
   delete participants[m]
 `;
 
-export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false, limit = 2 } = {}) {
+export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false, limit = 2, source: fixtureSource = source, rows: fixtureRows } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-progressive-acquisition-"));
   mkdirSync(join(directory, "snapback"));
-  writeFileSync(join(directory, "snapback/schema.q"), retained ? source.replace("  sync to participants[.conversation]", "  retain delivered-history\n  sync to participants[.conversation]") : source);
+  writeFileSync(join(directory, "snapback/schema.q"), retained ? fixtureSource.replace("  sync to participants[.conversation]", "  retain delivered-history\n  sync to participants[.conversation]") : fixtureSource);
   const child = spawn(binary, ["dev", "--port", "0"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(child), exit = once(child, "exit");
   let errors = "";
@@ -75,12 +75,13 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
   const post = (path, body) => fetch(`${url}${path}`, { method: "POST", headers, body: JSON.stringify(body) }).then(r => r.json());
   const backend = await fetch(`${url}/schema`, { headers }).then(r => r.json());
   const groups = ["a", "b", "c", "d", "empty"];
-  const rows = groups.flatMap(g => [
+  const rows = fixtureRows ?? groups.flatMap(g => [
     { table: "threads", row: { id: g, subject: g } },
     { table: "participants", row: { id: `p${g}`, threadId: g, personId: "dev:alice" } },
     ...g === "empty" ? [] : [1, 2, 3, 4].map(n => ({ table: "messages", row: { id: `${g}${n}`, conversation: g, body: `${g}${n}`, at: 1 } })),
   ]);
-  assert.equal((await post("/seed", rows)).seeded, rows.length);
+  const seeded = await post("/seed", rows);
+  assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
   // Keep the seed log intact: the first unit's pin, not fixture surgery, must
   // prevent historical join expansion from bypassing the priority walk.
   const persist = memoryPersistence(), deviceDir = join(directory, "device"); mkdirSync(deviceDir);

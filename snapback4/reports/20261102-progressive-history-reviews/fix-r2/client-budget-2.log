@@ -1,0 +1,53 @@
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (7017.55825ms)
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (2105.771333ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (7689.406625ms)
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (1732.006792ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3439.540833ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22377.928667
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (2105.771333ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_CONSTRAINT","family":"constraint","guide":"indexes","message":"payloads.body must be json <=3000000, not a list of 1000000"},"generation":1}
+  
+  undefined !== 1
+  
+      at fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:84:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:30:15)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (1732.006792ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_CONSTRAINT","family":"constraint","guide":"indexes","message":"payloads.body must be json <=3000000, not a list of 1000000"},"generation":1}
+  
+  undefined !== 1
+  
+      at fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:84:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:30:15)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

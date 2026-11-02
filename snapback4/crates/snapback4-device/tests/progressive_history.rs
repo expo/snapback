@@ -151,6 +151,83 @@ fn admission<H: Host>(h: &mut H) {
 }
 stores!(tier1_and_group_read_admission_survive_reopen_on_both_stores, admission);
 
+// @ref LLP 3000.001.001#52-a-safe-read-before-full-acquisition — an acquired row is not a known absence while its read-rule witness is unacquired.
+fn rule_dependency_admission<H: Host>(h: &mut H) {
+    let source = SOURCE.replace("threads", "conversations").replace("retain delivered-history", "retain until-revoked")
+        .replace("  cap 50 by threadId", "  until: time ?\n  expire at .until\n  cap 50 by threadId");
+    let (mut e, b) = compile(&source);
+    e.seed_at([
+        ("conversations".into(), object([("id", id("a")), ("subject", Value::String("present".into()))])),
+        ("participants".into(), object([("id", id("pa")), ("threadId", id("a")),
+            ("personId", id("dev:alice")), ("until", Value::Null)])),
+    ], 100).unwrap();
+    let mut d = h.open("rule", Some(b)).unwrap();
+    let p = acquire(&mut e, &mut d, None, 1); d.apply(&p, false).unwrap();
+    assert_eq!(d.sync_state_read().unwrap().acquired_tables, ["conversations"]);
+    let watermark = d.state().unwrap().0;
+    let truth = e.query("thread", context("dev:alice", &[("c", id("a"))]).at(100)).unwrap();
+    assert_eq!(truth.data.field("id").unwrap(), &id("a"));
+    for _ in 0..2 {
+        let (answer, unknown, _) = d.query_with_coverage("thread", "dev:alice", &json!({"c":"a"}), 100);
+        assert!(unknown, "unacquired rule dependency must not turn a readable row into complete null: {answer:?}");
+        assert!(!d.sync_state_read().unwrap().acquired);
+        h.close("rule", d); d = h.open("rule", None).unwrap();
+    }
+    let p = acquire(&mut e, &mut d, None, 1); d.apply(&p, false).unwrap();
+    assert_eq!(d.state().unwrap().0, watermark);
+    assert_eq!(d.sync_state_read().unwrap().acquired_tables, ["conversations", "participants"]);
+    let (answer, unknown, _) = d.query_with_coverage("thread", "dev:alice", &json!({"c":"a"}), 100);
+    assert!(!unknown); let answer = answer.unwrap();
+    assert!(answer.complete); assert_eq!(answer.data, truth.data);
+    assert!(!d.sync_state_read().unwrap().acquired, "history group still waits");
+}
+#[test] fn read_rule_dependencies_gate_early_queries_memory() { rule_dependency_admission(&mut Memory::new()); }
+#[test] fn read_rule_dependencies_gate_early_queries_sqlite() { rule_dependency_admission(&mut Sqlite::new("rule-dependencies")); }
+
+// @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — replacing clears the walk cursor, not the upgraded store's fresh-join semantics.
+fn fresh_join_after_replacement<H: Host>(h: &mut H) {
+    for progressive in [false, true] {
+        let name = if progressive { "upgraded-join" } else { "legacy-join" };
+        let (mut e, mut b) = fixture(true); let mut d = h.open(name, Some(b.clone())).unwrap();
+        if progressive {
+            while !d.sync_state_read().unwrap().acquired {
+                let p = acquire(&mut e, &mut d, None, 100); d.apply(&p, false).unwrap();
+            }
+        } else {
+            for (i, p) in snapshot_pages(&mut e, "dev:alice", 100).iter().enumerate() { d.apply(p, i == 0).unwrap(); }
+        }
+        b.generation += 1; d.adopt(b).unwrap();
+        for (i, mut p) in snapshot_pages(&mut e, "dev:alice", 2).into_iter().enumerate() {
+            p.stage_snapshot = true; p.generation = Some(2); d.apply(&p, i == 0).unwrap();
+        }
+        let mut p = stream(&mut e, &mut d, 100); p.snapshot_catchup = true;
+        d.apply(&p, false).unwrap();
+        let s = d.sync_state_read().unwrap(); assert!(s.acquired); assert!(s.acquisition_cursor.is_none());
+        e.seed_at([
+            ("threads".into(), object([("id", id("fresh")), ("subject", Value::String("fresh join".into()))])),
+            ("participants".into(), object([("id", id("pfresh")), ("threadId", id("fresh")), ("personId", id("dev:alice"))])),
+            ("messages".into(), object([("id", id("fresh1")), ("conversation", id("fresh")),
+                ("body", Value::String("new".into())), ("n", Value::Int(0)), ("at", Value::Int(1))])),
+        ], 100).unwrap();
+        drain(&mut e, &mut d);
+        for _ in 0..2 {
+            let (answer, unknown, _) = history(&mut d, "fresh");
+            assert!(!unknown, "first ordinary join after replacement must be usable; progressive={progressive}: {answer:?}");
+            let answer = answer.unwrap(); assert!(answer.complete);
+            assert_eq!(answer.data.as_array().unwrap()[0].field("id").unwrap(), &id("fresh1"));
+            h.close(name, d); d = h.open(name, None).unwrap();
+        }
+        // A real departure/rejoin still needs staged replacement on upgraded stores.
+        mutate(&mut e, "leave", &[("m", id("pfresh"))]); drain(&mut e, &mut d);
+        e.seed_at([("participants".into(), object([("id", id("pfresh2")),
+            ("threadId", id("fresh")), ("personId", id("dev:alice"))]))], 100).unwrap();
+        drain(&mut e, &mut d);
+        assert!(history(&mut d, "fresh").1);
+    }
+}
+#[test] fn fresh_join_after_staged_replacement_memory() { fresh_join_after_replacement(&mut Memory::new()); }
+#[test] fn fresh_join_after_staged_replacement_sqlite() { fresh_join_after_replacement(&mut Sqlite::new("fresh-join-replacement")); }
+
 fn completion<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
     let (mut e, b) = fixture(true); let mut d = h.open("progress", Some(b.clone())).unwrap();
     tier1(&mut e, &mut d);

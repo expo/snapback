@@ -79,24 +79,46 @@ pub(super) fn walk(tx: &dyn PartitionRows, schema: &Schema, principal: &str, cur
                 }
             }
             // @ref LLP 3000.001.001#61-the-acquisition-page — tier 1 shares the packed reply's budget; reserve bounded decode scratch before reading any candidate batch.
-            let chunk = match budget.as_ref() {
-                Some(budget) => budget.scratch_chunk(table, room.min(budget.row_room()))?,
-                None => room,
+            let (chunk, lookahead) = match budget.as_ref().map(|budget| budget.scratch_chunk(table, room.min(budget.row_room()))) {
+                Some(Ok(chunk)) => (chunk, true),
+                // @ref LLP 3000.001.001#61-the-acquisition-page — a tier-1 budget cut publishes its admitted prefix, never a whole-table fact. Tier-2 groups remain atomic.
+                Some(Err(RuntimeError::Bound { .. })) if !events.is_empty() => {
+                    at.group = Some(group.clone());
+                    return Ok((SnapshotPage { acquisitions, events, watermark, next: Some(at), held }, None));
+                }
+                // The decoder allocates the actual value, not its declared
+                // maximum. An empty reply can try one row without lookahead;
+                // retain below either admits its actual bytes or refuses it.
+                Some(Err(RuntimeError::Bound { kind: crate::error::MeterKind::HeapBytes, .. }))
+                    if budget.as_ref().is_some_and(|budget| budget.is_empty()) => (1, false),
+                Some(Err(error)) => return Err(error),
+                None => (room, true),
             };
-            let (rows, exhausted, scanned, work) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, chunk, now, Some((schema, principal)))?;
+            let (rows, exhausted, scanned, work) = group_rows_from_mode(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, chunk, now, Some((schema, principal)), lookahead)?;
             // Empty groups still emit transitions and must consume page room.
             used += work.max(1);
             for (row, key) in rows {
                 let id = row.field("id")?.as_str()?.to_owned();
-                at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                at.taken += 1;
                 let partition = if table.field_owners(&row).contains(principal) { partition_of(principal) } else { match &sync.audience {
                     Audience::Public => PUBLIC.to_owned(),
                     Audience::Column(_) => partition_of(principal),
                     Audience::Target { .. } => group_partition(table_name, group),
                 }};
                 let image = LogEvent { seq: watermark, ord: 0, table: table_name.into(), kind: "put".into(), id, data: Some(row) };
-                if let Some(budget) = budget.as_mut() { budget.retain(&image, key.len())?; }
+                if let Some(budget) = budget.as_mut() {
+                    match budget.retain(&image, key.len()) {
+                        Ok(()) => {},
+                        Err(RuntimeError::Bound { .. }) if !events.is_empty() => {
+                            at.group = Some(group.clone());
+                            return Ok((SnapshotPage { acquisitions, events, watermark, next: Some(at), held }, None));
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
+                // Advance only after admission: a refused candidate belongs
+                // to the next page, including when it was already decoded.
+                at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                at.taken += 1;
                 events.push(Event { partition, table: image.table, kind: EventKind::Put, id: image.id, data: image.data });
             }
             if scanned.is_some() { at.after = scanned; }
