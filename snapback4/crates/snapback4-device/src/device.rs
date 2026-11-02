@@ -902,7 +902,7 @@ impl<S: DeviceStore> Device<S> {
             snapshot::continuation(&tx, page, first)?;
             snapshot::stage(&tx, &self.schema, page)?;
             delivery::stage_left(&tx, &self.schema, page, true)?;
-            history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
+            acquisition::history(&tx, &self.schema, page, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
             tx.set_meta(SNAPSHOT_IMAGES_AT, &meta_u64(&tx, SNAPSHOT_IMAGES_AT)?.max(page.images_at.unwrap_or(page.watermark)).to_string())?;
             let mut acks: BTreeMap<String, u64> = tx.meta(SNAPSHOT_ACKS)?.map(|s| decoded(&s)).transpose()?.unwrap_or_default();

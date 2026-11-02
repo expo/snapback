@@ -110,13 +110,17 @@ pub(super) fn events(tx: &dyn crate::store::StreamTx, page: &StreamPage, touched
     Ok(())
 }
 
-pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &StreamPage) -> Result<(), RuntimeError> {
+pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &StreamPage, staged: bool) -> Result<(), RuntimeError> {
     // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — replacement clears CURSOR but FORMAT and its read guard survive; fresh joins must be Held for that same lifetime.
+    // Snapshot retention seeds staged membership from the published map.
+    // Classify catch-up joins against that map, including any staged departures,
+    // and publish the classification with the replacement's rows and floors.
+    let meta = if staged { history::STAGED_GROUPS } else { history::GROUPS };
     let progressive = page.acquire.is_some() || tx.meta(FORMAT)?.is_some();
-    let before = if progressive { history::load(tx, history::GROUPS)? } else { Default::default() };
-    history::events(tx, schema, &page.events, &page.joined, false)?;
+    let before = if progressive { history::load(tx, meta)? } else { Default::default() };
+    history::events(tx, schema, &page.events, &page.joined, staged)?;
     if !progressive { return Ok(()); }
-    let mut groups = history::load(tx, history::GROUPS)?;
+    let mut groups = history::load(tx, meta)?;
     if let Some(progress) = &page.acquire {
         // @ref LLP 3000.001.001#61-the-acquisition-page — a mixed page carries retained tier-1 rows beside every joined group's rows and floors.
         for event in page.events.iter().filter(|e| e.kind == "put" && progress.units.iter().chain(progress.unit.iter())
@@ -136,7 +140,7 @@ pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &S
             }
         }
     }
-    if groups != history::load(tx, history::GROUPS)? { tx.set_meta(history::GROUPS, &encoded(&groups)?)?; }
+    if groups != history::load(tx, meta)? { tx.set_meta(meta, &encoded(&groups)?)?; }
     Ok(())
 }
 

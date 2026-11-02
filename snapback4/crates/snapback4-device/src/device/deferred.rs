@@ -261,7 +261,7 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
         }
     }
     boundaries.save(tx, false)?;
-    acquisition::history(tx, schema, page)?;
+    acquisition::history(tx, schema, page, false)?;
     acquisition::events(tx, page, touched)?;
     touched.extend(page.joined.keys().cloned());
     touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));

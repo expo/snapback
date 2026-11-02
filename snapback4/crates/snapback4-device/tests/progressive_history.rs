@@ -184,10 +184,19 @@ fn rule_dependency_admission<H: Host>(h: &mut H) {
 #[test] fn read_rule_dependencies_gate_early_queries_memory() { rule_dependency_admission(&mut Memory::new()); }
 #[test] fn read_rule_dependencies_gate_early_queries_sqlite() { rule_dependency_admission(&mut Sqlite::new("rule-dependencies")); }
 
-// @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — replacing clears the walk cursor, not the upgraded store's fresh-join semantics.
+fn finish_replacement<S: DeviceStore>(e: &mut Engine, d: &mut Device<S>) {
+    let mut p = stream(e, d, 100); p.snapshot_catchup = true;
+    d.apply(&p, false).unwrap();
+    let s = d.sync_state_read().unwrap(); assert!(s.acquired); assert!(s.acquisition_cursor.is_none());
+}
+
+// @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — fresh joins during staged catch-up and after replacement share the upgraded store's classification.
 fn fresh_join_after_replacement<H: Host>(h: &mut H) {
-    for progressive in [false, true] {
-        let name = if progressive { "upgraded-join" } else { "legacy-join" };
+    for (during_catchup, progressive) in [(false, false), (false, true), (true, false), (true, true)] {
+        let name = match (progressive, during_catchup) {
+            (false, false) => "legacy-join", (true, false) => "upgraded-join",
+            (false, true) => "legacy-staged-join", (true, true) => "upgraded-staged-join",
+        };
         let (mut e, mut b) = fixture(true); let mut d = h.open(name, Some(b.clone())).unwrap();
         if progressive {
             while !d.sync_state_read().unwrap().acquired {
@@ -200,33 +209,42 @@ fn fresh_join_after_replacement<H: Host>(h: &mut H) {
         for (i, mut p) in snapshot_pages(&mut e, "dev:alice", 2).into_iter().enumerate() {
             p.stage_snapshot = true; p.generation = Some(2); d.apply(&p, i == 0).unwrap();
         }
-        let mut p = stream(&mut e, &mut d, 100); p.snapshot_catchup = true;
-        d.apply(&p, false).unwrap();
-        let s = d.sync_state_read().unwrap(); assert!(s.acquired); assert!(s.acquisition_cursor.is_none());
+        if !during_catchup { finish_replacement(&mut e, &mut d); }
         e.seed_at([
             ("threads".into(), object([("id", id("fresh")), ("subject", Value::String("fresh join".into()))])),
             ("participants".into(), object([("id", id("pfresh")), ("threadId", id("fresh")), ("personId", id("dev:alice"))])),
             ("messages".into(), object([("id", id("fresh1")), ("conversation", id("fresh")),
                 ("body", Value::String("new".into())), ("n", Value::Int(0)), ("at", Value::Int(1))])),
         ], 100).unwrap();
-        drain(&mut e, &mut d);
+        if during_catchup {
+            assert!(d.publication_pending().unwrap());
+            assert!(!d.sync_state_read().unwrap().acquired);
+            finish_replacement(&mut e, &mut d);
+        } else { drain(&mut e, &mut d); }
         for _ in 0..2 {
             let (answer, unknown, _) = history(&mut d, "fresh");
-            assert!(!unknown, "first ordinary join after replacement must be usable; progressive={progressive}: {answer:?}");
+            assert!(!unknown, "fresh join must be usable; progressive={progressive}, during_catchup={during_catchup}: {answer:?}");
             let answer = answer.unwrap(); assert!(answer.complete);
             assert_eq!(answer.data.as_array().unwrap()[0].field("id").unwrap(), &id("fresh1"));
             h.close(name, d); d = h.open(name, None).unwrap();
         }
         // A real departure/rejoin still needs staged replacement on upgraded stores.
         mutate(&mut e, "leave", &[("m", id("pfresh"))]); drain(&mut e, &mut d);
+        if during_catchup {
+            for (i, mut p) in snapshot_pages(&mut e, "dev:alice", 2).into_iter().enumerate() {
+                p.stage_snapshot = true; p.generation = Some(2); d.apply(&p, i == 0).unwrap();
+            }
+        }
         e.seed_at([("participants".into(), object([("id", id("pfresh2")),
             ("threadId", id("fresh")), ("personId", id("dev:alice"))]))], 100).unwrap();
-        drain(&mut e, &mut d);
+        if during_catchup { finish_replacement(&mut e, &mut d); } else { drain(&mut e, &mut d); }
         assert!(history(&mut d, "fresh").1);
+        h.close(name, d); let mut d = h.open(name, None).unwrap();
+        assert!(history(&mut d, "fresh").1, "a genuine rejoin stays unknown after reopen");
     }
 }
-#[test] fn fresh_join_after_staged_replacement_memory() { fresh_join_after_replacement(&mut Memory::new()); }
-#[test] fn fresh_join_after_staged_replacement_sqlite() { fresh_join_after_replacement(&mut Sqlite::new("fresh-join-replacement")); }
+#[test] fn fresh_join_during_and_after_staged_replacement_memory() { fresh_join_after_replacement(&mut Memory::new()); }
+#[test] fn fresh_join_during_and_after_staged_replacement_sqlite() { fresh_join_after_replacement(&mut Sqlite::new("fresh-join-replacement")); }
 
 fn completion<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
     let (mut e, b) = fixture(true); let mut d = h.open("progress", Some(b.clone())).unwrap();
