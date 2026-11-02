@@ -1,0 +1,405 @@
+{
+  "progressive-4.log": {
+    "parts": [
+      "progressive-4.log"
+    ],
+    "lines": 126,
+    "sha256": "4a3b20586bc0cb0fda19ff5079391ad98cc5b5028aa750ab0be23b052e12afec",
+    "summaries": [
+      "# tests 19",
+      "# pass 18",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 22678.094667"
+    ]
+  },
+  "progressive-5.log": {
+    "parts": [
+      "progressive-5.log"
+    ],
+    "lines": 138,
+    "sha256": "190006b7324d36110dd9facd14350e411558b35a9069900b324b9a1075cbd1d6",
+    "summaries": [
+      "# tests 21",
+      "# pass 20",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 25630.694875"
+    ]
+  },
+  "ref-check.log": {
+    "parts": [
+      "ref-check.log"
+    ],
+    "lines": 1,
+    "sha256": "224cf48c20729fa2900ecbfa416e56c64a7ce90c879a21ac208adea04123488f",
+    "summaries": [
+      "ref-check: ok \u2014 583 LLP docs, 12972 refs in 51337 files, 0 errors, 0 unchecked"
+    ]
+  },
+  "typecheck-1.log": {
+    "parts": [
+      "typecheck-1.log"
+    ],
+    "lines": 3,
+    "sha256": "cebc4ea8bfdcfe18c0f5c7eb40c10c7322f77a6ee49ab063677acd1df3799c09",
+    "summaries": [
+      "$ tsc -p tsconfig.json --noEmit"
+    ]
+  },
+  "progressive-2.log": {
+    "parts": [
+      "progressive-2.log"
+    ],
+    "lines": 266,
+    "sha256": "35d0afe059f2cb3e1771f5b4b7d0f47877d14ea855d199ee9d6f1fc2410c6d46",
+    "summaries": [
+      "# tests 19",
+      "# pass 4",
+      "# fail 14",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 4466.964875"
+    ]
+  },
+  "progressive-3.log": {
+    "parts": [
+      "progressive-3.log"
+    ],
+    "lines": 57,
+    "sha256": "22c7bb8b43a5eb8481127af737afc85d9429851c5992afc7c95f1e72b92760b1",
+    "summaries": []
+  },
+  "client-build-final.log": {
+    "parts": [
+      "client-build-final.log"
+    ],
+    "lines": 7,
+    "sha256": "73ef14523acd2b7c11541a3974be708ea0bf6c9d0c9af012e3f3d954e23ae8cb",
+    "summaries": [
+      "$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs",
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1191/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "start-order-final.log": {
+    "parts": [
+      "start-order-final.log"
+    ],
+    "lines": 544,
+    "sha256": "6aa849b10b8c014226632ecbc18aee7a5dbb951d284d1e9bf0092041f8b71610",
+    "summaries": [
+      "# tests 89",
+      "# pass 89",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 2371.177125"
+    ]
+  },
+  "typecheck-final.log": {
+    "parts": [
+      "typecheck-final.log"
+    ],
+    "lines": 1,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "summaries": [
+      "$ tsc -p tsconfig.json --noEmit"
+    ]
+  },
+  "progressive-1.log": {
+    "parts": [
+      "progressive-1.log"
+    ],
+    "lines": 46,
+    "sha256": "1dde4c67e1f7d34e2f52e408721a77b051892c2fecdf90ccaafd667d3e9fda68",
+    "summaries": []
+  },
+  "guide-api-final.log": {
+    "parts": [
+      "guide-api-final.log"
+    ],
+    "lines": 6,
+    "sha256": "2422cc2ad14a2084911bb08c04a932f428f25d315438667614346f47c67f52f7",
+    "summaries": [
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1191/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "typecheck-verified.log": {
+    "parts": [
+      "typecheck-verified.log"
+    ],
+    "lines": 1,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "summaries": [
+      "$ tsc -p tsconfig.json --noEmit"
+    ]
+  },
+  "wasm-build-summary.log": {
+    "parts": [
+      "wasm-build-summary.log"
+    ],
+    "lines": 3,
+    "sha256": "663d67cbb3ba1cab819dfa1d94fef484e8fe43b7149178aa7734875455c8a161",
+    "summaries": []
+  },
+  "start-races-final.log": {
+    "parts": [
+      "start-races-final.log"
+    ],
+    "lines": 298,
+    "sha256": "255b630a27c1349e4ae767578c7cbc326ba7495311c7fa4974b2e6b7fc89fe8c",
+    "summaries": [
+      "# tests 48",
+      "# pass 48",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 2319.530709"
+    ]
+  },
+  "guide-api-before.log": {
+    "parts": [
+      "guide-api-before.log"
+    ],
+    "lines": 14,
+    "sha256": "7de4a91138b1de681ff4060e7153068113a298b40a19a037dd69741a85750673",
+    "summaries": [
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "Error: guide api react --full drift"
+    ]
+  },
+  "progressive-final.log": {
+    "parts": [
+      "progressive-final.log"
+    ],
+    "lines": 173,
+    "sha256": "8fb641272a125ace6910eed1eacaa5b84cb98c175b32402c3c5a70d4f176a36d",
+    "summaries": [
+      "# tests 21",
+      "# pass 18",
+      "# fail 2",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 26859.275375"
+    ]
+  },
+  "acquisition-2.log": {
+    "parts": [
+      "acquisition-2.log"
+    ],
+    "lines": 319,
+    "sha256": "133c277ccd24299738cf0656653dfe75949b19d634ba91a20e91e4d585b98fdf",
+    "summaries": [
+      "# tests 47",
+      "# pass 47",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 144209.750417"
+    ]
+  },
+  "interactive-final.log": {
+    "parts": [
+      "interactive-final.log"
+    ],
+    "lines": 57,
+    "sha256": "40d2a6d26c6258e14930f3a20c28bec58388296f18c977848f4036aedc358a71",
+    "summaries": [
+      "# tests 2",
+      "# pass 0",
+      "# fail 2",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 3001.369208"
+    ]
+  },
+  "client-build-4.log": {
+    "parts": [
+      "client-build-4.log"
+    ],
+    "lines": 7,
+    "sha256": "73ef14523acd2b7c11541a3974be708ea0bf6c9d0c9af012e3f3d954e23ae8cb",
+    "summaries": [
+      "$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs",
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1191/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "progressive-verified.log": {
+    "parts": [
+      "progressive-verified.log"
+    ],
+    "lines": 138,
+    "sha256": "24e64dfc74b927e588be12669c1554f33e8afe7200f780001136df9eacade563",
+    "summaries": [
+      "# tests 21",
+      "# pass 20",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 26426.342667"
+    ]
+  },
+  "client-build-1.log": {
+    "parts": [
+      "client-build-1.log"
+    ],
+    "lines": 7,
+    "sha256": "f7e54ee8819e27d3f2d1ab575af53962f8b23787e314cad66e3803d5cabac46b",
+    "summaries": [
+      "$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs",
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1196/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "client-build-2.log": {
+    "parts": [
+      "client-build-2.log"
+    ],
+    "lines": 7,
+    "sha256": "f7e54ee8819e27d3f2d1ab575af53962f8b23787e314cad66e3803d5cabac46b",
+    "summaries": [
+      "$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs",
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1196/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "client-build-3.log": {
+    "parts": [
+      "client-build-3.log"
+    ],
+    "lines": 7,
+    "sha256": "73ef14523acd2b7c11541a3974be708ea0bf6c9d0c9af012e3f3d954e23ae8cb",
+    "summaries": [
+      "$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs",
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1191/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "history-start-2.log": {
+    "parts": [
+      "history-start-2.log"
+    ],
+    "lines": 605,
+    "sha256": "5fb63ae6b5426098189f208c80cc1b52ec29bbd1544d9a34ca8e1c8c87c4be31",
+    "summaries": [
+      "# tests 92",
+      "# pass 89",
+      "# fail 3",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 2406.1815"
+    ]
+  },
+  "guide-api-generate.log": {
+    "parts": [
+      "guide-api-generate.log"
+    ],
+    "lines": 6,
+    "sha256": "2422cc2ad14a2084911bb08c04a932f428f25d315438667614346f47c67f52f7",
+    "summaries": [
+      "guide api app: 504/2400 tokens",
+      "guide api witness: 210/2400 tokens",
+      "guide api react: 1191/2400 tokens",
+      "guide api proof: 1529/2400 tokens",
+      "guide api client: 1165/2400 tokens",
+      "guide api auth: 503/2400 tokens"
+    ]
+  },
+  "affected.log": {
+    "parts": [
+      "affected.part-01.log",
+      "affected.part-02.log"
+    ],
+    "lines": 1608,
+    "sha256": "af5f5f090cbbedb9f0d95d0770fc7ecb4b90593d8bd80a65dbb805e063ee78b2",
+    "summaries": [
+      "# 32 commands, 7 whole Rust packages, 490 client files; broad=true",
+      "Checked 649 installs across 627 packages (no changes) [114.00ms]",
+      "    Finished `dev` profile [unoptimized] target(s) in 17.96s",
+      "STOP: build-wasm not run (supervisor amendment); affected run incomplete."
+    ]
+  },
+  "regressions-1.log": {
+    "parts": [
+      "regressions-1.log"
+    ],
+    "lines": 299,
+    "sha256": "03e7620f36e58a42c4d4781060c80d3ba38e712bcb7d51720eea26c3e040f661",
+    "summaries": []
+  },
+  "tier1-1.log": {
+    "parts": [
+      "tier1-1.log"
+    ],
+    "lines": 75,
+    "sha256": "e5cfeadacc62ddd6c856d87bc86db6013a461db7abb1411cb7b2d8d500560365",
+    "summaries": [
+      "# tests 2",
+      "# pass 0",
+      "# fail 2",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 2665.532208"
+    ]
+  },
+  "online-fallback.log": {
+    "parts": [
+      "online-fallback.log"
+    ],
+    "lines": 22,
+    "sha256": "4e2ebc1612f9409dfe83f12df9c3efb25a9032feed6a829512fdfd6702b08be7",
+    "summaries": [
+      "# tests 2",
+      "# pass 2",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# duration_ms 1857.328083"
+    ]
+  },
+  "progressive-complete.log": {
+    "parts": [
+      "progressive-complete.log"
+    ],
+    "lines": 150,
+    "sha256": "db67c3a5e38f9b112183fae67b4b057826a2c8a4414608c2631e2b0eed7febff",
+    "summaries": [
+      "# tests 23",
+      "# pass 22",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 1",
+      "# duration_ms 30052.322708"
+    ]
+  }
+}

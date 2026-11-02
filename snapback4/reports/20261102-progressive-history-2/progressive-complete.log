@@ -1,0 +1,150 @@
+TAP version 13
+# Subtest: scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+ok 1 - scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+  ---
+  duration_ms: 0.905125
+  type: 'test'
+  ...
+# Subtest: progress reports published usable facts, revocation, and received row images independently
+ok 2 - progress reports published usable facts, revocation, and received row images independently
+  ---
+  duration_ms: 0.196334
+  type: 'test'
+  ...
+# Subtest: process: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 3 - process: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 1446.295375
+  type: 'test'
+  ...
+# Subtest: process: unmodified seed log expands old joins during tier 1 and converges
+ok 4 - process: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 1258.470792
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+ok 5 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2186.264042
+  type: 'test'
+  ...
+# Subtest: process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 6 - process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2282.706958
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (until-revoked)
+ok 7 - process: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2306.697958
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (delivered)
+ok 8 - process: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 2177.861
+  type: 'test'
+  ...
+# Subtest: process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+ok 9 - process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1354.693708
+  type: 'test'
+  ...
+# Subtest: process: old server uses legacy snapshots without any acquire request
+ok 10 - process: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 300.791166
+  type: 'test'
+  ...
+# Subtest: process: old device uses legacy snapshots without any acquire request
+ok 11 - process: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 294.598333
+  type: 'test'
+  ...
+# Subtest: process: a partial walk reopens against an old server through staged replacement
+ok 12 - process: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1397.227084
+  type: 'test'
+  ...
+# Subtest: wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 13 - wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 1312.303625
+  type: 'test'
+  ...
+# Subtest: wasm: unmodified seed log expands old joins during tier 1 and converges
+ok 14 - wasm: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 1282.309083
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: wasm: tier 1 inbox survives offline reopen before any history is usable
+ok 15 - wasm: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2286.872792
+  type: 'test'
+  ...
+# Subtest: wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 16 - wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2303.729125
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (until-revoked)
+ok 17 - wasm: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2296.696292
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (delivered)
+ok 18 - wasm: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 2266.013708
+  type: 'test'
+  ...
+# Subtest: wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+ok 19 - wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1297.605708
+  type: 'test'
+  ...
+# Subtest: wasm: old server uses legacy snapshots without any acquire request
+ok 20 - wasm: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 277.717458
+  type: 'test'
+  ...
+# Subtest: wasm: old device uses legacy snapshots without any acquire request
+ok 21 - wasm: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 297.964625
+  type: 'test'
+  ...
+# Subtest: wasm: a partial walk reopens against an old server through staged replacement
+ok 22 - wasm: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1319.097125
+  type: 'test'
+  ...
+# Subtest: browser React hooks and IndexedDB close/reopen
+ok 23 - browser React hooks and IndexedDB close/reopen # SKIP not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+  ---
+  duration_ms: 0.086917
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 30052.322708

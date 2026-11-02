@@ -2,7 +2,7 @@ import { requireSyncProtocol } from "./local-sync.ts";
 import type { DeviceCore } from "./local-device.ts";
 import type { Refusal } from "./contract.ts";
 export interface DeviceEngine { format: number; version: string; capabilities: string[] }
-export interface DeviceCompatibility { server_version: string; minimum_version: string; capabilities: string[] }
+export interface DeviceCompatibility { server_version: string; minimum_version: string; capabilities: string[]; advertised?: string[] }
 export type DeviceVersionStatus = { state: "compatible"; engine: DeviceEngine } | { state: "incompatible"; why: Refusal };
 /** Compatibility refusals are distinguishable without matching error text. */
 export class DeviceVersionError extends Error {

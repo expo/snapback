@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: process: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 1 - process: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 483.150541
+  type: 'test'
+  ...
+# Subtest: wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 2 - wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 1273.827333
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1857.328083

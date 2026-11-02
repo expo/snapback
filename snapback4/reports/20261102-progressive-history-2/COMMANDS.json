@@ -1,0 +1,207 @@
+[
+  {
+    "id": 1,
+    "cwd": "repository root",
+    "command": "cat llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 2,
+    "cwd": "repository root",
+    "command": "sed -n '280,350p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 3,
+    "cwd": "repository root",
+    "command": "cat snapback4/AGENTS.md snapback4/NOT-DOING.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 4,
+    "cwd": "repository root",
+    "command": "cat snapback4/reports/20261102-progressive-history-1a/REPORT.md snapback4/reports/20261102-progressive-history-1b/REPORT.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 5,
+    "cwd": "repository root",
+    "command": "cat skills/llp-orient/SKILL.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 6,
+    "cwd": "repository root",
+    "command": "sed -n '200,420p' snapback4/AGENTS.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 7,
+    "cwd": "repository root",
+    "command": "sed -n '1,210p' snapback4/reports/20261102-progressive-history-1a/REPORT.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 8,
+    "cwd": "repository root",
+    "command": "cat snapback4/NOT-DOING.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 9,
+    "cwd": "repository root",
+    "command": "sed -n '1,145p' snapback4/reports/20261102-progressive-history-1b/REPORT.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 10,
+    "cwd": "repository root",
+    "command": "sed -n '650,845p' llp/3000.001-durable-replica-and-write-lifecycle.research.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 11,
+    "cwd": "repository root",
+    "command": "cat llp/2000.000-keep-the-core-flip-two-substrates.rfc.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 12,
+    "cwd": "repository root",
+    "command": "rg -n '^##|^###' llp/3000-snapback4.explainer.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 13,
+    "cwd": "repository root",
+    "command": "git status --short\nrg --files snapback4/packages/snapback4 | rg 'AGENTS|acquisition|local.ts|backend.ts|local-query|react|local-reads'\nrg -n 'sync_state|acquisition_cursor|exhausted|whole_tables|floored|replacement_required|publication' snapback4/crates/snapback4-device/src/device.rs\nsed -n '1,220p' snapback4/packages/snapback4/src/backend.ts",
+    "exit_code": 0,
+    "summary": "No output (exit 0)."
+  },
+  {
+    "id": 14,
+    "cwd": "repository root",
+    "command": "cat snapback4/packages/snapback4/test/acquisition.test.mjs",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 15,
+    "cwd": "repository root",
+    "command": "sed -n '1,140p' snapback4/packages/snapback4/src/local.ts\nsed -n '680,1000p' snapback4/packages/snapback4/src/local.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 16,
+    "cwd": "repository root",
+    "command": "cat snapback4/packages/snapback4/src/acquisition.ts\ncat snapback4/packages/snapback4/src/query-dependencies.ts\ncat snapback4/packages/snapback4/src/local-reads.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 17,
+    "cwd": "repository root",
+    "command": "sed -n '805,950p' snapback4/packages/snapback4/src/local.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 18,
+    "cwd": "repository root",
+    "command": "cat snapback4/packages/snapback4/src/acquisition.ts\ncat snapback4/packages/snapback4/src/local-sync.ts\nrg -n 'acquis|refreshAcquired|evaluateLocal|observe\\(|trackForeground|scheduleRead|async function query|const watches|onAcquisition' snapback4/packages/snapback4/src/local.ts snapback4/packages/snapback4/src/react.tsx",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 19,
+    "cwd": "repository root",
+    "command": "sed -n '1,210p' snapback4/packages/snapback4/test/acquisition.test.mjs",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 20,
+    "cwd": "repository root",
+    "command": "sed -n '1,180p' snapback4/packages/snapback4/src/query-dependencies.ts\ncat snapback4/packages/snapback4/src/settlement-extract.ts\nsed -n '1,170p' snapback4/packages/snapback4/src/local-network.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 21,
+    "cwd": "repository root",
+    "command": "sed -n '1,170p' llp/3000-snapback4.explainer.md\nsed -n '262,320p' llp/3000-snapback4.explainer.md\ntail -50 snapback4/JOURNAL.md\ncat rules/RULES.md",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 22,
+    "cwd": "snapback4",
+    "command": "PATH=/Users/ccheever/.volta/bin:$PATH bash scripts/build-wasm.sh",
+    "exit_code": 1,
+    "summary": "wasm 2440792 B raw, 746060 B gzip (budget 739004: OVER by 7056 B — issues/20260913-snapback4-wasm-device-diet.md)\nwasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md).",
+    "initial_summary": "Binaryen 132.0.0 (locked workspace dependency)",
+    "note": "Build stderr contained compiler warnings; an intermediate tool response was truncated. Only the verbatim final size/refusal output is retained as build evidence."
+  },
+  {
+    "id": 23,
+    "cwd": "repository root",
+    "command": "cat snapback4/packages/snapback4/src/query-dependencies.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 24,
+    "cwd": "repository root",
+    "command": "cat snapback4/packages/snapback4/src/local-query.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 25,
+    "cwd": "repository root",
+    "command": "sed -n '275,405p' snapback4/packages/snapback4/src/local.ts\nsed -n '1450,1530p' snapback4/packages/snapback4/src/local.ts\nsed -n '490,520p' snapback4/packages/snapback4/src/react.tsx\nsed -n '80,125p' snapback4/crates/snapback4-device/src/device.rs",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 26,
+    "cwd": "repository root",
+    "command": "rg -n 'prefix|\"Scan\"|\"Argument\"|scope|extract' snapback4/packages/snapback4/test/{ordinary-history.test.mjs,local-reads.test.mjs} snapback4/packages/snapback4/src/local-reads.ts snapback4/crates/snapback4-core/src/ir.rs\ncat snapback4/packages/snapback4/src/device-version.ts | head -90\ncat snapback4/scripts/build-wasm.sh\ncat snapback4/packages/snapback4/package.json",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 27,
+    "cwd": "repository root",
+    "command": "sed -n '374,430p' snapback4/crates/snapback4-core/src/ir.rs\nsed -n '1,190p' snapback4/crates/snapback4-core/src/partition/acquire.rs\ncat snapback4/metrics/wasm-budget.json\nsed -n '1,140p' snapback4/crates/snapback4-lang/src/guide/sync.rs",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 28,
+    "cwd": "repository root",
+    "command": "sed -n '1100,1170p' snapback4/packages/snapback4/src/local.ts\nrg -n 'progress.page|async function call|syncRound|network =' snapback4/packages/snapback4/src/local.ts\nsed -n '1,130p' snapback4/packages/snapback4/src/local-backend.ts\nsed -n '1,135p' snapback4/packages/snapback4/src/observe-watch.ts",
+    "exit_code": 0,
+    "summary": "Inspection only; no independent test verdict."
+  },
+  {
+    "id": 29,
+    "cwd": "repository root",
+    "command": "git status --short -- snapback4 llp\ngit diff --exit-code -- snapback4/metrics/wasm-budget.json snapback4/packages/snapback4/src/contract.ts",
+    "exit_code": 0,
+    "summary": "No output (exit 0)."
+  }
+]

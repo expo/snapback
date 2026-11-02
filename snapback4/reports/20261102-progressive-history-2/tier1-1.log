@@ -1,0 +1,75 @@
+TAP version 13
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+not ok 1 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 1291.263375
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:46:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   groups: 5,
+    +   tables: 1
+    -   groups: 0,
+    -   tables: 2
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    tables: 2
+    groups: 0
+  actual:
+    tables: 1
+    groups: 5
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:52:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+  ...
+# Subtest: wasm: tier 1 inbox survives offline reopen before any history is usable
+not ok 2 - wasm: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 1280.184459
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:46:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   groups: 5,
+    +   tables: 1
+    -   groups: 0,
+    -   tables: 2
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    tables: 2
+    groups: 0
+  actual:
+    tables: 1
+    groups: 5
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:52:12)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2665.532208

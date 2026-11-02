@@ -1,0 +1,173 @@
+TAP version 13
+# Subtest: scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+ok 1 - scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+  ---
+  duration_ms: 1.016542
+  type: 'test'
+  ...
+# Subtest: progress reports published usable facts, revocation, and received row images independently
+ok 2 - progress reports published usable facts, revocation, and received row images independently
+  ---
+  duration_ms: 0.190458
+  type: 'test'
+  ...
+# Subtest: process: unmodified seed log expands old joins during tier 1 and converges
+ok 3 - process: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 1962.705709
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+ok 4 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2274.05825
+  type: 'test'
+  ...
+# Subtest: process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 5 - process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2294.32675
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (until-revoked)
+ok 6 - process: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2287.476833
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (delivered)
+ok 7 - process: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 2194.029292
+  type: 'test'
+  ...
+# Subtest: process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 8 - process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 320.6805
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:126:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    send settled before exhaustion
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:157:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: old server uses legacy snapshots without any acquire request
+ok 9 - process: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 252.686583
+  type: 'test'
+  ...
+# Subtest: process: old device uses legacy snapshots without any acquire request
+ok 10 - process: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 279.8035
+  type: 'test'
+  ...
+# Subtest: process: a partial walk reopens against an old server through staged replacement
+ok 11 - process: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1365.172625
+  type: 'test'
+  ...
+# Subtest: wasm: unmodified seed log expands old joins during tier 1 and converges
+ok 12 - wasm: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 1273.948167
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: wasm: tier 1 inbox survives offline reopen before any history is usable
+ok 13 - wasm: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2281.306167
+  type: 'test'
+  ...
+# Subtest: wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 14 - wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2280.077583
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (until-revoked)
+ok 15 - wasm: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2283.102917
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (delivered)
+ok 16 - wasm: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 2290.719125
+  type: 'test'
+  ...
+# Subtest: wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 17 - wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1271.240875
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:126:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    send settled before exhaustion
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:157:12)
+    runNextTicks (node:internal/process/task_queues:65:5)
+    process.processTimers (node:internal/timers:538:9)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: old server uses legacy snapshots without any acquire request
+ok 18 - wasm: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 256.115791
+  type: 'test'
+  ...
+# Subtest: wasm: old device uses legacy snapshots without any acquire request
+ok 19 - wasm: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 251.435
+  type: 'test'
+  ...
+# Subtest: wasm: a partial walk reopens against an old server through staged replacement
+ok 20 - wasm: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1322.406708
+  type: 'test'
+  ...
+# Subtest: browser React hooks and IndexedDB close/reopen
+ok 21 - browser React hooks and IndexedDB close/reopen # SKIP not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+  ---
+  duration_ms: 0.12025
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 18
+# fail 2
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 26859.275375

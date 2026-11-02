@@ -503,6 +503,7 @@ export function useAcquired(): boolean {
 
 /** Snapshot progress without blocking server-fallback reads. */
 export function useAcquisition(): Acquisition {
+  // @ref LLP 3000.001.001#8-progress-and-ui — the same subscription includes the device's durable usable counts.
   const client = useClient();
   const source = useMemo(() => acquisition(client), [client]);
   return useSyncExternalStore(source.subscribe, source.read, source.read);

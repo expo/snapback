@@ -1,0 +1,14 @@
+guide api app: 504/2400 tokens
+guide api witness: 210/2400 tokens
+file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/scripts/guide-api.mjs:82
+      if (process.argv.includes('--check')) { if (readFileSync(target,'utf8') !== complete) throw Error(`guide api ${module} --full drift`); }
+                                                                                                  ^
+
+Error: guide api react --full drift
+    at digest (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/scripts/guide-api.mjs:82:99)
+    at file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/scripts/guide-api.mjs:92:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0

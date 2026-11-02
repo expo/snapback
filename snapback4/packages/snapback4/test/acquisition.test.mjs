@@ -106,6 +106,13 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
         if (mode === "offline") throw new TypeError("offline reopen");
+        // This suite witnesses legacy atomic snapshots, interruptions and replacement.
+        // Progressive cold publication has its own both-adapter suite.
+        if (path === "/schema" && mode !== "after-adopt") {
+          const response = await fetch(input, init), json = await response.json();
+          if (json.device_compatibility) delete json.device_compatibility.advertised;
+          return Response.json(json, { status: response.status });
+        }
         if (mode === "before-catchup" && (path === "/probe" || path === "/changes" || path.startsWith("/q/"))) throw new TypeError("offline before catch-up");
         if (restore && path === "/probe") {
           const response = await fetch(input, init), json = await response.json();

@@ -1,0 +1,319 @@
+TAP version 13
+# Subtest: W5R1x: terminal history is bounded independently of unresolved writes
+ok 1 - W5R1x: terminal history is bounded independently of unresolved writes
+  ---
+  duration_ms: 1.703083
+  type: 'test'
+  ...
+# terminal=256 unresolved=300 memory=556 evicted=344
+# Subtest: W5R1x wasm: durable receipts evict beyond 256 without growing metadata
+ok 2 - W5R1x wasm: durable receipts evict beyond 256 without growing metadata
+  ---
+  duration_ms: 4680.109375
+  type: 'test'
+  ...
+# writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=31405 unresolved=1
+# Subtest: W5R1x wasm: opener returns an offline unacquired client on network loss
+ok 3 - W5R1x wasm: opener returns an offline unacquired client on network loss
+  ---
+  duration_ms: 3295.337083
+  type: 'test'
+  ...
+# Subtest: W5R1x wasm: replacement stays unacquired until the new catch-up completes
+ok 4 - W5R1x wasm: replacement stays unacquired until the new catch-up completes
+  ---
+  duration_ms: 1117.605291
+  type: 'test'
+  ...
+# Subtest: W5R1x wasm: a restore halt keeps acquisition false across retries and reopen
+ok 5 - W5R1x wasm: a restore halt keeps acquisition false across retries and reopen
+  ---
+  duration_ms: 1235.404959
+  type: 'test'
+  ...
+# Subtest: W5R1x process: durable receipts evict beyond 256 without growing metadata
+ok 6 - W5R1x process: durable receipts evict beyond 256 without growing metadata
+  ---
+  duration_ms: 5855.137166
+  type: 'test'
+  ...
+# writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=31405 unresolved=1
+# Subtest: W5R1x process: opener returns an offline unacquired client on network loss
+ok 7 - W5R1x process: opener returns an offline unacquired client on network loss
+  ---
+  duration_ms: 3076.64575
+  type: 'test'
+  ...
+# Subtest: W5R1x process: replacement stays unacquired until the new catch-up completes
+ok 8 - W5R1x process: replacement stays unacquired until the new catch-up completes
+  ---
+  duration_ms: 1148.029209
+  type: 'test'
+  ...
+# Subtest: W5R1x process: a restore halt keeps acquisition false across retries and reopen
+ok 9 - W5R1x process: a restore halt keeps acquisition false across retries and reopen
+  ---
+  duration_ms: 1214.956583
+  type: 'test'
+  ...
+# Subtest: wasm: schema alone is not acquisition; unadmitted writes disappear on close
+ok 10 - wasm: schema alone is not acquisition; unadmitted writes disappear on close
+  ---
+  duration_ms: 2254.790917
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+ok 11 - wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+  ---
+  duration_ms: 6424.626958
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: wasm: a genuinely empty partition at sequence zero is acquired durably
+ok 12 - wasm: a genuinely empty partition at sequence zero is acquired durably
+  ---
+  duration_ms: 1230.256208
+  type: 'test'
+  ...
+# Subtest: process: schema alone is not acquisition; unadmitted writes disappear on close
+ok 13 - process: schema alone is not acquisition; unadmitted writes disappear on close
+  ---
+  duration_ms: 2210.726584
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: process: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+ok 14 - process: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+  ---
+  duration_ms: 6301.154083
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: process: a genuinely empty partition at sequence zero is acquired durably
+ok 15 - process: a genuinely empty partition at sequence zero is acquired durably
+  ---
+  duration_ms: 1216.129458
+  type: 'test'
+  ...
+# Subtest: W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts
+ok 16 - W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts
+  ---
+  duration_ms: 3584.732333
+  type: 'test'
+  ...
+# acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+# Subtest: W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns
+ok 17 - W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns
+  ---
+  duration_ms: 5321.506042
+  type: 'test'
+  ...
+# recovered outcomes: sent=1 failed=1; server sends=2
+# Subtest: W5c process: online reopen reports acquisition and a missing-row reason, then predicts
+ok 18 - W5c process: online reopen reports acquisition and a missing-row reason, then predicts
+  ---
+  duration_ms: 3466.684041
+  type: 'test'
+  ...
+# acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+# Subtest: W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns
+ok 19 - W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns
+  ---
+  duration_ms: 5286.627208
+  type: 'test'
+  ...
+# recovered outcomes: sent=1 failed=1; server sends=2
+# Subtest: receipt custody retains the first sent outcome across repeated save failures
+ok 20 - receipt custody retains the first sent outcome across repeated save failures
+  ---
+  duration_ms: 0.414042
+  type: 'test'
+  ...
+# Subtest: receipt custody retains the first failed outcome across repeated save failures
+ok 21 - receipt custody retains the first failed outcome across repeated save failures
+  ---
+  duration_ms: 0.056292
+  type: 'test'
+  ...
+# Subtest: acknowledgement drops an unsaved replacement refusal before any persistence retry
+ok 22 - acknowledgement drops an unsaved replacement refusal before any persistence retry
+  ---
+  duration_ms: 0.155208
+  type: 'test'
+  ...
+# Subtest: a legacy acknowledgement returns a known authored refusal without saving success
+ok 23 - a legacy acknowledgement returns a known authored refusal without saving success
+  ---
+  duration_ms: 0.10725
+  type: 'test'
+  ...
+# Subtest: W5R2a: two native owners recover 600 completions without stale pending memory
+ok 24 - W5R2a: two native owners recover 600 completions without stale pending memory
+  ---
+  duration_ms: 8232.793916
+  type: 'test'
+  ...
+# observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+# Subtest: W5R2a wasm: a sent queued id emits once beyond 256 other emissions
+ok 25 - W5R2a wasm: a sent queued id emits once beyond 256 other emissions
+  ---
+  duration_ms: 7247.138708
+  type: 'test'
+  ...
+# other_emissions=256 first_id_emissions=1 queued=2
+# Subtest: W5R2a process: a sent queued id emits once beyond 256 other emissions
+ok 26 - W5R2a process: a sent queued id emits once beyond 256 other emissions
+  ---
+  duration_ms: 7333.922584
+  type: 'test'
+  ...
+# other_emissions=256 first_id_emissions=1 queued=2
+# Subtest: W5 confirmation N3: another owner's durable receipt still notifies this client once
+ok 27 - W5 confirmation N3: another owner's durable receipt still notifies this client once
+  ---
+  duration_ms: 9249.611166
+  type: 'test'
+  ...
+# first_completion_emissions=1
+# Subtest: W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts
+ok 28 - W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts
+  ---
+  duration_ms: 1374.485959
+  type: 'test'
+  ...
+# destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+# Subtest: W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts
+ok 29 - W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts
+  ---
+  duration_ms: 1433.412625
+  type: 'test'
+  ...
+# destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+# Subtest: sequence by wasm: two offline Write results remain pending until settled
+ok 30 - sequence by wasm: two offline Write results remain pending until settled
+  ---
+  duration_ms: 1210.636625
+  type: 'test'
+  ...
+# Subtest: sequence by process: two offline Write results remain pending until settled
+ok 31 - sequence by process: two offline Write results remain pending until settled
+  ---
+  duration_ms: 1222.251084
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional rule refusal queues for the server
+ok 32 - sequence by wasm: provisional rule refusal queues for the server
+  ---
+  duration_ms: 4258.925125
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional require refusal queues for the server
+ok 33 - sequence by wasm: provisional require refusal queues for the server
+  ---
+  duration_ms: 4247.277625
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional constraint refusal queues for the server
+ok 34 - sequence by wasm: provisional constraint refusal queues for the server
+  ---
+  duration_ms: 4251.154584
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional named constraint refusal queues for the server
+ok 35 - sequence by wasm: provisional named constraint refusal queues for the server
+  ---
+  duration_ms: 4256.897291
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional postcondition refusal queues for the server
+ok 36 - sequence by wasm: provisional postcondition refusal queues for the server
+  ---
+  duration_ms: 4256.237417
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional sequence key refusal queues for the server
+ok 37 - sequence by wasm: provisional sequence key refusal queues for the server
+  ---
+  duration_ms: 4223.351792
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional old refusal queues for the server
+ok 38 - sequence by wasm: provisional old refusal queues for the server
+  ---
+  duration_ms: 4251.278459
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional empty index refusal queues for the server
+ok 39 - sequence by wasm: provisional empty index refusal queues for the server
+  ---
+  duration_ms: 4253.41125
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional cap group refusal queues for the server
+ok 40 - sequence by wasm: provisional cap group refusal queues for the server
+  ---
+  duration_ms: 4243.722416
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional upsert index refusal queues for the server
+ok 41 - sequence by wasm: provisional upsert index refusal queues for the server
+  ---
+  duration_ms: 4245.220083
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: provisional postcondition index refusal queues for the server
+ok 42 - sequence by wasm: provisional postcondition index refusal queues for the server
+  ---
+  duration_ms: 4295.966083
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: point preserves prediction metadata and authority
+ok 43 - sequence by wasm: point preserves prediction metadata and authority
+  ---
+  duration_ms: 198.653083
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: page preserves prediction metadata and authority
+ok 44 - sequence by wasm: page preserves prediction metadata and authority
+  ---
+  duration_ms: 231.9515
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: short circuit preserves prediction metadata and authority
+ok 45 - sequence by wasm: short circuit preserves prediction metadata and authority
+  ---
+  duration_ms: 224.368625
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: unique independent preserves prediction metadata and authority
+ok 46 - sequence by wasm: unique independent preserves prediction metadata and authority
+  ---
+  duration_ms: 201.551625
+  type: 'test'
+  ...
+# Subtest: sequence by wasm: cap independent preserves prediction metadata and authority
+ok 47 - sequence by wasm: cap independent preserves prediction metadata and authority
+  ---
+  duration_ms: 218.508791
+  type: 'test'
+  ...
+1..47
+# tests 47
+# suites 0
+# pass 47
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 144209.750417

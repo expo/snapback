@@ -1,0 +1,544 @@
+TAP version 13
+# Subtest: progressive publishes signed-in client and server data before core; attaches without replacing watch
+ok 1 - progressive publishes signed-in client and server data before core; attaches without replacing watch
+  ---
+  duration_ms: 64.059375
+  type: 'test'
+  ...
+# Subtest: custody present: await ordinary device recovery
+ok 2 - custody present: await ordinary device recovery
+  ---
+  duration_ms: 12.619792
+  type: 'test'
+  ...
+# Subtest: custody unknown: await ordinary device recovery
+ok 3 - custody unknown: await ordinary device recovery
+  ---
+  duration_ms: 9.734667
+  type: 'test'
+  ...
+# Subtest: custody Error: unreadable: await ordinary device recovery
+ok 4 - custody Error: unreadable: await ordinary device recovery
+  ---
+  duration_ms: 11.500333
+  type: 'test'
+  ...
+# Subtest: default web startup publishes ready before opening and reads the server with the opener held (persona: false)
+ok 5 - default web startup publishes ready before opening and reads the server with the opener held (persona: false)
+  ---
+  duration_ms: 9.38625
+  type: 'test'
+  ...
+# Subtest: default web startup publishes ready before opening and reads the server with the opener held (persona: true)
+ok 6 - default web startup publishes ready before opening and reads the server with the opener held (persona: true)
+  ---
+  duration_ms: 7.421167
+  type: 'test'
+  ...
+# Subtest: native/awaited startup preserves awaited opening {"includeProbe":false,"startup":null}
+ok 7 - native/awaited startup preserves awaited opening {"includeProbe":false,"startup":null}
+  ---
+  duration_ms: 6.065917
+  type: 'test'
+  ...
+# Subtest: native/awaited startup preserves awaited opening {"includeProbe":false}
+ok 8 - native/awaited startup preserves awaited opening {"includeProbe":false}
+  ---
+  duration_ms: 4.8995
+  type: 'test'
+  ...
+# Subtest: native/awaited startup preserves awaited opening {"includeProbe":false,"persona":true}
+ok 9 - native/awaited startup preserves awaited opening {"includeProbe":false,"persona":true}
+  ---
+  duration_ms: 3.957084
+  type: 'test'
+  ...
+# Subtest: native/awaited startup preserves awaited opening {"startup":"awaited"}
+ok 10 - native/awaited startup preserves awaited opening {"startup":"awaited"}
+  ---
+  duration_ms: 6.409958
+  type: 'test'
+  ...
+# Subtest: native/awaited startup preserves awaited opening {"startup":"awaited","persona":true}
+ok 11 - native/awaited startup preserves awaited opening {"startup":"awaited","persona":true}
+  ---
+  duration_ms: 3.976375
+  type: 'test'
+  ...
+# Subtest: awaited web startup keeps device-opening failure on the ready barrier
+ok 12 - awaited web startup keeps device-opening failure on the ready barrier
+  ---
+  duration_ms: 1.566708
+  type: 'test'
+  ...
+# Subtest: failed engine keeps server reads and signed-in scope: download failed
+ok 13 - failed engine keeps server reads and signed-in scope: download failed
+  ---
+  duration_ms: 13.928
+  type: 'test'
+  ...
+# Subtest: failed engine keeps server reads and signed-in scope: E_DEVICE_VERSION: incompatible device
+ok 14 - failed engine keeps server reads and signed-in scope: E_DEVICE_VERSION: incompatible device
+  ---
+  duration_ms: 8.864583
+  type: 'test'
+  ...
+# Subtest: first pending read has priority; bounded fallback starts the held engine
+ok 15 - first pending read has priority; bounded fallback starts the held engine
+  ---
+  duration_ms: 1504.627209
+  type: 'test'
+  ...
+# Subtest: no foreground read starts preparation after publication
+ok 16 - no foreground read starts preparation after publication
+  ---
+  duration_ms: 3.9575
+  type: 'test'
+  ...
+# Subtest: close during held open fences late attachment and closes the returned core
+ok 17 - close during held open fences late attachment and closes the returned core
+  ---
+  duration_ms: 11.174375
+  type: 'test'
+  ...
+# Subtest: progressive without device is a typed configuration refusal with rewrite
+ok 18 - progressive without device is a typed configuration refusal with rewrite
+  ---
+  duration_ms: 0.504375
+  type: 'test'
+  ...
+# Subtest: awaited without device is a typed configuration refusal with rewrite
+ok 19 - awaited without device is a typed configuration refusal with rewrite
+  ---
+  duration_ms: 0.148708
+  type: 'test'
+  ...
+# Subtest: logout fences held online phase and late core (opening: false)
+ok 20 - logout fences held online phase and late core (opening: false)
+  ---
+  duration_ms: 20.825125
+  type: 'test'
+  ...
+# Subtest: logout fences held online phase and late core (opening: true)
+ok 21 - logout fences held online phase and late core (opening: true)
+  ---
+  duration_ms: 19.298542
+  type: 'test'
+  ...
+# Subtest: mutation before core uses journal and settles without waiting for attachment
+ok 22 - mutation before core uses journal and settles without waiting for attachment
+  ---
+  duration_ms: 3.655125
+  type: 'test'
+  ...
+# Subtest: an opened but incompatible core stays fenced while online reads remain usable
+ok 23 - an opened but incompatible core stays fenced while online reads remain usable
+  ---
+  duration_ms: 8.183292
+  type: 'test'
+  ...
+# Subtest: logout during the opened core handshake fences its completion
+ok 24 - logout during the opened core handshake fences its completion
+  ---
+  duration_ms: 2.928625
+  type: 'test'
+  ...
+# Subtest: version refusal after acquisition fences all local calls while keeping the server route
+ok 25 - version refusal after acquisition fences all local calls while keeping the server route
+  ---
+  duration_ms: 12.047292
+  type: 'test'
+  ...
+# Subtest: generation 2 on changes adopts and the same watch continues through attachment
+ok 26 - generation 2 on changes adopts and the same watch continues through attachment
+  ---
+  duration_ms: 26.817375
+  type: 'test'
+  ...
+# Subtest: generation 2 on query adopts and the same watch continues through attachment
+ok 27 - generation 2 on query adopts and the same watch continues through attachment
+  ---
+  duration_ms: 47.480125
+  type: 'test'
+  ...
+# Subtest: store replacement uses app recovery (held handshake: false)
+ok 28 - store replacement uses app recovery (held handshake: false)
+  ---
+  duration_ms: 14.242375
+  type: 'test'
+  ...
+# Subtest: store replacement uses app recovery (held handshake: true)
+ok 29 - store replacement uses app recovery (held handshake: true)
+  ---
+  duration_ms: 14.028375
+  type: 'test'
+  ...
+# Subtest: same-store rollback below online head is witnessed through query
+ok 30 - same-store rollback below online head is witnessed through query
+  ---
+  duration_ms: 2.007542
+  type: 'test'
+  ...
+# Subtest: same-store rollback below online head is witnessed through changes
+ok 31 - same-store rollback below online head is witnessed through changes
+  ---
+  duration_ms: 14.398833
+  type: 'test'
+  ...
+# Subtest: same-store rollback below online head is witnessed through initial sync
+ok 32 - same-store rollback below online head is witnessed through initial sync
+  ---
+  duration_ms: 7.653042
+  type: 'test'
+  ...
+# Subtest: a serialized worker handshake cannot block a foreground server-route read
+ok 33 - a serialized worker handshake cannot block a foreground server-route read
+  ---
+  duration_ms: 8.357833
+  type: 'test'
+  ...
+# Subtest: ordinary startup version refusal publishes unavailable local status
+ok 34 - ordinary startup version refusal publishes unavailable local status
+  ---
+  duration_ms: 4.293041
+  type: 'test'
+  ...
+# Subtest: a device version refusal on the last pre-attachment poll still retires the engine after attachment
+ok 35 - a device version refusal on the last pre-attachment poll still retires the engine after attachment
+  ---
+  duration_ms: 15.431833
+  type: 'test'
+  ...
+# Subtest: a terminal auth refusal on the last pre-attachment poll still ends the session after attachment
+ok 36 - a terminal auth refusal on the last pre-attachment poll still ends the session after attachment
+  ---
+  duration_ms: 14.444875
+  type: 'test'
+  ...
+# Subtest: a same-store shrink on the last pre-attachment poll is fenced after attachment
+ok 37 - a same-store shrink on the last pre-attachment poll is fenced after attachment
+  ---
+  duration_ms: 14.388459
+  type: 'test'
+  ...
+# Subtest: change evidence on the last pre-attachment poll reaches the watches after attachment
+ok 38 - change evidence on the last pre-attachment poll reaches the watches after attachment
+  ---
+  duration_ms: 25.680833
+  type: 'test'
+  ...
+# Subtest: a post-attachment changes poll below the witnessed online head is a fenced shrink
+ok 39 - a post-attachment changes poll below the witnessed online head is a fenced shrink
+  ---
+  duration_ms: 20.086917
+  type: 'test'
+  ...
+# Subtest: /changes version refusal disables the engine and keeps polling and server-route watches
+ok 40 - /changes version refusal disables the engine and keeps polling and server-route watches
+  ---
+  duration_ms: 31.1145
+  type: 'test'
+  ...
+# Subtest: held local device response crossing changes version refusal uses the server
+ok 41 - held local device response crossing changes version refusal uses the server
+  ---
+  duration_ms: 45.031708
+  type: 'test'
+  ...
+# Subtest: held mixed device response crossing changes version refusal uses the server
+ok 42 - held mixed device response crossing changes version refusal uses the server
+  ---
+  duration_ms: 47.775333
+  type: 'test'
+  ...
+# Subtest: progressive sync rollback remains refused after close, server refill and device reopen
+ok 43 - progressive sync rollback remains refused after close, server refill and device reopen
+  ---
+  duration_ms: 11.858875
+  type: 'test'
+  ...
+# Subtest: ephemeral typing changes before attachment at an unchanged durable head
+ok 44 - ephemeral typing changes before attachment at an unchanged durable head
+  ---
+  duration_ms: 12.755708
+  type: 'test'
+  ...
+# Subtest: outbox commit deltas retain A after B and an engine failure; A still blocks its query
+ok 45 - outbox commit deltas retain A after B and an engine failure; A still blocks its query
+  ---
+  duration_ms: 110.088084
+  type: 'test'
+  ...
+# Subtest: auth refusal after ready never publishes executable status (progressive)
+ok 46 - auth refusal after ready never publishes executable status (progressive)
+  ---
+  duration_ms: 7.910833
+  type: 'test'
+  ...
+# Subtest: auth refusal after ready never publishes executable status (awaited)
+ok 47 - auth refusal after ready never publishes executable status (awaited)
+  ---
+  duration_ms: 3.752125
+  type: 'test'
+  ...
+# Subtest: custody decision waits for the session admission lock and reads newly committed journal keys
+ok 48 - custody decision waits for the session admission lock and reads newly committed journal keys
+  ---
+  duration_ms: 6.84075
+  type: 'test'
+  ...
+# Subtest: ahead server empty is replaced by permitted partial history, never remembered as absence
+ok 49 - ahead server empty is replaced by permitted partial history, never remembered as absence
+  ---
+  duration_ms: 2.157959
+  type: 'test'
+  ...
+# Subtest: stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true}
+ok 50 - stalled speculative or unavailable history stays loading: {"loading":true,"unknown":true}
+  ---
+  duration_ms: 0.193542
+  type: 'test'
+  ...
+# Subtest: stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true}
+ok 51 - stalled speculative or unavailable history stays loading: {"data":[],"speculative":true,"unknown":true}
+  ---
+  duration_ms: 0.154167
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: until-revoked
+ok 52 - unchanged fast path has no added device call: until-revoked
+  ---
+  duration_ms: 0.364959
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: online only
+ok 53 - unchanged fast path has no added device call: online only
+  ---
+  duration_ms: 0.2835
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: disjoint
+ok 54 - unchanged fast path has no added device call: disjoint
+  ---
+  duration_ms: 0.464167
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: equal cut
+ok 55 - unchanged fast path has no added device call: equal cut
+  ---
+  duration_ms: 0.295584
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: older cut
+ok 56 - unchanged fast path has no added device call: older cut
+  ---
+  duration_ms: 0.29225
+  type: 'test'
+  ...
+# Subtest: unchanged fast path has no added device call: complete local
+ok 57 - unchanged fast path has no added device call: complete local
+  ---
+  duration_ms: 0.15125
+  type: 'test'
+  ...
+# Subtest: uncertain routing remains provisional: static unexecuted branch
+ok 58 - uncertain routing remains provisional: static unexecuted branch
+  ---
+  duration_ms: 0.229167
+  type: 'test'
+  ...
+# Subtest: uncertain routing remains provisional: native
+ok 59 - uncertain routing remains provisional: native
+  ---
+  duration_ms: 0.343334
+  type: 'test'
+  ...
+# Subtest: uncertain routing remains provisional: missing watermark
+ok 60 - uncertain routing remains provisional: missing watermark
+  ---
+  duration_ms: 0.163791
+  type: 'test'
+  ...
+# Subtest: uncertain routing remains provisional: invalid watermark
+ok 61 - uncertain routing remains provisional: invalid watermark
+  ---
+  duration_ms: 0.148125
+  type: 'test'
+  ...
+# Subtest: uncertain routing remains provisional: missing sequence
+ok 62 - uncertain routing remains provisional: missing sequence
+  ---
+  duration_ms: 0.1515
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: retained partial
+ok 63 - caught-up device reroutes the original fallback: retained partial
+  ---
+  duration_ms: 0.156875
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: retained complete
+ok 64 - caught-up device reroutes the original fallback: retained complete
+  ---
+  duration_ms: 0.083875
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: still current
+ok 65 - caught-up device reroutes the original fallback: still current
+  ---
+  duration_ms: 0.474875
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: new composition
+ok 66 - caught-up device reroutes the original fallback: new composition
+  ---
+  duration_ms: 0.338334
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: new row mask
+ok 67 - caught-up device reroutes the original fallback: new row mask
+  ---
+  duration_ms: 0.095041
+  type: 'test'
+  ...
+# Subtest: caught-up device reroutes the original fallback: local refusal
+ok 68 - caught-up device reroutes the original fallback: local refusal
+  ---
+  duration_ms: 0.073791
+  type: 'test'
+  ...
+# Subtest: an explicit original-query refusal wins without waiting for the replica
+ok 69 - an explicit original-query refusal wins without waiting for the replica
+  ---
+  duration_ms: 0.059833
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the authority publication fence
+ok 70 - the watermark await preserves the authority publication fence
+  ---
+  duration_ms: 0.128083
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the incarnation publication fence
+ok 71 - the watermark await preserves the incarnation publication fence
+  ---
+  duration_ms: 0.110625
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the credentials publication fence
+ok 72 - the watermark await preserves the credentials publication fence
+  ---
+  duration_ms: 0.059584
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the prediction publication fence
+ok 73 - the watermark await preserves the prediction publication fence
+  ---
+  duration_ms: 0.139792
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the abort publication fence
+ok 74 - the watermark await preserves the abort publication fence
+  ---
+  duration_ms: 0.248583
+  type: 'test'
+  ...
+# Subtest: the watermark await preserves the closed publication fence
+ok 75 - the watermark await preserves the closed publication fence
+  ---
+  duration_ms: 0.08275
+  type: 'test'
+  ...
+# Subtest: known retained composition at an ahead cut: rows
+ok 76 - known retained composition at an ahead cut: rows
+  ---
+  duration_ms: 0.2535
+  type: 'test'
+  ...
+# Subtest: known retained composition at an ahead cut: components
+ok 77 - known retained composition at an ahead cut: components
+  ---
+  duration_ms: 0.1295
+  type: 'test'
+  ...
+# Subtest: known retained composition at an ahead cut: lost retention
+ok 78 - known retained composition at an ahead cut: lost retention
+  ---
+  duration_ms: 0.077959
+  type: 'test'
+  ...
+# Subtest: known retained composition at an ahead cut: withheld
+ok 79 - known retained composition at an ahead cut: withheld
+  ---
+  duration_ms: 0.066416
+  type: 'test'
+  ...
+# Subtest: a rejected watermark read withholds publication (authority changed: false)
+ok 80 - a rejected watermark read withholds publication (authority changed: false)
+  ---
+  duration_ms: 0.228458
+  type: 'test'
+  ...
+# Subtest: a rejected watermark read withholds publication (authority changed: true)
+ok 81 - a rejected watermark read withholds publication (authority changed: true)
+  ---
+  duration_ms: 0.161291
+  type: 'test'
+  ...
+# Subtest: ahead positive server page stays useful and provisional (local rows: 0)
+ok 82 - ahead positive server page stays useful and provisional (local rows: 0)
+  ---
+  duration_ms: 0.364791
+  type: 'test'
+  ...
+# Subtest: ahead positive server page stays useful and provisional (local rows: 1)
+ok 83 - ahead positive server page stays useful and provisional (local rows: 1)
+  ---
+  duration_ms: 0.088041
+  type: 'test'
+  ...
+# Subtest: structured empty siblings cannot replace pending local history
+ok 84 - structured empty siblings cannot replace pending local history
+  ---
+  duration_ms: 0.068667
+  type: 'test'
+  ...
+# Subtest: dispatch watermark cannot certify an older evaluation from a shared store
+ok 85 - dispatch watermark cannot certify an older evaluation from a shared store
+  ---
+  duration_ms: 0.077292
+  type: 'test'
+  ...
+# Subtest: a whole-server route after composition binds the second evaluation cut 4
+ok 86 - a whole-server route after composition binds the second evaluation cut 4
+  ---
+  duration_ms: 0.256042
+  type: 'test'
+  ...
+# Subtest: a whole-server route after composition binds the second evaluation cut 5
+ok 87 - a whole-server route after composition binds the second evaluation cut 5
+  ---
+  duration_ms: 0.142583
+  type: 'test'
+  ...
+# Subtest: a retained sibling cannot authorize emptying a pending history field (speculative: false)
+ok 88 - a retained sibling cannot authorize emptying a pending history field (speculative: false)
+  ---
+  duration_ms: 0.106583
+  type: 'test'
+  ...
+# Subtest: a retained sibling cannot authorize emptying a pending history field (speculative: true)
+ok 89 - a retained sibling cannot authorize emptying a pending history field (speculative: true)
+  ---
+  duration_ms: 0.062542
+  type: 'test'
+  ...
+1..89
+# tests 89
+# suites 0
+# pass 89
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2371.177125

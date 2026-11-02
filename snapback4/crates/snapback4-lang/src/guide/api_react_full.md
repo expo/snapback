@@ -50,7 +50,7 @@ export interface PendingItemsOptions<Row, M extends Mutation<any, any>> { writes
 export interface PendingStateOptions<A, Value> { scope: (write: PendingWrite<A>) => boolean; current: Value; read?: Read<unknown>; value: (args: A) => Value; }
 export type AssetStage = "scheduled" | "client" | "session" | "media" | "refresh" | "queue" | "headers" | "body" | "backoff" | "retention" | "display";
 export interface AssetWaiting { readonly stage: AssetStage; readonly since: number; readonly diagnosticAt: number; readonly received?: number; readonly total?: number; readonly progress?: "bytes" | "unknown"; readonly why?: Refusal; readonly interrupted?: Omit<AssetWaiting, "interrupted"> & { readonly why: Refusal; }; }
-export interface Acquisition { readonly acquired: boolean; readonly rows: number; readonly tables: Readonly<Record<string, number>>; }
+export interface Acquisition { readonly acquired: boolean; readonly rows: number; readonly tables: Readonly<Record<string, number>>; readonly usable: { readonly tables: number; readonly groups: number; }; }
 export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T> | MissingDenied<T>>>(read: Matchable<T>, handlers: H & FallbackDecisions<H>): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export function matchReadList<T extends readonly unknown[], H extends NoInfer<ReadMatchListHandlers<T>>>(input: Matchable<T>, handlers: H): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export type ReadMatchListHandlers<T extends readonly unknown[], R = unknown> = Pick<ReadMatchHandlers<T, R>, "denied"> & { [K in "loading" | "absent" | "partial" | "present"]?: ReadMatchHandlers<T, R>[K]; } & { otherwise: (read: Read<T>) => R; };

@@ -1,0 +1,299 @@
+TAP version 13
+# Subtest: W5R1x: terminal history is bounded independently of unresolved writes
+ok 1 - W5R1x: terminal history is bounded independently of unresolved writes
+  ---
+  duration_ms: 3.156958
+  type: 'test'
+  ...
+# terminal=256 unresolved=300 memory=556 evicted=344
+# Subtest: W5R1x wasm: durable receipts evict beyond 256 without growing metadata
+ok 2 - W5R1x wasm: durable receipts evict beyond 256 without growing metadata
+  ---
+  duration_ms: 4639.971291
+  type: 'test'
+  ...
+# writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=31405 unresolved=1
+# Subtest: W5R1x wasm: opener returns an offline unacquired client on network loss
+not ok 3 - W5R1x wasm: opener returns an offline unacquired client on network loss
+  ---
+  duration_ms: 3014.822875
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:201:51)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: W5R1x wasm: replacement stays unacquired until the new catch-up completes
+not ok 4 - W5R1x wasm: replacement stays unacquired until the new catch-up completes
+  ---
+  duration_ms: 195.949292
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:208:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: W5R1x wasm: a restore halt keeps acquisition false across retries and reopen
+not ok 5 - W5R1x wasm: a restore halt keeps acquisition false across retries and reopen
+  ---
+  duration_ms: 199.173291
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:222:41)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: W5R1x process: durable receipts evict beyond 256 without growing metadata
+ok 6 - W5R1x process: durable receipts evict beyond 256 without growing metadata
+  ---
+  duration_ms: 5698.23675
+  type: 'test'
+  ...
+# writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=31405 unresolved=1
+# Subtest: W5R1x process: opener returns an offline unacquired client on network loss
+not ok 7 - W5R1x process: opener returns an offline unacquired client on network loss
+  ---
+  duration_ms: 3188.275958
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:201:51)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: W5R1x process: replacement stays unacquired until the new catch-up completes
+not ok 8 - W5R1x process: replacement stays unacquired until the new catch-up completes
+  ---
+  duration_ms: 196.601708
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:208:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: W5R1x process: a restore halt keeps acquisition false across retries and reopen
+not ok 9 - W5R1x process: a restore halt keeps acquisition false across retries and reopen
+  ---
+  duration_ms: 200.6115
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:222:41)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: schema alone is not acquisition; unadmitted writes disappear on close
+ok 10 - wasm: schema alone is not acquisition; unadmitted writes disappear on close
+  ---
+  duration_ms: 2230.194167
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+not ok 11 - wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+  ---
+  duration_ms: 197.065584
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:274:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: a genuinely empty partition at sequence zero is acquired durably
+ok 12 - wasm: a genuinely empty partition at sequence zero is acquired durably
+  ---
+  duration_ms: 1227.008875
+  type: 'test'
+  ...
+# Subtest: process: schema alone is not acquisition; unadmitted writes disappear on close
+ok 13 - process: schema alone is not acquisition; unadmitted writes disappear on close
+  ---
+  duration_ms: 2230.239375
+  type: 'test'
+  ...
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: interrupted acquisition; check the connection and server logs before retrying","retryable":true}}}
+# unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: E_OFFLINE: the request did not complete: offline reopen; check the connection and server logs before retrying; check the connection and server logs before retrying","retryable":true}}}
+# Subtest: process: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+not ok 14 - process: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+  ---
+  duration_ms: 198.780167
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:25:55'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:274:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: a genuinely empty partition at sequence zero is acquired durably
+ok 15 - process: a genuinely empty partition at sequence zero is acquired durably
+  ---
+  duration_ms: 1218.468375
+  type: 'test'
+  ...
+# Subtest: W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts
+ok 16 - W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts
+  ---
+  duration_ms: 3539.358834
+  type: 'test'
+  ...
+# acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+# Subtest: W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns
+ok 17 - W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns
+  ---
+  duration_ms: 2255.786042
+  type: 'test'
+  ...
+# recovered outcomes: sent=1 failed=1; server sends=2
+# Subtest: W5c process: online reopen reports acquisition and a missing-row reason, then predicts
+ok 18 - W5c process: online reopen reports acquisition and a missing-row reason, then predicts
+  ---
+  duration_ms: 3654.178625
+  type: 'test'
+  ...
+# acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+# Subtest: W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns
+ok 19 - W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns
+  ---
+  duration_ms: 2256.447583
+  type: 'test'
+  ...
+# recovered outcomes: sent=1 failed=1; server sends=2
+# Subtest: receipt custody retains the first sent outcome across repeated save failures
+ok 20 - receipt custody retains the first sent outcome across repeated save failures
+  ---
+  duration_ms: 0.454875
+  type: 'test'
+  ...
+# Subtest: receipt custody retains the first failed outcome across repeated save failures
+ok 21 - receipt custody retains the first failed outcome across repeated save failures
+  ---
+  duration_ms: 0.113333
+  type: 'test'
+  ...
+# Subtest: acknowledgement drops an unsaved replacement refusal before any persistence retry
+ok 22 - acknowledgement drops an unsaved replacement refusal before any persistence retry
+  ---
+  duration_ms: 0.174208
+  type: 'test'
+  ...
+# Subtest: a legacy acknowledgement returns a known authored refusal without saving success
+ok 23 - a legacy acknowledgement returns a known authored refusal without saving success
+  ---
+  duration_ms: 0.244458
+  type: 'test'
+  ...
+# Subtest: W5R2a: two native owners recover 600 completions without stale pending memory
+ok 24 - W5R2a: two native owners recover 600 completions without stale pending memory
+  ---
+  duration_ms: 8225.157959
+  type: 'test'
+  ...
+# observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+# Interrupted while running: packages/snapback4/test/acquisition.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/acquisition.test.mjs:1:1
+# Interrupted while running: packages/snapback4/test/ordinary-history.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/ordinary-history.test.mjs:1:1
+# Interrupted while running: packages/snapback4/test/progressive-start.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-start.test.mjs:1:1
+# Interrupted while running: packages/snapback4/test/retained-history-cut.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/retained-history-cut.test.mjs:1:1
+# Interrupted while running: packages/snapback4/test/retained-history-order.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/retained-history-order.test.mjs:1:1
+# Interrupted while running: packages/snapback4/test/retained-history.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/retained-history.test.mjs:1:1

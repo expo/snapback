@@ -1,0 +1,46 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (0.709333ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.206792ms)
+✖ process: tier 1 inbox survives offline reopen before any history is usable (2249.537458ms)
+
+Interrupted while running:
+
+⚠ packages/snapback4/test/progressive-acquisition.test.mjs (packages/snapback4/test/progressive-acquisition.test.mjs:1:1)
+✖ packages/snapback4/test/progressive-acquisition.test.mjs (69025.317167ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 69029.116292
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:46:3
+✖ process: tier 1 inbox survives offline reopen before any history is usable (2249.537458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   groups: 5,
+  +   tables: 1
+  -   groups: 0,
+  -   tables: 2
+    }
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { tables: 1, groups: 5 },
+    expected: { tables: 2, groups: 0 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-acquisition.test.mjs:1:1
+✖ packages/snapback4/test/progressive-acquisition.test.mjs (69025.317167ms)
+  'Promise resolution is still pending but the event loop has already resolved'

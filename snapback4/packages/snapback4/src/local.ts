@@ -47,6 +47,7 @@ import { IdentityWait, identityRefusal, localAdmissionIdentity } from "./identit
 import { attachAdmissionAuthority, admissionAuthorityKey } from "./admission-authority.ts";
 import { storeLock } from "./app-storage.ts";
 import { acquisitionProgress } from "./acquisition.ts";
+import { LocalAcquisition, foregroundHint, progressiveState } from "./local-acquisition.ts";
 import { readResidency } from "./residency.ts";
 import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
@@ -205,6 +206,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     initial = await initialBackend(doFetch, base, requestCredentials().headers, () => forgetSession(base, sessions), incompatible);
   }
   let backend = initial.backend;
+  let compatibility = backend?.device_compatibility, compatibilityKnown = !!backend;
   // No authorized online bootstrap: preserve the ordinary kept-store/open refusal.
   if (!backend) progressive = false;
   if (initial.offline) link = "offline";
@@ -305,10 +307,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let identified = false;
   let incarnation = 0;
   const progress = acquisitionProgress();
+  const acquisitionWalk = new LocalAcquisition();
   let acquired = false;
   const acquiredListeners = new Set<(value: boolean) => void>();
   function setAcquired(value: boolean) {
-    if (value) progress.acquired(true); else progress.reset();
+    if (value) progress.acquired(true); else if (acquired) progress.reset();
     if (coreReady && !coreFailure && !sessionDead && !closed) localState.set({ state: value ? "ready" : "syncing", executable: true, acquired: value });
     if (acquired === value) return;
     acquired = value;
@@ -317,10 +320,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
   async function refreshAcquired(afterAdoption = false) {
     const revision = incarnation;
-    const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean } | undefined;
+    const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean; acquired_tables?: string[]; floored_groups?: number } | undefined;
     if (revision === incarnation) {
       if (afterAdoption && state?.acquired === true) partitionCurrent = true;
       setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+      progress.usable(state);
     }
   }
   const listenClock = () => { stopClock = clock.subscribe((shift, revised) => {
@@ -338,6 +342,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const resetProgress = force || storeIdentity !== undefined;
     storeIdentity = id; identified = false;
     incarnation++; holds.clear();
+    acquisitionWalk.reset();
     deliveryWitness = false; deliveryQueue?.fence();
     partitionCurrent = false;
     const wasAcquired = acquired;
@@ -444,7 +449,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
         if (committedTables && footprint === undefined) committedTables.unknown = true;
         for (const table of footprint ?? []) committedTables?.tables.add(table);
-        delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
+        delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true, (result.ok as { published?: boolean })?.published !== false); });
       }
       // Fence a committed replacement before fallible media reconciliation or native identity reads.
       if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
@@ -736,6 +741,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let publicationOutstanding = false;
     let restartingSnapshot = false;
     let pageLimit = PAGE;
+    let progressiveTurn = false;
+    let progressiveCaughtUp = false;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
@@ -750,18 +757,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (versionBlocked() || captured.denied) return false;
           const { generation: capturedGeneration, pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { generation: number; pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
+          if (!compatibilityKnown && progressiveState(captured.ok)) {
+            const metadata = await loadBackend(doFetch, base, requestCredentials().headers, aborter.signal);
+            compatibility = metadata.device_compatibility; compatibilityKnown = true;
+          }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
           publishedStore = store_id;
           observeIncarnation(store_id ?? (progressive ? storeIdentity : undefined), backendRequired && partitionCurrent);
           storeIdentity = store_id ?? (progressive ? storeIdentity : undefined); identified = !!store_id && !backendRequired;
           pageIncarnation = incarnation;
-          const snapshotRequest = restartingSnapshot || after !== undefined;
+          const snapshotRequest = restartingSnapshot || after !== undefined || acquisitionWalk.replacement(compatibility, captured.ok) && !snapshot_catchup;
           watermark = snapshotRequest ? 0 : transfer_watermark ?? capturedWatermark;
           catchingUp = !snapshotRequest && (snapshot_catchup ?? catchingUp);
           publicationOutstanding ||= watermark > capturedWatermark;
           const request = requestCredentials();
-          const { response, json } = await withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal));
+          const hints = [...watches.values()].filter(w => !(w as { lingering?: unknown }).lingering).map(w => foregroundHint(backend, w.op.name, w.args)).filter(h => h !== undefined);
+          const acquisition = acquisitionWalk.request(compatibility, captured.ok, hints, snapshotRequest || catchingUp);
+          progressiveTurn = acquisition !== undefined;
+          const { response, json } = await withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}), ...acquisition }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal));
           if ((json.denied as Refusal | undefined)?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = json.denied as Refusal; setLink("offline"); return false; }
           page = json as SyncPage;
           page.send_revision = send_revision;
@@ -847,6 +861,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
             if (versionBlocked() || adopted.denied || partitionDenied?.code === "E_STORE_RESTORE") return false;
             backend = nextBackend;
+            compatibility = nextBackend.device_compatibility; compatibilityKnown = true;
             generation = Number(nextBackend.generation ?? pageGeneration);
             onlineGeneration = generation;
             for (const watch of watches.values()) watchEphemeral(watch);
@@ -895,6 +910,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           publishedStore = publishedState?.store_id;
           observeIncarnation(publishedStore ?? undefined);
           storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !publishedState?.backend_required;
+          if (progressiveTurn && !publishedState?.backend_required) partitionCurrent = true;
+          if (progressiveTurn) { setAcquired(progressiveState(publishedRead.ok)?.acquired === true); progress.usable(progressiveState(publishedRead.ok)); }
           watermark = publishedState?.watermark ?? watermark;
           // Journal receipts need the adopted store/head in awaited mode too.
           if (publishedStore) {
@@ -910,6 +927,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         after = undefined;
         if (page.snapshot) { catchingUp = true; continue; }
+        // @ref LLP 3000.001.001#42-two-tiers-then-the-walk — one unit and its ordinary drain per turn; queued interactive work precedes the next unit.
+        if (progressiveTurn) {
+          acquisitionWalk.applied(page, published);
+          if (page.acquire || page.more || !published) continue;
+          progressiveCaughtUp = true; break;
+        }
         if (!page.more && published) {
           partitionCurrent = true;
           caughtUp = true;
@@ -917,8 +940,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           break;
         }
       }
-      if (!caughtUp) return false;
+      if (!caughtUp && !progressiveTurn) return false;
       await refreshAcquired();
+      acquisitionWalk.pending = progressiveTurn && !acquired;
+      if (progressiveTurn) { caughtUp = progressiveCaughtUp; identityChecked ||= progressiveCaughtUp; }
       seq = watermark; lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt:wall:1", value: String(lastSyncAt) });
       await queued(); // @ref LLP 3000.031#1.1 — refresh pending facts invalidated even by empty applies.
@@ -1101,7 +1126,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     following = (async () => {
       while (!closed && !sessionDead && !onlineBlocked() && !changesStopped && partitionDenied?.code !== "E_STORE_RESTORE") {
         if (progressive && !coreReady) { await waitOnlineChange(); continue; }
-        if (caughtUp && !await waitForChange()) continue;
+        if (caughtUp && !acquisitionWalk.pending && !await waitForChange()) continue;
         let ok = false;
         try {
           ok = await network.once();
@@ -1489,6 +1514,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     query: settledQuery(async (op, args, signal) => {
       foregroundReads++;
+      acquisitionWalk.hintOnce(foregroundHint(backend, op.name, args));
       try {
       const result = await runLocal(op, args, undefined, false, undefined, signal);
       let waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name, result); checkRead(signal); return () => {

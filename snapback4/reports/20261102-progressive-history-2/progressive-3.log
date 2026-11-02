@@ -1,0 +1,57 @@
+TAP version 13
+# Subtest: scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+ok 1 - scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+  ---
+  duration_ms: 0.876042
+  type: 'test'
+  ...
+# Subtest: progress reports published usable facts, revocation, and received row images independently
+ok 2 - progress reports published usable facts, revocation, and received row images independently
+  ---
+  duration_ms: 0.195334
+  type: 'test'
+  ...
+# Subtest: process: unmodified seed log expands old joins during tier 1 and converges
+ok 3 - process: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 437.182875
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+ok 4 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2343.874667
+  type: 'test'
+  ...
+# Subtest: process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+not ok 5 - process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2301.734875
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:76:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'E_OFFLINE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:91:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (until-revoked)
+ok 6 - process: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2315.028416
+  type: 'test'
+  ...
+# Interrupted while running: packages/snapback4/test/progressive-acquisition.test.mjs at /Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:1:1

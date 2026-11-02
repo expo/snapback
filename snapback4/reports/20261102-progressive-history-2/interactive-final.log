@@ -1,0 +1,57 @@
+TAP version 13
+# Subtest: process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 1 - process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1525.04575
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:126:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    queued send precedes the next acquisition unit
+    
+    2 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:158:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+  ...
+# Subtest: wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 2 - wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1375.568834
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:126:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    queued send precedes the next acquisition unit
+    
+    2 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:158:12)
+    runNextTicks (node:internal/process/task_queues:65:5)
+    process.processTimers (node:internal/timers:538:9)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3001.369208

@@ -1,0 +1,266 @@
+TAP version 13
+# Subtest: scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+ok 1 - scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+  ---
+  duration_ms: 1.130667
+  type: 'test'
+  ...
+# Subtest: progress reports published usable facts, revocation, and received row images independently
+ok 2 - progress reports published usable facts, revocation, and received row images independently
+  ---
+  duration_ms: 0.228125
+  type: 'test'
+  ...
+# Subtest: process: unmodified seed log expands old joins during tier 1 and converges
+ok 3 - process: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 640.07225
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+not ok 4 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 157.87325
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:56:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:57:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+not ok 5 - process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 183.921583
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:76:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:77:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (until-revoked)
+not ok 6 - process: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 196.382542
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:107:41'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:108:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (delivered)
+not ok 7 - process: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 161.399292
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:107:41'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:108:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 8 - process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 160.722584
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:122:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:123:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: old server uses legacy snapshots without any acquire request
+not ok 9 - process: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 167.46925
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:150:44'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:151:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: process: old device uses legacy snapshots without any acquire request
+not ok 10 - process: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 169.134375
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:150:44'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:151:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: unmodified seed log expands old joins during tier 1 and converges
+ok 11 - wasm: unmodified seed log expands old joins during tier 1 and converges
+  ---
+  duration_ms: 1307.83525
+  type: 'test'
+  ...
+# Inherited ordinary join expansion publishes five groups before the tier-1 walk ends; strict tier ordering is not guaranteed by the current server seam.
+# Subtest: wasm: tier 1 inbox survives offline reopen before any history is usable
+not ok 12 - wasm: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 175.45225
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:56:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:57:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+not ok 13 - wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 161.6945
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:76:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:77:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (until-revoked)
+not ok 14 - wasm: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 182.234917
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:107:41'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:108:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (delivered)
+not ok 15 - wasm: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 183.033167
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:107:41'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:108:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+not ok 16 - wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 153.117042
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:122:3'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:123:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: old server uses legacy snapshots without any acquire request
+not ok 17 - wasm: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 175.966625
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:150:44'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:151:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: wasm: old device uses legacy snapshots without any acquire request
+not ok 18 - wasm: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 175.16125
+  type: 'test'
+  location: '/Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:150:44'
+  failureType: 'testCodeFailure'
+  error: 'no such table: _log'
+  code: 'ERR_SQLITE_ERROR'
+  stack: |-
+    fixture (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs:90:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-acquisition.test.mjs:151:15)
+    async Test.run (node:internal/test_runner/test:1332:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+  ...
+# Subtest: browser React hooks and IndexedDB close/reopen
+ok 19 - browser React hooks and IndexedDB close/reopen # SKIP not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+  ---
+  duration_ms: 0.171167
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 4
+# fail 14
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 4466.964875
