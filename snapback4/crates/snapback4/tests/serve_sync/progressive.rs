@@ -38,6 +38,7 @@ fn exercise(reader: bool) {
     assert_eq!(p["events"][0]["data"]["n"], 2);
     assert_eq!(p["acquire"]["whole_tables"], json!(["items"]));
     assert_eq!(p["acquire"]["unit"], json!({"tier": 1, "table": "items"}));
+    assert_eq!(p["acquire"]["units"], json!([{"tier": 1, "table": "items"}]));
     assert_eq!(p["acquire"]["exhausted"], true);
     assert!(p["acquire"]["cursor"].is_null());
     assert!(p["acquire"].get("pinned").is_none());
@@ -88,3 +89,19 @@ fn exercise(reader: bool) {
 
 #[test] fn progressive_acquisition_memory_http() { exercise(false); }
 #[test] fn progressive_acquisition_reader_http() { exercise(true); }
+
+#[test]
+fn packed_acquisition_http_shape_has_all_units_and_floors() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\ntable a:\n  public 'fixture'\n  sync public\ntable b:\n  public 'fixture'\n  sync public\ntable c:\n  public 'fixture'\n  sync public last 2 by .id\ntable d:\n  public 'fixture'\n  sync public last 2 by .id\n");
+    let p = body(&host.request("POST", "/sync", PERSONA, r#"{"from":0,"limit":10,"acquire":{"cursor":null}}"#));
+    assert!(p.get("denied").is_none(), "{p}");
+    assert_eq!(p["acquire"]["units"], json!([
+        {"tier":1,"table":"a"}, {"tier":1,"table":"b"}, {"tier":2,"table":"c","group":[]}, {"tier":2,"table":"d","group":[]}]));
+    assert_eq!(p["acquire"]["unit"], p["acquire"]["units"][0]);
+    assert_eq!(p["acquire"]["whole_tables"], json!(["a", "b"]));
+    assert_eq!(p["acquire"]["pinned"], true);
+    assert_eq!(p["acquire"]["exhausted"], true);
+    assert!(p["acquire"]["cursor"].is_null());
+    assert_eq!(p["acquisitions"].as_array().unwrap().iter().filter(|a| a["floor"] == "whole").count(), 2);
+}

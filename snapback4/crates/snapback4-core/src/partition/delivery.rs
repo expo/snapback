@@ -16,6 +16,8 @@ pub(super) struct Budget {
 impl Budget {
     pub(super) fn new() -> Self { Self { rows: 0, heap: 0, wire: 0 } }
 
+    pub(super) fn row_room(&self) -> usize { ROW_CEILING.saturating_sub(self.rows) as usize }
+
     fn refusal(kind: MeterKind, actual: u64, ceiling: u64) -> RuntimeError {
         RuntimeError::Bound { kind, actual, ceiling, site: SITE.into() }
     }

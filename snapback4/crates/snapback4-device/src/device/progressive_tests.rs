@@ -46,31 +46,61 @@ fn evidence(d: &mut Device<MemoryStore>) -> (serde_json::Value, Vec<crate::memor
     (state, d.store.export())
 }
 
+fn packed(b: &Backend) -> StreamPage {
+    let mut parts = pages(b); let second = parts.pop().unwrap(); let mut first = parts.pop().unwrap();
+    let offset = first.events.len();
+    first.events.extend(second.events);
+    first.acquisitions.extend(second.acquisitions.into_iter().map(|mut a| { a.at += offset; a }));
+    let progress = first.acquire.as_mut().unwrap();
+    progress.units = vec![progress.unit.clone().unwrap(), second.acquire.unwrap().unit.unwrap()];
+    progress.cursor = None; progress.exhausted = true;
+    first
+}
+
 #[test]
 fn progressive_commit_failure_and_host_persistence_before_after_every_unit() {
-    let b = backend(); let mut d = Device::open_store(MemoryStore::new(), Some(b.clone())).unwrap();
-    for (i, mut page) in pages(&b).into_iter().enumerate() {
-        page.watermark = 7; page.images_at = Some(7);
-        page.acquire.as_mut().unwrap().pinned = i == 0;
-        let before = evidence(&mut d);
-        crate::memory::FAIL_COMMIT.with(|fail| fail.set(true));
-        let failure = d.apply(&page, false).unwrap_err();
-        assert!(failure.to_string().contains("injected commit failure"));
-        assert_eq!(evidence(&mut d), before, "no rows, floor, cursor, fact or format envelope escaped rollback");
-        d = reopen(d); assert_eq!(evidence(&mut d).0, before.0);
-        // Host failure after memory commit but before durable persistence:
-        // discard that call's entire changes, as the IndexedDB owner must.
-        let durable_before = d.store.export();
-        d.apply(&page, false).unwrap();
-        let published = evidence(&mut d).0;
-        let mut failed_host = MemoryStore::new(); failed_host.load(durable_before).unwrap();
-        let mut recovered = Device::open_store(failed_host, None).unwrap();
-        assert_eq!(evidence(&mut recovered).0, before.0);
-        recovered.apply(&page, false).unwrap(); assert_eq!(evidence(&mut recovered).0, published);
-        d = reopen(recovered); assert_eq!(evidence(&mut d).0, published);
-        assert_eq!(d.sync_state_read().unwrap().watermark, 7);
+    for bundle in [false, true] {
+        let b = backend(); let mut d = Device::open_store(MemoryStore::new(), Some(b.clone())).unwrap();
+        let pages = if bundle { vec![packed(&b)] } else { pages(&b) };
+        for (i, mut page) in pages.into_iter().enumerate() {
+            page.watermark = 7; page.images_at = Some(7);
+            page.acquire.as_mut().unwrap().pinned = i == 0;
+            let before = evidence(&mut d);
+            crate::memory::FAIL_COMMIT.with(|fail| fail.set(true));
+            let failure = d.apply(&page, false).unwrap_err();
+            assert!(failure.to_string().contains("injected commit failure"));
+            assert_eq!(evidence(&mut d), before, "no rows, floor, cursor, fact or format envelope escaped rollback");
+            d = reopen(d); assert_eq!(evidence(&mut d).0, before.0);
+            // Host failure after memory commit but before durable persistence:
+            // discard that call's entire changes, as the IndexedDB owner must.
+            let durable_before = d.store.export();
+            d.apply(&page, false).unwrap();
+            let published = evidence(&mut d).0;
+            let mut failed_host = MemoryStore::new(); failed_host.load(durable_before).unwrap();
+            let mut recovered = Device::open_store(failed_host, None).unwrap();
+            assert_eq!(evidence(&mut recovered).0, before.0);
+            recovered.apply(&page, false).unwrap(); assert_eq!(evidence(&mut recovered).0, published);
+            d = reopen(recovered); assert_eq!(evidence(&mut d).0, published);
+            assert_eq!(d.sync_state_read().unwrap().watermark, 7);
+        }
+        let state = d.sync_state_read().unwrap();
+        assert!(state.acquired); assert_eq!(state.acquired_tables, ["counters"]); assert_eq!(state.floored_groups, 1);
+        assert!(d.query("page", "alice", &json!({}), 100).unwrap().complete);
     }
-    assert!(d.sync_state_read().unwrap().acquired);
+}
+
+#[test]
+fn malformed_later_packed_unit_cannot_publish_the_first_units_facts() {
+    let b = backend(); let mut d = Device::open_store(MemoryStore::new(), Some(b.clone())).unwrap();
+    let before = evidence(&mut d);
+    let mut page = packed(&b);
+    page.acquire.as_mut().unwrap().units[1].table = "missing".into();
+    assert_eq!(d.apply(&page, false).unwrap_err().code(), "E_INPUT");
+    assert_eq!(evidence(&mut d), before);
+    let mut page = packed(&b);
+    page.events[1].data = Some(json!({"id":"h","n":"invalid integer"}));
+    assert!(d.apply(&page, false).is_err());
+    assert_eq!(evidence(&mut d), before);
 }
 
 fn pinned_unit<S: DeviceStore>(store: S) {

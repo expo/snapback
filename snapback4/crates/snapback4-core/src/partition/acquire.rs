@@ -24,6 +24,7 @@ pub struct AcquisitionProgress {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pinned: bool,
     pub unit: Option<AcquisitionUnit>,
+    pub units: Vec<AcquisitionUnit>,
     pub cursor: Option<String>,
     pub exhausted: bool,
     pub whole_tables: Vec<String>,
@@ -54,15 +55,28 @@ fn whole_eligible(schema: &Schema, name: &str) -> bool {
         && !schema.timelines.iter().any(|timeline| timeline.owns(name))
 }
 
-/// Find the next currently held, unskipped group. The cursor keeps a group
-/// key, not a membership offset, including across a leave between pages.
+// Transaction-local enumeration only; no durable discovery state or second cut.
+#[derive(Default)]
+struct Groups(std::collections::BTreeMap<String, Vec<Vec<Value>>>);
+impl Groups {
+    fn get(&mut self, tx: &dyn PartitionRows, schema: &Schema, name: &str,
+        sync: &Sync, principal: &str, now: i64,
+    ) -> Result<&Vec<Vec<Value>>, RuntimeError> {
+        if !self.0.contains_key(name) {
+            self.0.insert(name.into(), snapshot_groups(tx, schema, name, sync, principal, now)?);
+        }
+        Ok(&self.0[name])
+    }
+}
+
+/// Resume by group key, including across a leave between pages.
 fn resume(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     at: &mut SnapshotCursor, skip: &[AcquisitionGroup], now: i64,
-    skipped: &mut Vec<AcquisitionGroup>,
+    skipped: &mut Vec<AcquisitionGroup>, cache: &mut Groups,
 ) -> Result<bool, RuntimeError> {
     let tables: Vec<_> = schema.synced().filter(|(_, _, sync)| sync.horizon.is_some()).collect();
     while let Some((name, _, sync)) = tables.get(at.table) {
-        let groups = snapshot_groups(tx, schema, name, sync, principal, now)?;
+        let groups = cache.get(tx, schema, name, sync, principal, now)?;
         if let Some(current) = &at.group {
             if !groups.contains(current) { skipped.push(named(name, current)); }
         }
@@ -70,7 +84,7 @@ fn resume(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
             if at.group.as_ref().is_some_and(|current| canonical_json(&group) < canonical_json(current)) { continue; }
             let key = named(name, &group);
             if skip.contains(&key) { skipped.push(key); continue; }
-            at.group = Some(group);
+            at.group = Some(group.clone());
             return Ok(true);
         }
         at.table += 1;
@@ -80,11 +94,10 @@ fn resume(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
 }
 
 // @ref LLP 3000.001.001#61-the-acquisition-page — the cold first unit pins the stream; later units reuse its position and the existing join selection/budget.
-pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
+fn unit(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     cursor: Option<SnapshotCursor>, hint: Option<&AcquisitionGroup>, skip: &[AcquisitionGroup],
-    from: u64, limit: usize, now: i64,
+    from: u64, limit: usize, now: i64, budget: &mut delivery::Budget, cache: &mut Groups,
 ) -> Result<AcquisitionPage, RuntimeError> {
-    if skip.len() > 32 { return Err(RuntimeError::Input("acquisition accepts at most 32 skipped groups".into())); }
     let head = tx.next_seq()? - 1;
     if from > head { return Err(RuntimeError::Input("acquisition watermark is ahead of the server head".into())); }
     let pinned = cursor.is_none() && from == 0;
@@ -97,7 +110,7 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     let mut out = AcquisitionPage {
         page: StreamPage { images_at: Some(head), acquisitions: vec![], events: vec![],
             joined: Default::default(), watermark, more: watermark < head },
-        acquire: AcquisitionProgress { pinned, unit: None, cursor: None, exhausted: false,
+        acquire: AcquisitionProgress { pinned, unit: None, units: vec![], cursor: None, exhausted: false,
             whole_tables: vec![], hint_ignored: false, skipped: vec![] },
     };
     if at.tier == 1 {
@@ -106,9 +119,8 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
         if let Some((name, _, _)) = tables.get(at.table) {
             out.acquire.unit = Some(AcquisitionUnit { tier: 1, table: (*name).into(), group: None });
             out.acquire.hint_ignored = hint.is_some();
-            let (page, whole) = snapshot::walk(tx, schema, principal, Some(at), limit, now, true)?;
+            let (page, whole) = snapshot::walk(tx, schema, principal, Some(at), limit.min(budget.row_room()), now, true)?;
             out.page.acquisitions = page.acquisitions;
-            let mut budget = delivery::Budget::new();
             for event in page.events {
                 budget.push(&mut out.page.events, LogEvent { seq: from, ord: 0, table: event.table,
                     kind: event.kind.word().into(), id: event.id, data: event.data }, 0)?;
@@ -126,7 +138,7 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     }
     let tables: Vec<_> = schema.synced().filter(|(_, _, sync)| sync.horizon.is_some()).collect();
     if at.table > tables.len() { return Err(RuntimeError::Input("acquisition table cursor is outside the schema".into())); }
-    let remains = resume(tx, schema, principal, &mut at, skip, now, &mut out.acquire.skipped)?;
+    let remains = resume(tx, schema, principal, &mut at, skip, now, &mut out.acquire.skipped, cache)?;
     // A tier-1 table page remains the sole unit, even on its terminal page.
     if out.acquire.unit.is_some() || !remains {
         out.acquire.hint_ignored |= hint.is_some() && !remains;
@@ -139,8 +151,8 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
         let candidate = if at.priority_used || skip.contains(hint) { None } else {
             tables.iter().enumerate().find(|(_, (name, _, _))| *name == hint.table)
                 .map(|(i, (name, _, sync))| {
-                    Ok::<_, RuntimeError>(snapshot_groups(tx, schema, name, sync, principal, now)?
-                        .into_iter().find(|group| named(name, group) == *hint).map(|group| (i, group)))
+                    Ok::<_, RuntimeError>(cache.get(tx, schema, name, sync, principal, now)?
+                        .iter().find(|group| named(name, group) == *hint).map(|group| (i, group.clone())))
                 }).transpose()?.flatten()
         };
         if let Some(candidate) = candidate { selected = candidate; }
@@ -153,7 +165,7 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     let horizon = sync.horizon.as_ref().expect("tier 2");
     out.page.acquisitions.push(acquisition(name, &horizon.by, group, 0, None));
     let (rows, last_key) = delivery::expand_group(tx, schema, principal, &source, table, sync,
-        group, now, &mut delivery::Budget::new(), &mut out.page.events)?;
+        group, now, budget, &mut out.page.events)?;
     let floor = if rows < horizon.last as usize { "whole".into() }
         else { crate::value::encode_bytes_hex(last_key.as_ref().expect("selected horizon has a last key")) };
     out.page.acquisitions.push(acquisition(name, &horizon.by, group, out.page.events.len(), Some(floor)));
@@ -163,15 +175,66 @@ pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
     out.acquire.unit = Some(AcquisitionUnit { tier: 2, table: name.into(), group: Some(named(name, group).group) });
     if selected.0 == at.table && at.group.as_ref() == Some(group) {
         at.priority_used = false;
-        let groups = snapshot_groups(tx, schema, name, sync, principal, now)?;
-        at.group = groups.into_iter().find(|next| canonical_json(next) > canonical_json(group));
+        let groups = cache.get(tx, schema, name, sync, principal, now)?;
+        at.group = groups.iter().find(|next| canonical_json(next) > canonical_json(group)).cloned();
         if at.group.is_none() { at.table += 1; }
     } else {
         // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — even changing hints cannot starve the durable walk.
         at.priority_used = true;
     }
-    let remains = resume(tx, schema, principal, &mut at, skip, now, &mut out.acquire.skipped)?;
+    let remains = resume(tx, schema, principal, &mut at, skip, now, &mut out.acquire.skipped, cache)?;
     out.acquire.cursor = remains.then(|| at.encode());
     out.acquire.exhausted = !remains;
+    Ok(out)
+}
+
+// @ref LLP 3000.001.001#61-the-acquisition-page — pack whole units under one delivery budget and one publication transaction; never split a group to fill a reply.
+pub(crate) fn page(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
+    cursor: Option<SnapshotCursor>, hint: Option<&AcquisitionGroup>, skip: &[AcquisitionGroup],
+    from: u64, limit: usize, now: i64,
+) -> Result<AcquisitionPage, RuntimeError> {
+    if skip.len() > 32 { return Err(RuntimeError::Input("acquisition accepts at most 32 skipped groups".into())); }
+    let limit = limit.clamp(1, 10_000);
+    let mut budget = delivery::Budget::new();
+    let mut cache = Groups::default();
+    let mut skip = skip.to_vec();
+    let mut out = unit(tx, schema, principal, cursor, hint, &skip, from, limit, now, &mut budget, &mut cache)?;
+    if let Some(first) = &out.acquire.unit { out.acquire.units.push(first.clone()); }
+    let mut used = out.page.events.len().max(1);
+    let mut hinted = out.acquire.unit.as_ref().is_some_and(|u| u.tier == 2);
+    loop {
+        if let Some(last) = out.acquire.units.last().filter(|u| u.tier == 2) {
+            let served = AcquisitionGroup { table: last.table.clone(), group: last.group.clone().expect("group unit") };
+            if !skip.contains(&served) { skip.push(served); }
+        }
+        if out.acquire.exhausted || used >= limit || budget.row_room() == 0 { break; }
+        let at = out.acquire.cursor.as_deref().and_then(SnapshotCursor::decode).expect("continuing walk cursor");
+        let next = unit(tx, schema, principal, Some(at), if hinted { None } else { hint }, &skip,
+            from, limit - used, now, &mut budget, &mut cache);
+        let mut next = match next {
+            Ok(next) => next,
+            // The candidate has not published any facts. Retry it as the first
+            // unit next time, when it owns the full budget (or refuses alone).
+            Err(RuntimeError::Bound { .. }) => break,
+            Err(error) => return Err(error),
+        };
+        let cost = next.page.events.len().max(1);
+        if cost > limit - used { break; }
+        if next.acquire.unit.as_ref().is_some_and(|u| u.tier == 2) {
+            hinted = true;
+            out.acquire.hint_ignored = next.acquire.hint_ignored;
+        }
+        if let Some(unit) = next.acquire.unit { out.acquire.units.push(unit); }
+        let offset = out.page.events.len();
+        for marker in &mut next.page.acquisitions { marker.at += offset; }
+        out.page.events.extend(next.page.events);
+        out.page.acquisitions.extend(next.page.acquisitions);
+        for (table, groups) in next.page.joined { out.page.joined.entry(table).or_default().extend(groups); }
+        out.acquire.whole_tables.extend(next.acquire.whole_tables);
+        out.acquire.skipped.extend(next.acquire.skipped);
+        out.acquire.cursor = next.acquire.cursor;
+        out.acquire.exhausted = next.acquire.exhausted;
+        used += cost;
+    }
     Ok(out)
 }

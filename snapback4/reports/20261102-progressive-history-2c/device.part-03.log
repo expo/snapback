@@ -1,0 +1,433 @@
+
+running 3 tests
+test the_server_answers_a_visible_match_true_and_a_hidden_only_match_unavailable ... ok
+test hidden_rows_never_change_the_answer ... ok
+test both_device_stores_keep_unknown_and_held_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/sequence_by.rs (target/debug/deps/sequence_by-832131c4a40b2020)
+
+running 12 tests
+test reversed_cross_table_floor_memory ... ok
+test memory_online_and_two_offline_inserts ... ok
+test reversed_cross_table_floor_sqlite ... ok
+test two_sequence_columns_each_raise_the_held_parent_floor ... ok
+test short_circuit_before_ordinal_is_a_terminal_refusal ... ok
+test an_unrepresentable_provisional_queues_without_publishing_a_clamped_row ... ok
+test upsert_and_update_results_mark_provisional_ordinals_pending ... ok
+test a_pending_delete_cannot_lower_the_settled_parent_floor ... ok
+test reread_and_page_results_mark_provisional_ordinals_pending ... ok
+test sqlite_online_and_two_offline_inserts ... ok
+test unrelated_denials_still_refuse_without_queuing ... ok
+test provisional_rule_and_require_refusals_queue_on_both_stores ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-590d540420c48710)
+
+running 4 tests
+test generated_author_lookups_keep_intents_until_settlement ... ok
+test generated_readable_insert_admission_and_server_dispositions ... ok
+test sequence_pairs_on_both_device_stores ... ok
+test generated_pairs_compare_admission_durable_outboxes_and_settlement ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.21s
+
+     Running tests/server_clock.rs (target/debug/deps/server_clock-feadbc3c5a225b77)
+
+running 9 tests
+test recovery_change_batch_contains_outbox_and_clock_floor_together ... ok
+test legacy_floor_backfill_is_idempotent_and_failure_keeps_the_queue ... ok
+test admission_change_batch_contains_outbox_and_clock_floor_together ... ok
+test settled_admission_floor_survives_memory_restart ... ok
+test recovery_transactions_preserve_memory_floor_after_retirement ... ok
+test legacy_admission_floor_survives_retirement_memory ... ok
+test settled_admission_floor_survives_sqlite_restart ... ok
+test recovery_transactions_preserve_sqlite_floor_after_retirement ... ok
+test legacy_admission_floor_survives_retirement_sqlite ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-d2f9bbf3898d0481)
+
+running 2 tests
+test shape_replacements_server_and_memory ... ok
+test shape_replacements_server_and_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/spread_metadata.rs (target/debug/deps/spread_metadata-753478aa065a4e14)
+
+running 2 tests
+test spread_pending_on_memory_before_confirmation_after_reopen_and_settlement ... ok
+test spread_pending_on_sqlite_before_confirmation_after_reopen_and_settlement ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/spread_pending_union.rs (target/debug/deps/spread_pending_union-4682cfae744e5f35)
+
+running 2 tests
+test every_pending_combination_composes_on_memory_across_reopen_and_settlement ... ok
+test every_pending_combination_composes_on_sqlite_across_reopen_and_settlement ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-b337c7994833ea8a)
+
+running 1 test
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/sync_windows.rs (target/debug/deps/sync_windows-8c5ed66762432482)
+
+running 2 tests
+test full_window_order_is_offline_after_reopen_on_memory ... ok
+test full_window_order_is_offline_after_reopen_on_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/time_audiences.rs (target/debug/deps/time_audiences-d2470cf803d01197)
+
+running 6 tests
+test pending_write_retries_from_memory_device_outbox ... ok
+test time_audience_lifecycle_memory_device ... ok
+test time_audience_adoption_memory_device ... ok
+test time_audience_adoption_sqlite_device ... ok
+test time_audience_lifecycle_sqlite_device ... ok
+test pending_write_retries_from_sqlite_device_outbox ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/timed_search.rs (target/debug/deps/timed_search-813fcd19c5c941a2)
+
+running 2 tests
+test timed_search_word_heads_memory ... ok
+test timed_search_word_heads_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-4526ac6a9e606c18)
+
+running 26 tests
+test declared_timeline_classification_memory ... ok
+test declared_timeline_repost_replay_memory ... ok
+test declared_timeline_replay_refusal_memory ... ok
+test round1::foreign_reads_memory ... ok
+test round1::retained_inputs_memory ... ok
+test declared_timeline_lifecycle_memory ... ok
+test round2::retained_point_scan_memory ... ok
+test declared_timeline_unheld_memory ... ok
+test declared_timeline_many_follower_pages_memory ... ok
+test declared_timeline_repost_replay_sqlite ... ok
+test declared_timeline_replay_refusal_sqlite ... ok
+test round1::tombstone_refusal_memory ... ok
+test round2::absent_tombstone_memory ... ok
+test round1::foreign_reads_sqlite ... ok
+test round2::retained_point_scan_sqlite ... ok
+test round1::retained_inputs_sqlite ... ok
+test declared_timeline_many_follower_pages_sqlite ... ok
+test declared_timeline_classification_sqlite ... ok
+test round1::tombstone_refusal_sqlite ... ok
+test declared_timeline_unheld_sqlite ... ok
+test round2::absent_tombstone_sqlite ... ok
+test sized_timeline_registration_memory ... ok
+test declared_timeline_lifecycle_sqlite ... ok
+test sized_timeline_registration_sqlite ... ok
+test pending_history_memory ... ok
+test pending_history_sqlite ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/topn_complete.rs (target/debug/deps/topn_complete-9828dbddbcedae12)
+
+running 8 tests
+test memory_bound_meter_collectors_and_lane_discovery ... ok
+test sqlite_bound_meter_collectors_and_lane_discovery ... ok
+test memory_and_server_undecided_prefix_stays_incomplete ... ok
+test memory_horizon_remains_incomplete ... ok
+test sqlite_horizon_remains_incomplete ... ok
+test sqlite_and_server_undecided_prefix_stays_incomplete ... ok
+test memory_top_n_and_preview ... ok
+test sqlite_top_n_and_preview ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/unicode.rs (target/debug/deps/unicode-79246a74d55d8452)
+
+running 1 test
+test unicode_device_fixture_and_native_stores ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/unread_range.rs (target/debug/deps/unread_range-5fd650e9dfaf8a04)
+
+running 7 tests
+test guide_memory ... ok
+test guide_sqlite ... ok
+test measured::memory_candidate_visits ... ok
+test measured::sqlite_candidate_visits ... ok
+test measured::server_large_live_basis_ignores_expired_backlog ... ok
+test native_memory_scenarios ... ok
+test native_sqlite_scenarios ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.02s
+
+     Running tests/upload_intents.rs (target/debug/deps/upload_intents-2a51110432bd5b9c)
+
+running 6 tests
+test memory_terminal_identity ... ok
+test memory_transfer_identity ... ok
+test memory_custody ... ok
+test sqlite_transfer_identity ... ok
+test sqlite_terminal_identity ... ok
+test sqlite_custody ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/upload_receipts.rs (target/debug/deps/upload_receipts-58aebf1098081c42)
+
+running 2 tests
+test forgotten_upload_receipt_is_absent_and_cannot_predict_in_memory ... ok
+test forgotten_upload_receipt_is_absent_and_cannot_predict_in_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/upsert_constraints.rs (target/debug/deps/upsert_constraints-3474c61a56fb40e0)
+
+running 2 tests
+test generated_constraints_memory ... ok
+test generated_constraints_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+
+     Running tests/visible_text.rs (target/debug/deps/visible_text-000510b14a4811ce)
+
+running 2 tests
+test memory ... ok
+test sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/w13g_probe.rs (target/debug/deps/w13g_probe-0d8db05d44f2aec9)
+
+running 142 tests
+test raw_boundary_keys_at_the_thousand_group_envelope ... ok
+test renewal_review::cold_horizonless_split::memory ... ok
+test renewal_review::cold_horizon_split::memory ... ok
+test renewal_review::cold_horizon_together::memory ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::cold_horizonless_together::memory ... ok
+test renewal_review::gap_horizon_split::memory ... ok
+test renewal_review::gap_horizon_together::memory ... ok
+test empty_join_publishes_whole_and_invalidates_coverage ... ok
+test renewal_review::cold_horizon_together::sqlite ... ok
+test renewal_review::cold_horizonless_split::sqlite ... ok
+test renewal_review::gap_horizonless_split::memory ... ok
+test renewal_review::cold_horizon_split::sqlite ... ok
+test crossing_page_red ... ok
+test renewal_review::cold_horizonless_together::sqlite ... ok
+test growth_red ... ok
+test renewal_review::gap_horizonless_together::memory ... ok
+test conversation_ordinal_probe_preserves_the_crossing_page ... ok
+test renewal_review::gap_horizon_split::sqlite ... ok
+test continuous_renewal_keeps_and_gap_reacquisition_replaces ... ok
+test renewal_review::revoke_horizon_split::memory ... ok
+test renewal_review::gap_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew::horizon_split::memory ... ok
+test renewal_review::revoke_horizonless_split::memory ... ok
+test mutable_keys_held_updates_deletes_and_reopen ... ok
+test renewal_review::revoke_horizon_together::memory ... ok
+test renewal_review::revoke_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew::horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew::horizonless_together::memory ... ok
+test refresh_publishes_new_floor_and_schema_reacquisition_clears_it ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_together::memory ... ok
+test renewal_review::gap_horizonless_together::sqlite ... ok
+test renewal_review::gap_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_split::memory ... ok
+test empty_acquired_is_whole_and_never_acquired_is_unknown ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_together::memory ... ok
+test paired_hidden_worlds_have_identical_observations ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_split::memory ... ok
+test renewal_review::revoke_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_together::memory ... ok
+test renewal_review::revoke_horizon_together::sqlite ... ok
+test join_selection_delivers_each_worlds_current_readable_keys ... ok
+test renewal_review::same_commit::grant_renew::horizon_together::sqlite ... ok
+test renewal_review::revoke_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_split::memory ... ok
+test renewal_review::revoke_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_together::memory ... ok
+test persisted_boundary_bytes_at_one_thousand_groups ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_together::memory ... ok
+test renewal_review::same_commit::grant_renew_later::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_later::retained_horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_together::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_split::memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_together::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizon_split::sqlite ... ok
+test renewal_review::unlimited_horizon_split::memory ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_renew_twice::retained_horizonless_split::sqlite ... ok
+test review::current::group_acquisition_stops_at_n_readable_rows_without_lookahead ... ok
+test review::current::ordinary_stream_delivers_current_readable_images ... ok
+test review::current::stable_group_snapshot_and_stream_have_identical_rows_and_floor ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_together::sqlite ... ok
+test review::ordinary_stream_does_not_rewrite_boundaries ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_split::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::horizonless_split::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_together::sqlite ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizonless_split::sqlite ... ok
+test review::recheck::current_selection_includes_previously_unselected_row_memory ... ok
+test review::recheck::current_selection_replaces_deleted_selected_row_memory ... ok
+test renewal_review::same_commit::grant_revoke_rejoin::retained_horizon_split::sqlite ... ok
+test renewal_review::unlimited_horizon_split::sqlite ... ok
+test review::recheck::membership_collision_join_memory ... ok
+test review::deleted_historical_selection_acquires_remaining_current_row ... ok
+test review::recheck::changed_unselected_images_do_not_block_memory ... ok
+test review::recheck::current_selection_includes_previously_unselected_row_sqlite ... ok
+test review::recheck::current_selection_replaces_deleted_selected_row_sqlite ... ok
+test review::recheck::membership_collision_scope_memory ... ok
+test review::recheck::moved_survivor_deleted_floor_memory ... ok
+test review::gap_deletion_stays_unknown_until_snapshot ... ok
+test review::recheck::moved_survivor_hidden_floor_memory ... ok
+test review::gap_key_below_new_floor_stays_unknown_until_snapshot ... ok
+test review::recheck::whole_selection_with_no_current_rows_memory ... ok
+test review::deleted_floor_is_not_disclosed ... ok
+test review::recheck::written_unselected_same_key_memory ... ok
+test review::recheck::written_unselected_round_trip_memory ... ok
+test review::current::current_join_paged_duplicates_moves_expiry_and_below_floor_memory ... ok
+test review::recheck::membership_collision_row_controls_memory ... ok
+test review::recheck::membership_collision_join_sqlite ... ok
+test review::recheck::membership_collision_scope_sqlite ... ok
+test review::recheck::written_unselected_same_key_sqlite ... ok
+test review::recheck::moved_survivor_deleted_floor_sqlite ... ok
+test review::recheck::moved_survivor_hidden_floor_sqlite ... ok
+test review::recheck::whole_selection_with_no_current_rows_sqlite ... ok
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+test review::skipped_snapshot_page_is_refused_before_publication ... ok
+test whole_group_stays_complete_to_its_end ... ok
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+test review::recheck::written_unselected_round_trip_sqlite ... ok
+test staged_completion_and_unsolicited_boundary_and_legacy_wire ... ok
+test review::recheck::changed_unselected_images_do_not_block_sqlite ... ok
+test review::unreadable_floor_is_not_disclosed ... ok
+test review::current::current_join_paged_duplicates_moves_expiry_and_below_floor_sqlite ... ok
+test review::recheck::membership_collision_row_controls_sqlite ... ok
+test review::thousand_lane_merge_loads_boundaries_once ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test review::five_thousand_empty_groups_make_bounded_progress ... ok
+
+test result: ok. 142 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.45s
+
+     Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-01b60cb62977ef3d)
+
+running 2 tests
+test qdiag_memory ... ok
+test qdiag_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/wave12_language.rs (target/debug/deps/wave12_language-a4104b13f702d403)
+
+running 2 tests
+test pre_wave_closed_enums_reject_email_and_rounded_division ... ok
+test wave12_semantics_match_on_both_device_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-092387ed6b558dcd)
+
+running 4 tests
+test new_private_exhaustion_interpretations_require_v5_before_device_execution ... ok
+test hidden_immutable_key_mismatch_queues_and_succeeds_on_both_stores ... ok
+test filtered_snapshot_refinement_runs_on_memory_and_native_sqlite ... ok
+test immutable_notes_preserve_equality_on_memory_and_native_sqlite ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/write_authority.rs (target/debug/deps/write_authority-20d800523050bbf9)
+
+running 10 tests
+test observation::delta_preserves_field_changes_deletions_and_nominal_ids_per_table ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_memory ... ok
+test w9r1a_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test w9r1a_historical_named_receipt_dropped_reply_then_revocation_sqlite ... ok
+test an_old_page_cannot_qualify_a_refused_ops_record_as_success ... ok
+test a_server_page_pass_never_predicts_even_when_held_and_after_reopen ... ok
+test only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal ... ok
+test legacy_receipts_require_the_original_store_outcome_before_replacing_unknown_failure ... ok
+test w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+     Running tests/written_by.rs (target/debug/deps/written_by-2225302a5497e7cf)
+
+running 17 tests
+test projecting_an_already_absent_field_keeps_the_shared_map ... ok
+test private_write_row_selection_with_a_maintained_column_is_optional ... ok
+test private_asset_bytes_require_field_visibility ... ok
+test audience_readable_fields_keep_the_ordinary_projection_heap_cost ... ok
+test device_projection_hides_physical_private_field_presence ... ok
+test projection_heap_does_not_charge_omitted_private_payload ... ok
+test combined_transfer_and_private_patch_uses_the_old_owner ... ok
+test owned_point_prediction_does_not_need_the_ordinary_server_grant ... ok
+test held_owned_patch_predicts_without_the_other_owners_membership ... ok
+test held_owned_patch_predicts_with_online_only_access ... ok
+test unreadable_field_owner_receives_no_images_or_tombstones ... ok
+test group_and_sort_use_null_for_projected_private_keys ... ok
+test projection_omissions_are_unknown_only_when_the_transition_needs_them ... ok
+test owner_transfer_revokes_or_redacts_on_both_stores ... ok
+test absent_upsert_and_hidden_target_have_indistinguishable_refusals ... ok
+test engine_authority_and_transition_on_memory_and_sqlite ... ok
+test private_wire_and_prediction_on_both_stores_online_and_offline ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+   Doc-tests snapback4_device
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

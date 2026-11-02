@@ -1,0 +1,110 @@
+{
+  "at": "2026-11-02T15:25:36.379Z",
+  "witness": "progressive-history-node-wasm-scale",
+  "chunk": "2c",
+  "fixtureName": "heavy",
+  "mode": "progressive",
+  "run": 2,
+  "measurement": "first durably usable tier-1 inbox, foreground history, full acquisition; offline process reopen of checkpoint",
+  "development": true,
+  "qualification": false,
+  "host": {
+    "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "node": "v24.18.0",
+    "loadBefore": [
+      9.7421875,
+      9.84375,
+      14.47509765625
+    ],
+    "loadAfter": [
+      8.1162109375,
+      9.453125,
+      14.19921875
+    ]
+  },
+  "sourceCommit": "695e6f81ae1266cf968076afdd81935e355fa476",
+  "artifacts": {
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "90ee0b508771babf2730e24a1c8ad1c5a7a6cba5dfc15469b848883c28706284",
+    "target/debug/snapback4": "8f3b58819779419653a8bea8c25aee7440b4ce19fe5743076ecc48f2b785315a",
+    "apps/chat/snapback/schema.q": "b8d23970b69a291428b8d14b0b4989f2525097262d6a4dade5ea8b069e7ab58a",
+    "packages/snapback4/dist/local.js": "092fd0196ad2c8a1c7d57728369c1edaea16f7e78e1b87ebac37f35b740faeb1",
+    "packages/snapback4/dist/local-acquisition.js": "6eba837bef7c0e6be8cc8a027a7af59a79f8b690839302711ab2bb6a2c44a58a",
+    "reports/20261102-progressive-history-2c/measure.mjs": "03643ed546ba5a844798c26834d74650b2c8e58407b8c3c87e295eee65aaa76b"
+  },
+  "fixture": {
+    "source": "scaleSeed 1000/91/10; omit msg00090 from c000..c499: exactly 90,500 messages, 1,000 viewer memberships, 10,000 memberships total",
+    "groups": 1000,
+    "messages": 91,
+    "members": 10,
+    "rows": 101500,
+    "seedSha256": "f8e0bcbdb265314e48fa1fcaac1be289c83f584e8ba327a4f24bc353ff08475c",
+    "extraSource": "query progressiveInbox():\n  return memberships[viewer] first 50 by byPrincipalConversation\n    { conversationId, conversation: conversations[.conversationId] }\nquery progressiveHistory(conversationId: conversations, c: cursor ?):\n  return messages[conversationId] after c last 50 by byConvTime\n",
+    "finalGroup": "c999",
+    "seedBatchRows": 10000
+  },
+  "limits": "Node wasm + fsynced append journal, debug server on loopback, no added network delay; added queries omit maintained count and require; no Chromium/IndexedDB, UI, native, cold-browser or power-loss qualification; seed/startup server time excluded",
+  "heapMeasurement": "sampled Node JS heapUsed after device calls and at 20ms intervals; not wasm heap or exact peak",
+  "sync": {
+    "pages": 26,
+    "acquirePages": 13,
+    "snapshotPages": 0,
+    "bytes": 26526848
+  },
+  "checkpoints": {
+    "inbox": {
+      "ms": 839.661458999999,
+      "acquired": false,
+      "wholeTables": [
+        "conversations",
+        "memberships"
+      ],
+      "flooredGroups": 48,
+      "rows": 50,
+      "complete": true,
+      "idsSha256": "5c2edd7c0a2e4e3c8f95e39a6db505baf416b44a692a3f09397d91100ab5ad16",
+      "offlineReopen": {
+        "ok": true,
+        "acquired": false,
+        "rows": 50,
+        "complete": true,
+        "fresh": false,
+        "idsSha256": "5c2edd7c0a2e4e3c8f95e39a6db505baf416b44a692a3f09397d91100ab5ad16"
+      }
+    },
+    "foreground": {
+      "ms": 851.5619169999991,
+      "acquired": false,
+      "wholeTables": [
+        "conversations",
+        "memberships"
+      ],
+      "flooredGroups": 48,
+      "rows": 50,
+      "complete": true,
+      "idsSha256": "755cbaf3794a1a640c1be37706231bde563945081a7c947a63a215bf33db96b6",
+      "offlineReopen": {
+        "ok": true,
+        "acquired": false,
+        "rows": 50,
+        "complete": true,
+        "fresh": false,
+        "idsSha256": "755cbaf3794a1a640c1be37706231bde563945081a7c947a63a215bf33db96b6"
+      }
+    }
+  },
+  "ok": true,
+  "serverSeedMs": 17314.634166000003,
+  "firstGroup": {
+    "tier": 2,
+    "table": "messages",
+    "group": [
+      "c999"
+    ]
+  },
+  "fullAcquisitionMs": 6622.267959000001,
+  "peakJsHeapBytes": 129115624
+}

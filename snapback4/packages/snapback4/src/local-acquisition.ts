@@ -16,6 +16,7 @@ export interface AcquisitionPage {
   /** The first cold unit adopts images_at; subsequent drains use sync_state.watermark. */
   pinned?: boolean;
   unit: { tier: number; table: string; group?: unknown[] } | null;
+  units?: { tier: number; table: string; group?: unknown[] }[];
   cursor: string | null;
   exhausted: boolean;
   whole_tables: string[];
@@ -129,8 +130,10 @@ export class LocalAcquisition {
       // Forget scheduling skips on authority changes. Coverage remains device-owned.
       if (event.kind === "scope") for (const [id, group] of this.served) if (group.table === event.table) this.served.delete(id);
     }
-    const unit = (page.acquire as AcquisitionPage | undefined)?.unit;
-    if (unit?.tier === 2 && unit.group) {
+    const progress = page.acquire as AcquisitionPage | undefined;
+    // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — one page may publish several groups; keep the same bounded scheduling skip set.
+    for (const unit of progress?.units ?? (progress?.unit ? [progress.unit] : [])) {
+      if (unit.tier !== 2 || !unit.group) continue;
       const group = { table: unit.table, group: unit.group };
       this.served.set(key(group), group);
       if (this.served.size > 32) this.served.delete(this.served.keys().next().value!);

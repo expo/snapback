@@ -1,0 +1,1 @@
+{"fixture":"default","mode":"legacy","run":1,"sync":{"pages":5,"acquirePages":0,"snapshotPages":3,"bytes":5218326},"ok":true,"inboxMs":1121.6250839999998,"foregroundMs":1144.1991670000002,"fullAcquisitionMs":1192.8981250000002,"peakJsHeapBytes":74126880}

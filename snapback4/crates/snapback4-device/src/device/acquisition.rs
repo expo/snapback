@@ -7,7 +7,7 @@ const COMPLETE_AT: &str = "device:acquisition-complete-at";
 pub(super) const REPLACEMENT: &str = "device:acquisition-replacement";
 const FORMAT: &str = "device:progressive-format";
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AcquisitionUnit {
     pub tier: usize,
     pub table: String,
@@ -21,6 +21,8 @@ pub struct AcquisitionProgress {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pinned: bool,
     pub unit: Option<AcquisitionUnit>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<AcquisitionUnit>,
     pub cursor: Option<String>,
     pub exhausted: bool,
     pub whole_tables: Vec<String>,
@@ -59,7 +61,10 @@ pub(super) fn validate<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) 
             }
         }
     }
-    if let Some(unit) = &progress.unit {
+    if !progress.units.is_empty() && progress.unit.as_ref() != progress.units.first() {
+        return Err(RuntimeError::Input("acquisition unit must name the first packed unit".into()));
+    }
+    for unit in progress.units.iter().chain(progress.unit.iter()) {
         let valid = schema.table(&unit.table).and_then(|t| t.sync.as_ref()).is_some_and(|s|
             match unit.tier { 1 => s.horizon.is_none() && unit.group.is_none(),
                 2 => s.horizon.is_some() && unit.group.is_some(), _ => false });
@@ -110,8 +115,10 @@ pub(super) fn history(tx: &dyn crate::store::StreamTx, schema: &Schema, page: &S
     history::events(tx, schema, &page.events, &page.joined, false)?;
     if !progressive { return Ok(()); }
     let mut groups = history::load(tx, history::GROUPS)?;
-    if page.acquire.as_ref().and_then(|p| p.unit.as_ref()).is_some_and(|u| u.tier == 1) {
-        for event in page.events.iter().filter(|e| e.kind == "put") {
+    if let Some(progress) = &page.acquire {
+        // @ref LLP 3000.001.001#61-the-acquisition-page — a mixed page carries retained tier-1 rows beside every joined group's rows and floors.
+        for event in page.events.iter().filter(|e| e.kind == "put" && progress.units.iter().chain(progress.unit.iter())
+            .any(|unit| unit.tier == 1 && unit.table == e.table)) {
             let Some(table) = schema.table(&event.table).filter(|t| t.leave == LeavePolicy::DeliveredHistory) else { continue };
             let row = wire::row_from_json(table, event.data.as_ref().expect("validated row")).map_err(RuntimeError::Input)?;
             groups.entry(event.table.clone()).or_default().entry(history::row_key(table, &row)?).or_insert(history::Membership::Held);

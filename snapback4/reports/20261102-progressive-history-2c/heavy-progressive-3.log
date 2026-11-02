@@ -1,0 +1,1 @@
+{"fixture":"heavy","mode":"progressive","run":3,"sync":{"pages":26,"acquirePages":13,"snapshotPages":0,"bytes":26526848},"ok":true,"inboxMs":855.411458999999,"foregroundMs":865.3303339999984,"fullAcquisitionMs":6611.020208999998,"peakJsHeapBytes":128632096}

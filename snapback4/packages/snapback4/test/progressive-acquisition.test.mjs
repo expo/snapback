@@ -271,3 +271,35 @@ for (const tier of ["process", "wasm"]) {
 }
 
 test("browser React hooks and IndexedDB close/reopen", { skip: "not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation" }, () => {});
+
+test("packed scheduler remembers every served group and retains the 32-entry cap", () => {
+  const walk = new LocalAcquisition();
+  walk.request(compatible, state0, [], false);
+  const units = Array.from({ length: 40 }, (_, i) => ({ tier: 2, ...group(String(i)) }));
+  walk.applied({ acquire: { unit: units[0], units }, events: [], more: false }, true);
+  walk.applied({ events: [], more: false }, true);
+  const request = walk.request(compatible, { ...state0, acquisition_cursor: "walk" }, [group("39")], false);
+  assert.equal(request.acquire.hint, undefined);
+  assert.deepEqual(request.acquire.skip, units.slice(-32).map(({ tier, ...g }) => g));
+});
+for (const tier of ["process", "wasm"]) test(`${tier}: packed pages publish usable counts for every unit together`, { timeout: hangBudget(120) }, async t => {
+  const f = await fixture(t, tier, { limit: 14, retained: true }), client = await f.open();
+  const observed = client.observe(query("history"), { c: "c", page: null });
+  const unsubscribe = observed.subscribe(() => {});
+  await f.through(client, s => s.floored_groups === 2);
+  const page = f.pages.find(p => p.acquire);
+  assert.deepEqual(page.acquire.units.map(u => [u.tier, u.table, u.group]), [
+    [1, "participants", undefined], [1, "threads", undefined], [2, "messages", ["c"]], [2, "messages", ["a"]],
+  ]);
+  assert.deepEqual(page.acquire.unit, page.acquire.units[0]);
+  assert.deepEqual(acquisition(client).read().usable, { tables: 2, groups: 2 });
+  assert.equal(client.acquired, false);
+  unsubscribe(); observed.close(); await client.close(); f.online(false);
+  const reopened = await f.open();
+  assert.deepEqual(acquisition(reopened).read().usable, { tables: 2, groups: 2 });
+  assert.equal((await history(reopened, "a")).complete, true);
+  assert.equal((await history(reopened, "c")).complete, true);
+  assert.equal((await f.raw("history", { c: "b", page: null })).unknown, true);
+  f.online(true); f.allow(true); await reopened.sync();
+  assert.equal(reopened.acquired, true); assert.equal(f.maxInflight(), 1);
+});

@@ -179,7 +179,7 @@ stores!(quiescent_whole_snapshot_oracle_including_facts_and_restarts, completion
 fn exhausted_waits<H: Host>(h: &mut H) {
     let (mut e, b) = fixture(false); let mut d = h.open("finish", Some(b)).unwrap();
     loop {
-        let p = acquire(&mut e, &mut d, None, 100); let done = p.acquire.as_ref().unwrap().exhausted;
+        let p = acquire(&mut e, &mut d, None, 2); let done = p.acquire.as_ref().unwrap().exhausted;
         d.apply(&p, false).unwrap(); assert!(!d.sync_state_read().unwrap().acquired);
         if p.acquire.as_ref().unwrap().pinned {
             // Put the final image head beyond the pin so exhaustion still needs
@@ -336,3 +336,30 @@ fn own_write<H: Host>(h: &mut H) {
     assert!(!d.sync_state_read().unwrap().acquired, "ordinary catch-up does not exhaust the walk");
 }
 stores!(real_server_own_write_image_defers_acquisition_and_survives_reopen, own_write);
+
+fn packed_publication<H: Host>(h: &mut H) where H::Store: BoundaryMetadata {
+    let (mut e, b) = fixture(true); let mut d = h.open("packed", Some(b.clone())).unwrap();
+    let page = acquire(&mut e, &mut d, Some("c"), 12);
+    assert_eq!(page.acquire.as_ref().unwrap().units.len(), 4);
+    d.apply(&page, false).unwrap();
+    let state = d.sync_state_read().unwrap();
+    assert_eq!(state.acquired_tables, ["participants", "threads"]);
+    assert_eq!(state.floored_groups, 2); assert!(!state.acquired);
+    assert!(!history(&mut d, "a").1 && !history(&mut d, "c").1 && history(&mut d, "b").1);
+    h.close("packed", d); let mut d = h.open("packed", None).unwrap();
+    assert_eq!(d.sync_state_read().unwrap().floored_groups, 2);
+    assert!(d.query("thread", "dev:alice", &json!({"c":"a"}), 100).unwrap().complete);
+    let page = acquire(&mut e, &mut d, None, 12); d.apply(&page, false).unwrap();
+    assert!(d.sync_state_read().unwrap().acquired);
+    let mut oracle = h.open("packed-oracle", Some(b)).unwrap();
+    for (i,p) in snapshot_pages(&mut e, "dev:alice", 2).iter().enumerate() { oracle.apply(p, i == 0).unwrap(); }
+    drain(&mut e, &mut oracle);
+    assert_eq!(d.sync_state_read().unwrap().acquired_tables, oracle.sync_state_read().unwrap().acquired_tables);
+    assert_eq!(d.store().boundary_entries(), oracle.store().boundary_entries());
+    for table in ["threads", "participants", "messages"] { assert_eq!(d.store().raw_rows(table), oracle.store().raw_rows(table)); }
+    for group in ["a", "b", "c", "empty"] {
+        let a = history(&mut d, group); let b = history(&mut oracle, group);
+        assert_eq!(a.1, b.1); assert_eq!(serde_json::to_value(a.0.unwrap()).unwrap(), serde_json::to_value(b.0.unwrap()).unwrap());
+    }
+}
+stores!(packed_page_facts_survive_reopen_and_match_the_quiescent_oracle, packed_publication);

@@ -170,9 +170,9 @@ schema-specific repair; see the sync-declaration refusal below.
 See `guide language` for a compiled example and `guide rules` for lifetime details.
 
 ### Acquisition and its boundary
-Cold progressive acquisition walks horizonless tables whole and first, then groups at their declared horizon, prioritizing the open conversation inferred from an ordinary newest-first history observation. Each unit publishes durably; a floored group can answer locally while the rest downloads.
-The first unit pins the ordinary stream at the server head: memberships before the pin come from the walk; joins after it arrive on the stream with their expansion.
-`acquired` means the walk finished and its final stream catch-up published. Successful explicit `sync()` waits for this; background hooks publish per unit. `useAcquisition().usable` counts whole tables and floored groups, not rows or a total.
+Cold progressive acquisition walks horizonless tables whole and first, then groups at their declared horizon, prioritizing the open conversation inferred from an ordinary newest-first history observation. Whole units pack into bounded pages; each page publishes durably with its coverage.
+The first page pins the ordinary stream at the server head: memberships before the pin come from the walk; joins after it arrive on the stream with their expansion.
+`acquired` means the walk finished and its final stream catch-up published. Successful explicit `sync()` waits for this; background hooks publish per page. `useAcquisition().usable` counts whole tables and floored groups, not rows or a total.
 Unknown reads still use server fallback; mutation prediction keeps the full-acquisition gate. This needs both the server's `progressive-acquisition-v1` advertisement and a supporting device; older peers use atomic full acquisition. Union, inherited, maintained, timeline and owner-key shapes gain no early whole-table coverage.
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.

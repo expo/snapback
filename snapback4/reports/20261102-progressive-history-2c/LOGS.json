@@ -1,0 +1,12 @@
+{
+  "device.log": {
+    "parts": [
+      "device.part-01.log",
+      "device.part-02.log",
+      "device.part-03.log"
+    ],
+    "lines": 2633,
+    "bytes": 149517,
+    "sha256": "8b8c018dc794f962b09071578eeba4c82904e4cc8448add50f32b03f48b3d89e"
+  }
+}

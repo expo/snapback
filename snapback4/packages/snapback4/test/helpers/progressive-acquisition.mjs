@@ -55,7 +55,7 @@ mutation leave(m: participants):
   delete participants[m]
 `;
 
-export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false } = {}) {
+export async function fixture(t, tier, { legacy = false, oldDevice = false, retained = false, limit = 2 } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-progressive-acquisition-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), retained ? source.replace("  sync to participants[.conversation]", "  retain delivered-history\n  sync to participants[.conversation]") : source);
@@ -121,7 +121,7 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
           inflight++; maxInflight = Math.max(maxInflight, inflight);
           try {
             await intercept?.(body);
-            const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit: 2 }) });
+            const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit }) });
             pages.push(await response.clone().json());
             return response;
           } finally { inflight--; }

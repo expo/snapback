@@ -119,10 +119,8 @@ fn two_tiers_in_schema_order_match_the_quiescent_snapshot_rows_and_floors() {
         for _ in 0..30 {
             let p = page(&mut e, cursor.as_deref(), None, &[], limit);
             assert_eq!(p.page.watermark, p.page.images_at.unwrap());
-            let unit = p.acquire.unit.unwrap();
-            units.push((unit.tier, unit.table.clone(), unit.group));
-            assert!(p.page.events.iter().all(|event| event.table == unit.table));
-            if unit.tier == 1 { assert!(p.page.events.len() <= limit); }
+            assert_eq!(serde_json::to_value(&p.acquire.unit).unwrap(), serde_json::to_value(p.acquire.units.first()).unwrap());
+            for unit in p.acquire.units { units.push((unit.tier, unit.table, unit.group)); }
             for event in p.page.events { rows.insert((event.table, event.id), event.data); }
             for a in p.page.acquisitions {
                 floors.insert(serde_json::to_string(&(a.table, a.index, a.group, a.floor)).unwrap());
@@ -248,4 +246,78 @@ fn oversized_atomic_group_refuses_without_a_partial_floor_and_legacy_paging_rema
     assert_eq!(legacy.events.len(), 1);
     assert!(legacy.next.is_some());
     assert!(legacy.acquisitions.iter().all(|a| a.floor.is_none()));
+}
+
+#[test]
+fn packed_pages_walk_in_order_keep_group_floors_and_exhaust_on_the_last_page() {
+    let mut e = fixture();
+    let first = page(&mut e, None, None, &[], 6);
+    assert_eq!(first.acquire.units.iter().map(|u| u.table.as_str()).collect::<Vec<_>>(), ["participants", "threads"]);
+    assert_eq!(first.acquire.whole_tables, ["participants", "threads"]);
+    assert_eq!(first.page.events.len(), 6);
+    assert!(!first.acquire.exhausted);
+    let last = page(&mut e, first.acquire.cursor.as_deref(), None, &[], 5);
+    assert_eq!(last.acquire.units.iter().map(|u| u.group.clone().unwrap()).collect::<Vec<_>>(),
+        [hint("a").group, hint("b").group, hint("c").group]);
+    assert_eq!(last.page.events.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(), ["a4", "a3", "b4", "b3"]);
+    assert_eq!(last.page.acquisitions.iter().map(|m| m.at).collect::<Vec<_>>(), [0, 2, 2, 4, 4, 4]);
+    assert_eq!(last.page.acquisitions.iter().filter(|m| m.floor.is_some()).count(), 3);
+    assert_eq!(last.page.joined["messages"].len(), 3);
+    assert!(last.acquire.exhausted && last.acquire.cursor.is_none());
+}
+
+#[test]
+fn packed_hint_goes_first_then_walk_and_does_not_split_the_next_group() {
+    let mut e = fixture(); let cursor = tier2(&mut e);
+    let first = page(&mut e, Some(&cursor), Some(&hint("b")), &[], 3);
+    assert_eq!(first.acquire.units.len(), 1);
+    assert_eq!(first.acquire.units[0].group, Some(hint("b").group));
+    assert_eq!(SnapshotCursor::decode(first.acquire.cursor.as_ref().unwrap()).unwrap().group, Some(vec![id("a")]));
+    let oversized = page(&mut e, Some(&cursor), None, &[], 1);
+    assert_eq!(oversized.acquire.units.len(), 1);
+    assert_eq!(oversized.page.events.len(), 2);
+    let packed = page(&mut e, Some(&cursor), Some(&hint("b")), &[], 10);
+    assert_eq!(packed.acquire.units.iter().map(|u| u.group.clone().unwrap()).collect::<Vec<_>>(),
+        [hint("b").group, hint("a").group, hint("c").group]);
+    assert!(packed.acquire.exhausted);
+    let mixed = page(&mut e, None, Some(&hint("b")), &[], 10);
+    assert_eq!(mixed.acquire.units[2].group, Some(hint("b").group));
+    assert_eq!(mixed.acquire.whole_tables, ["participants", "threads"]);
+}
+
+#[test]
+fn packing_stops_at_delivery_budget_without_advancing_the_refused_unit() {
+    let mut e = engine(&SOURCE.replace("last 2", "last 4000"));
+    for group in ["a", "b", "c"] {
+        e.seed_at([("threads".into(), object([("id", id(group)), ("subject", Value::String(group.into()))])),
+            ("participants".into(), object([("id", id(&format!("p{group}"))), ("threadId", id(group)), ("personId", id("alice"))]))], 100).unwrap();
+        e.seed_at((0..4000).map(|n| message(group, n, Value::Null)), 100).unwrap();
+    }
+    let cursor = tier2(&mut e);
+    for limit in [10_000, usize::MAX] {
+        let packed = page(&mut e, Some(&cursor), None, &[], limit);
+        assert_eq!(packed.page.events.len(), 8000);
+        assert_eq!(packed.acquire.units.len(), 2);
+        assert_eq!(packed.page.acquisitions.iter().filter(|m| m.floor.is_some()).count(), 2);
+        let final_page = page(&mut e, packed.acquire.cursor.as_deref(), None, &[], limit);
+        assert_eq!(final_page.acquire.units.len(), 1);
+        assert_eq!(final_page.acquire.units[0].group, Some(hint("c").group));
+        assert_eq!(final_page.page.events.len(), 4000);
+        assert!(final_page.acquire.exhausted);
+    }
+}
+
+#[test]
+fn horizonless_pages_fill_the_remaining_delivery_row_room() {
+    let mut e = engine("table a:\n  public 'fixture'\n  sync public\ntable b:\n  public 'fixture'\n  sync public\n");
+    e.seed_at([("a".into(), object([("id", id("a"))]))], 100).unwrap();
+    e.seed_at((0..9000).map(|n| ("b".into(), object([("id", id(&format!("b{n:05}")))]))), 100).unwrap();
+    let first = page(&mut e, None, None, &[], usize::MAX);
+    assert_eq!(first.page.events.len(), 8192);
+    assert_eq!(first.acquire.whole_tables, ["a"]);
+    assert_eq!(first.acquire.units.len(), 2);
+    let last = page(&mut e, first.acquire.cursor.as_deref(), None, &[], usize::MAX);
+    assert_eq!(last.page.events.len(), 809);
+    assert_eq!(last.acquire.whole_tables, ["b"]);
+    assert!(last.acquire.exhausted);
 }

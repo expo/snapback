@@ -111066,3 +111066,79 @@ STOP: affected build-wasm not run; final standalone wasm build runs once. Browse
 The client build passed. Earlier guide assertion failures and two measurement setup failures (the fixture query's `media.` namespace), followed by successful checks/runs, are retained in `reports/20261102-progressive-history-3/`. The first ref-check invocation used the wrong working directory and found no LLP corpus; the report records its corrected root invocation separately. `react.test.mjs` and `witness/idb.mjs`: not run (sandbox). No loopback-binding failure occurred in these six measurements, so no bind retry was needed. No product behavior, contract, default negotiation, budget, acceptance status or publication changed in this chunk. No commit; the supervisor owns the landing.
 
 Corrected repository-root `./ref-check --verbose` (exit 0): `ref-check: ok — 583 LLP docs, 12978 refs in 51354 files, 0 errors, 0 unchecked`. Final `git diff --check` emitted no diagnostics.
+
+
+## 2026-11-02 — LLP 3000.001.001 chunk 2c: pack acquisition units
+
+Packed whole units into one acquisition reply under the existing row, heap
+and wire delivery ceilings. `units` lists the page; `unit` remains its first
+entry. Tier 1 stays first, then one eligible foreground hint and consecutive
+walk units; an oversized first group remains atomic. One transaction publishes
+all rows, whole-table facts, group floors and cursor. The client keeps one
+in-flight request and its 32-entry skip set. Query admission, prediction's global
+gate, cold pin, Repair B, staged replacement and the default policy are unchanged.
+No contract or budget file changed. The report is
+[20261102-progressive-history-2c](./reports/20261102-progressive-history-2c/REPORT.md).
+
+Three sequential runs each, same M5 Max host and Node 24.18.0; new wasm through
+the Node web adapter and chunk 3's fsynced journal. Default: 40×500×10, 20,440
+seeded rows. Heavy: 1,000 groups, 90 messages in c000–c499 and 91 in c500–c999,
+10 members each: 90,500 messages, 1,000 viewer memberships / 10,000 total,
+101,500 seeded rows plus maintains. Heavy seed requests contain at most 10,000
+rows; setup is outside timing. This approximates the card's broader heavy seed.
+
+| Fixture / path / run | Inbox ms | Foreground ms | Full ms | Sync requests | Sampled peak JS heap, B |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **default / progressive / median** | **477.954** | **485.060** | **1129.205** | **6** | **70,787,824** |
+| **default / legacy / median** | **1100.070** | **1125.125** | **1173.386** | **5** | **76,535,592** |
+| **heavy / progressive / median** | **851.754** | **862.614** | **6611.020** | **26** | **128,955,056** |
+| **heavy / legacy / median** | **5394.681** | **5497.194** | **5624.784** | **13** | **225,593,608** |
+
+Full-acquisition median change: default **−3.765%**, heavy **+17.534%**;
+**both within 25% of legacy on these measured fixtures**. Default requests
+are 6 versus 5 (down from 90 progressive in chunk 3); heavy 26 versus 13.
+All 24 offline checkpoint reopens verified exact IDs; progressive early reads
+remained unacquired. These are sampled JS heaps, not wasm heap peaks. The heavy
+complete inbox is a first page of 50. The fixture queries omit the maintained
+count and `require`, as in chunk 3. No default decision or browser/native
+qualification follows from these numbers. Two failed heavy harness attempts
+(seed body ceiling; wrong inbox completeness expectation) are retained and
+excluded from medians. No product limit was raised to obtain the results.
+
+Observed verification summaries (full commands and every verbatim target
+summary are retained in the report's CHECKS.jsonl / VERIFICATION.md):
+
+```text
+cargo test -p snapback4-core --test progressive_acquisition
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+cargo test -p snapback4 --bin snapback4 sync_generation_tests::progressive
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 782 filtered out; finished in 0.04s
+cargo test -p snapback4-device --test progressive_history
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+cargo test -p snapback4-sim --test progressive_history
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+cargo test -p snapback4-lang --test guide
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+```
+
+The full `cargo test -p snapback4-device` exited 0: 106 target summaries,
+1,596 passed / 0 failed / 4 ignored (aggregate, not an emitted single line).
+Final Node 24 tests: progressive 29 passed / 0 failed / 1 skipped; acquisition
+47 / 0; progressive-start 48 / 0. Ordinary-history and retained-history failed
+before product cases ran: `TEST_SIGNAL_REFUSED` / `ps failed: spawn EPERM`.
+React and `witness/idb.mjs`: not run (sandbox). No loopback bind failure occurred.
+Typecheck and client build passed. The first HTTP filter matched zero tests;
+the corrected command above ran all three. An initial shell-wrapper Node 25
+selection was corrected before final client checks and all timing runs.
+
+Ran `bash scripts/build-wasm.sh` once, before measuring; exit 1 for the
+expected overrun, with the newly built artifact used by both paths:
+
+```text
+wasm 2444934 B raw, 747296 B gzip (budget 739004: OVER by 8292 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Delta over chunk 3: +2,328 raw / +749 gzip B. This build preceded the Node
+wrapper correction and was not repeated; the runtime for all measurements
+was verified as Node 24.18.0. Budget unchanged. No agents, remote work,
+commits, stash, rebase, restore or push; the supervisor owns landing. STOP 2c.
