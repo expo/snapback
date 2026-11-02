@@ -1,0 +1,15 @@
+{
+  "started": "2026-11-02T09:34:06Z",
+  "brief": "llp/reviews/3000.001.001-progressive-history.panel.brief.md",
+  "brief_sha256": "24a782300e9120d38a842958ae13ebd2a809a96d4fea9964d724ed4b6d003efd",
+  "source_commit": "cee218b9e9 (main) plus the untracked Draft of llp/3000.001.001-prioritized-progressively-usable-history.rfc.md dated 2026-11-02",
+  "scope": "LLP 3000.001.001 whole document; direction check (panel skill, pass 1)",
+  "seats": [
+    { "family": "OpenAI", "model": "gpt-6-astra max", "record": "llp/reviews/3000.001.001-progressive-history.panel.astra.md", "status": "received", "started": "2026-11-02T09:34:06Z", "finished": "2026-11-02T09:41:15Z", "exit": 0 },
+    { "family": "Anthropic", "model": "claude-fable-5-1 xhigh (fresh non-interactive session)", "record": "llp/reviews/3000.001.001-progressive-history.panel.fable.md", "status": "received", "started": "2026-11-02T09:34:07Z", "finished": "2026-11-02T09:41:08Z", "exit": 0 },
+    { "family": "xAI", "model": "grok-4.7 xhigh", "record": "llp/reviews/3000.001.001-progressive-history.panel.grok.md", "status": "received", "started": "2026-11-02T09:34:10Z", "finished": "2026-11-02T09:42:34Z", "exit": 0 },
+    { "family": "Meta", "model": "muse-wonder-full-1.0 xhigh", "record": "llp/reviews/3000.001.001-progressive-history.panel.muse.md", "status": "received", "started": "2026-11-02T09:34:11Z", "finished": "2026-11-02T09:38:27Z", "exit": 0 }
+  ],
+  "orchestrator": "Claude Fable 5.1 (Claude Code), who wrote no review and verified seat claims against the tree before acting on them",
+  "finished": "2026-11-02T09:42:34Z"
+}
