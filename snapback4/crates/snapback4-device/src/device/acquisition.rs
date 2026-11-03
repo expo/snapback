@@ -55,7 +55,10 @@ pub(super) fn validate<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) 
             || page.requested_watermark.is_some_and(|from| from != 0) {
             return Err(RuntimeError::Generation("a stream pin requires a cold empty partition; restart acquisition".into()));
         }
-        for name in schema.tables.keys() {
+        // Only synced tables live in the partition. An ephemeral or unsynced table has no
+        // device rows and, on the native store, no scannable index: probing it refused every
+        // cold pin on a schema with ephemeral tables (found by the landing battery).
+        for (name, _, _) in schema.synced() {
             if tx.base_has_table(name)? || !tx.scan(name, "byId", &[], &Bounds::default(), Dir::Asc, 1)?.is_empty() {
                 return Err(RuntimeError::Generation("a stream pin requires a cold empty partition; restart acquisition".into()));
             }
