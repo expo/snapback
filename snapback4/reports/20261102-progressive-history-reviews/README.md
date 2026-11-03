@@ -8,6 +8,7 @@ Two families, mutually blind, same SHA each round; the supervisor (Claude Fable 
 | 2 | 77ff5f62ec | NOT READY 0.97 — five FIXED; 3 new | NOT READY 0.84 — five FIXED; 1 new (= Astra's second) | fix round 2 (703a4ad97c) |
 | 3 | 703a4ad97c | NOT READY 0.95 — four FIXED; 1 remaining (variant) | READY 0.88 — four FIXED, no new defect | fix round 3 (b57bb824a1), narrow |
 | 4 | b57bb824a1 | READY 0.96 | READY 0.92 | the landing battery (all 491 client files) then found reds the targeted suites never ran: one supervisor fix (b03f265d58, cold pin scanned ephemeral tables) and fix round 4 (f37bdfc0ae) |
-| 5 | f37bdfc0ae | READY 0.91 | READY 0.90 | landed after a green battery |
+| 5 | f37bdfc0ae | READY 0.91 | READY 0.90 | the battery rerun found more client reds (all green on base): declaration type (9a8db747d4), fix round 5 (918307c084), fix round 6 (05594aee80), census fixture (b7a321fc39) |
+| 6 | b7a321fc39 | READY 0.90 | READY 0.87 | landed after a green battery (attempt 5) |
 
 Records: `r<N>.astra.md`, `r<N>.grok.md`, the briefs, and `fix-r<N>/REPORT.md` (+ `SUPERVISOR-VERIFY.md`) per round.
