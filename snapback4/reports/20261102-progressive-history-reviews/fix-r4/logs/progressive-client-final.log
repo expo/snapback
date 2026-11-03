@@ -1,0 +1,71 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (1.260167ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.30775ms)
+✔ bounded drain turns never bypass deferred publication or a replacement fence (0.158167ms)
+✔ process: online fallback renders during acquisition and older pages do not enlarge the replica (1539.438417ms)
+✔ process: cold pin skips historical joins and publishes tier 1 then the hinted group (1449.778375ms)
+✔ process: one explicit cold sync resolves acquired with every table whole and group floored (473.299458ms)
+✔ process: a join committed after the pin still expands and becomes usable (2340.984958ms)
+✔ process: tier 1 inbox survives offline reopen before any history is usable (2392.94675ms)
+✔ process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2451.078833ms)
+✔ process: revocation during acquisition withdraws usable group (until-revoked) (2289.945333ms)
+✔ process: revocation during acquisition withdraws usable group (delivered) (2309.428959ms)
+✔ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (2062.368ms)
+✔ process: old server uses legacy snapshots without any acquire request (429.165333ms)
+✔ process: old device uses legacy snapshots without any acquire request (334.199667ms)
+✔ process: a partial walk reopens against an old server through staged replacement (1656.804708ms)
+✔ process: interrupted legacy snapshot reopens against an advertising server through staging (1478.644375ms)
+✔ wasm: online fallback renders during acquisition and older pages do not enlarge the replica (1502.373833ms)
+✔ wasm: cold pin skips historical joins and publishes tier 1 then the hinted group (2309.778334ms)
+✔ wasm: one explicit cold sync resolves acquired with every table whole and group floored (372.173083ms)
+✔ wasm: a join committed after the pin still expands and becomes usable (2373.195208ms)
+✔ wasm: tier 1 inbox survives offline reopen before any history is usable (2386.876917ms)
+✔ wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2540.500042ms)
+✔ wasm: revocation during acquisition withdraws usable group (until-revoked) (3400.98075ms)
+✔ wasm: revocation during acquisition withdraws usable group (delivered) (3420.195375ms)
+✔ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1954.945834ms)
+✔ wasm: old server uses legacy snapshots without any acquire request (299.862834ms)
+✔ wasm: old device uses legacy snapshots without any acquire request (344.646125ms)
+✔ wasm: a partial walk reopens against an old server through staged replacement (1450.010208ms)
+✔ wasm: interrupted legacy snapshot reopens against an advertising server through staging (1385.356042ms)
+﹣ browser React hooks and IndexedDB close/reopen (0.12025ms) # not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+✔ packed scheduler remembers every served group and retains the 32-entry cap (0.233125ms)
+✔ process: packed pages publish usable counts for every unit together (2307.227708ms)
+✔ wasm: packed pages publish usable counts for every unit together (2357.995209ms)
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (3108.4165ms)
+✔ process: a heap-bound acquisition row recovers through staged replacement (5215.335375ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (2595.17325ms)
+✔ wasm: a heap-bound acquisition row recovers through staged replacement (4905.987875ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3366.954041ms)
+file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15
+const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
+                          ^
+
+Error: TEST_SIGNAL_REFUSED: cannot build Darwin identity inspector: TEST_COMMAND_INSPECTION: ps failed: spawn EPERM
+    at refusal (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15:27)
+    at buildDarwinProbe (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:22:48)
+    at async file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:179:44
+
+Node.js v24.18.0
+✖ packages/snapback4/test/progressive-ephemeral.test.mjs (227.960834ms)
+✔ explicit acquisition propagates a rejected first network turn (0.754417ms)
+✔ explicit acquisition propagates a rejected later network turn (0.136ms)
+✔ process: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (663.745792ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process: failure of even one-row replacement surfaces once after acquire overflow (1274.98225ms)
+✔ wasm: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (568.156958ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm: failure of even one-row replacement surfaces once after acquire overflow (1309.346166ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 43
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 49777.56725
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-ephemeral.test.mjs:1:1
+✖ packages/snapback4/test/progressive-ephemeral.test.mjs (227.960834ms)
+  'test failed'

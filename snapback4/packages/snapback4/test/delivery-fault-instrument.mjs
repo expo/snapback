@@ -31,6 +31,7 @@ export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 100
 // dead-holder recovery and renewal-fenced retries have separate integration tests.
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
+  'local-runtime.ts': ['flush', 'flushOnce', 'call', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit'],
   'local-receipts.ts': '*',
   'writes.ts': ['keep', 'acknowledged', 'persistPending', 'read', 'lookup'],
   'local-exit.ts': '*',
@@ -67,14 +68,15 @@ function name(node) {
 }
 export function census() {
   const sites = [], iterators = [], additional = [];
-  for (const [file, functions] of Object.entries(scope)) {
-    const source = readFileSync(join(packageRoot, 'src', file), 'utf8');
+  for (const [physicalFile, functions] of Object.entries(scope)) {
+    const file = physicalFile === 'local-runtime.ts' ? 'local.ts' : physicalFile;
+    const source = readFileSync(join(packageRoot, 'src', physicalFile), 'utf8');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
     const counts = new Map();
     function visit(node, owner = '') {
       if (ts.isFunctionLike(node)) owner = name(node) ?? owner;
       if (ts.isAwaitExpression(node) && (functions === '*' || functions.includes(owner) || (file === 'local-assets.ts' && owner === 'remove'))) {
-        const expression = node.expression.getText(tree).replace(/\s+/g, ' ');
+        const expression = (physicalFile === 'local-runtime.ts' ? node.expression.getText(tree).replace(/\benv\./g, '') : node.expression.getText(tree)).replace(/\s+/g, ' ');
         // A1: this branch only polls read invalidations before core readiness or
         // after a core failure. It cannot admit, send, settle or persist writes;
         // progressive-start covers its logout/store/rollback fences. The full
@@ -105,9 +107,9 @@ export function census() {
           || owner === 'restoreWitness' && expression.startsWith('persistOnline?.('))) return;
         const key = `${file}:${owner}:${expression}`;
         const n = (counts.get(key) ?? 0) + 1; counts.set(key, n);
-        (file === 'local-assets.ts' && owner === 'remove' ? additional : sites).push({ id: `${key}#${n}`, file, owner, expression, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, start: node.getStart(), end: node.end });
+        (file === 'local-assets.ts' && owner === 'remove' ? additional : sites).push({ id: `${key}#${n}`, file: physicalFile, owner, expression, line: tree.getLineAndCharacterOfPosition(node.getStart()).line + 1, start: node.getStart(), end: node.end });
       }
-      if (ts.isForOfStatement(node) && node.awaitModifier && (functions === '*' || functions.includes(owner))) { const expression = node.expression.getText(tree); iterators.push({id:`${file}:${owner}:for await ${expression}`,file,owner,expression,line:tree.getLineAndCharacterOfPosition(node.getStart()).line+1,start:node.getStart(),end:node.end,iterator:true}); }
+      if (ts.isForOfStatement(node) && node.awaitModifier && (functions === '*' || functions.includes(owner))) { const expression = physicalFile === 'local-runtime.ts' ? node.expression.getText(tree).replace(/\benv\./g, '') : node.expression.getText(tree); iterators.push({id:`${file}:${owner}:for await ${expression}`,file:physicalFile,owner,expression,line:tree.getLineAndCharacterOfPosition(node.getStart()).line+1,start:node.getStart(),end:node.end,iterator:true}); }
       ts.forEachChild(node, child => visit(child, owner));
     }
     visit(tree);
@@ -121,7 +123,7 @@ export function instrument(destination) {
   for (const [file] of Object.entries(scope)) {
     const sites = census().filter(site => site.file === file);
     let source = readFileSync(join(packageRoot, 'src', file), 'utf8');
-    if (file === 'local.ts') source = source.replace('  return refuseWatchGuess(client);\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return network.current; }, flush, flushOnce, syncOnce: network.once, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false, retention = false) { nativeReady = false; if(retention) backend = {...backend, schema: {...backend.schema, tables: {...backend.schema.tables, messages: {...backend.schema.tables.messages, leave: "delivered-history"}}}}; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return refuseWatchGuess(client);\n  } catch (error)');
+    if (file === 'local.ts') source = source.replace('  return refuseWatchGuess(client);\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return network.current; }, flush, flushOnce, syncOnce: network.once, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false, retention = false) { nativeReady = false; if(retention) backend = {...backend, schema: {...backend.schema, tables: {...backend.schema.tables, messages: {...backend.schema.tables.messages, leave: "delivered-history"}}}}; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setUnknownCompatibility() { compatibilityKnown = false; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return refuseWatchGuess(client);\n  } catch (error)');
     if (file === 'local.ts' && !source.includes('globalThis.__rgClient =')) throw Error('delivery fixture must expose the current client before its watch guard wrapper');
     if (file === 'local-native.ts') source = source.replace('  return installNative;', '  globalThis.__rgNativePending = () => nativeInstall?.promise;\n  return installNative;');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -140,7 +142,7 @@ export function instrument(destination) {
       return ts.visitNode(root, visit);
     };
     const result = ts.transpileModule(source, { fileName: file, compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, rewriteRelativeImportExtensions: true }, transformers: { before: [transformer] } });
-    writeFileSync(join(destination, 'dist', file.replace('.ts', '.js')), file === 'local.ts' ? result.outputText.replace('const sendOnExit = exitTransport(', 'const sendOnExit = globalThis.__rgExit = exitTransport(') : result.outputText);
+    writeFileSync(join(destination, 'dist', file.replace('.ts', '.js')), file === 'local-runtime.ts' ? result.outputText.replace('const sendOnExit = exitTransport(', 'const sendOnExit = globalThis.__rgExit = exitTransport(') : result.outputText);
   }
 }
 
@@ -847,3 +849,13 @@ export function awaitBoundary() {
 // app-online inline await-expression hash changes; all 215 classified delivery
 // sites, recipes and failure classes remain. S2b's held/failing-save witnesses
 // and online-capture's session/persona retirement cases cover both boundaries.
+
+// LLP 3000.001.001 fix-r4: loadBackend before negotiated acquisition is optional
+// to durable write delivery; failure pauses sync and the metadata recipe injects
+// host/transport failures while FIFO delivery and receipt recovery continue.
+// LocalAcquisition.sync's two awaits and the startup/public sync wrappers only
+// sequence existing network owners. They create no new I/O or write custody;
+// progressive-recovery tests cover rejection at the first/later turn and stopped
+// acquisition, while every reached host/transport await remains instrumented.
+// local-runtime extracts the same closures behind live state accessors. IDs
+// retain their logical local.ts owner, while file/line track their physical site.

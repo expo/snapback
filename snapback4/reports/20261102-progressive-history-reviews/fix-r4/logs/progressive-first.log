@@ -1,0 +1,54 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (1.100875ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.234708ms)
+✔ bounded drain turns never bypass deferred publication or a replacement fence (0.108125ms)
+✔ process: online fallback renders during acquisition and older pages do not enlarge the replica (1379.233333ms)
+✔ process: cold pin skips historical joins and publishes tier 1 then the hinted group (2333.626708ms)
+✔ process: one explicit cold sync resolves acquired with every table whole and group floored (348.617167ms)
+✔ process: a join committed after the pin still expands and becomes usable (2287.919792ms)
+✔ process: tier 1 inbox survives offline reopen before any history is usable (2263.502291ms)
+✔ process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2265.278167ms)
+✔ process: revocation during acquisition withdraws usable group (until-revoked) (3315.560375ms)
+✔ process: revocation during acquisition withdraws usable group (delivered) (2320.861584ms)
+✔ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (3553.496583ms)
+✔ process: old server uses legacy snapshots without any acquire request (267.078209ms)
+✔ process: old device uses legacy snapshots without any acquire request (341.015166ms)
+✔ process: a partial walk reopens against an old server through staged replacement (1369.145166ms)
+✔ process: interrupted legacy snapshot reopens against an advertising server through staging (1270.511708ms)
+✔ wasm: online fallback renders during acquisition and older pages do not enlarge the replica (1262.569ms)
+✔ wasm: cold pin skips historical joins and publishes tier 1 then the hinted group (2275.544542ms)
+✔ wasm: one explicit cold sync resolves acquired with every table whole and group floored (307.258084ms)
+✔ wasm: a join committed after the pin still expands and becomes usable (2226.112958ms)
+✔ wasm: tier 1 inbox survives offline reopen before any history is usable (2293.468625ms)
+✔ wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2295.395583ms)
+✔ wasm: revocation during acquisition withdraws usable group (until-revoked) (3252.342875ms)
+✔ wasm: revocation during acquisition withdraws usable group (delivered) (3301.786917ms)
+✔ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1598.966375ms)
+✔ wasm: old server uses legacy snapshots without any acquire request (272.462708ms)
+✔ wasm: old device uses legacy snapshots without any acquire request (214.10275ms)
+✔ wasm: a partial walk reopens against an old server through staged replacement (1289.969875ms)
+✔ wasm: interrupted legacy snapshot reopens against an advertising server through staging (1258.286416ms)
+﹣ browser React hooks and IndexedDB close/reopen (0.087041ms) # not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+✔ packed scheduler remembers every served group and retains the 32-entry cap (0.428208ms)
+✔ process: packed pages publish usable counts for every unit together (2212.683417ms)
+✔ wasm: packed pages publish usable counts for every unit together (2236.442917ms)
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (2113.259834ms)
+✔ process: a heap-bound acquisition row recovers through staged replacement (3093.212292ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (1447.437875ms)
+✔ wasm: a heap-bound acquisition row recovers through staged replacement (2675.161667ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3244.140083ms)
+✔ explicit acquisition propagates a rejected first network turn (0.532334ms)
+✔ explicit acquisition propagates a rejected later network turn (0.078166ms)
+✔ process: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (464.28175ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process: failure of even one-row replacement surfaces once after acquire overflow (1238.108208ms)
+✔ wasm: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (414.80475ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm: failure of even one-row replacement surfaces once after acquire overflow (1235.027875ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 49722.250125

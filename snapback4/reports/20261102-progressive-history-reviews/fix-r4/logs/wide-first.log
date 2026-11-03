@@ -1,0 +1,66 @@
+✔ the largest row-bounded source batch recovers oversized parent mirrors by snapshot (26651.277708ms)
+ℹ {"tier":"sqlite","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42507}
+ℹ {"tier":"wasm","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42507}
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (15.402334ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (10.7285ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (20.074ms)
+  ✔ seed and upload retain their separate larger request ceilings (156.753959ms)
+  ✔ one-view assets consume the first full GET after refusing range probes (239.622959ms)
+  ✔ aborting a one-view response after its headers still consumes the view (224.856209ms)
+  ✔ a truncated one-view response consumes its view and closes pipelined responses (222.475375ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (49.536875ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (1520.484292ms)
+  ✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (3373.275834ms)
+  ✔ a paused large response releases the engine before network progress (335.265041ms)
+✖ HTTP admission, encoding, slow readers and idle changes polls (6311.731667ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26734.125959
+
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:241:13
+✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (3373.275834ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      10000,
+  +   10000,
+      5000,
+      2500,
+      1250,
+      625,
+      312,
+      156,
+      78,
+  -   39
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/http-bounds.test.mjs:255:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/http-bounds.test.mjs:241:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      10000, 10000, 5000,
+       2500,  1250,  625,
+        312,   156,   78
+    ],
+    expected: [
+      10000, 5000, 2500,
+       1250,  625,  312,
+        156,   78,   39
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

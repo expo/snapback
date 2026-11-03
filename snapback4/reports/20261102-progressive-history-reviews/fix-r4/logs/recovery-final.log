@@ -1,0 +1,16 @@
+✔ explicit acquisition propagates a rejected first network turn (0.44375ms)
+✔ explicit acquisition propagates a rejected later network turn (0.702666ms)
+✔ process: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (388.878417ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process: failure of even one-row replacement surfaces once after acquire overflow (1260.301791ms)
+✔ wasm: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (342.890458ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm: failure of even one-row replacement surfaces once after acquire overflow (1254.396958ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3322.482041

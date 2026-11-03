@@ -24,23 +24,24 @@ for (const tier of ["process", "wasm"]) {
     assert.equal(localStatus(client).getSnapshot().why, undefined);
   });
 
-  test(`${tier}: a genuine single-row heap overflow surfaces a typed local refusal`, { timeout: hangBudget(120) }, async t => {
+  test(`${tier}: a heap-bound acquisition row recovers through staged replacement`, { timeout: hangBudget(120) }, async t => {
     // JSON is compact on the wire but its million array cells exceed the
     // actual 16 MiB retained heap allowance, even at a one-row page limit.
     const f = await fixture(t, tier, { limit: 1,
       source: "use personas alice\ntable payloads:\n  body: json <=20000000\n  public 'fixture'\n  sync\n",
       rows: [{ table: "payloads", row: { id: "large", body: Array(1_000_000).fill(0) } }] });
     const client = await f.open(); f.allow(true); await client.sync();
-    assert.equal(client.acquired, false);
+    assert.equal(client.acquired, true);
     const denied = f.pages.find(p => p.denied)?.denied;
     assert.equal(denied?.code, "E_BOUND"); assert.equal(denied.family, "bound");
     assert.match(denied.message, /heap/i);
-    const state = localStatus(client).getSnapshot();
-    assert.equal(state.state, "unavailable"); assert.equal(state.why.code, "E_BOUND");
-    const requests = f.requests.length;
-    await client.sync();
-    assert.equal(f.requests.length, requests, "the permanent refusal must not silently loop");
-    assert.equal((await f.state()).acquisition_cursor, null);
+    assert.ok(f.requests.some(request => !request.acquire && !request.stream && request.from === 0), "the acquisition refusal tries staged replacement");
+    const replacement = f.pages.find(page => page.snapshot && !page.denied);
+    assert.equal(replacement.events[0].data.body.length, 1_000_000);
+    assert.equal(localStatus(client).getSnapshot().state, "ready");
+    await client.close(); f.online(false);
+    const reopened = await f.open();
+    assert.equal(reopened.acquired, true, "the replacement publication survives offline reopen");
   });
 }
 

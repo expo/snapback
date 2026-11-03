@@ -1,0 +1,83 @@
+✔ event slots wasm: owned-event fallback waits for the source prediction (8150.639625ms)
+✔ event slots wasm: unknown membership discovery stays fenced beside a predicted owned event (8150.677542ms)
+✔ bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages (13365.75625ms)
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (9323.718916ms)
+✖ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (35159.833041ms)
+✔ bounded Following wasm: a known branch wins over static server routing (4308.98325ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (9337.362708ms)
+✔ bounded Following wasm: a late card miss and oversized withheld output still use fallback (1163.108458ms)
+✔ bounded Following wasm: untaken online-only card branches remain answerable when held (615.545417ms)
+✔ bounded Following wasm: composed reads withhold the entire answer across the prediction fence (8024.219666ms)
+✔ bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors (1294.033042ms)
+✔ bounded Following wasm: a predicted post fences fallback until observation (8041.701791ms)
+✔ bounded Following wasm: online-only cards withhold offline (258.820084ms)
+✔ bounded Following wasm: repost prediction needs a held original (8304.734042ms)
+✔ bounded Following wasm: held cards and transport failures stay withheld (440.588709ms)
+✔ bounded Following wasm: online-only repost cards use the prediction fence before server routing (8075.896125ms)
+✔ bounded Following wasm: a response racing prediction admission is invalidated (8097.084417ms)
+✔ bounded Following wasm: repost horizon misses withhold but full-source nulls remain data (251.070125ms)
+✔ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (17434.678917ms)
+✔ event slots native: owned-event fallback waits for the source prediction (8109.737125ms)
+✔ event slots native: unknown membership discovery stays fenced beside a predicted owned event (8132.523542ms)
+✔ bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages (13419.454958ms)
+✔ bounded Following native: unknown conditions preserve static and helper dependencies (9370.732208ms)
+✖ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (35354.091958ms)
+✔ bounded Following native: a known branch wins over static server routing (4250.261167ms)
+✔ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (9337.746458ms)
+✔ bounded Following native: a late card miss and oversized withheld output still use fallback (1266.770375ms)
+✔ bounded Following native: untaken online-only card branches remain answerable when held (635.254791ms)
+✔ bounded Following native: composed reads withhold the entire answer across the prediction fence (8054.905708ms)
+✔ bounded Following native: exact offline pages, original-cursor fallback and quiet authors (1330.619375ms)
+✔ bounded Following native: a predicted post fences fallback until observation (8051.986875ms)
+✔ bounded Following native: online-only cards withhold offline (246.488959ms)
+✔ bounded Following native: repost prediction needs a held original (8256.855625ms)
+✔ bounded Following native: held cards and transport failures stay withheld (437.661208ms)
+✔ bounded Following native: online-only repost cards use the prediction fence before server routing (8099.569ms)
+✔ bounded Following native: a response racing prediction admission is invalidated (8130.827292ms)
+✔ bounded Following native: repost horizon misses withhold but full-source nulls remain data (306.169541ms)
+✔ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (18246.006208ms)
+✔ bounded Following native query module: executed dependencies fence fallback until prediction observation (9473.05275ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 37
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 310397.495417
+
+✖ failing tests:
+
+test at packages/snapback4/test/bounded-following.test.mjs:380:3
+✖ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (35159.833041ms)
+  AssertionError [ERR_ASSERTION]: static feed/posts reads fence server fallback despite the executed subset
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/bounded-following.test.mjs:409:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/bounded-following.test.mjs:380:3
+✖ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (35354.091958ms)
+  AssertionError [ERR_ASSERTION]: static feed/posts reads fence server fallback despite the executed subset
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/bounded-following.test.mjs:409:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

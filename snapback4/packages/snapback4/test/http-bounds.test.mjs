@@ -240,7 +240,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     });
     await t.test("Wasm and process clients acquire wide snapshots by shrinking the same cursor", async () => {
       for (const tier of ["wasm", "process"]) {
-        const limits = [], requests = [];
+        const limits = [], requests = [], pages = [];
         const device = tier === "wasm"
           ? webDevice({ wasm, persist: memoryPersistence() })
           : processDevice({ binary, dir: join(directory, `device-${tier}`) });
@@ -248,13 +248,18 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
           if (new URL(input).pathname === "/sync") {
             const body = JSON.parse(init.body); limits.push(body.limit); requests.push(body);
           }
-          return fetch(input, init);
+          const response = await fetch(input, init);
+          if (new URL(input).pathname === "/sync") pages.push(await response.clone().json());
+          return response;
         } });
         try {
-          assert.equal(client.acquired, true, `${tier} must publish only the complete snapshot and catch-up`);
-          assert.deepEqual(limits.slice(0, 9), [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39]);
-          assert.ok(requests.slice(0, 9).every(request => request.from === 0 && request.after === null && request.stream === false), `${tier} retries one cursor and watermark`);
-          assert.ok(requests.some(request => request.after !== null), `${tier} continues the reduced snapshot pages`);
+          assert.equal(client.acquired, true, `${tier} finishes acquisition and catch-up before awaited opening resolves`);
+          assert.ok(requests[0].acquire, "the advertised progressive path is attempted first");
+          assert.equal(pages[0].denied?.code, "E_BOUND", "the indivisible wide horizon cannot fit a progressive unit");
+          const snapshots = requests.filter(request => !request.acquire && !request.stream && request.after === null);
+          assert.deepEqual(snapshots.map(request => request.limit), [10000, 5000, 2500, 1250, 625, 312, 156, 78, 39]);
+          assert.ok(snapshots.every(request => request.from === 0), `${tier} shrinks the same staged replacement cursor`);
+          assert.ok(requests.some(request => request.after !== null), `${tier} continues the reduced replacement pages`);
           assert.ok(requests.some(request => request.stream === true), `${tier} completes catch-up before acquisition`);
           assert.equal((await client.query({ kind: "query", name: "count" }, {})).data, 2);
         } finally { await client.close(); }

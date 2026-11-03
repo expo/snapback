@@ -646,6 +646,13 @@ for (const staged of [false, true]) for (const terminal of [false, true]) test(`
     } },
     async fetch(input, init) {
       if (offline) throw Error("offline");
+      // This witness owns legacy staged snapshot continuation/catch-up semantics.
+      // Withhold the advertisement; progressive ownership is witnessed separately.
+      if (new URL(input).pathname === "/schema") {
+        const response = await fetch(input, init), json = await response.json();
+        if (json.device_compatibility) delete json.device_compatibility.advertised;
+        return Response.json(json, { status: response.status });
+      }
       if (String(input).endsWith("/sync")) {
         const body = JSON.parse(init.body);
         // One row starts A's snapshot; vary whether its continuation finishes.

@@ -41,7 +41,7 @@ test('web receipt upgrades preserve original binding and corrected shared custod
     sourceOverrides[path] = text.replace(before, after);
   };
   if (mutant === 'receipt-binding') {
-    replace('local.ts', 'entry.receipt_store?.id ?? entry.store_id ?? storeIdentity', 'entry.store_id ?? storeIdentity');
+    replace('local-runtime.ts', 'entry.receipt_store?.id ?? entry.store_id ?? env.storeIdentity', 'entry.store_id ?? env.storeIdentity');
     replace('web.ts', 'e.receipt_store?.id ?? journal.boundStore(e.id)', 'journal.boundStore(e.id)');
     replace('web.ts', 'entry.receipt_store?.id ?? journal.boundStore(entry.id)', 'journal.boundStore(entry.id)');
   }

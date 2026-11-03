@@ -1,0 +1,47 @@
+✔ event slots wasm: owned-event fallback waits for the source prediction (8272.93375ms)
+✔ event slots wasm: unknown membership discovery stays fenced beside a predicted owned event (8164.120417ms)
+✔ bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages (13500.950375ms)
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (9476.178208ms)
+✔ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (36041.860292ms)
+✔ bounded Following wasm: a known branch wins over static server routing (4383.272583ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (9517.621959ms)
+✔ bounded Following wasm: a late card miss and oversized withheld output still use fallback (1365.202667ms)
+✔ bounded Following wasm: untaken online-only card branches remain answerable when held (724.858667ms)
+✔ bounded Following wasm: composed reads withhold the entire answer across the prediction fence (8227.840791ms)
+✔ bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors (1441.021ms)
+✔ bounded Following wasm: a predicted post fences fallback until observation (8156.673625ms)
+✔ bounded Following wasm: online-only cards withhold offline (320.818541ms)
+✔ bounded Following wasm: repost prediction needs a held original (8303.985042ms)
+✔ bounded Following wasm: held cards and transport failures stay withheld (569.955417ms)
+✔ bounded Following wasm: online-only repost cards use the prediction fence before server routing (8158.006417ms)
+✔ bounded Following wasm: a response racing prediction admission is invalidated (8249.395875ms)
+✔ bounded Following wasm: repost horizon misses withhold but full-source nulls remain data (427.958208ms)
+✔ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (18656.343084ms)
+✔ event slots native: owned-event fallback waits for the source prediction (8298.97325ms)
+✔ event slots native: unknown membership discovery stays fenced beside a predicted owned event (8218.861292ms)
+✔ bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages (13521.726625ms)
+✔ bounded Following native: unknown conditions preserve static and helper dependencies (9456.957542ms)
+✔ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (36437.072833ms)
+✔ bounded Following native: a known branch wins over static server routing (4524.285541ms)
+✔ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (9452.177708ms)
+✔ bounded Following native: a late card miss and oversized withheld output still use fallback (2400.746416ms)
+✔ bounded Following native: untaken online-only card branches remain answerable when held (747.232459ms)
+✔ bounded Following native: composed reads withhold the entire answer across the prediction fence (8202.82325ms)
+✔ bounded Following native: exact offline pages, original-cursor fallback and quiet authors (1470.075166ms)
+✔ bounded Following native: a predicted post fences fallback until observation (8215.302084ms)
+✔ bounded Following native: online-only cards withhold offline (334.394833ms)
+✔ bounded Following native: repost prediction needs a held original (8403.546834ms)
+✔ bounded Following native: held cards and transport failures stay withheld (550.181625ms)
+✔ bounded Following native: online-only repost cards use the prediction fence before server routing (8243.622666ms)
+✔ bounded Following native: a response racing prediction admission is invalidated (8332.678ms)
+✔ bounded Following native: repost horizon misses withhold but full-source nulls remain data (386.150083ms)
+✔ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (19276.231458ms)
+✔ bounded Following native query module: executed dependencies fence fallback until prediction observation (10756.146292ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 321367.845792

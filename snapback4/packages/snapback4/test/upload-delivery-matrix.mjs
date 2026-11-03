@@ -13,7 +13,7 @@ const bytes=new Blob([new Uint8Array([137,80,78,71])]);
 const asset={id:'asset1',type:'image/png',bytes:4,width:1,height:1,duration:null};
 const options={id:'media1',argument:'photo'};
 export async function mediaFaultCase({t,site,mode,directory,createLocalClient,webDevice,arm,release,fault,injected}) {
-  if(site.file==='local.ts') {
+  if(site.id.startsWith('local.ts:')) {
     const f=await fixture(t,1,{createLocalClient,webDevice,fetch(path) {
       if(path==='/schema') return Response.json(backend);
       if(path==='/assets') return Response.json({asset});

@@ -121,7 +121,8 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
           if (!advertised) assert.equal(Object.hasOwn(body, "acquire"), false, "old server denies unknown fields");
           inflight++; maxInflight = Math.max(maxInflight, inflight);
           try {
-            await intercept?.(body);
+            const intercepted = await intercept?.(body);
+            if (intercepted) { pages.push(await intercepted.clone().json()); return intercepted; }
             const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit }) });
             pages.push(await response.clone().json());
             return response;

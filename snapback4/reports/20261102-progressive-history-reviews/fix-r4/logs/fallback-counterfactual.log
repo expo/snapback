@@ -1,0 +1,44 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (13.937459ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (7.251875ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (19.824458ms)
+  ✔ seed and upload retain their separate larger request ceilings (156.612ms)
+  ✔ one-view assets consume the first full GET after refusing range probes (226.754292ms)
+  ✔ aborting a one-view response after its headers still consumes the view (218.862791ms)
+  ✔ a truncated one-view response consumes its view and closes pipelined responses (213.942459ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (47.286ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (1423.173708ms)
+snapback4: the server refused the partition: E_BOUND: heap bytes reached the ceiling 16777216
+  ✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (1139.652375ms)
+  ✔ a paused large response releases the engine before network progress (294.734083ms)
+✖ HTTP admission, encoding, slow readers and idle changes polls (3950.923708ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4055.117458
+
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:241:13
+✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (1139.652375ms)
+  AssertionError [ERR_ASSERTION]: wasm finishes acquisition and catch-up before awaited opening resolves
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/http-bounds.test.mjs:256:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/http-bounds.test.mjs:241:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

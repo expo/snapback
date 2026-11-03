@@ -247,3 +247,41 @@ fn a_cold_pin_keeps_own_write_deferral_on_both_stores() {
     #[cfg(feature = "native")]
     publication_tests::with_sqlite(deferred_pin);
 }
+
+// @ref LLP 3000.001.001#7-authority-retention-writes-and-observation-continuity — a watermark does not identify an acquisition owner; publication at the same cut can supersede a delayed unit.
+fn overtaken_acquisition<S: DeviceStore>(store: S) {
+    let b = backend(); let mut d = Device::open_store(store, Some(b.clone())).unwrap();
+    for successor in ["walk", "staged", "published"] {
+        // Each iteration starts from the same partially published generation.
+        let tx = d.store.transaction().unwrap();
+        reset_publication(&tx, false).unwrap();
+        tx.delete_meta(&[ACQUIRED, acquisition::CURSOR, acquisition::REPLACEMENT]).unwrap();
+        tx.commit().unwrap();
+        d.apply(&pages(&b)[0], false).unwrap();
+        let mut delayed = pages(&b)[1].clone();
+        let capture = d.sync_state().unwrap();
+        delayed.captured_watermark = Some(capture.watermark);
+        delayed.captured_acquisition = Some(capture.adoption_capture);
+        if successor == "walk" {
+            d.apply(&pages(&b)[1], false).unwrap();
+        } else {
+            let replacement: StreamPage = decoded(&json!({"snapshot":true,"stage_snapshot":successor == "staged",
+                "watermark":0,"more":false,"events":[{"table":"counters","id":"a","kind":"put","data":{"id":"a","n":9}}]}).to_string()).unwrap();
+            d.apply(&replacement, true).unwrap();
+        }
+        let before = d.sync_state_read().unwrap();
+        assert_eq!(d.observe_store(&delayed).unwrap_err().code(), "E_GENERATION", "{successor}: reject before observation");
+        assert_eq!(d.apply(&delayed, false).unwrap_err().code(), "E_GENERATION", "{successor}: reject again at commit");
+        let after = d.sync_state_read().unwrap();
+        assert_eq!(after.watermark, before.watermark);
+        assert_eq!(after.acquired, before.acquired);
+        assert_eq!(after.acquisition_cursor, before.acquisition_cursor);
+        assert!(after.restore_refusal.is_none(), "a stale owner is not evidence of a restored server");
+    }
+}
+#[test]
+fn superseded_progressive_owner_is_refused_at_the_same_watermark_on_both_stores() {
+    overtaken_acquisition(MemoryStore::new());
+    #[cfg(feature = "native")]
+    publication_tests::with_sqlite(overtaken_acquisition);
+}

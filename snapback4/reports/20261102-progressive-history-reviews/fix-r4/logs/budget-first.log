@@ -1,0 +1,51 @@
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (2102.853666ms)
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (3180.646042ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (2186.295416ms)
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (2558.332208ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3306.031458ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13433.131917
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ process: a genuine single-row heap overflow surfaces a typed local refusal (3180.646042ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:34:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-budget.test.mjs:27:3
+✖ wasm: a genuine single-row heap overflow surfaces a typed local refusal (2558.332208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-budget.test.mjs:34:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

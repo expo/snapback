@@ -130,6 +130,9 @@ pub struct StreamEvent {
 pub struct StreamPage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquire: Option<AcquisitionProgress>,
+    /// Local walk/owner state captured before transport; not server evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub captured_acquisition: Option<BTreeMap<String, Option<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preserved: Option<Vec<String>>,
     /// Pinned server time of this authoritative page; old transports may omit it.

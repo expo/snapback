@@ -3,6 +3,7 @@ const deliverySites = census();
 // Each recipe selects a real host operation below the named awaited call.
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
+  metadata: [166],
   upload: [163],
   ordinary: [164,0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
   lookup: [1,87,88,89,90,91,100,101],
@@ -28,51 +29,230 @@ export const groups = {
   auth: [11,18,26,27],
   closing: [159,160],
 };
-// Keep the existing fixture cases attached to their semantic await after the
-// shared HTTP decoder moved body I/O. The census still pins every exact ID;
-// new sites have no default classification. Case 156 is the new overload pause.
+// Keep recipes bound to semantic awaits when implementation moves between modules.
+// New awaits have no default; the metadata negotiation wait has its own recovery recipe.
+const fixtureById = new Map([
+  ["local.ts:read:call({ op: \"meta\", key: \"write-history\" })#1", 0],
+  ["local.ts:lookup:call({ op: \"meta\", key: \"write-history\", lookup: true })#1", 1],
+  ["local.ts:save:terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})#1", 2],
+  ["local.ts:refreshAcquired:call({ op: \"sync_state\", capture: false })#1", 3],
+  ["local.ts:captureStore:call({ op: \"sync_state\", capture: false })#1", 4],
+  ["local.ts:call:history.persistPending()#1", 5],
+  ["local.ts:call:work#1", 6],
+  ["local.ts:call:media?.reconcile( [\"apply\", \"admit\", \"settle\"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)#1", 7],
+  ["local.ts:sendPost:captureStore()#1", 8],
+  ["local.ts:sendPost:withReadSignal(!progressive && path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, received, decode, () => !onlineBlocked())))#1", 9],
+  ["local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1", 10],
+  ["local.ts:sendPost:refusedSession(denied, request.revision)#1", 11],
+  ["local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1", 12],
+  ["local.ts:syncRound:history.persistPending()#1", 13],
+  ["local.ts:syncRound:call({ op: \"state\" })#1", 14],
+  ["local.ts:syncRound:call({ op: \"sync_state\" })#1", 15],
+  ["local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}), ...acquisition }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal))#1", 16],
+  ["local.ts:syncRound:refusePartition(denied, pageRevision)#1", 18],
+  ["local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1", 19],
+  ["local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1", 20],
+  ["local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1", 21],
+  ["local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => loadBackend(doFetch, base, request.headers, signal))#1", 22],
+  ["local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1", 23],
+  ["local.ts:syncRound:refreshAcquired(true)#1", 24],
+  ["local.ts:syncRound:installNative(aborter.signal)#1", 25],
+  ["local.ts:syncRound:refusedSession(error.denied, backendRevision)#1", 26],
+  ["local.ts:syncRound:refusePartition(denied, pageRevision)#2", 27],
+  ["local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1", 28],
+  ["local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2", 29],
+  ["local.ts:syncRound:refreshAcquired()#1", 30],
+  ["local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1", 31],
+  ["local.ts:syncRound:queued()#1", 162],
+  ["local.ts:probe:captureStore()#1", 32],
+  ["local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1", 33],
+  ["local.ts:probe:readResponse(response)#1", 34],
+  ["local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1", 35],
+  ["local.ts:probe:pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)#1", 157],
+  ["local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1", 36],
+  ["local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1", 37],
+  ["local.ts:waitForChange:probe()#1", 38],
+  ["local.ts:waitForChange:probe()#2", 39],
+  ["local.ts:waitForChange:captureStore()#1", 40],
+  ["local.ts:waitForChange:withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal))#1", 41],
+  ["local.ts:waitForChange:refusedSession(json.denied, request.revision)#1", 42],
+  ["local.ts:waitForChange:pauseRefusal(response, json.denied, aborter.signal)#1", 156],
+  ["local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1", 43],
+  ["local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2", 44],
+  ["local.ts:follow:waitForChange()#1", 45],
+  ["local.ts:follow:network.once()#1", 46],
+  ["local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1", 47],
+  ["local.ts:flush:flushOnce()#1", 48],
+  ["local.ts:flushOnce:exitDone#1", 49],
+  ["local.ts:flushOnce:media?.reconcile()#1", 50],
+  ["local.ts:flushOnce:exitDone#2", 51],
+  ["local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1", 52],
+  ["local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1", 53],
+  ["local.ts:flushOnce:network.once()#1", 54],
+  ["local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; let current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const prepared = await uploads.prepare(current); if (!prepared) return { ok: false as const }; if (\"cancelled\" in prepared) { const why = { code: \"E_UPLOAD_CANCELLED\", family: \"asset\", message: \"upload-and-place intent cancelled before placement dispatch\" }; await settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding); return { ok: true as const, json: { state: \"failed\", why }, obsoleteAuth: false }; } current = prepared.entry; const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || versionBlocked() || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; let response = await post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok && current.upload && !response.obsoleteAuth) { const why = (response.json.why ?? response.json.denied) as Refusal | undefined; if (why && !why.retryable) { const receipt = await uploads.finish(current, why); if (!receipt) return { ok: false as const }; response = { ...response, json: receipt }; } } if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1", 55],
+  ["local.ts:flushOnce:exitDone#3", 56],
+  ["local.ts:flushOnce:queued()#1", 57],
+  ["local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)#1", 58],
+  ["local.ts:flushOnce:uploads.prepare(current)#1", 163],
+  ["local.ts:flushOnce:settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding)#1", 163],
+  ["local.ts:flushOnce:call({ op: \"begin_send\", id: entry.id })#1", 59],
+  ["local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1", 60],
+  ["local.ts:flushOnce:post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response)#1", 61],
+  ["local.ts:flushOnce:uploads.finish(current, why)#1", 163],
+  ["local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding)#1", 62],
+  ["local.ts:flushOnce:syncUnobserved()#1", 63],
+  ["local.ts:flushOnce:syncUnobserved()#2", 64],
+  ["local.ts:flushOnce:syncUnobserved(outcome.state === \"sent\")#1", 65],
+  ["local.ts:flushOnce:syncUnobserved()#3", 66],
+  ["local.ts:flushOnce:syncUnobserved()#4", 67],
+  ["local.ts:flushOnce:syncUnobserved()#5", 68],
+  ["local.ts:replayOnOpen:captureStore()#1", 69],
+  ["local.ts:replayOnOpen:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1", 70],
+  ["local.ts:replayOnOpen:response.json()#1", 71],
+  ["local.ts:replayOnOpen:refusedSession(head.denied ?? head.why, request.revision)#1", 72],
+  ["local.ts:replayOnOpen:witnessRestore(head.store_id, head.seq, capture)#1", 73],
+  ["local.ts:commit:history.read(write.id, true)#1", 74],
+  ["local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1", 75],
+  ["local.ts:listenForExit:holds.record(entry.id, why.code)#1", 76],
+  ["local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore, dispatchStore)#1", 77],
+  ["local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1", 78],
+  ["local-receipts.ts:receiptBatch:queued()#1", 79],
+  ["local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1", 80],
+  ["local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1", 81],
+  ["local-receipts.ts:syncSettledWrites:queued()#1", 82],
+  ["local-receipts.ts:syncSettledWrites:sync()#1", 83],
+  ["local-receipts.ts:recoverReceipt:history.read(id, true)#1", 84],
+  ["local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1", 85],
+  ["local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1", 86],
+  ["local-receipts.ts:lookupWrite:queued()#1", 87],
+  ["local-receipts.ts:lookupWrite:history.lookup(id)#1", 88],
+  ["local-receipts.ts:lookupWrite:queued()#2", 89],
+  ["local-receipts.ts:lookupWrite:history.read(id)#1", 90],
+  ["local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1", 91],
+  ["local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1", 92],
+  ["local-receipts.ts:readQueued:call({ op: \"queued\" })#1", 93],
+  ["local-receipts.ts:resolveClosingWrites:queued().catch(() => [])#1", 159],
+  ["local-receipts.ts:resolveClosingWrites:(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)#1", 160],
+  ["writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1", 94],
+  ["writes.ts:acknowledged:this.read(id, true)#1", 95],
+  ["writes.ts:acknowledged:this.keep(sent)#1", 96],
+  ["writes.ts:persistPending:this.keep(write)#1", 97],
+  ["writes.ts:read:this.keep(known)#1", 98],
+  ["writes.ts:read:this.storage?.read()#1", 99],
+  ["writes.ts:lookup:this.read(id)#1", 100],
+  ["writes.ts:lookup:this.storage.lookup()#1", 101],
+  ["local-exit.ts:exitTransport:response.json()#1", 102],
+  ["local-exit.ts:exitTransport:held?.(entry, why)#1", 103],
+  ["local-exit.ts:exitTransport:refused?.(entry, why)#1", 104],
+  ["local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1", 105],
+  ["local-exit-settlement.ts:exitRefusalSettlement:work#1", 106],
+  ["local-assets.ts:call:this.core.call(request)#1", 107],
+  ["local-assets.ts:home:this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })#1", 108],
+  ["local-assets.ts:save:this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })#1", 109],
+  ["local-assets.ts:drop:this.store.remove(id)#1", 110],
+  ["local-assets.ts:check:this.home(entry.id, entry.home)#1", 111],
+  ["local-assets.ts:check:this.drop(entry.id)#1", 112],
+  ["local-assets.ts:check:this.drop(entry.id)#2", 113],
+  ["local-assets.ts:check:this.save()#1", 114],
+  ["request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)#1", 12],
+  ["request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode, json => received(json, response.status)) }))#1", 115],
+  ["request-wait.ts:postForCaller:readResponse(response, decode, json => received(json, response.status))#1", 117],
+  ["local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1", 118],
+  ["local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1", 119],
+  ["local-sync.ts:syncTransport:legacyInput(response)#1", 120],
+  ["local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1", 121],
+  ["device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1", 122],
+  ["local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1", 123],
+  ["local-native.ts:installNativeAttempt:call({ op: \"state\" })#1", 125],
+  ["local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1", 126],
+  ["local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1", 127],
+  ["local-native.ts:installNativeAttempt:response.arrayBuffer()#1", 128],
+  ["local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1", 129],
+  ["pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1", 130],
+  ["pending-writes.ts:record:revision()#1", 131],
+  ["pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1", 132],
+  ["clock.ts:wrapped:fetcher(input, init)#1", 133],
+  ["clock.ts:wrapped:this.reconcile(response, request, () => { responses.set(response, { clock: this, order, request }); const stamp = response.headers.get(\"x-snapback-time\"); if (stamp !== null) this.sample(Number(stamp), sent, received, response.headers.get(\"x-snapback-clock\") ?? undefined, order); })#1", 164],
+  ["clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1", 134],
+  ["changes.ts:decode:reader.read()#1", 136],
+  ["changes.ts:decode:response.json()#1", 137],
+  ["changes.ts:decode:sampleChanges(response, json)#1", 165],
+  ["changes.ts:changeFeed:readWithAdmissionRetry(send, () => !controller.signal.aborted, controller.signal, decode, true)#1", 135],
+  ["changes.ts:changeFeed:Promise.race([work, aborted])#1", 138],
+  ["local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1", 139],
+  ["local-search.ts:decode:reader.read()#1", 140],
+  ["local-search.ts:decode:reader.cancel().catch(() => {})#1", 141],
+  ["local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1", 142],
+  ["local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1", 143],
+  ["local-search.ts:ordinarySearch:blocked()#1", 144],
+  ["local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1", 145],
+  ["local-search.ts:ordinarySearch:blocked()#2", 146],
+  ["local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1", 147],
+  ["local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1", 161],
+  ["local-query.ts:route:env.installNative(env.signal)#1", 148],
+  ["local-query.ts:route:server()#1", 149],
+  ["local-query.ts:route:blocked()#1", 150],
+  ["local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1", 151],
+  ["local-query.ts:route:local()#1", 152],
+  ["local-query.ts:route:routeLocal(first)#1", 153],
+  ["http-response.ts:readResponse:decode(response)#1", 116],
+  ["http-response.ts:readResponse:response.json()#1", 117],
+  ["uploads.ts:change:this.env.call(request)#1", 163],
+  ["uploads.ts:uploadAndPlace:blobArrayBuffer(bytes)#1", 163],
+  ["uploads.ts:uploadAndPlace:this.change({ op: \"admit_upload\", entry })#1", 163],
+  ["uploads.ts:uploads:this.env.queued()#1", 163],
+  ["uploads.ts:uploadIntent:this.env.queued()#1", 163],
+  ["uploads.ts:uploadIntent:this.env.write(id)#1", 163],
+  ["uploads.ts:retryUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"queued\" })#1", 163],
+  ["uploads.ts:discardUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"cancelling\" })#1", 163],
+  ["uploads.ts:serverUploads:this.env.capture()#1", 163],
+  ["uploads.ts:serverUploads:this.request(`${this.env.base}/assets/intents?store_id=${encodeURIComponent(capture.store_id)}&after=${encodeURIComponent(after)}`,{headers:credentials.headers})#1", 163],
+  ["uploads.ts:cancelServerUpload:this.env.capture()#1", 163],
+  ["uploads.ts:cancelServerUpload:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:\"POST\",headers:credentials.headers},true)#1", 163],
+  ["uploads.ts:request:response.json()#1", 163],
+  ["uploads.ts:request:work#1", 163],
+  ["uploads.ts:request:waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged)#1", 163],
+  ["uploads.ts:finish:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/finish?store_id=${encodeURIComponent(entry.upload.store_id)}`, { method: \"POST\", headers: credentials.headers, body: JSON.stringify({ op: entry.op, args: entry.args, why: {code:why.code.slice(0,128),family:why.family.slice(0,128),message:why.message.slice(0,4096),retryable:false,...(why.guide?{guide:why.guide.slice(0,128)}:{})} }) })#1", 163],
+  ["uploads.ts:prepare:this.env.capture()#1", 163],
+  ["uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: { code: \"E_STORE_REPLACED\", family: \"store\", message: \"upload belongs to its original viewer and backend store\" } })#1", 163],
+  ["uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/cancel?store_id=${encodeURIComponent(u.store_id)}`, { method: \"POST\", headers: credentials.headers })#1", 163],
+  ["uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"cancelling\",why:result.json.denied??storeError(\"cancellation acknowledgement is unknown\")})#1", 163],
+  ["uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"uploading\" })#1", 163],
+  ["uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/declare?store_id=${encodeURIComponent(u.store_id)}`, { method:\"POST\", headers:credentials.headers, body:JSON.stringify({digest:hexBytes(sha256(bytes)),placement:{op:entry.op,args:u.original_args,argument:u.argument},...(u.file?{file:u.file}:{})})})#1", 163],
+  ["uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:declaration.json.denied??storeError(\"intent declaration was not accepted\")})#1", 163],
+  ["uploads.ts:prepare:waitForCaller(uploadAsset(this.env.base, credentials.headers, this.env.fetch, bytes, current, u.file ? { file: u.file } : undefined, { id: entry.id, store: u.store_id, signal: this.env.signal }), this.env.signal ?? new AbortController().signal)#1", 163],
+  ["uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: result.why })#1", 163],
+  ["uploads.ts:prepare:this.change({ op: \"upload_ready\", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset })#1", 163],
+  ["uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})#1", 163],
+  ["assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1", 163],
+  ["assets.ts:uploadAsset:response.json()#1", 163],
+  ["assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1", 163],
+  ["app-uploads.ts:uploadAndPlace:refusal()#1", 163],
+  ["app-uploads.ts:uploads:refusal()#1", 163],
+  ["app-uploads.ts:uploads:uploads.uploads()#1", 163],
+  ["app-uploads.ts:uploadIntent:refusal()#1", 163],
+  ["app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1", 163],
+  ["app-uploads.ts:retryUpload:refusal()#1", 163],
+  ["app-uploads.ts:discardUpload:refusal()#1", 163],
+  ["app-uploads.ts:serverUploads:refusal()#1", 163],
+  ["app-uploads.ts:serverUploads:uploads.serverUploads(after)#1", 163],
+  ["app-uploads.ts:cancelServerUpload:refusal()#1", 163],
+  ["web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1", 163],
+  ["web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1", 163],
+  ["web-upload-admission.ts:authorizeUpload:execute()#1", 163],
+  ["web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1", 163],
+  ["web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1", 163],
+  ["web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1", 163],
+  ["web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1", 163],
+  ["web-upload-admission.ts:preflightUpload:check()#1", 163],
+  ["local.ts:flushOnce:for await receiptBatch(queued, history)", 154],
+  ["local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1", 155],
+  ["local.ts:syncRound:loadBackend(doFetch, base, requestCredentials().headers, aborter.signal)#1", 166]
+]);
 export function fixtureIndex(index) {
-  // DX6 reconciles staging credential custody before response clock publication.
-  // Failure before receipt decoding must recover durable writes; a failed
-  // heartbeat sample is optional to already durable custody and retries follow.
-  const added = site => (site.file === 'clock.ts' && site.expression.startsWith('this.reconcile('))
-    || (site.file === 'changes.ts' && site.expression === 'sampleChanges(response, json)');
-  const selected = deliverySites[index];
-  // RT3b moved body decoding before the retry-owner await. Keep the existing
-  // streaming/body/transport faults attached to their semantic operations.
-  if (selected.file === 'changes.ts') {
-    if (selected.expression === 'reader.read()') return 136;
-    if (selected.expression === 'response.json()') return 137;
-    if (selected.expression.startsWith('readWithAdmissionRetry(')) return 135;
-  }
-  if (added(selected)) return selected.file === 'clock.ts' ? 164 : 165;
-  index -= deliverySites.slice(0, index).filter(added).length;
-  const sites = deliverySites.filter(site => !added(site));
-  const media = site => site.file === 'uploads.ts' || site.file === 'web-upload-admission.ts' || site.file === 'app-uploads.ts' || site.file === 'assets.ts' || site.expression === 'uploads.prepare(current)' || site.expression === 'uploads.finish(current, why)' || site.expression === 'settleReceipt(history, receiptCall, { state: "failed", id: entry.id, why }, undefined, binding)';
-  if (media(sites[index])) return 163;
-  index -= sites.slice(0, index).filter(media).length;
-  // IT: sync refreshes pending facts after apply, including a no-op page.
-  // Its read-only queue lookup is optional to already durable write custody.
-  if (index === 31) return 162;
-  if (index > 31) index -= 1;
-  // RH round 1: the provisional search fallback reads on the shared ledger.
-  if (index === 150) return 161;
-  if (index > 150) index -= 1;
-  // EA round 2: close reads both custody sources before reporting unknown.
-  if (index === 95 || index === 96) return index + 64;
-  if (index > 96) index -= 2;
-  // Round 3: the probe's admission refusal owns one paced recovery wait.
-  if (index === 35) return 157;
-  if (index > 35) index -= 1;
-  // Round 2: auth handling precedes refusal wait; schema send/body now share
-  // the safe-read await (body I/O is also exercised by readResponse).
-  if (index === 41) index = 42;
-  else if (index === 42) index = 41;
-  if (index >= 124) index += 1;
-  if (index >= 17 && index <= 40) return index + 1;
-  // The shared JSON await is required: it also reads mutation receipts, where
-  // failure must retain the same ID and wait for recovery before the FIFO tail.
-  return ({41:156,115:12,116:115,154:116,155:117,156:154,157:155})[index] ?? index;
+  const site = deliverySites[index], fixture = fixtureById.get(site?.id);
+  if (fixture === undefined) throw Error(`unclassified awaited site ${site?.id}`);
+  return fixture;
 }
 export function recipe(ordinal) {
   const index = fixtureIndex(ordinal);

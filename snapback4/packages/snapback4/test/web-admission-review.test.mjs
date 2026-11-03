@@ -74,9 +74,9 @@ query total():
   }
   if (mutant === 'probe-gate') replace('local.ts', 'const replayAllowed = core.onSuspend && await replayOnOpen();',
     'const replayAllowed = core.onSuspend && (listenForExit(), await replayOnOpen());');
-  if (mutant === 'backend-required') replace('local.ts', '!capture || capture.backend_required || closed || sessionDead', '!capture || closed || sessionDead');
-  if (mutant === 'probe-store') replace('local.ts', 'if (head.store_id !== capture.store_id) return false;', '/* mutant: accept a replacement probe */');
-  if (mutant === 'probe-restore') replace('local.ts', 'if (await witnessRestore(head.store_id, head.seq, capture)) return false;', '/* mutant: skip restore validation */');
+  if (mutant === 'backend-required') replace('local-runtime.ts', '!capture || capture.backend_required || env.closed || env.sessionDead', '!capture || env.closed || env.sessionDead');
+  if (mutant === 'probe-store') replace('local-runtime.ts', 'if (head.store_id !== capture.store_id) return false;', '/* mutant: accept a replacement probe */');
+  if (mutant === 'probe-restore') replace('local-runtime.ts', 'if (await env.witnessRestore(head.store_id, head.seq, capture)) return false;', '/* mutant: skip restore validation */');
   if (mutant === 'hidden-registration') replace('web.ts', 'if (suspended) publishCommitted();', '/* mutant: lose the hide during the probe */');
   if (mutant === 'wrapped-owner') replace('app.ts', 'prepareAdmissionAuthority(prepared, {', 'if (sessionReader(backing)) prepareAdmissionAuthority(prepared, {');
   if (mutant === 'journal-fence') replace('web.ts', 'if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);', '/* mutant: retain recovered intents after replacement */');
@@ -92,37 +92,40 @@ query total():
     assert.ok(source.includes(ordinary) && source.includes(exit));
     sourceOverrides[path('web-runtime.ts')] = source.replace(ordinary, 'if (false) {').replace(exit, '');
   }
-  if (mutant === 'ordinary-store-field') replace('local.ts', ', store_id: binding', '');
+  if (mutant === 'ordinary-store-field') replace('local-runtime.ts', ', store_id: binding', '');
   if (mutant === 'exit-store-field') replace('local-exit.ts', ', store_id: entry.store_id', '');
   if (mutant === 'exit-retirement') replace('local-exit.ts', 'await refused?.(entry, why)', 'undefined');
-  if (mutant === 'observed') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
-  if (mutant === 'empty-queue') replace('local.ts', '    if (!capture.store_id) return false;', '    if (!(await queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
+  if (mutant === 'observed') replace('local-runtime.ts', '    if (!capture.store_id) return false;', '    if (!(await env.queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return true;\n    if (!capture.store_id) return false;');
+  if (mutant === 'empty-queue') replace('local-runtime.ts', '    if (!capture.store_id) return false;', '    if (!(await env.queued()).some(entry => entry.sent_seq == null)) return true;\n    if (!capture.store_id) return false;');
   if (mutant === 'ordinary-gate') replace('local.ts', 'if (closed || !sendingAllowed) return;', 'if (closed) return;');
   if (mutant === 'replay-delivery') replace('local.ts', 'if (replayAllowed) listenForExit();', 'if (replayAllowed) { sendingAllowed = true; await flushOnce(false); listenForExit(); }');
-  if (mutant === 'reconnect-exit') replace('local.ts', '      listenForExit();', '      /* mutant: reconnect never installs exit */');
-  if (mutant === 'reconnect-delivery') replace('local.ts', '      if (resumeSending && sendingAllowed) void flush();', '      /* mutant: ordinary delivery never wakes */');
+  if (mutant === 'reconnect-exit') replace('local-runtime.ts', '      listenForExit();', '      /* mutant: reconnect never installs exit */');
+  if (mutant === 'reconnect-delivery') replace('local-runtime.ts', '      if (resumeSending && env.sendingAllowed) void flush();', '      /* mutant: ordinary delivery never wakes */');
   if (mutant === 'exit-owner') replace('local-exit-settlement.ts', ' || options.owners.has(entry.id)', '');
   if (mutant === 'exit-custody') replace('web.ts', 'if (history.some(known => known.id === write.id) || !entry || entry.sent_seq != null || entry.observed_seq != null) return { ok: false };', '/* mutant: settle a late refusal without custody */');
   if (mutant === 'exit-persistence') replace('local-exit-settlement.ts', 'await options.commit(write)', 'await options.commit(write).catch(() => true)');
-  if (mutant === 'exit-known') replace('local.ts', 'if (known && known.state !== "pending") return false;', '/* mutant: forget a known terminal */');
+  if (mutant === 'exit-known') replace('local-runtime.ts', 'if (known && known.state !== "pending") return false;', '/* mutant: forget a known terminal */');
   if (mutant === 'custody-sequences') replace('web.ts', ' || entry.sent_seq != null || entry.observed_seq != null', '');
   if (mutant === 'receipt-fallthrough') replace('local.ts', 'retryFlush(); return { ...response, persistencePending: true };', 'retryFlush();');
   if (mutant === 'receipt-replay') replace('local-receipts.ts', 'if (!known || known.state === "pending") return;', 'return;');
-  if (mutant === 'receipt-barrier') replace('local.ts', 'try { await history.persistPending(); } catch { retryFlush(); return false; }', '/* mutant: sync can retire volatile custody */');
-  if (mutant === 'observe-store-barrier') replace('local.ts', '["observe_store", "apply", "adopt", "settle_exit"]', '["apply", "adopt", "settle_exit"]');
+  if (mutant === 'receipt-barrier') replace('local-runtime.ts', 'try { await env.history.persistPending(); } catch { retryFlush(); return false; }', '/* mutant: sync can retire volatile custody */');
+  if (mutant === 'observe-store-barrier') replace('local-runtime.ts', '["observe_store", "apply", "adopt", "settle_exit"]', '["apply", "adopt", "settle_exit"]');
   if (mutant === 'acknowledged-refusal') replace('writes.ts', 'const known = await this.read(id, true);', 'const known = await this.read(id, true); if (known?.state === "failed") return known;');
   if (mutant === 'authored-refusal') replace('writes.ts', 'if (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") return known;', '/* mutant: turn a known refusal into success */');
   if (mutant === 'receipt-lookup-save') replace('writes.ts', 'if (known?.state === "failed" && known.why.code === "E_STORE_REPLACED") await this.keep(sent);', '/* mutant: leave the stored replacement refusal behind */');
-  if (mutant === 'final-preflight') replace('local.ts', 'if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }', 'if (known) return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }');
+  if (mutant === 'final-preflight') replace('local-runtime.ts', 'if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }', 'if (known) return { ok: true as const, json: { ...receipt }, obsoleteAuth: false }; }');
   if (mutant === 'legacy-success') replace('writes.ts', 'if (!qualified) return known?.state === "sent" || (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") ? known : undefined;', '/* mutant: infer success from an unqualified sequence */');
   // Record the actual retry callback and entry into sync, without changing either.
   const localPath = path('local.ts');
-  const syncEntry = 'const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());';
+  const syncEntry = 'const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE" || !!acquisitionWalk.failure, () => deliveryQueue?.available());';
   assert.ok((sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8')).includes(syncEntry), 'sync instrumentation must match the production entry');
   sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
     .replace('const settling = new Set<string>();', 'const settling = (globalThis as any).settlementOwners = new Set<string>();')
-    .replace('retry = undefined; void flush();', 'retry = undefined; (globalThis as any).retryTicks++; void flush();')
     .replace(syncEntry, syncEntry + '\n  const observedOnce = network.once; network.once = (...args) => { (globalThis as any).syncAttempts?.push({ pending: history.hasUnpersisted((globalThis as any).capturedId), tick: (globalThis as any).retryTicks }); return observedOnce(...args); };');
+  // Delivery callbacks moved with their owning runtime; keep the same observation.
+  const runtimePath = path('local-runtime.ts');
+  sourceOverrides[runtimePath] = (sourceOverrides[runtimePath] ?? readFileSync(runtimePath, 'utf8'))
+    .replace('env.retry = undefined; void flush();', 'env.retry = undefined; (globalThis as any).retryTicks++; void flush();');
   // Observe completion after the callback without timing sleeps or changing
   // production scheduling. Each real response body has its own gate below.
   const exitPath = path('local-exit.ts');

@@ -865,6 +865,13 @@ for (const tier of ["wasm", "native"]) {
     const observer = await f.open(tier, { name: "snapshot-shared", fetch: async (input, init) => {
       const url = new URL(input);
       if (url.pathname === "/m/increment") await held(reply, init.signal);
+      // This witness owns legacy staged snapshot continuation/catch-up semantics.
+      // Withhold the advertisement; progressive ownership is witnessed separately.
+      if (new URL(input).pathname === "/schema") {
+        const response = await fetch(input, init), json = await response.json();
+        if (json.device_compatibility) delete json.device_compatibility.advertised;
+        return Response.json(json, { status: response.status });
+      }
       if (url.pathname !== "/sync") return fetch(input, init);
       const body = JSON.parse(init.body);
       if (catchups === 0 && !body.stream) body.from = 0;

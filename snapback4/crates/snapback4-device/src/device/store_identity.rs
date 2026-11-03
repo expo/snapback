@@ -77,6 +77,16 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         };
         return Err(RuntimeError::Generation(message.into()));
     }
+    // @ref LLP 3000.001.001#7-authority-retention-writes-and-observation-continuity — two owners can advance the walk at the same watermark. Validate its captured cursor and replacement owner before observation and again inside apply's transaction.
+    if page.acquire.is_some() {
+        if let Some(capture) = &page.captured_acquisition {
+            for key in [acquisition::CURSOR, acquisition::REPLACEMENT, ACQUIRED, SNAPSHOT_OWNER] {
+                if capture.get(key) != Some(&tx.meta(key)?) {
+                    return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
+                }
+            }
+        }
+    }
     let watermark = meta_u64(tx, WATERMARK)?;
     // A response belongs to its request, not to a newer owner's acquisition.
     if page.captured_watermark.is_some_and(|expected| expected != watermark) {

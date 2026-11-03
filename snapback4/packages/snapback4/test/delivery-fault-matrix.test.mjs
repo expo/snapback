@@ -166,6 +166,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     await until(async () => ok(await f.core.call({op:'queued'})).length === 3);
     queueIds = ok(await f.core.call({op:'queued'})).map(e=>e.id);
     prepared = true;
+    if (scenario === 'metadata') api.setUnknownCompatibility();
     const sideWork = [];
     const run = body => { const p = Promise.resolve().then(body).catch(()=>{}); sideWork.push(p); };
     if (scenario === 'media') {
@@ -260,7 +261,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     await drain(100); assert.equal(failures, initialFailures, 'no retry spin while time is frozen');
     for (let n = 0; n < 8; n++) {
       t.mock.timers.tick(5000);
-      if (['adoption','reset','legacy'].includes(scenario)) run(()=>f.client.sync());
+      if (['adoption','reset','legacy','metadata'].includes(scenario)) run(()=>f.client.sync());
       if (scenario === 'probe') run(()=>api.probe());
     if (scenario === 'follow') {
       if([37,38].includes(index)) api.setOffline();

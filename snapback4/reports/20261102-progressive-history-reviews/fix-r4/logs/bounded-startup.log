@@ -1,0 +1,10 @@
+✔ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (35162.294375ms)
+✔ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (35225.546958ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70465.521583

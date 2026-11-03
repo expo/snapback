@@ -1,0 +1,10 @@
+$ tsc -p tsconfig.json --noEmit
+src/local-runtime.ts(90,239): error TS2552: Cannot find name 'Change'. Did you mean 'Changes'?
+src/local-runtime.ts(92,19): error TS2304: Cannot find name 'ServerClock'.
+src/local-runtime.ts(94,18): error TS2304: Cannot find name 'DeviceCompatibility'.
+src/local-runtime.ts(123,64): error TS2304: Cannot find name 'LocalStatus'.
+src/local-runtime.ts(146,71): error TS2304: Cannot find name 'Reply'.
+src/local-runtime.ts(170,37): error TS2304: Cannot find name 'DeviceVersionStatus'.
+src/local-runtime.ts(170,201): error TS2304: Cannot find name 'DeviceEngine'.
+src/local-runtime.ts(678,109): error TS2345: Argument of type 'Refusal | null' is not assignable to parameter of type 'Refusal'.
+  Type 'null' is not assignable to type 'Refusal'.
