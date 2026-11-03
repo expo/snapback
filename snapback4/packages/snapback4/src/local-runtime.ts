@@ -110,7 +110,7 @@ export interface LocalRuntimeContext {
   readonly refuseRestore: (denied?: Refusal, confirmed?: boolean) => void;
   readonly requestCredentials: () => { headers: { [x: string]: string; }; revision: number; };
   readonly rerunTables: (tables: Set<string>) => void;
-  retry: NodeJS.Timeout | undefined;
+  retry: ReturnType<typeof setTimeout> | undefined;
   retryAfterMs: number;
   retryMs: number;
   retryOverload: boolean;
