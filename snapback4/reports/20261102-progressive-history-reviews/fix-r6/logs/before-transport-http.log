@@ -1,0 +1,151 @@
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (233.865167ms)
+✖ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1024.765709ms)
+✖ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (890.871875ms)
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1123.326334ms)
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1317.927584ms)
+✖ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (805.816459ms)
+✖ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (794.949375ms)
+✖ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (967.759167ms)
+✖ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1074.166583ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":8413.137,"cutMs":8914.879958,"rejectionMs":12416.789792,"notificationMs":12417.081042,"detectionMs":3502.2010840000003}
+{"store":"native","offsetMs":500,"requestStartMs":8428.648125,"cutMs":8930.164542,"rejectionMs":12428.93925,"notificationMs":12429.10475,"detectionMs":3498.940208}
+{"store":"wasm","offsetMs":5000,"requestStartMs":8413.009667,"cutMs":13413.191667,"rejectionMs":16430.651667,"notificationMs":16430.906958,"detectionMs":3017.7152910000004}
+{"store":"native","offsetMs":5000,"requestStartMs":8430.612958,"cutMs":13431.125292,"rejectionMs":16446.162792,"notificationMs":16446.346417,"detectionMs":3015.221125}
+{"store":"wasm","offsetMs":15000,"requestStartMs":8414.58825,"cutMs":23416.663708,"rejectionMs":26442.585292,"notificationMs":26442.815583,"detectionMs":3026.1518749999996}
+{"store":"native","offsetMs":15000,"requestStartMs":8423.759042,"cutMs":23425.447292,"rejectionMs":26457.279417,"notificationMs":26457.437,"detectionMs":3031.989708000001}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20313.540625ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11217.705125ms)
+✔ E_STREAMS degrades the change feed to paced unheld polls, never offline (5475.683916ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1175.956792ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 5
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46493.747667
+
+✖ failing tests:
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1024.765709ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (890.871875ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1123.326334ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1317.927584ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (805.816459ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (794.949375ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (967.759167ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:133:166
+✖ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1074.166583ms)
+  AssertionError [ERR_ASSERTION]: the real snapshot continues across six batches
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/transport-http.test.mjs:190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

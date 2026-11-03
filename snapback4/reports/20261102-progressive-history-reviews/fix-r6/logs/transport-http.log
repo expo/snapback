@@ -1,0 +1,91 @@
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (270.320209ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":0}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, atomic group) (1379.592209ms)
+✖ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, paged table) (123130.185125ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":0}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, atomic group) (1064.658958ms)
+✖ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, paged table) (123016.364125ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":0}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, atomic group) (2057.704667ms)
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, paged table) (124774.864208ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":0}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, atomic group) (2432.607125ms)
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, paged table) (124355.632ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":0}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, atomic group) (2344.076125ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, paged table) (2760.870083ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":0}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, atomic group) (2386.033083ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, paged table) (2847.3295ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":0}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, atomic group) (3240.787709ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, paged table) (4159.845708ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":0}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, atomic group) (7134.038667ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, paged table) (10202.11475ms)
+
+Interrupted while running:
+
+⚠ packages/snapback4/test/transport-http.test.mjs (packages/snapback4/test/transport-http.test.mjs:1:1)
+✖ packages/snapback4/test/transport-http.test.mjs (538617.677042ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 13
+ℹ fail 4
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 538620.773875
+
+✖ failing tests:
+
+test at packages/snapback4/test/transport-http.test.mjs:133:201
+✖ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, paged table) (123130.185125ms)
+  Error: TEST_HANG: async () => {
+      if (recovery === "explicit sync") await client.sync();
+      return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
+    }; 1 work unit(s), 122002 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/transport-http.test.mjs:133:201
+✖ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, paged table) (123016.364125ms)
+  Error: TEST_HANG: async () => {
+      if (recovery === "explicit sync") await client.sync();
+      return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
+    }; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/transport-http.test.mjs:133:201
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, paged table) (124774.864208ms)
+  Error: TEST_HANG: async () => {
+      if (recovery === "explicit sync") await client.sync();
+      return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
+    }; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/transport-http.test.mjs:133:201
+✖ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, paged table) (124355.632ms)
+  Error: TEST_HANG: async () => {
+      if (recovery === "explicit sync") await client.sync();
+      return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
+    }; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/transport-http.test.mjs:1:1
+✖ packages/snapback4/test/transport-http.test.mjs (538617.677042ms)
+  'Promise resolution is still pending but the event loop has already resolved'

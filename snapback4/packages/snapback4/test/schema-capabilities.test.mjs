@@ -423,7 +423,7 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   assert.equal(pinned.length,3100);
   // @ref LLP 3000.001.000#protocol — handshake metadata is checked separately from schema/program compatibility.
   const version=JSON.parse(readFileSync(join(root,'packages/snapback4/package.json'),'utf8')).version;
-  const compatibility={capabilities:['sync-generation-v1'],minimum_version:'0.4.24',server_version:version};
+  const compatibility={advertised:['progressive-acquisition-v1'],capabilities:['sync-generation-v1'],minimum_version:'0.4.24',server_version:version};
   assert.deepEqual(newApp.backend.device_compatibility,compatibility);
   const wireText=newApp.backendBytes.toString('utf8'),prefix='{"device_compatibility":'+JSON.stringify(compatibility)+',';
   assert.ok(wireText.startsWith(prefix),'canonical compatibility metadata precedes the backend');

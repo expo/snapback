@@ -244,13 +244,14 @@ for (const tier of ["wasm", "process"]) test(`${tier} an oversized first commit 
       refusedFromZero = true;
       assert.equal(page.snapshot, true);
     }
-    if (!added && page.snapshot && !page.denied) {
+    if (!added && (page.snapshot || page.acquire?.pinned) && !page.denied) {
       assert.equal(page.watermark, 0);
       added = true;
       await f.widen();
     }
   });
-  assert.equal(refusedFromZero, true, "the real catch-up overflows at zero, with catchingUp true");
+  assert.equal(added, true, "inject after the first cold pin, before its ordinary catch-up");
+  assert.equal(refusedFromZero, true, "the real catch-up overflows at zero and instructs replacement");
   await recovered(device, 1, (await f.post("/sync", { from: 0, limit: 1 })).watermark);
 });
 

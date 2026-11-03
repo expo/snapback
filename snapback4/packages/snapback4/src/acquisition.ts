@@ -38,7 +38,8 @@ export function acquisitionProgress() {
       if (!page.snapshot) {
         if (page.acquire) for (const event of page.events as { table: string; kind: string }[]) if (event.kind === "put") deferred[event.table] = (deferred[event.table] ?? 0) + 1;
         if (!published || !Object.keys(deferred).length) return;
-        const tables = { ...current.tables };
+        // @ref LLP 3000.001.001#8-progress-and-ui — compiler table names are data keys, including Object prototype names, on every publication path.
+        const tables: Record<string, number> = Object.assign(Object.create(null), current.tables);
         for (const [table, count] of Object.entries(deferred)) tables[table] = (tables[table] ?? 0) + count;
         deferred = Object.create(null);
         publish({ ...current, rows: Object.values(tables).reduce((sum, count) => sum + count, 0), tables: Object.freeze(tables) });

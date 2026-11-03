@@ -1,0 +1,25 @@
+file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15
+const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
+                          ^
+
+Error: TEST_SIGNAL_REFUSED: cannot build Darwin identity inspector: TEST_COMMAND_INSPECTION: ps failed: spawn EPERM
+    at refusal (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15:27)
+    at buildDarwinProbe (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:22:48)
+    at async file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:179:44
+
+Node.js v24.18.0
+✖ packages/snapback4/test/read-through.test.mjs (230.145417ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.289334
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-through.test.mjs:1:1
+✖ packages/snapback4/test/read-through.test.mjs (230.145417ms)
+  'test failed'

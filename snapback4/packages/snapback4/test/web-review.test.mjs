@@ -27,7 +27,7 @@ query all(c: cursor ?):
   const path = name => join(root, 'packages/snapback4/src', name);
   if (mutant === 'delivery-guard') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8').replace('if (!current())', 'if (false)');
   if (mutant === 'delivery-gap') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8').replace('guard.onsuccess = () =>', 'guard.onsuccess = async () =>').replace('else tx.commit();', 'else { await Promise.resolve(); tx.commit(); }');
-  if (mutant === 'reset') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replace('reset() { publish(empty); }', 'reset() {}');
+  if (mutant === 'reset') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replace('reset() { deferred = Object.create(null); publish(empty); }', 'reset() {}');
   if (mutant === 'tables') sourceOverrides[path('acquisition.ts')] = readFileSync(path('acquisition.ts'), 'utf8').replaceAll('Object.create(null)', '{}');
   if (mutant === 'overflow-delete') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
     .replace('if (prior === undefined && spill && !cleared) store.delete([s, change.k]);', '/* mutant: leave deleted overflow rows on disk */')
@@ -155,7 +155,7 @@ Object.assign(window, { acquisition, prepareClient, rawClient, preAqStore });
     });
     assert.ok(result.before.rows > 0 && !result.before.acquired);
     assert.equal(result.viewer, null); assert.equal(result.read.denied.code, 'E_CLOSED');
-    assert.deepEqual(result.after, { acquired: false, rows: 0, tables: {} });
+    assert.deepEqual(result.after, { acquired: false, rows: 0, tables: {}, usable: {tables:0,groups:0} });
     assert.equal(result.acquired, false);
     assert.equal(result.booleanNotifications, 0, 'unchanged legacy Boolean does not notify');
   });
@@ -502,7 +502,7 @@ Object.assign(window, { acquisition, prepareClient, rawClient, preAqStore });
         return {acquired,reopenedAcquired,pages,count:kept.length,unique:new Set(kept.map(r=>r.id)).size,correct,progress,residency:residency.tables.constructor.rows};
       },{api,worker});
       assert.equal(result.acquired,true);assert.equal(result.reopenedAcquired,true);assert.equal(result.count,12000);assert.equal(result.unique,12000);assert.equal(result.correct,true);
-      assert.ok(result.residency>=12000);assert.equal(result.pages,3);
+      assert.ok(result.residency>=12000);assert.equal(result.pages,4, 'two acquisition pages each followed by an ordinary drain');
       assert.ok(result.progress.some(p=>p.rows>0&&!p.acquired));assert.equal(result.progress.at(-1).acquired,true);
       assert.equal(result.progress.at(-1).rows,result.residency);
     }

@@ -74,7 +74,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
             return;
         }
     }
-    let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store, acquire: mut acquisition } = input;
+    let SyncRequest { generation: requested_generation, mut from, limit, mut after, stream, pending, store_id: requested_store, acquire: mut acquisition } = input;
     let store_id = match shared.read_head() {
         Ok((id, _)) => id,
         Err(error) => {
@@ -84,7 +84,8 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) {
         after = None;
-        if let Some(acquire) = &mut acquisition { acquire.cursor = None; acquire.skip.clear(); }
+        // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — the old store's cut cannot address the replacement. Return its cold identity/page so observation can dispose of the old walk and stage replacement.
+        if let Some(acquire) = &mut acquisition { from = 0; acquire.cursor = None; acquire.skip.clear(); }
     }
     let limit = limit.clamp(1, 10_000);
     if let Some(acquisition) = acquisition {

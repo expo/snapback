@@ -1,0 +1,36 @@
+✔ R2 item 1: changes with a foreign identity returns before its production wait (535.784417ms)
+ℹ foreign identity wait=25: 4 ms
+✔ R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25) (4741.608792ms)
+ℹ wasm: same-store restart syncs=0
+ℹ wasm: wait=25, replacement=2125 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20) (4765.2275ms)
+ℹ process: same-store restart syncs=0
+ℹ process: wait=20, replacement=2147 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 4: wasm replacement while a snapshot after request is in flight (689.74875ms)
+ℹ wasm: A published rows=2/5, B final rows=3, old rows=0
+✔ R2 item 4: process replacement while a snapshot after request is in flight (600.9085ms)
+ℹ process: A published rows=2/5, B final rows=3, old rows=0
+✔ R2 item 3: restoring the same store at a lower head halts reads and retries (2073.462166ms)
+ℹ restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+ℹ restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+✔ maintain adoption waits for a successful snapshot and preserves unexpected refusals (43.482959ms)
+✔ R3 finding 5: server idle poll after populated maintain adoption stays healthy (635.436667ms)
+ℹ maintain: acquired=4, idle notice=4
+✔ R3 finding 5: wasm idle poll after populated maintain adoption stays healthy (749.791584ms)
+ℹ wasm: acquired=4, idle notice=4, restore=none
+✔ R3 finding 5: process idle poll after populated maintain adoption stays healthy (736.279125ms)
+ℹ process: acquired=4, idle notice=4, restore=none
+✔ R4: wasm a same-identity head below acquisition halts as a restore (2270.507042ms)
+ℹ wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R4: process a same-identity head below acquisition halts as a restore (2383.349834ms)
+ℹ process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R3 finding 5: concurrent commits and an older receipt retry keep the actual head (1631.645ms)
+ℹ commits=1,2; replay=1; acquired=2; idle head=2
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21990.091292

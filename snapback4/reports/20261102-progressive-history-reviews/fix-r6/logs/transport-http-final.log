@@ -1,0 +1,54 @@
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (381.063583ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":0}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, atomic group) (1782.779166ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, paged table) (1744.117542ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":0}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, atomic group) (1586.53925ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, paged table) (1726.054208ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":0}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, atomic group) (1840.457333ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, paged table) (2640.591917ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":0}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, atomic group) (2639.277375ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, paged table) (2773.66675ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":0}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, atomic group) (2536.335209ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic, paged table) (3216.362583ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":0}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, atomic group) (2775.711292ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic, paged table) (3064.385417ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":0}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, atomic group) (3225.360959ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic, paged table) (3824.680583ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":0}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, atomic group) (7912.948125ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync, paged table) (8439.184833ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":52461.41325,"cutMs":52961.903708,"rejectionMs":56466.488,"notificationMs":56467.073,"detectionMs":3505.1692919999987}
+{"store":"native","offsetMs":500,"requestStartMs":52510.00675,"cutMs":53010.674167,"rejectionMs":56512.405542,"notificationMs":56512.747875,"detectionMs":3502.0737080000035}
+{"store":"wasm","offsetMs":5000,"requestStartMs":52464.014792,"cutMs":57464.100083,"rejectionMs":60480.763208,"notificationMs":60481.084292,"detectionMs":3016.984209000002}
+{"store":"native","offsetMs":5000,"requestStartMs":52510.107625,"cutMs":57511.156125,"rejectionMs":60524.609083,"notificationMs":60524.981625,"detectionMs":3013.825499999999}
+{"store":"wasm","offsetMs":15000,"requestStartMs":52465.914833,"cutMs":67467.917,"rejectionMs":70504.16575,"notificationMs":70504.544875,"detectionMs":3036.6278750000056}
+{"store":"native","offsetMs":15000,"requestStartMs":52509.787667,"cutMs":67511.869083,"rejectionMs":70564.549167,"notificationMs":70564.898167,"detectionMs":3053.029084000009}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20609.567875ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11237.346875ms)
+✔ E_STREAMS degrades the change feed to paced unheld polls, never offline (5614.911666ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1281.372708ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90990.185

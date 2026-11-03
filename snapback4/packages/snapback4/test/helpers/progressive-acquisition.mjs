@@ -9,6 +9,7 @@ import { after } from "./teardown.mjs";
 import { captureStdout } from "./server-output.mjs";
 import { waitFor } from "./wait.mjs";
 import { createLocalClient } from "../../dist/local.js";
+import { prepareClient } from "../../dist/client-start.js";
 import { processDevice } from "../../dist/native.js";
 import { memoryPersistence, webDevice } from "../../dist/web.js";
 import { acquisition } from "../../dist/acquisition.js";
@@ -85,14 +86,14 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
   // Keep the seed log intact: the first unit's pin, not fixture surgery, must
   // prevent historical join expansion from bypassing the priority walk.
   const persist = memoryPersistence(), deviceDir = join(directory, "device"); mkdirSync(deviceDir);
-  let core, online = true, allow = false, intercept, interceptSchema, onApply, advertised = !legacy;
+  let core, online = true, allow = false, intercept, interceptSchema, interceptQuery, onApply, advertised = !legacy;
   const requests = [], pages = [], applies = [], queries = [], order = [];
   let inflight = 0, maxInflight = 0;
-  const open = async () => {
+  const open = async (defer = false) => {
     const opener = tier === "wasm" ? webDevice({ wasm, persist }) : processDevice({ binary, dir: deviceDir,
       spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }),
       writeFile: async (path, text) => writeFileSync(path, text) });
-    const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
+    const options = { url, persona: "alice", waitSeconds: 1,
       device: { open: async (...args) => {
         core = await opener.open(...args);
         const call = core.call.bind(core);
@@ -113,7 +114,11 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
           const response = await interceptSchema();
           if (response) return response;
         }
-        if (path.startsWith("/q/")) queries.push(path);
+        if (path.startsWith("/q/")) {
+          queries.push(path);
+          const response = await interceptQuery?.(input, init);
+          if (response) return response;
+        }
         if ((path === "/schema" || path === "/") && !advertised) {
           const json = await fetch(input, init).then(r => r.json());
           if (json.device_compatibility) delete json.device_compatibility.advertised;
@@ -135,8 +140,10 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
         if (path.startsWith("/m/")) order.push("write");
         return fetch(input, init);
       },
-    });
-    clients.push(client); return client;
+    };
+    const prepared = defer ? await prepareClient(options, () => createLocalClient(options)) : undefined;
+    const client = prepared?.client ?? await createLocalClient(options);
+    clients.push(client); return prepared ?? client;
   };
   const state = async () => { const r = await core.call({ op: "sync_state", capture: false }); assert.equal(r.denied, undefined); return r.ok; };
   const raw = async (name, args) => (await core.call({ op: "query", name, args, viewer: "dev:alice", now: Date.now() })).ok;
@@ -158,5 +165,6 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
     online: value => { online = value; }, allow: value => { allow = value; }, advertise: value => { advertised = value; },
     intercept: callback => { intercept = callback; }, onApply: callback => { onApply = callback; },
     interceptSchema: callback => { interceptSchema = callback; },
+    interceptQuery: callback => { interceptQuery = callback; },
     core: () => core, maxInflight: () => maxInflight };
 }

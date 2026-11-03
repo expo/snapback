@@ -111220,3 +111220,32 @@ The exact checks, all summaries, and sandbox limitations are in the
 [round-5 report](./reports/20261102-progressive-history-reviews/fix-r5/REPORT.md).
 No new wire field, coverage fact, watermark, device-format change, contract
 change, wasm build or budget change. The supervisor owns committing this work.
+
+
+### 2026-11-03 — progressive history: landing battery fix round 6
+
+The horizonless walk now declares delivered-history Held groups at table
+completion, including empty inherited child families. Their full-acquisition
+prediction and retention behavior matches the legacy snapshot; inherited tables
+still receive no early whole-table fact. Both-store regressions reproduced
+unpredictable upsert and reused-parent deletion before this server fix.
+
+A foreign-store acquire request resets the old cut as well as its cursor, so
+identity observation can retire the walk and stage replacement even when the
+new head is lower. A zero-head cold pin's ordinary drain now follows the same
+inline oversized-commit replacement path. Progressive counts preserve special
+table names with a null-prototype map. Sign-out and close reset partial counts
+even when the acquired Boolean never changed; an in-flight sign-out witness
+covers the raw client, beside the browser witness.
+
+Legacy snapshot timing assertions now select their negotiated acquisition
+counterparts. Pending-id tests retain their atomic-group fixture and add a
+horizonless paged fixture, subscribing before startup to observe every terminal
+notification between units. The published 0.2.33 control validates the additive
+advertisement separately from unchanged schema/program bytes and version gates.
+No witness is pinned to legacy by withholding the advertisement in this round.
+
+Commands, failing-before evidence, final results, browser inspection and blocked
+sandbox checks are recorded in the [round-6 report](./reports/20261102-progressive-history-reviews/fix-r6/REPORT.md).
+No contract reshape, new watermark, device coverage fact, wasm build, budget
+change, commit or publication. The supervisor owns the landing.

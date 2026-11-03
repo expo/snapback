@@ -424,10 +424,11 @@ export function localRuntime(env: LocalRuntimeContext) {
             env.acquisitionWalk.reset(); env.partitionDenied = null;
             continue;
           }
-          if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
+          if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp || acquisitionRequest?.stream)) {
             // Restart at the reduced limit without adopting the refusal's watermark; snapshots can split commits.
             watermark = 0; after = undefined; catchingUp = false;
-            restartingSnapshot = true;
+            // @ref LLP 3000.001.001#64-re-acquisition-stays-staged-in-the-first-increment — a cold pin at zero still owns an ordinary drain; discard that request when entering replacement.
+            restartingSnapshot = true; acquisitionRequest = undefined;
             env.partitionDenied = null;
             continue;
           }

@@ -42,6 +42,23 @@ test("progress reports published usable facts, revocation, and received row imag
   assert.equal(read().usable.groups, 0); assert.equal(read().acquired, false);
 });
 
+test("progressive counts keep special table names numeric across deferral and reset", () => {
+  const progress = acquisitionProgress(), client = {};
+  progress.bind(client); const read = acquisition(client).read;
+  const events = ['constructor', '__proto__', '$ownKeys:likes'].map(table => ({kind:'put', table}));
+  progress.page({acquire:{}, events}, true, false);
+  assert.equal(read().rows, 0);
+  progress.page({events:[]}, false, true);
+  progress.page({acquire:{}, events}, false, true);
+  assert.equal(Object.getPrototypeOf(read().tables), null);
+  assert.equal(read().rows, 6);
+  for (const {table} of events) { assert.ok(Object.hasOwn(read().tables, table)); assert.equal(read().tables[table], 2); }
+  progress.usable({acquired_tables:['constructor'],floored_groups:1});
+  progress.page({acquire:{},events}, false, false);
+  progress.reset(); progress.page({events:[]}, false, true);
+  assert.deepEqual(read(), {acquired:false,rows:0,tables:Object.create(null),usable:{tables:0,groups:0}});
+});
+
 test("bounded drain turns never bypass deferred publication or a replacement fence", () => {
   const walk = new LocalAcquisition();
   walk.request(compatible, state0, [], false);

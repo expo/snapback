@@ -70,8 +70,10 @@ fn exercise(reader: bool) {
     let bad = host.request("POST", "/sync", &headers, r#"{"acquire":{"cursor":"bad"}}"#);
     assert_eq!(status(&bad), 400);
     let replaced = host.request("POST", "/sync", &headers,
-        r#"{"store_id":"replaced","acquire":{"cursor":"bad","skip":[{"table":"items","group":[]}]}}"#);
+        r#"{"from":999,"store_id":"replaced","acquire":{"cursor":"bad","skip":[{"table":"items","group":[]}]}}"#);
+    assert_eq!(status(&replaced), 200, "{replaced}");
     assert_eq!(body(&replaced)["acquire"]["exhausted"], true, "old-store cursor and skip set are discarded");
+    assert_eq!(body(&replaced)["watermark"], committed["seq"], "the old store's watermark is discarded too");
     for request in [json!({"acquire": {"cursor": null, "extra": true}}),
         json!({"acquire": {"cursor": null, "skip": vec![json!({"table":"items","group":[]}); 33]}}),
         json!({"after": "legacy", "acquire": {"cursor": null}})] {

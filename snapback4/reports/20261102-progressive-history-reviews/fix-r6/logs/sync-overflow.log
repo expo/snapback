@@ -1,0 +1,42 @@
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (33.360834ms)
+  ✔ stream overflow preserves generation and store identity (76.776958ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (75.506ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (1977.109083ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (1951.328458ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (628.713958ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (539.083875ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (9139.768875ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (646.9945ms)
+  ✔ process replaces the old store before shrinking (651.467459ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (2077.170209ms)
+✔ wasm a new replica recovers its oversized first commit (1172.455459ms)
+ℹ {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ process a new replica recovers its oversized first commit (1123.200667ms)
+ℹ {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (2523.347542ms)
+✔ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (2367.899208ms)
+✔ wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (6081.229167ms)
+✔ process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (4593.834625ms)
+✔ wasm: many ordinary commits recover by halving without snapshot (2063.922292ms)
+✔ process: many ordinary commits recover by halving without snapshot (2061.024875ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm a snapshot continuation overflow keeps its cursor and terminates at limit one (211.62ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process a snapshot continuation overflow keeps its cursor and terminates at limit one (221.008875ms)
+✔ wasm bare refusals retain held rows beyond the horizon and allow a later sync retry (218.181ms)
+✔ process bare refusals retain held rows beyond the horizon and allow a later sync retry (211.946625ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34188.45225

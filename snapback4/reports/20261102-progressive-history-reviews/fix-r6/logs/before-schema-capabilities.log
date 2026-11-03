@@ -1,0 +1,103 @@
+✔ published 0.2.33 capability fence: timeline-v2 (1498.04075ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ timeline-v2 initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-3JC8uA/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 9391
+ℹ timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ timeline-v2 stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-3JC8uA/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    2 problems (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-3JC8uA/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 69 B (1 rows) · indexes 56 B · log 83 B (1 events, 1.2× rows) · ops 0 B · file 220.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 503
+  types     generated
+  not ok in 1.4 ms 
+ℹ timeline-v2: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: recorded-attribution (930.339958ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ recorded-attribution initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-ykd7KC/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 4187
+ℹ recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ recorded-attribution stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-ykd7KC/prior
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    1 problem (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-ykd7KC/prior/.snapback4/store.sqlite at seq 1, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 56 B (1 rows) · indexes 9 B · log 67 B (1 events, 1.2× rows) · ops 0 B · file 208.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1081
+  types     generated
+  not ok in 1.3 ms 
+ℹ recorded-attribution: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 capability fence: maintained-column (1128.676083ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ maintained-column initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-H2tFH3/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3196
+ℹ maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+ℹ maintained-column stored-engine refusal: snapback4 0.2.33
+  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-H2tFH3/candidate
+  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>
+  schema    2 problems (`snapback4 check`)
+  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-H2tFH3/candidate/.snapback4/store.sqlite at seq 2, generation 2
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+  storage   rows 78 B (1 rows) · indexes 9 B · log 89 B (1 events, 1.1× rows) · ops 0 B · file 212.0 KB
+  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1101
+  types     generated
+  not ok in 1.4 ms 
+ℹ maintained-column: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+✔ published 0.2.33 list minimum fence: argument (416.652667ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+✔ published 0.2.33 list minimum fence: column (394.256208ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+✔ published 0.2.33 list minimum fence: nested (395.511459ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+✔ Linux schema-byte fixture is the published capability-free control source (0.276459ms)
+✖ published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version (1051.107584ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+ℹ published 0.2.33 left an empty serve.lock (mode 644) and no other release change
+ℹ published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes
+✔ RV publication allowance is confined to commit evidence (4.0765ms)
+✔ published answer comparison admits only neutral additive metadata (0.670875ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5861.874208
+
+✖ failing tests:
+
+test at packages/snapback4/test/schema-capabilities.test.mjs:332:1
+✖ published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version (1051.107584ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   advertised: [
+  +     'progressive-acquisition-v1'
+  +   ],
+      capabilities: [
+        'sync-generation-v1'
+      ],
+      minimum_version: '0.4.24',
+      server_version: '0.4.52'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/schema-capabilities.test.mjs:427:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { advertised: [ 'progressive-acquisition-v1' ], capabilities: [ 'sync-generation-v1' ], minimum_version: '0.4.24', server_version: '0.4.52' },
+    expected: { capabilities: [ 'sync-generation-v1' ], minimum_version: '0.4.24', server_version: '0.4.52' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
+import { prepareClient } from "../dist/client-start.js";
 import { createClient } from "../dist/client.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { processDevice } from "../dist/native.js";
@@ -38,10 +39,10 @@ query items():
   return items[] first 1000 by byId
 `;
 
-async function host(t, flags = []) {
+async function host(t, flags = [], paged = false) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-transport-"));
   mkdirSync(join(dir, "snapback"));
-  writeFileSync(join(dir, "snapback/schema.q"), source);
+  writeFileSync(join(dir, "snapback/schema.q"), paged ? source.replace('sync public last 1000 by byId', 'sync public') : source);
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(child);
   const exited = once(child, "exit");
@@ -130,14 +131,16 @@ test("sync request-line boundaries and a deliberate body ceiling", { timeout: ha
 
 // Each boundary owns its server and queue. These are protocol assertions;
 // concurrent queues otherwise spend the timeout contending during replay.
-for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for (const recovery of (count === 256 ? ["automatic", "explicit sync"] : ["automatic"])) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement (${recovery})`, { timeout: hangBudget(16) }, async t => {
-  const f = await host(t);
+for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for (const recovery of (count === 256 ? ["automatic", "explicit sync"] : ["automatic"])) for (const paged of [false, true]) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement (${recovery}, ${paged ? 'paged table' : 'atomic group'})`, { timeout: hangBudget(16) }, async t => {
+  // A horizon group is now indivisible. Keep that original case and also walk
+  // the identical rows horizonless to exercise pending batches across cursors.
+  const f = await host(t, [], paged);
   // The final case also has a tail beyond sync_state's 256-id window.
   const ids = Array.from({ length: count + (count === 256 ? 17 : 0) }, (_, n) => `${tier}-${count}-${n}`.padEnd(128, "x"));
   const device = f.opener(tier, `boundary-${count}`);
   let core, client;
-  const receipts = new Set(), ordinaryReceipts = new Set(), terminal = new Map(), pendingSizes = [], cursors = [];
-  client = await createLocalClient({ url: f.url, persona: "alice", device: {
+  const receipts = new Set(), ordinaryReceipts = new Set(), terminal = new Map(), pendingSizes = [], cursors = [], acquired = [];
+  const options = { url: f.url, persona: "alice", device: {
     async open(...args) {
       core = await device.open(...args);
       t.after(() => { if (!client) return core.close(); });
@@ -165,19 +168,26 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for 
     assert.equal(new URL(input).search, "");
     const body = JSON.parse(init.body);
     pendingSizes.push(body.pending.length);
-    if (body.after) cursors.push(body.after);
+    assert.ok(body.pending.length <= 256);
+    if (body.after || body.acquire?.cursor) cursors.push(body.after ?? body.acquire.cursor);
     const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit: 7 }) });
     const page = await response.clone().json();
     assert.equal(response.status, 200, JSON.stringify(page));
     assert.equal(page.denied, undefined);
+    if (page.acquire) acquired.push(page);
     for (const id of Object.keys(page.acknowledged)) receipts.add(id);
     return response;
-  } });
+  } };
+  // Progressive pages can settle receipts between units, before awaited open
+  // returns. Subscribe on the prepared handle before starting acquisition.
+  const prepared = await prepareClient(options, () => createLocalClient(options));
+  client = prepared.client;
   f.clients.push(client);
   client.onWrite(write => {
     assert.equal(write.state, "sent");
     terminal.set(write.id, (terminal.get(write.id) ?? 0) + 1);
   });
+  await prepared.start();
   // Shared FIFO settlement can replay the whole tail before its next sync.
   // Fence replay and explicitly sync after retirement advances the id window.
   // Settling up to 273 receipts is real work on the wasm store. Allow it the
@@ -187,7 +197,8 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for 
     return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
   });
   assert.equal(pendingSizes[0], count);
-  assert.ok(cursors.length >= 5, "the real snapshot continues across six batches");
+  if (paged) assert.ok(cursors.length >= 5, "the real table walk continues across six batches");
+  else { assert.equal(acquired.length, 1); assert.equal(acquired[0].events.length, 37); assert.equal(acquired[0].acquire.exhausted, true); }
   assert.deepEqual([...new Set([...receipts, ...ordinaryReceipts])].sort(), [...ids].sort(), "every id has a server acknowledgement, including the tail");
   if (recovery === "explicit sync") assert.ok(ids.slice(256).some(id => receipts.has(id)), "sync acknowledgements advance beyond the first pending window");
   assert.ok([...terminal.values()].every(n => n === 1), "one terminal event per queued write");

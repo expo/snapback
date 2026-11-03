@@ -46,7 +46,8 @@ async function fixture(t) {
     } };
   } }, async fetch(input, init) {
     const path = new URL(input).pathname;
-    if (path === '/sync' && JSON.parse(init.body).stream) {
+    // @ref LLP 3000.001.001#61-the-acquisition-page — block before the first progressive publication; its following drain no longer owns the cold publication barrier.
+    if (path === '/sync' && (JSON.parse(init.body).acquire || JSON.parse(init.body).stream)) {
       catchups++;
       if (blocked) await Promise.race([barrier, new Promise((_, reject) => {
         if (init.signal.aborted) reject(init.signal.reason);
@@ -69,7 +70,7 @@ async function fixture(t) {
   const prepared = await prepareClient(options, () => createLocalClient(options));
   const client = prepared.client, acquiring = prepared.start();
   t.after(async () => { blocked = false; released(); await client.close(); await acquiring; await online.close(); });
-  await until(() => catchups === 1, 'snapshot staged and catch-up blocked');
+  await until(() => catchups === 1, 'first acquisition publication blocked');
   const observed = client.observe(history, {});
   const unsubscribe = observed.subscribe(() => {});
   t.after(() => { unsubscribe(); observed.close(); });

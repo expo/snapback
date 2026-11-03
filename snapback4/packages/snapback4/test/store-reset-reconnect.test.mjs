@@ -75,7 +75,7 @@ async function fixture(t, kind = "wasm", waitSeconds = 25, watch = false) {
         }
         if (parsed.pathname === "/sync") {
           const body = JSON.parse(init.body);
-          if (body.after && holdAfter) { const wait = holdAfter; holdAfter = null; nextAfter.resolve(body); await wait.promise; }
+          if ((body.after || body.acquire?.cursor) && holdAfter) { const wait = holdAfter; holdAfter = null; nextAfter.resolve(body); await wait.promise; }
           const response = await fetch(input, { ...init, body: JSON.stringify({ ...body, limit: 2 }) });
           pages.push({ request: body, reply: await response.clone().json() }); return response;
         }
@@ -146,14 +146,14 @@ for (const kind of ["wasm", "process"]) test(`R2 item 4: ${kind} replacement whi
   const f = await fixture(t, kind); await f.seed("A", 5);
   const barrier = f.holdPage(), opening = f.open();
   const request = await barrier.entered;
-  assert.ok(request.after); assert.ok(request.store_id);
+  assert.ok(request.acquire?.cursor); assert.ok(request.store_id);
   await f.start(); await f.seed("B", 3); barrier.release();
   const client = await opening;
   await client.sync(); const read = await client.query(op, {});
   assert.ok(current(read), JSON.stringify(read));
-  assert.ok(f.pages.some(page => page.request.after && page.request.store_id !== page.reply.store_id), "B received A's actual continuation");
+  assert.ok(f.pages.some(page => page.request.acquire?.cursor && page.request.store_id !== page.reply.store_id), "B received A's actual acquire continuation");
   assert.equal((await f.core.call({ op: "state" })).ok.watermark, 3);
-  t.diagnostic(`${kind}: A staged rows=2/5, B final rows=${read.data.length}, old rows=${read.data.filter(row => row.body === "A").length}`);
+  t.diagnostic(`${kind}: A published rows=2/5, B final rows=${read.data.length}, old rows=${read.data.filter(row => row.body === "A").length}`);
 });
 
 test("R2 item 3: restoring the same store at a lower head halts reads and retries", { timeout: hangBudget(28) }, async t => {

@@ -1,0 +1,78 @@
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (22.781333ms)
+  ✔ stream overflow preserves generation and store identity (58.585ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (51.852125ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (1334.416459ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (1321.258083ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (458.04475ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (414.186958ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (6413.163792ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (519.621167ms)
+  ✔ process replaces the old store before shrinking (515.214875ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (1669.588084ms)
+✔ wasm a new replica recovers its oversized first commit (874.577541ms)
+ℹ {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ process a new replica recovers its oversized first commit (954.397125ms)
+ℹ {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✖ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (212.402917ms)
+✖ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (193.675584ms)
+✔ wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (3682.032625ms)
+✔ process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (3610.625542ms)
+✔ wasm: many ordinary commits recover by halving without snapshot (1369.118417ms)
+✔ process: many ordinary commits recover by halving without snapshot (1331.777916ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm a snapshot continuation overflow keeps its cursor and terminates at limit one (216.73775ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process a snapshot continuation overflow keeps its cursor and terminates at limit one (208.061917ms)
+✔ wasm bare refusals retain held rows beyond the horizon and allow a later sync retry (236.647167ms)
+✔ process bare refusals retain held rows beyond the horizon and allow a later sync retry (205.266042ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 21
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21265.346791
+
+✖ failing tests:
+
+test at packages/snapback4/test/sync-overflow.test.mjs:239:41
+✖ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (212.402917ms)
+  AssertionError [ERR_ASSERTION]: the real catch-up overflows at zero, with catchingUp true
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/sync-overflow.test.mjs:253:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/sync-overflow.test.mjs:239:41
+✖ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (193.675584ms)
+  AssertionError [ERR_ASSERTION]: the real catch-up overflows at zero, with catchingUp true
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/sync-overflow.test.mjs:253:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

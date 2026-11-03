@@ -406,7 +406,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let acquired = false;
   const acquiredListeners = new Set<(value: boolean) => void>();
   function setAcquired(value: boolean) {
-    if (value) progress.acquired(true); else if (acquired) progress.reset();
+    // @ref LLP 3000.001.001#7-authority-retention-writes-and-observation-continuity — ending a partial walk clears identity-bound progress even though acquired never became true.
+    if (value) progress.acquired(true); else if (acquired || closed || sessionDead) progress.reset();
     if (coreReady && !coreFailure && !sessionDead && !closed && !acquisitionWalk.failure) localState.set({ state: value ? "ready" : "syncing", executable: true, acquired: value });
     if (acquired === value) return;
     acquired = value;

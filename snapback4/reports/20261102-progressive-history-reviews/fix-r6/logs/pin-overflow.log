@@ -1,0 +1,28 @@
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✖ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (123495.9325ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✖ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (124657.950417ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 248240.516
+
+✖ failing tests:
+
+test at packages/snapback4/test/sync-overflow.test.mjs:239:41
+✖ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (123495.9325ms)
+  Error: TEST_HANG: the healthy change poll did not start; 1 work unit(s), 122001 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/sync-overflow.test.mjs:239:41
+✖ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (124657.950417ms)
+  Error: TEST_HANG: the healthy change poll did not start; 1 work unit(s), 122003 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

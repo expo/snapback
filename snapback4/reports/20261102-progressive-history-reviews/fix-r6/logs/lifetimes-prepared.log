@@ -1,0 +1,47 @@
+✖ compiled special-table walk clears partial counts on sign-out (1368.299167ms)
+✔ multi-page special-table walk counts every row and reopens complete offline (3177.067875ms)
+✔ blocked progressive publication keeps watch lifetime: none (1845.211333ms)
+✔ blocked progressive publication keeps watch lifetime: 503 (2093.367584ms)
+✔ blocked progressive publication keeps watch lifetime: prediction (2286.187375ms)
+✔ blocked progressive publication keeps watch lifetime: expiry (2016.051875ms)
+✔ blocked progressive publication keeps watch lifetime: unwatch (1578.465666ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14496.868791
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-lifetimes.test.mjs:18:1
+✖ compiled special-table walk clears partial counts on sign-out (1368.299167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      acquired: false,
+  +   rows: 2,
+  +   tables: [Object: null prototype] {
+  +     constructor: 2
+  +   },
+  -   rows: 0,
+  -   tables: [Object: null prototype] {},
+      usable: {
+        groups: 0,
+        tables: 0
+      }
+    }
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-lifetimes.test.mjs:28:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { acquired: false, rows: 2, tables: { constructor: 2 }, usable: { tables: 0, groups: 0 } },
+    expected: { acquired: false, rows: 0, tables: {}, usable: { tables: 0, groups: 0 } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
