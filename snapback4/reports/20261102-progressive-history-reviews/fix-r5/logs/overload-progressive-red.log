@@ -1,0 +1,46 @@
+✖ saved web partial walk opens connected during schema overload and later resumes (5528.979417ms)
+✖ saved web complete walk opens connected during schema overload and later resumes (4426.250042ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10032.241
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-recovery.test.mjs:12:39
+✖ saved web partial walk opens connected during schema overload and later resumes (5528.979417ms)
+  AssertionError [ERR_ASSERTION]: opening does not repeat the exhausted schema retry sequence
+  
+  8 !== 4
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-recovery.test.mjs:26:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 8,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/progressive-recovery.test.mjs:12:39
+✖ saved web complete walk opens connected during schema overload and later resumes (4426.250042ms)
+  AssertionError [ERR_ASSERTION]: opening does not repeat the exhausted schema retry sequence
+  
+  8 !== 4
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/progressive-recovery.test.mjs:26:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 8,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

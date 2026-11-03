@@ -290,7 +290,8 @@ export function localRuntime(env: LocalRuntimeContext) {
           if (env.versionBlocked() || captured.denied) return false;
           const { generation: capturedGeneration, pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { generation: number; pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { env.refuseRestore(restore_refusal); return false; }
-          if (!env.compatibilityKnown && progressiveState(captured.ok) && !progressiveState(captured.ok)?.replacement_required) {
+          // @ref LLP 3000.001.001#9-scope-compatibility-and-costs — only an unfinished walk needs negotiation; an acquired saved partition can use the ordinary stream without another schema fetch.
+          if (!env.compatibilityKnown && progressiveState(captured.ok)?.acquired === false && !progressiveState(captured.ok)?.replacement_required) {
             const metadata = await loadBackend(env.doFetch, env.base, env.requestCredentials().headers, env.aborter.signal);
             env.compatibility = metadata.device_compatibility; env.compatibilityKnown = true;
           }
@@ -324,8 +325,8 @@ export function localRuntime(env: LocalRuntimeContext) {
           page.captured_acquisition = acquisition?.acquire ? progressiveState(captured.ok)?.adoption_capture : undefined;
           pageRevision = request.revision;
         } catch (error) {
-          env.transportFailure = transportRefusal(error);
-          env.setLink("offline");
+          env.transportFailure = error instanceof BackendRefusalError ? error.denied : transportRefusal(error);
+          env.setLink(overloaded(env.transportFailure) ? "online" : "offline");
           return false;
         }
         if (env.closed || env.versionBlocked() || pageIncarnation !== env.incarnation || pageRevision !== env.credentialRevision) return false;

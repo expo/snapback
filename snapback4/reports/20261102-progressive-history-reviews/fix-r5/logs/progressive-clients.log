@@ -1,0 +1,76 @@
+✔ scheduler negotiates both peers and drains a same-watermark deferred page after reopen (1.159625ms)
+✔ progress reports published usable facts, revocation, and received row images independently (0.275042ms)
+✔ bounded drain turns never bypass deferred publication or a replacement fence (0.147291ms)
+✔ process: online fallback renders during acquisition and older pages do not enlarge the replica (1446.070041ms)
+✔ process: cold pin skips historical joins and publishes tier 1 then the hinted group (2314.55675ms)
+✔ process: one explicit cold sync resolves acquired with every table whole and group floored (305.785708ms)
+✔ process: a join committed after the pin still expands and becomes usable (2327.669333ms)
+✔ process: tier 1 inbox survives offline reopen before any history is usable (2344.761083ms)
+✔ process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2365.251584ms)
+✔ process: revocation during acquisition withdraws usable group (until-revoked) (3447.344917ms)
+✔ process: revocation during acquisition withdraws usable group (delivered) (3492.100833ms)
+✔ process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1969.867833ms)
+✔ process: old server uses legacy snapshots without any acquire request (334.576333ms)
+✔ process: old device uses legacy snapshots without any acquire request (357.824666ms)
+✔ process: a partial walk reopens against an old server through staged replacement (422.554292ms)
+✔ process: interrupted legacy snapshot reopens against an advertising server through staging (1385.737625ms)
+✔ wasm: online fallback renders during acquisition and older pages do not enlarge the replica (1395.309458ms)
+✔ wasm: cold pin skips historical joins and publishes tier 1 then the hinted group (2339.817416ms)
+✔ wasm: one explicit cold sync resolves acquired with every table whole and group floored (399.341917ms)
+✔ wasm: a join committed after the pin still expands and becomes usable (2300.753625ms)
+✔ wasm: tier 1 inbox survives offline reopen before any history is usable (2409.243125ms)
+✔ wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful (2325.455625ms)
+✔ wasm: revocation during acquisition withdraws usable group (until-revoked) (3396.160542ms)
+✔ wasm: revocation during acquisition withdraws usable group (delivered) (3360.840292ms)
+✔ wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion (1867.733917ms)
+✔ wasm: old server uses legacy snapshots without any acquire request (297.657333ms)
+✔ wasm: old device uses legacy snapshots without any acquire request (317.565166ms)
+✔ wasm: a partial walk reopens against an old server through staged replacement (1409.765958ms)
+✔ wasm: interrupted legacy snapshot reopens against an advertising server through staging (1395.996042ms)
+﹣ browser React hooks and IndexedDB close/reopen (0.124ms) # not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+✔ packed scheduler remembers every served group and retains the 32-entry cap (0.225292ms)
+✔ process: packed pages publish usable counts for every unit together (2336.890958ms)
+✔ wasm: packed pages publish usable counts for every unit together (2426.357125ms)
+✔ process: tier-1 heap stops are ordinary cursor progress through explicit sync (2608.229542ms)
+✔ process: a heap-bound acquisition row recovers through staged replacement (4965.7015ms)
+✔ wasm: tier-1 heap stops are ordinary cursor progress through explicit sync (2446.201458ms)
+✔ wasm: a heap-bound acquisition row recovers through staged replacement (4596.198833ms)
+✔ process: inbox milestone waits for the last rule dependency and survives offline reopen (3421.8945ms)
+file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15
+const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
+                          ^
+
+Error: TEST_SIGNAL_REFUSED: cannot build Darwin identity inspector: TEST_COMMAND_INSPECTION: ps failed: spawn EPERM
+    at refusal (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:15:27)
+    at buildDarwinProbe (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:22:48)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/scripts/test-signals.mjs:179:44
+
+Node.js v24.18.0
+✖ packages/snapback4/test/progressive-ephemeral.test.mjs (192.469667ms)
+✔ saved web partial walk opens connected during schema overload and later resumes (8516.972542ms)
+✔ saved web complete walk opens connected during schema overload and later resumes (2678.376375ms)
+✔ explicit acquisition propagates a rejected first network turn (0.539209ms)
+✔ explicit acquisition propagates a rejected later network turn (0.079417ms)
+✔ process: progressive owner-key proof survives offline reopening (1305.846958ms)
+✔ process: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (598.265375ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process: failure of even one-row replacement surfaces once after acquire overflow (1250.664125ms)
+✔ wasm: progressive owner-key proof survives offline reopening (1294.115834ms)
+✔ wasm: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (396.599084ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm: failure of even one-row replacement surfaces once after acquire overflow (1133.162083ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 47
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 86274.768333
+
+✖ failing tests:
+
+test at packages/snapback4/test/progressive-ephemeral.test.mjs:1:1
+✖ packages/snapback4/test/progressive-ephemeral.test.mjs (192.469667ms)
+  'test failed'

@@ -85,7 +85,7 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
   // Keep the seed log intact: the first unit's pin, not fixture surgery, must
   // prevent historical join expansion from bypassing the priority walk.
   const persist = memoryPersistence(), deviceDir = join(directory, "device"); mkdirSync(deviceDir);
-  let core, online = true, allow = false, intercept, onApply, advertised = !legacy;
+  let core, online = true, allow = false, intercept, interceptSchema, onApply, advertised = !legacy;
   const requests = [], pages = [], applies = [], queries = [], order = [];
   let inflight = 0, maxInflight = 0;
   const open = async () => {
@@ -109,6 +109,10 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
         if (!online) throw new TypeError("offline witness");
+        if (path === "/schema" && interceptSchema) {
+          const response = await interceptSchema();
+          if (response) return response;
+        }
         if (path.startsWith("/q/")) queries.push(path);
         if ((path === "/schema" || path === "/") && !advertised) {
           const json = await fetch(input, init).then(r => r.json());
@@ -153,5 +157,6 @@ export async function fixture(t, tier, { legacy = false, oldDevice = false, reta
   return { open, backend, post, state, raw, through, requests, pages, applies, queries, order, groups,
     online: value => { online = value; }, allow: value => { allow = value; }, advertise: value => { advertised = value; },
     intercept: callback => { intercept = callback; }, onApply: callback => { onApply = callback; },
+    interceptSchema: callback => { interceptSchema = callback; },
     core: () => core, maxInflight: () => maxInflight };
 }

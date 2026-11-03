@@ -111196,3 +111196,27 @@ The last blind-review defect (a never-before-held delivered-history group joined
 ### 2026-11-03 — progressive acquisition: the landing battery's reds, and the final web device measurement
 
 The broad affected battery (all 491 client files) found what the targeted suites had not: on the native store the cold-pin validation scanned every schema table, so any schema with an ephemeral table refused its first unit and the device never acquired (b03f265d58 scopes the scan to synced tables; `progressive-ephemeral.test.mjs`). Fix round 4 then root-caused the remaining reds: awaited opening now drives the walk to completion (`createLocalClient` returns acquired, as with the snapshot); an acquire request shrinks its HTTP page limit on the same cursor and an indivisible `E_BOUND` falls back to the staged replacement instead of latching; a required replacement is discovered through `/sync` so an upgrade restore halts follow and flush; a delayed progressive page from a superseded owner is refused at the same watermark on both stores. Two witnesses that fabricate legacy snapshot continuations are pinned to the legacy path, stated per case. `local.ts` was split (1,487 lines) with the sync loop in `local-runtime.ts` (862) and the delivery await seal regenerated honestly (216 classified sites). Pre-existing on the base commit, not this lane: `dx12-serve` "serve shutdown failure cannot earn success". Final web device after these fixes: 2,450,051 B raw / 749,031 B gzip (base 2,416,839 / 737,887; +33,212 raw / +11,144 gzip); `metrics/wasm-budget.json` = 749,531 B (measured + exactly 500), superseding the 748,845 figure above.
+
+
+### 2026-11-03 — progressive history: landing battery fix round 5
+
+The progressive walk now declares the owner-key principal through the existing
+`joined` field when its horizonless projection finishes, including an empty
+projection. The device already publishes fresh joined groups as Held in the
+same transaction. Maintained tables still gain no early whole-table fact;
+owner-key queries retain full-acquisition admission and caller isolation.
+The previous walk omitted the legacy snapshot's Held declaration, so a fully
+acquired owner-key miss remained unknown. The new regression reproduced that
+on memory and SQLite before the fix and passes after it, including reopen.
+
+Saved-backend opening no longer repeats an exhausted schema retry sequence
+before returning usable data. An acquired replica uses the ordinary stream
+without rediscovering acquisition capabilities; unfinished background discovery
+preserves typed overload as connected. New web regressions reproduced eight
+schema attempts instead of four on both complete and partial saved stores,
+then passed after the fix, including resumption when overload clears.
+
+The exact checks, all summaries, and sandbox limitations are in the
+[round-5 report](./reports/20261102-progressive-history-reviews/fix-r5/REPORT.md).
+No new wire field, coverage fact, watermark, device-format change, contract
+change, wasm build or budget change. The supervisor owns committing this work.

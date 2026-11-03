@@ -111,6 +111,64 @@ fn e_backend(e: &snapback4_core::Engine, source: &str) -> snapback4_device::devi
 #[test] fn sqlite() { exercise(&mut Sqlite::new("owner-keys")); }
 #[test] fn memory() { exercise(&mut Memory::new()); }
 
+// @ref LLP 3000.001.001#9-scope-compatibility-and-costs — the progressive walk must preserve owner-key proof without granting maintained tables early whole coverage.
+fn progressive<H: Host>(host: &mut H) {
+    for empty in [false, true] {
+        let (mut engine, backend) = compile(SOURCE);
+        if !empty {
+            engine.seed([row("own1", "old", "alice", 1), row("own2", "old2", "alice", 2),
+                row("new1", "new1", "bob", 3), row("new2", "new2", "bob", 4)]).unwrap();
+        }
+        let name = if empty { "progressive-empty" } else { "progressive-keys" };
+        let mut device = host.open(name, Some(backend)).unwrap();
+        let mut declared = false;
+        while !device.sync_state_read().unwrap().acquisition_exhausted {
+            let state = device.sync_state().unwrap();
+            let page = engine.acquisition_page_at("alice", state.acquisition_cursor.as_deref(), None,
+                &[], state.transfer_watermark, 1, 100, &state.pending_ids).unwrap();
+            let events: Vec<_> = page.page.events.iter().map(|event| json!({"table":event.table,
+                "kind":event.kind,"id":event.id,"data":event.data.as_ref().map(snapback4_core::wire::to_json)})).collect();
+            assert!(!page.acquire.whole_tables.iter().any(|table| table == "$ownKeys:likes"));
+            if let Some(groups) = page.page.joined.get("$ownKeys:likes") {
+                assert_eq!(groups, &vec![vec![json!("alice")]]);
+                assert!(!declared, "declare the owner only once its table finishes");
+                declared = true;
+            }
+            let page = serde_json::from_value(json!({"snapshot":false,"events":events,"joined":page.page.joined,
+                "acquisitions":page.page.acquisitions,"acquire":page.acquire,"watermark":page.page.watermark,
+                "more":page.page.more,"images_at":page.page.images_at,"now":100,
+                "acknowledged":page.acknowledged,"committed_above":page.committed_above,
+                "requested_watermark":state.transfer_watermark,"captured_watermark":state.watermark,
+                "send_revision":state.send_revision,"pending_through":state.pending_through,
+                "pending_complete":state.pending_complete,"pending_bound":state.pending_bound})).unwrap();
+            device.apply(&page, false).unwrap();
+            host.close(name, device);
+            device = host.open(name, None).unwrap();
+            if !device.sync_state_read().unwrap().acquired {
+                assert!(device.query("own", "alice", &json!({"post":"missing"}), 100).is_err(),
+                    "maintained projections keep their full-acquisition admission gate");
+            }
+        }
+        let from = device.sync_state().unwrap().transfer_watermark;
+        device.apply(&stream_page(&mut engine, "alice", from), false).unwrap();
+        assert!(device.sync_state_read().unwrap().acquired);
+        // Check the answer before the declaration assertion so a missing marker
+        // reproduces the product's unknown absence rather than only a wire diff.
+        assert_eq!(state(&mut device, "missing"), (false, true));
+        assert_eq!(state(&mut device, "old"), (!empty, true));
+        assert!(declared, "even an empty owner partition needs Held membership");
+        host.close(name, device);
+        let mut device = host.open(name, None).unwrap();
+        assert_eq!(state(&mut device, "missing"), (false, true));
+        assert!(device.query_with_coverage("own", "bob", &json!({"post":"missing"}), 100).1,
+            "an aliased store never lends Alice's proof to Bob");
+        assert_eq!(state(&mut device, "missing"), (false, true));
+        host.close(name, device);
+    }
+}
+#[test] fn progressive_sqlite() { progressive(&mut Sqlite::new("progressive-owner-keys")); }
+#[test] fn progressive_memory() { progressive(&mut Memory::new()); }
+
 #[test]
 fn snapshot_and_catchup_payloads_never_disclose_another_owners_keys() {
     let (mut e, _) = compile(SOURCE);

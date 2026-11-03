@@ -1,0 +1,10 @@
+✔ saved web partial walk opens connected during schema overload and later resumes (8344.4965ms)
+✔ saved web complete walk opens connected during schema overload and later resumes (2625.375292ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11064.643625

@@ -1,0 +1,132 @@
+[
+  {
+    "command": "cat llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '280,610p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '610,800p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "cat snapback4/AGENTS.md snapback4/NOT-DOING.md /Users/ccheever/projects/snapback-ph-20261102/skills/llp-orient/SKILL.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "agents",
+    "command": "cat snapback4/AGENTS.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "not-doing",
+    "command": "sed -n '1,105p' snapback4/NOT-DOING.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "orientation",
+    "command": "cat rules/RULES.md\nrg -n 'Repair [AB]|^## |^### ' llp/3000.001-durable-replica-and-write-lifecycle.research.md\nsed -n '1,220p' llp/3000-snapback4.explainer.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "status",
+    "command": "git status --short\ngit branch --show-current\nrg --files snapback4 -g AGENTS.md\ncat snapback4/reports/20261102-progressive-history-reviews/fix-r4/REPORT.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "repairs",
+    "command": "sed -n '650,885p' llp/3000.001-durable-replica-and-write-lifecycle.research.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "context",
+    "command": "sed -n '65,210p' llp/3000-snapback4.explainer.md\nsed -n '1,160p' llp/2000.000-keep-the-core-flip-two-substrates.rfc.md\ntail -n 40 snapback4/JOURNAL.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "paths",
+    "command": "rg -n '3.4|^## ' llp/3000.028-one-query-online-or-offline.rfc.md\nrg -n 'held|history|whole_eligible' snapback4/crates/snapback4-core/src/partition/acquire.rs snapback4/crates/snapback4-device/src/device/acquisition.rs snapback4/crates/snapback4-core/src/partition/snapshot.rs\nrg -n 'saved web|waitSeconds|connected|kick' snapback4/packages/snapback4/test/overload.test.mjs snapback4/packages/snapback4/src/local.ts",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "acquire",
+    "command": "cat snapback4/crates/snapback4-core/src/partition/acquire.rs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "device",
+    "command": "sed -n '1,220p' snapback4/crates/snapback4-device/src/device/acquisition.rs\nsed -n '1,170p' snapback4/crates/snapback4-device/src/device/history.rs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "label": "startup",
+    "command": "sed -n '1135,1220p' llp/3000.028-one-query-online-or-offline.rfc.md\nsed -n '310,390p' snapback4/packages/snapback4/test/overload.test.mjs\nsed -n '1120,1240p' snapback4/packages/snapback4/src/local.ts",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '116,155p' snapback4/crates/snapback4-device/src/device/acquisition.rs\nsed -n '1,140p' snapback4/packages/snapback4/src/local-acquisition.ts\nsed -n '140,300p' snapback4/packages/snapback4/src/local-acquisition.ts\nsed -n '1,110p' snapback4/crates/snapback4-device/src/device/history.rs\nsed -n '1,52p' snapback4/crates/snapback4-core/src/partition/snapshot.rs\nsed -n '1,110p' snapback4/packages/snapback4/test/own-keys.test.mjs\nsed -n '1,130p' snapback4/crates/snapback4-device/tests/progressive_history.rs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '1,160p' snapback4/packages/snapback4/src/local-network.ts\nsed -n '220,320p' snapback4/packages/snapback4/src/local-runtime.ts\nsed -n '470,570p' snapback4/packages/snapback4/src/local-runtime.ts\nsed -n '1,155p' snapback4/packages/snapback4/src/local.ts\nsed -n '1240,1320p' snapback4/packages/snapback4/src/local.ts\nrg -n 'catch|overload|refusedDelivery' snapback4/packages/snapback4/src/local-runtime.ts\ncat snapback4/reports/20261102-progressive-history-reviews/fix-r4/run.mjs",
+    "exit": 1,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '160,200p' snapback4/packages/snapback4/src/local.ts\nsed -n '320,360p' snapback4/packages/snapback4/src/local-runtime.ts\ncat snapback4/packages/snapback4/src/local-opening.ts\nrg -n 'loadBackend|class.*Error|offline' snapback4/packages/snapback4/src/backend.ts\nrg --files snapback4/reports/20261102-progressive-history-reviews/fix-r4 -g '*py' -g '*mjs'\nrg -n 'guide.*own|own keys' snapback4/crates/snapback4-lang/src/guide/*\nwc -l snapback4/crates/snapback4-device/tests/progressive_history.rs snapback4/packages/snapback4/src/local.ts\ncommand -v node bun cargo\nls /Users/ccheever/.volta/tools/image/node",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "cat snapback4/reports/20261102-progressive-history-reviews/fix-r4/run.py\ncat snapback4/packages/snapback4/src/local-backend.ts\nsed -n '195,222p' snapback4/packages/snapback4/src/local.ts\nsed -n '264,290p' snapback4/crates/snapback4-lang/src/guide/sync.rs\nsed -n '1,65p' snapback4/crates/snapback4-lang/src/guide/client.md\nrg -n '^pub|fn scoped|fn completed|require_query|require_acquired' snapback4/crates/snapback4-device/src/device/acquisition.rs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '570,675p' snapback4/packages/snapback4/src/local-runtime.ts\nsed -n '1320,1365p' snapback4/packages/snapback4/src/local.ts\nrg -n 'own_keys|own keys' snapback4/crates/snapback4-device/tests/own_keys.rs\nsed -n '1,175p' snapback4/crates/snapback4-device/tests/own_keys.rs\nsed -n '1,45p' snapback4/packages/snapback4/test/overload.test.mjs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "sed -n '670,700p' snapback4/packages/snapback4/src/local-runtime.ts\nhead -n 90 snapback4/packages/snapback4/test/progressive-recovery.test.mjs\nhead -n 75 snapback4/packages/snapback4/test/progressive-acquisition.test.mjs\nhead -n 55 snapback4/crates/snapback4-device/tests/common/mod.rs\nhead -n 60 snapback4/packages/snapback4/test/acquisition.test.mjs\nsed -n '1,35p' snapback4/packages/snapback4/src/local.ts\ncat snapback4/reports/20261102-progressive-history-reviews/fix-r4/seal.mjs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "cat snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs\nhead -n 30 snapback4/packages/snapback4/src/local-runtime.ts\nsed -n '197,221p' snapback4/crates/snapback4-device/src/device/acquisition.rs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "rg -n '^`|cargo test|node --test|bun run' snapback4/reports/20261102-progressive-history-2b/REPORT.md\nrg -n 'BackendRefusalError|loadBackend' snapback4/packages/snapback4/src/local-runtime.ts\nsed -n '125,153p' snapback4/crates/snapback4-core/src/partition/snapshot.rs\ngit diff --stat",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "cat snapback4/packages/snapback4/test/delivery-await-boundary.test.mjs\nrg -n 'awaitBoundary|hash|digest|parent' snapback4/packages/snapback4/test/delivery-fault-instrument.mjs\nwc -l llp/3000.001.001-prioritized-progressively-usable-history.rfc.md snapback4/JOURNAL.md\ncat snapback4/reports/20261102-progressive-history-2b/REPORT.md",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  },
+  {
+    "command": "git diff -- snapback4/crates/snapback4-core/src/partition/acquire.rs snapback4/crates/snapback4-device/tests/own_keys.rs snapback4/packages/snapback4/src/local.ts snapback4/packages/snapback4/src/local-runtime.ts snapback4/packages/snapback4/test/progressive-recovery.test.mjs snapback4/packages/snapback4/test/helpers/progressive-acquisition.mjs",
+    "exit": 0,
+    "summary": "Read-only inspection; no test summary."
+  }
+]

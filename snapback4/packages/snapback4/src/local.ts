@@ -1206,8 +1206,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (replayAllowed) listenForExit();
     // Install same-head exit retry before slow delivery/snapshots can consume the exit opportunity.
     if (replayAllowed && link === "online") await flushOnce(false);
-    // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — awaited startup retains the full-acquisition promise; each turn still releases network ownership.
-    if (link === "online") await acquisitionWalk.sync(network.once, network.once, () => !closed && !sessionDead && !versionBlocked() && coreReady);
+    // @ref LLP 3000.001.001#8-progress-and-ui — reachable awaited startup finishes acquisition; an exhausted schema refusal leaves saved data usable and further attempts to the background owner.
+    if (link === "online" && !initial.refusal) await acquisitionWalk.sync(network.once, network.once, () => !closed && !sessionDead && !versionBlocked() && coreReady);
     if (deliveryQueue?.enabled && link === "online" && !deliveryWitness) await probe();
     deliveryQueue?.available();
     follow();

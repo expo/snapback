@@ -125,7 +125,17 @@ fn unit(tx: &dyn PartitionRows, schema: &Schema, principal: &str,
                 out.page.events.push(LogEvent { seq: from, ord: 0, table: event.table,
                     kind: event.kind.word().into(), id: event.id, data: event.data });
             }
-            if let Some(name) = whole.filter(|name| whole_eligible(schema, name)) { out.acquire.whole_tables.push(name); }
+            if let Some(name) = whole {
+                // @ref LLP 3000.001.001#9-scope-compatibility-and-costs — owner keys retain their principal-scoped Held proof, including an empty partition; declare it only when the tier-1 table finishes.
+                // The existing joined rail publishes membership with this unit.
+                // Maintained tables still receive no early whole-table fact.
+                if schema.maintain_for(&name).is_some_and(|m| m.own_keys.is_some()) {
+                    let sync = schema.tables[&name].sync.as_ref().expect("synced tier-1 table");
+                    let groups = cache.get(tx, schema, &name, sync, principal, now)?;
+                    out.page.joined.insert(name.clone(), groups.iter().map(|group| named(&name, group).group).collect());
+                }
+                if whole_eligible(schema, &name) { out.acquire.whole_tables.push(name); }
+            }
             at = match page.next {
                 Some(next) => next,
                 None => SnapshotCursor { tier: 2, ..Default::default() },

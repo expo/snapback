@@ -4,8 +4,42 @@ import assert from 'node:assert/strict';
 import { fixture, query } from './helpers/progressive-acquisition.mjs';
 import { LocalAcquisition } from '../dist/local-acquisition.js';
 import { localStatus } from '../dist/local-status.js';
-import { hangBudget } from './helpers/wait.mjs';
+import { hangBudget, waitFor } from './helpers/wait.mjs';
 const overflow = {code:'E_BOUND',family:'bound',message:'the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values'};
+
+// @ref LLP 3000.001.001#8-progress-and-ui — saved usable data opens independently of admission to further acquisition work.
+for (const complete of [false, true]) test(`saved web ${complete ? 'complete' : 'partial'} walk opens connected during schema overload and later resumes`, {timeout:hangBudget(40)}, async t => {
+  const f = await fixture(t, 'wasm', {limit:1});
+  const first = await f.open();
+  if (complete) { f.allow(true); await first.sync(); }
+  else await f.through(first, state => state.acquired_tables.length === 2);
+  const saved = await f.state();
+  assert.equal(saved.acquired, complete);
+  await first.close();
+  let attempts = 0, fault = true;
+  const denied = {code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true};
+  f.interceptSchema(() => { if (fault) { attempts++; return Response.json({denied}, {status:503}); } });
+  f.intercept(() => { if (fault) return Response.json({denied}, {status:503}); });
+  f.allow(true);
+  const reopened = await f.open();
+  assert.equal(attempts, 4, 'opening does not repeat the exhausted schema retry sequence');
+  assert.equal(reopened.link(), 'online');
+  assert.equal(reopened.acquired, complete);
+  assert.deepEqual((await f.state()).acquired_tables, saved.acquired_tables);
+  const inbox = await reopened.query(query('inbox'), {});
+  assert.equal(inbox.complete, true);
+  assert.equal(inbox.data.length, f.groups.length);
+  if (!complete) {
+    await waitFor(() => attempts >= 8, 'background capability discovery did not retry');
+    await reopened.sync();
+    assert.equal(reopened.link(), 'online', 'a typed discovery overload is still connected');
+    assert.equal(reopened.acquired, false);
+  }
+  fault = false;
+  await reopened.sync();
+  assert.equal(reopened.acquired, true);
+  assert.equal(reopened.link(), 'online');
+});
 
 for (const failAt of ['first', 'later']) test(`explicit acquisition propagates a rejected ${failAt} network turn`, async () => {
   const walk = new LocalAcquisition(), fault = new Error('transport/host failed');
@@ -20,6 +54,39 @@ for (const failAt of ['first', 'later']) test(`explicit acquisition propagates a
 });
 
 for (const tier of ['process','wasm']) {
+  test(`${tier}: progressive owner-key proof survives sign-out and offline reopening`, {timeout:hangBudget(30)}, async t => {
+    const source = `use personas alice, bob
+table likes:
+  post: id
+  owner: principal
+  at: time
+  unique post, owner
+  immutable post, owner
+  public 'likes'
+  insert <- .owner = viewer
+  delete <- .owner = viewer
+  sync public last 2 by .at with own keys .owner
+query own(post: id):
+  return exists likes[post, viewer]
+`;
+    const rows = ['old', 'new1', 'new2'].map((post, at) => ({table:'likes', row:{id:post,post,at,owner:at ? 'dev:bob' : 'dev:alice'}}));
+    const f = await fixture(t, tier, {source, rows, limit:1});
+    const first = await f.open();
+    f.allow(true); await first.sync();
+    assert.equal(first.acquired, true);
+    assert.ok(f.pages.some(page => page.acquire && page.joined?.['$ownKeys:likes']?.[0]?.[0] === 'dev:alice'));
+    f.online(false); await first.signOut();
+    const reopened = await f.open();
+    for (const [post, expected] of [['missing', false], ['old', true]]) {
+      const answer = await reopened.query(query('own'), {post});
+      assert.equal(answer.data, expected, JSON.stringify(answer));
+      assert.equal(answer.complete, true);
+      assert.equal(answer.fresh, false);
+      assert.equal((await f.raw('own', {post})).unknown, false);
+    }
+    const other = await f.core().call({op:'query', name:'own', args:{post:'missing'}, viewer:'dev:bob', now:Date.now()});
+    assert.equal(other.ok.unknown, true, 'the same store cannot lend the proof to a different caller');
+  });
   test(`${tier}: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up`, {timeout:hangBudget(30)}, async t => {
     const f = await fixture(t, tier, {limit:1}), client = await f.open();
     let observation = client.observe(query('history'), {c:'c',page:null});
