@@ -1,0 +1,20 @@
+✔ saved web partial walk opens connected during schema overload and later resumes (9154.804583ms)
+✔ saved web complete walk opens connected during schema overload and later resumes (2397.25075ms)
+✔ explicit acquisition propagates a rejected first network turn (0.3225ms)
+✔ explicit acquisition propagates a rejected later network turn (0.046ms)
+✔ process: progressive owner-key proof survives sign-out and offline reopening (1240.201792ms)
+✔ process: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (285.162458ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process: failure of even one-row replacement surfaces once after acquire overflow (1195.480333ms)
+✔ wasm: progressive owner-key proof survives sign-out and offline reopening (1271.7935ms)
+✔ wasm: HTTP serialization overflow shrinks one acquire cursor and finishes its catch-up (266.090125ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm: failure of even one-row replacement surfaces once after acquire overflow (1094.413333ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16978.77525

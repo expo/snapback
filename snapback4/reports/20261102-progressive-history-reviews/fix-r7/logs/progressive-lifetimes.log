@@ -1,0 +1,15 @@
+✔ compiled special-table walk clears partial counts on sign-out (1206.036125ms)
+✔ multi-page special-table walk counts every row and reopens complete offline (1573.712917ms)
+✔ blocked progressive publication keeps watch lifetime: none (1753.223292ms)
+✔ blocked progressive publication keeps watch lifetime: 503 (1974.8305ms)
+✔ blocked progressive publication keeps watch lifetime: prediction (2231.911916ms)
+✔ blocked progressive publication keeps watch lifetime: expiry (2014.826708ms)
+✔ blocked progressive publication keeps watch lifetime: unwatch (1485.220416ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12313.186

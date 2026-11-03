@@ -859,3 +859,11 @@ export function awaitBoundary() {
 // acquisition, while every reached host/transport await remains instrumented.
 // local-runtime extracts the same closures behind live state accessors. IDs
 // retain their logical local.ts owner, while file/line track their physical site.
+
+// LLP 3000.001.001 fix-r7: rounds 5/6 added no await expressions in local.ts,
+// local-runtime.ts or acquisition.ts (respectively 134/95/0, including the
+// existing async iterator). They changed reachability: acquired partitions now
+// bypass optional capability discovery. The metadata recipe therefore starts
+// with a real published cold unit and an unfinished cursor, injects transient
+// and persistent /schema faults, and checks FIFO/outcomes plus walk recovery.
+// No site is removed or exempted; all 216 delivery recipes remain classified.

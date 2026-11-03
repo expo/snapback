@@ -1,0 +1,41 @@
+✔ every delivery await is explicitly classified (88.283958ms)
+✖ 16 transient: local-runtime.ts:295 syncRound (1068.291875ms)
+✖ 16 persistent: local-runtime.ts:295 syncRound (1044.059417ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3128.752375
+
+✖ failing tests:
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:79:3
+✖ 16 transient: local-runtime.ts:295 syncRound (1068.291875ms)
+  AssertionError [ERR_ASSERTION]: healthy callers receive terminal outcomes under optional failure
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:315:37)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:79:3
+✖ 16 persistent: local-runtime.ts:295 syncRound (1044.059417ms)
+  AssertionError [ERR_ASSERTION]: healthy callers receive terminal outcomes under optional failure
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:315:37)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

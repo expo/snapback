@@ -1,0 +1,436 @@
+[
+  {
+    "cmd": "cat llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,240p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '241,480p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '481,720p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '721,980p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '241,480p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '481,720p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat snapback4/AGENTS.md snapback4/NOT-DOING.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '981,1180p' llp/3000.001.001-prioritized-progressively-usable-history.rfc.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'Repair [ABC]|^##' llp/3000.001-durable-replica-and-write-lifecycle.research.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '230,440p' snapback4/AGENTS.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,170p' snapback4/NOT-DOING.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '650,885p' llp/3000.001-durable-replica-and-write-lifecycle.research.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat snapback4/reports/20261102-progressive-history-reviews/fix-r4/REPORT.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat snapback4/reports/20261102-progressive-history-reviews/fix-r6/REPORT.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git status --short --branch",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg --files snapback4 | rg 'delivery-(await|fault)|AGENTS.md$|package.json$'",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '200,235p' snapback4/AGENTS.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 65 snapback4/JOURNAL.md",
+    "cwd": "repository root",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/test/delivery-fault-instrument.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/test/delivery-fault-recipes.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat reports/20261102-progressive-history-reviews/fix-r4/seal.mjs reports/20261102-progressive-history-reviews/fix-r6/run.py",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/test/delivery-await-boundary.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,240p' packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/test/delivery-fault-recipes.mjs reports/20261102-progressive-history-reviews/fix-r4/seal.mjs reports/20261102-progressive-history-reviews/fix-r6/run.py",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 100 packages/snapback4/test/delivery-fault-instrument.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '230,345p' packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '240,340p' packages/snapback4/src/local-runtime.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/src/acquisition.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git log -6 --oneline -- packages/snapback4/src/local.ts packages/snapback4/src/local-runtime.ts packages/snapback4/src/acquisition.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git diff f37bdfc0ae -- packages/snapback4/src/local.ts packages/snapback4/src/local-runtime.ts packages/snapback4/src/acquisition.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,250p' packages/snapback4/test/delivery-fault-fixture.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'awaitBoundary|metadata|syncRound.*loadBackend|acquired' packages/snapback4/test/delivery-fault-instrument.mjs packages/snapback4/test/delivery-fault-sites.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat package.json packages/snapback4/package.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "cat packages/snapback4/src/local-acquisition.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,220p' packages/snapback4/test/helpers/progressive-acquisition.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'acquire:|pinned|pin:|cursor:|acquisition' packages/snapback4/test/progressive-lifetimes.test.mjs packages/snapback4/test/progressive-recovery.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '215,250p' packages/snapback4/test/delivery-fault-instrument.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '305,340p' packages/snapback4/test/delivery-fault-instrument.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '585,680p' packages/snapback4/src/local-runtime.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '430,510p' packages/snapback4/src/local-runtime.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,150p' packages/snapback4/crates/snapback4-device/src/device/acquisition.rs",
+    "cwd": "snapback4",
+    "exit_code": 1
+  },
+  {
+    "cmd": "sed -n '1,140p' packages/snapback4/test/progressive-recovery.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,185p' crates/snapback4-device/src/device/acquisition.rs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '700,760p' packages/snapback4/src/local-runtime.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,60p' packages/snapback4/test/chat-schema.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "wc -l llp/3000-snapback4.explainer.md llp/2000.000-keep-the-core-flip-two-substrates.rfc.md",
+    "cwd": "snapback4",
+    "exit_code": 1
+  },
+  {
+    "cmd": "python3 - <<'PY'\nfrom pathlib import Path\nimport shutil\np=Path('reports/20261102-progressive-history-reviews/fix-r7')\np.mkdir(exist_ok=True)\nshutil.copyfile(p.parent/'fix-r6/run.py',p/'run.py')\nshutil.copyfile(p.parent/'fix-r4/seal.mjs',p/'seal.mjs')\nprint('prepared fix-r7 command recorder and seal generator')\nPY",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py build bun run --cwd packages/snapback4 build",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py typecheck bun run --cwd packages/snapback4 typecheck",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "cat packages/snapback4/src/device-version.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "RG_MATRIX_SITE=16 python3 reports/20261102-progressive-history-reviews/fix-r7/run.py metadata-before node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "rg -n 'floor.*whole|acquisitions:|acquire:.*unit' packages/snapback4/test/progressive-acquisition.test.mjs packages/snapback4/test/*.mjs | head -n 45",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'sync_state|snapshot_catchup|loadBackend' packages/snapback4/src/local.ts | tail -n 22",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,145p' ../llp/3000-snapback4.explainer.md",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '1,180p' ../llp/2000.000-keep-the-core-flip-two-substrates.rfc.md",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "sed -n '510,575p' packages/snapback4/src/local-runtime.ts",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "RG_MATRIX_SITE=16 python3 reports/20261102-progressive-history-reviews/fix-r7/run.py metadata-after node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "head -n 35 reports/20261102-progressive-history-reviews/fix-r7/logs/metadata-after.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'committed_above' crates/snapback4-core/src/partition.rs crates/snapback4-device/src/device.rs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n -A3 '\"(local.ts|local-runtime.ts|acquisition.ts)\"' packages/snapback4/test/delivery-await-boundary.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "RG_MATRIX_SITE=16 python3 reports/20261102-progressive-history-reviews/fix-r7/run.py metadata-after-wire-fix node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 1
+  },
+  {
+    "cmd": "RG_MATRIX_SITE=16 python3 reports/20261102-progressive-history-reviews/fix-r7/run.py metadata-after-probe node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "RG_MATRIX_SITE=16 python3 reports/20261102-progressive-history-reviews/fix-r7/run.py metadata-after-reconnect node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py audit node reports/20261102-progressive-history-reviews/fix-r7/audit.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py seal node reports/20261102-progressive-history-reviews/fix-r7/seal.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py delivery-fault-matrix node --test packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py progressive-acquisition node --test packages/snapback4/test/progressive-acquisition.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py progressive-recovery node --test packages/snapback4/test/progressive-recovery.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py progressive-lifetimes node --test packages/snapback4/test/progressive-lifetimes.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "git diff --check",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git diff --stat",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git diff -- packages/snapback4/test/delivery-fault-fixture.mjs packages/snapback4/test/delivery-fault-matrix.test.mjs packages/snapback4/test/delivery-fault-recipes.mjs packages/snapback4/test/delivery-fault-instrument.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "wc -l packages/snapback4/test/delivery-fault-{fixture,instrument,matrix.test,recipes}.mjs packages/snapback4/test/delivery-{await-boundary,fault-sites}.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 5 reports/20261102-progressive-history-reviews/fix-r7/logs/delivery-fault-matrix.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py acquisition node --test packages/snapback4/test/acquisition.test.mjs",
+    "cwd": "snapback4"
+  },
+  {
+    "cmd": "tail -n 32 packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 12 reports/20261102-progressive-history-reviews/fix-r7/logs/delivery-fault-matrix.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 8 reports/20261102-progressive-history-reviews/fix-r7/logs/progressive-acquisition.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git diff --exit-code -- packages/snapback4/src packages/snapback4/test/delivery-await-boundary.json packages/snapback4/test/delivery-fault-sites.json",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 - <<'PY'\nfrom pathlib import Path\nimport json\np=Path('reports/20261102-progressive-history-reviews/fix-r7/commands.jsonl')\nfor line in p.read_text().splitlines():\n    r=json.loads(line)\n    print(f\"{r['name']}: exit {r['exit']}\")\nPY",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git rev-parse HEAD",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'partialAcquisition|resumeAcquisition|6.2-the|metadataFaults|scenario === .metadata.|fix-r7|metadata:|export function awaitBoundary' packages/snapback4/test/delivery-fault-{fixture,matrix.test,instrument,recipes}.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 12 reports/20261102-progressive-history-reviews/fix-r7/logs/delivery-fault-matrix.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "tail -n 10 reports/20261102-progressive-history-reviews/fix-r7/logs/acquisition.log",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "rg -n 'skip|browser' packages/snapback4/test/progressive-acquisition.test.mjs",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "python3 reports/20261102-progressive-history-reviews/fix-r7/run.py node-version node --version",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git diff --check",
+    "cwd": "snapback4",
+    "exit_code": 0
+  },
+  {
+    "cmd": "git status --short",
+    "cwd": "snapback4",
+    "exit_code": 0
+  }
+]

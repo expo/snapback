@@ -103,13 +103,14 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     }
     direct = [11,18,26,27,35,42,50,72,156,157,164,165].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:readWithAdmissionRetry' : undefined;
-    let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
+    let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease, metadataFaults = 0;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};
     const queryPlan = {table:'messages',index:'wordsAt',column:'at',kind:'Time',order:'Desc',limit:2,needle:'q',cursor:'c',variant:null};
     const ceilings = {examined:8192,index_entries:16384,rule_probes:8192,steps:1000000,heap_bytes:16<<20,output_bytes:1<<20,rows_written:1024};
     const counts = () => Object.fromEntries(Object.keys(ceilings).map(key=>[key,0]));
     const hooks = {
       createLocalClient, webDevice,
+      partialAcquisition: scenario === 'metadata',
       ...(scenario === 'exit' ? {onSuspend(callback) { suspend = callback; return ()=>{}; }} : {}),
       async closing() { enabled = false; prepared = false; queueRelease?.(); for(let i=0;i<4;i++) { t.mock.timers.tick(5000); await drain(); } },
       beforeCall(request) { if(scenario === 'acknowledgement' && !queueIds.length && request.op === 'keep_write') throw Error('prepare acknowledgement'); fault();
@@ -124,9 +125,12 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
         if (scenario === 'reset' && failures < budget && request.op === 'observe_store' && !reply.denied) reply.ok.reset = true;
       },
       fetch(path, init) {
-        fault();
+        try { fault(); } catch (error) {
+          if (scenario === 'metadata' && path === '/schema') metadataFaults++;
+          throw error;
+        }
         if (prepared && enabled && ((index === 37 && path === '/probe') || (index === 44 && path === '/changes') || (index === 47 && path === '/sync' && stack.getStore()?.some(id=>id === followSync))) && failures < budget) { failures++; throw error; }
-        if (path === '/probe') return index === 157 ? Response.json({denied:{code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true}}, {status:503}) : Response.json({ok:true,store_id:'A',seq:11});
+        if (path === '/probe') return index === 157 ? Response.json({denied:{code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true}}, {status:503}) : Response.json({ok:true,store_id:'A',seq:scenario === 'metadata' ? 10 : 11});
         if (scenario === 'acknowledgement' && queueIds.length && path === '/sync') return Response.json({snapshot:false,store_id:'A',generation:1,events:[],watermark:11,more:false});
         if (!prepared) return;
         if(scenario === 'search' && path === '/q/matrixQuery') return index === 141 ? new Response('invalid JSON') : Response.json({data:[],complete:true,store_id:'A',head:11,generation:1,searchScopes:['live'],searchCurrent:[]});
@@ -147,7 +151,15 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     };
     const f = await fixture(t, 1, hooks);
     api = globalThis.__rgClient;
-    await until(() => f.client.acquired && f.changesWaiting);
+    if (scenario === 'metadata') {
+      const state = ok(await f.core.call({op:'sync_state', capture:false}));
+      assert.equal(f.client.acquired, false);
+      assert.equal(state.acquired, false);
+      assert.equal(state.replacement_required, false, 'cold progress still needs capability discovery');
+      assert.equal(state.acquisition_cursor, 'matrix:remaining');
+      assert.deepEqual(state.acquired_tables, ['conversations'], 'a real unit was durably published');
+      await api.probe(); // The paused walk went offline; writes use a healthy transport.
+    } else await until(() => f.client.acquired && f.changesWaiting);
     t.mock.timers.enable({ apis: ['setTimeout'] });
     const retryDelays = [], timeout = globalThis.setTimeout;
     t.mock.method(globalThis,'setTimeout',(callback, delay, ...args)=>{
@@ -160,6 +172,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     assert.equal(first.state, 'sent');
     await drain();
     assert.ok(ok(await f.core.call({op:'queued'})).some(e => e.id === first.id && (e.sent_seq === 11 || scenario === 'acknowledgement') && e.observed_seq == null));
+    if (scenario === 'metadata') await api.probe(); // Reconnect after the head's paused observation, before tail admission.
     let release; const held = new Promise(r => { release = r; }); queueRelease = release;
     f.beforeCall(async request => { if (request.op === 'queued') await held; });
     const tails = ['tail1', 'tail2'].map(body => f.client.mutate(op, { conversationId: 'c1', body }, {waitSeconds:25}));
@@ -277,6 +290,11 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     }
     const postedUnderFault = f.sends.length;
     const injected = failures;
+    if (scenario === 'metadata') {
+      assert.equal(metadataFaults, injected, 'faults occur in the real capability transport below the classified await');
+      assert.ok(mode === 'transient' ? metadataFaults === 1 : metadataFaults > 1, 'exercise one failure or repeated capability failures');
+      assert.equal(f.client.acquired, false, 'successful delivery does not finish the paused walk');
+    }
     if (!required.has(index)) {
       assert.equal(new Set(f.sends.map(s=>s.id)).size,3,'optional awaited failure must not strand a healthy queued tail');
       assert.equal(f.sends.length,3,'optional awaited failure must not repost a healthy send');
@@ -286,6 +304,11 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
     assert.ok(retryDelays.every((delay,i)=>[250,500,1000,2000,4000,5000].includes(delay) && (i<=steadyRetryStart || delay >= retryDelays[i-1])), `flush retry backoff remains bounded and does not reset during repeated failure: ${retryDelays}`);
     assert.ok(failures <= 100, 'fault retries remain bounded over eight five-second advances');
     enabled = false; prepared = false;
+    if (scenario === 'metadata') {
+      f.resumeAcquisition();
+      await f.client.sync();
+      assert.equal(f.client.acquired, true, 'metadata and the unfinished walk recover after the fault');
+    }
     for (let n = 0; n < 3; n++) { t.mock.timers.tick(5000); await drain(100); }
     if (scenario === 'search') await Promise.all(sideWork);
     if(scenario === 'clock') await assert.doesNotReject(()=>api.clock.persist(),'clock persistence recovers after host recovery');

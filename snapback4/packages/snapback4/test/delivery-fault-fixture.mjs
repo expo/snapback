@@ -27,17 +27,40 @@ export async function fixture(t, count = 1, hooks = {}) {
   const reads = [], clients = [], sends = [], syncRequests = [];
   let queryUnavailable = false, refuseSecond = false, beforeSend, beforeCall, afterCall, exitRefusal;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
+  let acquisitionPaused = hooks.partialAcquisition === true;
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
     const path = new URL(input).pathname;
     const override = await hooks.fetch?.(path, init);
     if (override) return override;
-    if (path === "/schema") { schemaCalls++; if (schemaFailures-- > 0) throw new TypeError("schema interrupted"); return Response.json({ ...backend(marker), schema, generation }); }
+    if (path === "/schema") { schemaCalls++; if (schemaFailures-- > 0) throw new TypeError("schema interrupted"); return Response.json({ ...backend(marker), schema, generation,
+      ...(hooks.partialAcquisition ? { device_compatibility: { server_version: "0.0.0", minimum_version: "0.0.0", capabilities: [], advertised: ["progressive-acquisition-v1"] } } : {}) }); }
     if (path === "/sync") {
       syncStarts++;
       if (syncGate) await syncGate.promise;
       const request = JSON.parse(init.body);
       syncRequests.push(request);
+      // @ref LLP 3000.001.001#6.2-the-walk-its-cursor-and-completion — metadata faults need a genuinely unfinished device, not a forged sync_state.acquired flag.
+      if (hooks.partialAcquisition && request.acquire) {
+        const first = request.acquire.cursor === null;
+        if (!first && acquisitionPaused) throw new TypeError("pause unfinished acquisition");
+        const rows = events(store, count).filter(e => first ? e.table === "conversations" : e.table !== "conversations");
+        const units = first ? [{ tier: 1, table: "conversations" }] : [
+          { tier: 1, table: "memberships" }, { tier: 1, table: "messageCounts" },
+          { tier: 2, table: "messages", group: ["c1"] }, { tier: 2, table: "profiles", group: [] },
+        ];
+        const boundary = (table, index, group, start, end) => [
+          { table, index, group, at: start }, { table, index, group, at: end, floor: "whole" },
+        ];
+        return Response.json({ snapshot: false, store_id: store, generation, events: rows,
+          watermark: 10, images_at: 10, committed_above: {}, more: false,
+          ...(first ? {} : { joined: { messages: [["c1"]], profiles: [[]] }, acquisitions: [
+            ...boundary("messages", "byConvTime", ["c1"], 1, rows.length),
+            ...boundary("profiles", "byHandle", [], rows.length, rows.length),
+          ] }),
+          acquire: { pinned: first, unit: units[0], units, cursor: first ? "matrix:remaining" : null,
+            exhausted: !first, whole_tables: [first ? "conversations" : "memberships"] } });
+      }
       if (refuseSecond && sends.length > 0 && request.from !== 0) {
         const committed = events(store).filter(e => e.table === "messages");
         committed[0].data.body = "committed first";
@@ -97,6 +120,7 @@ export async function fixture(t, count = 1, hooks = {}) {
     refuseSecond() { refuseSecond = true; },
     beforeSend(callback) { beforeSend = callback; },
     beforeCall(callback) { beforeCall = callback; }, afterCall(callback) { afterCall = callback; },
+    resumeAcquisition() { acquisitionPaused = false; },
     refuseExit(why) { exitRefusal = why; },
     replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
     widenBackend() {

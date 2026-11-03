@@ -1,0 +1,51 @@
+✔ every delivery await is explicitly classified (87.309875ms)
+✖ 16 transient: local-runtime.ts:295 syncRound (60.240917ms)
+✖ 16 persistent: local-runtime.ts:295 syncRound (27.786459ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1071.34825
+
+✖ failing tests:
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:79:3
+✖ 16 transient: local-runtime.ts:295 syncRound (60.240917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + null
+  - 'matrix:remaining'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:156:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 'matrix:remaining',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/delivery-fault-matrix.test.mjs:79:3
+✖ 16 persistent: local-runtime.ts:295 syncRound (27.786459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + null
+  - 'matrix:remaining'
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-ph-20261102/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:156:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 'matrix:remaining',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

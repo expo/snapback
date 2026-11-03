@@ -3,6 +3,10 @@ const deliverySites = census();
 // Each recipe selects a real host operation below the named awaited call.
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
+  // Capability discovery is optional to durable delivery, but is reached only
+  // while acquisition is unfinished. The fixture publishes one real unit,
+  // pauses the remaining walk, and faults /schema below the classified await.
+  // FIFO, terminal notices, lookup and same-id collection remain required.
   metadata: [166],
   upload: [163],
   ordinary: [164,0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
