@@ -40,7 +40,7 @@ export async function fixture(t, count = 1, hooks = {}) {
       if (syncGate) await syncGate.promise;
       const request = JSON.parse(init.body);
       syncRequests.push(request);
-      // @ref LLP 3000.001.001#6.2-the-walk-its-cursor-and-completion — metadata faults need a genuinely unfinished device, not a forged sync_state.acquired flag.
+      // @ref LLP 3000.001.001#62-the-walk-its-cursor-and-completion — metadata faults need a genuinely unfinished device, not a forged sync_state.acquired flag.
       if (hooks.partialAcquisition && request.acquire) {
         const first = request.acquire.cursor === null;
         if (!first && acquisitionPaused) throw new TypeError("pause unfinished acquisition");
