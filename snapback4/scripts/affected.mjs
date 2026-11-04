@@ -177,6 +177,11 @@ export function selectAffected(changedFiles, model) {
       continue;
     }
     const p = path.slice(PREFIX.length);
+    // @ref LLP 0189#snapback-4-affected-selection-2026-10-24 — publication records are evidence, including copied manifests.
+    if (/^reports\/\d{8}-(?:publication|expo)-\d+\.\d+\.\d+\//.test(p)
+      || p === 'JOURNAL.md' || /^metrics\/(?:publish|witness)\.jsonl$/.test(p)) {
+      checks.add('inventories'); why(path, 'publication/journal evidence'); continue;
+    }
     const editorInput = /^crates\/snapback4-lang\/src\/(?:lexer\.rs$|parser(?:\.rs$|\/))/.test(p)
       || /^editors\//.test(p) || /^scripts\/(?:generate|check)-editor-grammar\.mjs$/.test(p);
     if (editorInput) { checks.add('editor-grammar'); why(path, 'generated Quarry editor grammar and corpus'); }

@@ -349,6 +349,28 @@ test('filesystem issue records require reference validation without widening pro
   assert.equal(plan.broad,false);assert.deepEqual(plan.rustPackages,[]);assert.deepEqual(plan.clientFiles,[]);assert.deepEqual(plan.checks,['ref-check']);
 });
 
+test('publication evidence and append-only metrics do not select a product rebuild', () => {
+  const files = [
+    'snapback4/JOURNAL.md',
+    'snapback4/metrics/publish.jsonl',
+    'snapback4/metrics/witness.jsonl',
+    'snapback4/reports/20261104-publication-0.4.53/kit/finish.sh',
+    'snapback4/reports/20261104-publication-0.4.53/audits/web/package.json',
+    'snapback4/reports/20261104-publication-0.4.53/source/generated/prepare.json',
+    'snapback4/reports/20261104-expo-0.4.53/offline-ios-run.json',
+  ];
+  const plan = select(files);
+  assert.equal(plan.broad, false);
+  assert.deepEqual(plan.checks, ['inventories', 'ref-check']);
+  assert.deepEqual(plan.rustPackages, []);
+  assert.deepEqual(plan.clientFiles, []);
+  assert.deepEqual(plan.steps.map(step => step.id), ['inventories', 'ref-check']);
+  for (const live of ['snapback4/package.json', 'snapback4/metrics/wasm-budget.json',
+    'snapback4/metrics/unknown.jsonl', 'snapback4/scripts/unknown.mjs']) {
+    assert.equal(select([...files, live]).broad, true, live);
+  }
+});
+
 
 test('editor grammar inputs select the fence with a freshly built CLI', () => {
   for (const path of [

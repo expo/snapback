@@ -5,7 +5,7 @@
 **Systems:** Testing, CI, Packaging, Documentation, Developer experience, LLP governance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-07
-**Revised:** 2026-08-25 (Active: linked into `llp/foundation/` as part of the
+**Revised:** 2026-11-04 (publication evidence selects inventories/ref-check); 2026-08-25 (Active: linked into `llp/foundation/` as part of the
 LLP v2 larger kernel)
 **Revised:** 2026-08-10 (D-8 coverage-shape amendment, author-directed in
 session, Charlie Cheever: system behavior is a cross-product of axes while
@@ -418,6 +418,12 @@ Selection ownership:
   checking; affected references and LLPs select ref-check. Device reverse
   dependents select wasm measurement. Language/core semantics select Lean
   build, difftest run-lean and a seeded 2,000-case run.
+- Publication/Expo evidence under dated `reports/YYYYMMDD-publication-VERSION/`
+  and `reports/YYYYMMDD-expo-VERSION/`, the append-only `JOURNAL.md`, and
+  `metrics/publish.jsonl` / `metrics/witness.jsonl` select inventories and
+  ref-check. Copied manifests and generated-path names inside these records
+  are historical evidence, not live build inputs. Live manifests, metric
+  budgets and unknown metric paths retain their ordinary selection.
 - Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
   proc-macros, shared test support (regardless of Markdown extension) and vendored inputs select all workspace
   packages, client pools and cross-cutting checks, including fixture-wrapper
