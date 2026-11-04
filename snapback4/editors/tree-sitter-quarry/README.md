@@ -121,7 +121,7 @@ Create a development extension directory with `extension.toml`:
 ```toml
 id = "quarry"
 name = "Quarry"
-version = "0.4.52"
+version = "0.4.53"
 schema_version = 1
 authors = ["Snapback contributors"]
 description = "Quarry highlighting"
