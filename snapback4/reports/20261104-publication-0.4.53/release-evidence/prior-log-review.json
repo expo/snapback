@@ -1,0 +1,1316 @@
+[
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/early-audit-retry.log",
+    "bytes": 275,
+    "sha256": "c718b4a5b6dce811fa7138f3e9871be748e256ab2fbb7adbb0db1714d16eb3ae",
+    "lastEvidence": [
+      "AUDIT-FAST PASS"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "00cd2b1ffbb5ab7e72d6bc763eb47abd9704d8c707d5b01a7df85aee1eb5a927",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 14s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/expo-install.log",
+    "bytes": 302,
+    "sha256": "902a30b929aa3e994cc03bedc4ea1c99e504048a888de4b3e3e249db28b63582",
+    "lastEvidence": [
+      "frontend install: running; 10s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/web/.snapback4/install.log",
+    "bytes": 25,
+    "sha256": "4473a9c564ef83b8e16218b7be2f82db7502e784078d46dc18dbd0d0941452f0",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 8s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit/web-install.log",
+    "bytes": 254,
+    "sha256": "920d6b477830b42fd432239b988d75fb1970a8d81f8803697f9a60b3e91609ea",
+    "lastEvidence": [
+      "frontend install: running; 5s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-initial-draft/preflight-publication-source/audit.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "af12d41a723686d45e203c9f59de44099a6e5809e678e05790531620d8739c40",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 16s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/expo-install.log",
+    "bytes": 350,
+    "sha256": "42f5541dcda53f0f636b31c94a248ac13d51c02292bb30395e93d17970aa3df5",
+    "lastEvidence": [
+      "frontend install: running; 15s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/web/.snapback4/install.log",
+    "bytes": 25,
+    "sha256": "c85c863c74e8b6294d413ec6972099688680a44c9ab3009d546903ffc7273890",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 9s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit/web-install.log",
+    "bytes": 254,
+    "sha256": "920d6b477830b42fd432239b988d75fb1970a8d81f8803697f9a60b3e91609ea",
+    "lastEvidence": [
+      "frontend install: running; 5s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/archive-preflight-d6f9b1047834/preflight-publication-source/audit.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-after-prepare.out",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-early.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-early.log",
+    "bytes": 275,
+    "sha256": "c718b4a5b6dce811fa7138f3e9871be748e256ab2fbb7adbb0db1714d16eb3ae",
+    "lastEvidence": [
+      "AUDIT-FAST PASS"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-final.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-final.log",
+    "bytes": 275,
+    "sha256": "c718b4a5b6dce811fa7138f3e9871be748e256ab2fbb7adbb0db1714d16eb3ae",
+    "lastEvidence": [
+      "AUDIT-FAST PASS"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-pre-dry.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-mac-pre-dry.log",
+    "bytes": 275,
+    "sha256": "c718b4a5b6dce811fa7138f3e9871be748e256ab2fbb7adbb0db1714d16eb3ae",
+    "lastEvidence": [
+      "AUDIT-FAST PASS"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/audit-pre-dry.out",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/chain-a1.log",
+    "bytes": 432,
+    "sha256": "75cb6a143123a6deb160c84409b40003a9260cdfa50838f037ea1adec8ca0ee6",
+    "lastEvidence": [
+      "2026-11-01T17:11:16Z native/prepare chain done; audits required before warm/pre",
+      "2026-11-01T17:11:55Z gate: chain exit 0 (env-ok)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/chain-gate-a1.out",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/chain-pre-a1.log",
+    "bytes": 7166,
+    "sha256": "619b0d46b09bb7decdc81d13c85f3822eecf756b15cdf967b45b3ef9de68b80b",
+    "lastEvidence": [
+      "2026-11-01T18:00:08Z pre-darwin rc=0: -- client files: 49/49; failed 0; tests {\"tests\":947,\"pass\":928,\"fail\":0,\"cancelled\":0,\"skipped\":19,\"todo\":0}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/dry-run-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/dryrun-a1.log",
+    "bytes": 56,
+    "sha256": "e8aeac9e0e61a821fa0addefd071d808bd4288a6578fdbde9d494ea286b4061d",
+    "lastEvidence": [
+      "publication-dry-run exit=0 seconds=12748.1",
+      "dry-run DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/expo-prep-check-a1.log",
+    "bytes": 224,
+    "sha256": "49a68f909acad574a980e1f3711bf1ff1239b035aaaf67552a5b3b50020ad865",
+    "lastEvidence": [
+      "snapback4-0.4.52.tgz 079d2596a110b6e2f03f33cbb9a326363977e3b042507c30f67a789c988bd58b",
+      "snapback4-expo-0.4.52.tgz c28d8367706413594eec8eedf7a057339164286f72931faf7cfe9d69b2ed58a4"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/finish-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/finish-a1.log",
+    "bytes": 296,
+    "sha256": "f16e50b9ccb9d5d4e0f7f890b3ca776a25c30a89b7f781d7a5e6e078bed46a03",
+    "lastEvidence": [
+      "expo-registry-wait exit=0 seconds=153.8",
+      "registry-expo exit=0 seconds=0.8",
+      "FINISH DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/gate-runner-a1.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/gate.log",
+    "bytes": 116,
+    "sha256": "0d65e07470ed18154e5269654ce15aa78fe41c0634155ac8925ab98d580c7c54",
+    "lastEvidence": [
+      "2026-11-01T18:47:15Z starting dry run attempt 1 (100%;)",
+      "2026-11-01T22:19:50Z attempt 1 finished: done after 12755 s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "10f9abd8c9bb5fd0b35464a43a61c16c26545dfd3f07512c341a75fbb3842016",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 17s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/expo-init.log",
+    "bytes": 6251,
+    "sha256": "68cfcfd46280a2eaecc2013a6fb099afcd6717f3668020bc154efa3e02665582",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/expo-install.log",
+    "bytes": 350,
+    "sha256": "42f5541dcda53f0f636b31c94a248ac13d51c02292bb30395e93d17970aa3df5",
+    "lastEvidence": [
+      "frontend install: running; 15s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/web/.snapback4/install.log",
+    "bytes": 26,
+    "sha256": "a3daa8b80bacdaf3635bc4b2586d06e7969f55c34a941e1dc5a42340e286bc4c",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 10s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/web-init.log",
+    "bytes": 5729,
+    "sha256": "3fde4999cbf5adb0084b7981519b6f2ac11b93e6415f69305517d5d86efeb5b0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-early/web-install.log",
+    "bytes": 254,
+    "sha256": "920d6b477830b42fd432239b988d75fb1970a8d81f8803697f9a60b3e91609ea",
+    "lastEvidence": [
+      "frontend install: running; 5s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "10f9abd8c9bb5fd0b35464a43a61c16c26545dfd3f07512c341a75fbb3842016",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 17s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/expo-init.log",
+    "bytes": 6251,
+    "sha256": "68cfcfd46280a2eaecc2013a6fb099afcd6717f3668020bc154efa3e02665582",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/expo-install.log",
+    "bytes": 350,
+    "sha256": "42f5541dcda53f0f636b31c94a248ac13d51c02292bb30395e93d17970aa3df5",
+    "lastEvidence": [
+      "frontend install: running; 15s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/web/.snapback4/install.log",
+    "bytes": 26,
+    "sha256": "a3daa8b80bacdaf3635bc4b2586d06e7969f55c34a941e1dc5a42340e286bc4c",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 10s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/web-init.log",
+    "bytes": 5729,
+    "sha256": "3fde4999cbf5adb0084b7981519b6f2ac11b93e6415f69305517d5d86efeb5b0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-final/web-install.log",
+    "bytes": 254,
+    "sha256": "920d6b477830b42fd432239b988d75fb1970a8d81f8803697f9a60b3e91609ea",
+    "lastEvidence": [
+      "frontend install: running; 5s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "b59b4fb14b38c3eda7163aa6bf62f42f0dd58303be4b51a564c1cf187b7d6ee4",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 18s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/expo-init.log",
+    "bytes": 6251,
+    "sha256": "68cfcfd46280a2eaecc2013a6fb099afcd6717f3668020bc154efa3e02665582",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/expo-install.log",
+    "bytes": 350,
+    "sha256": "42f5541dcda53f0f636b31c94a248ac13d51c02292bb30395e93d17970aa3df5",
+    "lastEvidence": [
+      "frontend install: running; 15s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/web/.snapback4/install.log",
+    "bytes": 26,
+    "sha256": "f61faeecae1331715282709d7040a24093562ae319ab0cad5d3d88c882742610",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 14s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/web-init.log",
+    "bytes": 5729,
+    "sha256": "3fde4999cbf5adb0084b7981519b6f2ac11b93e6415f69305517d5d86efeb5b0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/audit-mac-pre-dry/web-install.log",
+    "bytes": 302,
+    "sha256": "902a30b929aa3e994cc03bedc4ea1c99e504048a888de4b3e3e249db28b63582",
+    "lastEvidence": [
+      "frontend install: running; 10s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-chat-init.log",
+    "bytes": 6211,
+    "sha256": "4924d49c971471abf1902782c60ee3599d007bdd80127b27c5bda83f7bf13ab7",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-chat-offline.log",
+    "bytes": 18,
+    "sha256": "ce7bf91f54adc7390cff6bf1c2572fd00ce9cfbd0611637e273059c4710a80c9",
+    "lastEvidence": [
+      "",
+      "up to date in 2s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-chat-online.log",
+    "bytes": 19,
+    "sha256": "ea455baefe76db427207b7dc29a9710d12c5fb3443a27dfefcb14ff2b3698adc",
+    "lastEvidence": [
+      "",
+      "up to date in 10s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-init.log",
+    "bytes": 6251,
+    "sha256": "68cfcfd46280a2eaecc2013a6fb099afcd6717f3668020bc154efa3e02665582",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-offline.log",
+    "bytes": 18,
+    "sha256": "ce7bf91f54adc7390cff6bf1c2572fd00ce9cfbd0611637e273059c4710a80c9",
+    "lastEvidence": [
+      "",
+      "up to date in 2s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-online.log",
+    "bytes": 19,
+    "sha256": "a9eb9fdfc12327d95215f826fd8a4c1a73fd1b7c483f0b1bca54525971876a8c",
+    "lastEvidence": [
+      "",
+      "up to date in 11s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-social-init.log",
+    "bytes": 6316,
+    "sha256": "340a568201a49658dda4c57f725e1ea98fb8c48d5ef76a6998add3f6846a5fad",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-social-offline.log",
+    "bytes": 18,
+    "sha256": "e64af586ea357f57559d65d1407e250bb430d9affd6f6fb18035db10efc3efe1",
+    "lastEvidence": [
+      "",
+      "up to date in 3s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/expo-social-online.log",
+    "bytes": 19,
+    "sha256": "bfffcc0bba63f34ed3e3d735a7fb7aaf767f5c85a6e484e954aab917c2806089",
+    "lastEvidence": [
+      "",
+      "up to date in 15s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-chat-init.log",
+    "bytes": 5685,
+    "sha256": "5fe6597c0fca3f06f82bf148890f9b969e8c3a456a89ae24f262a4c5c729fef0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-chat-offline.log",
+    "bytes": 21,
+    "sha256": "aaca27931f94e580b124056b08a67970053f8930b9c1f39ca31fa94790fc1bcc",
+    "lastEvidence": [
+      "",
+      "up to date in 904ms"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-chat-online.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-init.log",
+    "bytes": 5729,
+    "sha256": "3fde4999cbf5adb0084b7981519b6f2ac11b93e6415f69305517d5d86efeb5b0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-offline.log",
+    "bytes": 21,
+    "sha256": "a21705fbab268fbe87c22c9a3b734fd94fc9342ec95dadc096cbebad01a36151",
+    "lastEvidence": [
+      "",
+      "up to date in 870ms"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-online-init.log",
+    "bytes": 5757,
+    "sha256": "b5b3bd9bbd29c177b23fbe96a65c0fe897706fb0274fa41850ebd6fe9e87af31",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-online-offline.log",
+    "bytes": 21,
+    "sha256": "fe85f41a568dd534b2990559eb0a6a8bf8ffa1be6f9e8c803e975123cdc5876f",
+    "lastEvidence": [
+      "",
+      "up to date in 903ms"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-online-online.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1/web-online.log",
+    "bytes": 18,
+    "sha256": "8ed2a8821f3fe701d344a5d8a37ec6a88732e8e1744e0768241d7cd0bac9b9a3",
+    "lastEvidence": [
+      "",
+      "up to date in 5s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-chat-init.log",
+    "bytes": 6211,
+    "sha256": "4924d49c971471abf1902782c60ee3599d007bdd80127b27c5bda83f7bf13ab7",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-chat-offline.log",
+    "bytes": 18,
+    "sha256": "e64af586ea357f57559d65d1407e250bb430d9affd6f6fb18035db10efc3efe1",
+    "lastEvidence": [
+      "",
+      "up to date in 3s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-chat-online.log",
+    "bytes": 18,
+    "sha256": "91611fabb007911708a8410de0ddce40abdc2789273d37f60035859002061d4c",
+    "lastEvidence": [
+      "",
+      "up to date in 9s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-init.log",
+    "bytes": 6251,
+    "sha256": "68cfcfd46280a2eaecc2013a6fb099afcd6717f3668020bc154efa3e02665582",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-offline.log",
+    "bytes": 18,
+    "sha256": "ce7bf91f54adc7390cff6bf1c2572fd00ce9cfbd0611637e273059c4710a80c9",
+    "lastEvidence": [
+      "",
+      "up to date in 2s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-online.log",
+    "bytes": 19,
+    "sha256": "a9eb9fdfc12327d95215f826fd8a4c1a73fd1b7c483f0b1bca54525971876a8c",
+    "lastEvidence": [
+      "",
+      "up to date in 11s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-social-init.log",
+    "bytes": 6316,
+    "sha256": "340a568201a49658dda4c57f725e1ea98fb8c48d5ef76a6998add3f6846a5fad",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-social-offline.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/expo-social-online.log",
+    "bytes": 19,
+    "sha256": "154aca584552c83f475a4115b597d93e4d2726c4b717cd10d8897d079d87f5b6",
+    "lastEvidence": [
+      "",
+      "up to date in 12s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-chat-init.log",
+    "bytes": 5685,
+    "sha256": "5fe6597c0fca3f06f82bf148890f9b969e8c3a456a89ae24f262a4c5c729fef0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-chat-offline.log",
+    "bytes": 18,
+    "sha256": "b125771fda8addd462adfe7f7b03299feb35e28badbb2d16ae8589e371216f8f",
+    "lastEvidence": [
+      "",
+      "up to date in 1s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-chat-online.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-init.log",
+    "bytes": 5729,
+    "sha256": "3fde4999cbf5adb0084b7981519b6f2ac11b93e6415f69305517d5d86efeb5b0",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-offline.log",
+    "bytes": 18,
+    "sha256": "b125771fda8addd462adfe7f7b03299feb35e28badbb2d16ae8589e371216f8f",
+    "lastEvidence": [
+      "",
+      "up to date in 1s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-online-init.log",
+    "bytes": 5757,
+    "sha256": "b5b3bd9bbd29c177b23fbe96a65c0fe897706fb0274fa41850ebd6fe9e87af31",
+    "lastEvidence": [
+      "init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.",
+      "init: frontend install deferred; run node scripts/install.mjs"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-online-offline.log",
+    "bytes": 18,
+    "sha256": "b125771fda8addd462adfe7f7b03299feb35e28badbb2d16ae8589e371216f8f",
+    "lastEvidence": [
+      "",
+      "up to date in 1s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-online-online.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/npm-refresh-a1d/web-online.log",
+    "bytes": 18,
+    "sha256": "4c2a0edc189edd72682ff8adda87e72f27972256071a3d6d6047b99e6aa11b40",
+    "lastEvidence": [
+      "",
+      "up to date in 4s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/pre/pre.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/pre/pre.log",
+    "bytes": 250949,
+    "sha256": "1350451252d01caf7227569c552f422bf9249219b7fbbc1a9b3b37306613b440",
+    "lastEvidence": [
+      "# PASS invalid IDs/hex refuse without replacing bytes; store scopes remain separate",
+      "# PASS closed helper refuses every operation and preserves ordinary cache for reopen",
+      "-- client files: 49/49; failed 0; tests {\"tests\":947,\"pass\":928,\"fail\":0,\"cancelled\":0,\"skipped\":19,\"todo\":0}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/install.log",
+    "bytes": 233,
+    "sha256": "2a4c4cef6bed2dc9e031e5fe3e2ad8674cff930872c37bc2fa3ac871355ae2d4",
+    "lastEvidence": [
+      "npm notice To update run: npm install -g npm@12.2.1",
+      "npm notice"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-deploy.out",
+    "bytes": 201,
+    "sha256": "f3a59e7aee2dbc1cff6e80bb38e7d1a926422f1a842c7f0d8ce48333970fd3a6",
+    "lastEvidence": [
+      "last test: NEVER RECORDED; next: snapback4 test",
+      "details: .snapback4/last/deploy.txt; --explain for full output"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-dev-help.out",
+    "bytes": 4962,
+    "sha256": "e24d0ed7bb0bca902d955b6a7a7dad4d9743b035670892521bc86ad94b69c855",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-serve-help.out",
+    "bytes": 3569,
+    "sha256": "02bb8a1945a6cffa0cf93e4ccebca8c3ba00df0d514c167ee8dbba8513b57e2e",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-serve.out",
+    "bytes": 23,
+    "sha256": "8c2136cdfd7da1787dd53f90942894ef82f9b8d132f3aecfbb622c2a883f2c37",
+    "lastEvidence": [
+      "http://127.0.0.1:51219"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-stop.out",
+    "bytes": 91,
+    "sha256": "f07aa3ddfebaae699803509b8e23fe12650d1f0b3870a68fe0c55a4577178af2",
+    "lastEvidence": [
+      "store stopped: /Users/ccheever/sb4-pub-0452/isolated/smoke-registry/proj-native/production"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-version.out",
+    "bytes": 17,
+    "sha256": "0fb974bfc1f5acd6a757a6ad7ffc36c532946ad8919130b78098a36b5fff5c37",
+    "lastEvidence": [
+      "snapback4 0.4.52"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/native-waitstopped.out",
+    "bytes": 105,
+    "sha256": "772e7429c9a2971a31af536e75b11a193b48cab9226bd201200f63f2bc11126d",
+    "lastEvidence": [
+      "store released: production",
+      "SNAPBACK4_EXIT verb=serve generation=0 status=0 reason=\"server loop returned\""
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-deploy.out",
+    "bytes": 201,
+    "sha256": "e932364ef3ebd59844c3f94d0b03719a823604688c059684a68dd05a83b73c42",
+    "lastEvidence": [
+      "last test: NEVER RECORDED; next: snapback4 test",
+      "details: .snapback4/last/deploy.txt; --explain for full output"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-dev-help.out",
+    "bytes": 4962,
+    "sha256": "e24d0ed7bb0bca902d955b6a7a7dad4d9743b035670892521bc86ad94b69c855",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-serve-help.out",
+    "bytes": 3569,
+    "sha256": "02bb8a1945a6cffa0cf93e4ccebca8c3ba00df0d514c167ee8dbba8513b57e2e",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-serve.out",
+    "bytes": 23,
+    "sha256": "d2f77bfdce85e03adb6b4e6cf4cbf1f700e060e36e7e6afdccce3cecda4bda45",
+    "lastEvidence": [
+      "http://127.0.0.1:51225"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-stop.out",
+    "bytes": 89,
+    "sha256": "1afea489989a2360d47b584d5a1b380c616e2ef5afe18a27f3a0266f59c386bf",
+    "lastEvidence": [
+      "store stopped: /Users/ccheever/sb4-pub-0452/isolated/smoke-registry/proj-shim/production"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-version.out",
+    "bytes": 17,
+    "sha256": "0fb974bfc1f5acd6a757a6ad7ffc36c532946ad8919130b78098a36b5fff5c37",
+    "lastEvidence": [
+      "snapback4 0.4.52"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-registry/shim-waitstopped.out",
+    "bytes": 105,
+    "sha256": "772e7429c9a2971a31af536e75b11a193b48cab9226bd201200f63f2bc11126d",
+    "lastEvidence": [
+      "store released: production",
+      "SNAPBACK4_EXIT verb=serve generation=0 status=0 reason=\"server loop returned\""
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/install.log",
+    "bytes": 233,
+    "sha256": "2a4c4cef6bed2dc9e031e5fe3e2ad8674cff930872c37bc2fa3ac871355ae2d4",
+    "lastEvidence": [
+      "npm notice To update run: npm install -g npm@12.2.1",
+      "npm notice"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-deploy.out",
+    "bytes": 201,
+    "sha256": "954ff54ad8ec905d283b0cc8ffab10731a06ef1a514e01542cee76b92e5923d4",
+    "lastEvidence": [
+      "last test: NEVER RECORDED; next: snapback4 test",
+      "details: .snapback4/last/deploy.txt; --explain for full output"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-dev-help.out",
+    "bytes": 4962,
+    "sha256": "e24d0ed7bb0bca902d955b6a7a7dad4d9743b035670892521bc86ad94b69c855",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-serve-help.out",
+    "bytes": 3569,
+    "sha256": "02bb8a1945a6cffa0cf93e4ccebca8c3ba00df0d514c167ee8dbba8513b57e2e",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-serve.out",
+    "bytes": 23,
+    "sha256": "c46db0fe851cdd76255c538e51e72e41d4c630c2d679343b05c1b747a446af7e",
+    "lastEvidence": [
+      "http://127.0.0.1:60253"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-stop.out",
+    "bytes": 89,
+    "sha256": "e109d2aba2d68c945eca94b2715c9c1ef0c069e4daccc5fb46f42b6423e6656f",
+    "lastEvidence": [
+      "store stopped: /Users/ccheever/sb4-pub-0452/isolated/smoke-staged/proj-native/production"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-version.out",
+    "bytes": 17,
+    "sha256": "0fb974bfc1f5acd6a757a6ad7ffc36c532946ad8919130b78098a36b5fff5c37",
+    "lastEvidence": [
+      "snapback4 0.4.52"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/native-waitstopped.out",
+    "bytes": 105,
+    "sha256": "772e7429c9a2971a31af536e75b11a193b48cab9226bd201200f63f2bc11126d",
+    "lastEvidence": [
+      "store released: production",
+      "SNAPBACK4_EXIT verb=serve generation=0 status=0 reason=\"server loop returned\""
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-deploy.out",
+    "bytes": 201,
+    "sha256": "954ff54ad8ec905d283b0cc8ffab10731a06ef1a514e01542cee76b92e5923d4",
+    "lastEvidence": [
+      "last test: NEVER RECORDED; next: snapback4 test",
+      "details: .snapback4/last/deploy.txt; --explain for full output"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-dev-help.out",
+    "bytes": 4962,
+    "sha256": "e24d0ed7bb0bca902d955b6a7a7dad4d9743b035670892521bc86ad94b69c855",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-serve-help.out",
+    "bytes": 3569,
+    "sha256": "02bb8a1945a6cffa0cf93e4ccebca8c3ba00df0d514c167ee8dbba8513b57e2e",
+    "lastEvidence": [
+      "",
+      "snapback4 --help lists every verb."
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-serve.out",
+    "bytes": 23,
+    "sha256": "42f478906a72799389283f8f42bf91306bc95d8a09a0fbaa23893bbad86c5540",
+    "lastEvidence": [
+      "http://127.0.0.1:60261"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-stop.out",
+    "bytes": 87,
+    "sha256": "0b71a0f9d5523717f69bc23e962bb350852fd215676144360488926385b3975c",
+    "lastEvidence": [
+      "store stopped: /Users/ccheever/sb4-pub-0452/isolated/smoke-staged/proj-shim/production"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-version.out",
+    "bytes": 17,
+    "sha256": "0fb974bfc1f5acd6a757a6ad7ffc36c532946ad8919130b78098a36b5fff5c37",
+    "lastEvidence": [
+      "snapback4 0.4.52"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/isolated/smoke-staged/shim-waitstopped.out",
+    "bytes": 105,
+    "sha256": "772e7429c9a2971a31af536e75b11a193b48cab9226bd201200f63f2bc11126d",
+    "lastEvidence": [
+      "store released: production",
+      "SNAPBACK4_EXIT verb=serve generation=0 status=0 reason=\"server loop returned\""
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/lean-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/lean-a1.log",
+    "bytes": 40,
+    "sha256": "0beb3cb0c69daff7ba4669e1dc933f4450b3f088755cf5667b2c642f7dd7f394",
+    "lastEvidence": [
+      "lean-setup exit=0 seconds=0.4",
+      "lean DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/linux-ready-a1.log",
+    "bytes": 90,
+    "sha256": "29d43dc1e3412e1f85a5ba38dd33606bb3916ba71c76ec1e23d9be6b3d4a0f51",
+    "lastEvidence": [
+      "LINUX READY: successful receipt, exact client/Expo/platform integrity and source verified"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/native-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/native-continue-a1.log",
+    "bytes": 692,
+    "sha256": "4e9897776c01d505efa1a777ca03e7abc8b8cf06b9c6173911650a6a07e8652f",
+    "lastEvidence": [
+      "native-qualification-verification exit=0 seconds=0.2",
+      "simulator-shutdown exit=0 seconds=3.2",
+      "NATIVE DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/npm-whoami-prefinish.out",
+    "bytes": 9,
+    "sha256": "62e3daf9f0d8cd89b3555d1953c593174c4965a298b71061ad8240fbb060be65",
+    "lastEvidence": [
+      "ccheever"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/post-native-a1.log",
+    "bytes": 1900,
+    "sha256": "d70ebb4b2fdf381c3769e92020962041a1bb91b35a6bebbd7c15a205b113b6dd",
+    "lastEvidence": [
+      " }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/pre-darwin.out",
+    "bytes": 3928,
+    "sha256": "e4d3874ee8035d39f5a431416acf174f0f62dfc3cde177fb8a80dd49f91a501f",
+    "lastEvidence": [
+      "rc=0 1976 s load={ 6.32 7.70 10.42 }",
+      "-- client files: 49/49; failed 0; tests {\"tests\":947,\"pass\":928,\"fail\":0,\"cancelled\":0,\"skipped\":19,\"todo\":0}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/expo/.snapback4/install.log",
+    "bytes": 27,
+    "sha256": "d1208a2a53a31ae295c34b01e80c364a82ff074b3e792c1ff92bf4e41376a179",
+    "lastEvidence": [
+      "",
+      "added 514 packages in 19s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/expo-audit.log",
+    "bytes": 363,
+    "sha256": "613941f123cd188a116c09e7f788f25e5bfcdd90fa84634ef966a9436e5c6086",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/expo-install.log",
+    "bytes": 350,
+    "sha256": "42f5541dcda53f0f636b31c94a248ac13d51c02292bb30395e93d17970aa3df5",
+    "lastEvidence": [
+      "frontend install: running; 15s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/web/.snapback4/install.log",
+    "bytes": 25,
+    "sha256": "4473a9c564ef83b8e16218b7be2f82db7502e784078d46dc18dbd0d0941452f0",
+    "lastEvidence": [
+      "",
+      "added 31 packages in 8s"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/web-audit.log",
+    "bytes": 362,
+    "sha256": "7e6eab985504fa3620366d78120e83823e7e17629434f9491dbfb8ca90d18c88",
+    "lastEvidence": [
+      "  }",
+      "}"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit/web-install.log",
+    "bytes": 254,
+    "sha256": "920d6b477830b42fd432239b988d75fb1970a8d81f8803697f9a60b3e91609ea",
+    "lastEvidence": [
+      "frontend install: running; 5s elapsed; waiting",
+      "npm install finished (exit 0)"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/preflight-publication-source/audit.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "lastEvidence": [
+      "0"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/prepare-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/prepare-a1.log",
+    "bytes": 60,
+    "sha256": "25b3797b909874be374584ff4119101c4682059293214d803eb1df30f22f2027",
+    "lastEvidence": [
+      "publication-prepare-client exit=0 seconds=36.5",
+      "prepare DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/refresh-after-suite-a1.log",
+    "bytes": 112,
+    "sha256": "0c4ffbaf63ab106a0aa7963e7f9c7e75ff8094a47f45ee137f1eefaac1ab041c",
+    "lastEvidence": [
+      "2026-11-01T22:08:20Z suite summary: == 0 failure(s) in 12016 s",
+      "2026-11-01T22:09:17Z refresh after suite: 6/6 ok"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/refresh-after-suite-a1.out",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/refresh-npm-cache-a1.out",
+    "bytes": 469,
+    "sha256": "be3dbe7476fb1025f7df859bdd395375e41b2772bc6e01e3d17a5d06793dcc39",
+    "lastEvidence": [
+      "web-chat online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=none ",
+      "expo-chat online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=1.4.1 ",
+      "expo-social online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=1.4.1 "
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/refresh-npm-cache-a1d.out",
+    "bytes": 469,
+    "sha256": "be3dbe7476fb1025f7df859bdd395375e41b2772bc6e01e3d17a5d06793dcc39",
+    "lastEvidence": [
+      "web-chat online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=none ",
+      "expo-chat online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=1.4.1 ",
+      "expo-social online-resolve rc=0 prefer-offline-resolve rc=0 node-forge=1.4.1 "
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/registry-smoke-pack.log",
+    "bytes": 209,
+    "sha256": "73309760e6499fb2538a4fc923c79e5a6840e4f19f4ebb3ef3b60fe02860e7d2",
+    "lastEvidence": [
+      "npm notice To update run: npm install -g npm@12.2.1",
+      "npm notice"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/registry-smoke-tgz/npm-cache/_logs/2026-11-01T22_40_09_267Z-debug-0.log",
+    "bytes": 2667,
+    "sha256": "a45d4853954c8eba782aabc8500cac4a39c8db76b279f5f4b73b38674e5f2429",
+    "lastEvidence": [
+      "29 verbose exit 0",
+      "30 info ok"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/warm-1.exit",
+    "bytes": 5,
+    "sha256": "d117fa006ba9208500b2930ce69cbde436c647afa917cb7396a9bc9111a46dd2",
+    "lastEvidence": [
+      "done"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/warm-a1.log",
+    "bytes": 41,
+    "sha256": "65257e5210f3d2a61b8f2695dee24aa22647f061513da2220b16597a2eef43a0",
+    "lastEvidence": [
+      "test-warm exit=0 seconds=842.8",
+      "warm DONE"
+    ]
+  },
+  {
+    "path": "/Users/ccheever/sb4-pub-0452/warm-pre-a1.out",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lastEvidence": []
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "snapback4/Cargo.toml": "ad6c07bc35cdcff4db89116d92b34b90395babd675af5722cb344dbb1e8c7ac8",
+  "snapback4/Cargo.lock": "32d41543e773328d3c26d48478cf08920736a2b62f2e08451a0e713a69bff90a",
+  "snapback4/native-fixtures/following/Cargo.lock": "3222f9d74bb2a1a28a38fdbcb35f6c45eb8b05dcb1bd09c1fd4426954ac47aa5",
+  "snapback4/packages/snapback4/package.json": "0d4986c47b23988a8f2dbd1663f13daa79381047192c67caeb039e928ab53623",
+  "snapback4/packages/snapback4-expo/package.json": "dfbe3d0c2c7b93788c7aa10bc38de889d7c6976fe41ce45a1fe822072be532fb",
+  "snapback4/packages/snapback4-darwin-arm64/package.json": "b65a4c75bfdacc7577b2c0a035eeb4ca7df95b49b457bf91838ef5b92cd471fe",
+  "snapback4/packages/snapback4-linux-x64/package.json": "2155d6b2dd82a1eabed8cd228dcf2cdc6027334c6f9f470e964df6f77f32a361",
+  "snapback4/packages/snapback4/reference/CHANGELOG.md": "cf0e18fd6d27b7269679f1e05e4cfa07a66075d88b0c33ee8c0dcc4023b83806"
+}

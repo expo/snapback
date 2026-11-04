@@ -1,0 +1,1 @@
+import {cli} from 'snapback4/proof'; import {writeFileSync} from 'node:fs'; const result=await cli(['init','--no-install','--expo'],{cwd:"/home/ccheever/sb4-intent/0453/linux-qualification-0.4.53/day2-compatibility/expo-ports",env:{PORT_LO:'29120',PORT_HI:'29129'}}); writeFileSync('expo-init.stdout',result.stdout); if(result.code) throw Error(result.stderr);

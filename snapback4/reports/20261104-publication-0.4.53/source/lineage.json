@@ -1,0 +1,8 @@
+{
+  "releaseSource": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "releaseParent": "9346e1fa3717e0223de52720b005027a4016e0dc",
+  "sourceBundleSha256": "8c4e4091a9db431491363cfce56bcb92b6ad1b016e1fcb39d32412be5e18df8d",
+  "recordsInitialOriginMain": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "recordsPrerequisiteCommit": "e5e1e36b5c4ad2a1ae5984a9b5269c07d50fea9f",
+  "recordsPrerequisite": "publication evidence selection repair; publication source and artifacts unchanged"
+}

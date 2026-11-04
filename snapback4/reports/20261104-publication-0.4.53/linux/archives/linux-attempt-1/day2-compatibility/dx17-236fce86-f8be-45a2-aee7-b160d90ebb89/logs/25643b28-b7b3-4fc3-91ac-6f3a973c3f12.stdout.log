@@ -1,0 +1,57 @@
+# Staging with real users
+(Truncated: this is the opening, first section and section index of a 310-line card: snapback4 guide staging --section <number or words> prints one section · --find <words> prints matching lines · --full prints whole cards up to 18000 bytes; --sections lists all sections.)
+
+Read one section for your change. `guide staging --sections` lists sections.
+
+## Opening
+
+Staging runs real password users and application rules under serve. Use it for shared previews and probe:serve, with roles provisioned by a local operator.
+
+```quarry
+use identity password
+table roles:
+  principal: principal
+  role: enum('admin', 'member')
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+mutation provision(principal: principal, role: enum('admin', 'member')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] { principal, role }
+query myRole():
+  return roles[viewer]
+table notes:
+  owner: principal
+  body: text 1..200
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation add(body: text 1..200):
+  return insert notes { owner: viewer, body }
+query myNotes(c: cursor ?):
+  return notes where .owner = viewer first 20 by .id after c
+```
+
+Use `serve` for staging, shared previews and `probe:serve`. It enforces the same
+password identity and rules as production. `dev` always advertises
+`development:true` in `/auth/config`, even with closed doors; probes should
+refuse it. `guide deploy` covers release evolution; PROD2 owns starter adaptation.
+
+Sections of guide staging:
+    1. Opening (38 lines)
+    2. Password roles and operator provisioning (8 lines)
+    3. Stand up staging (74 lines)
+    4. Production refuses bulk setup (30 lines)
+    5. E_STAGING (8 lines)
+    6. Account setup refusals (20 lines)
+    7. Identity request deadline (8 lines)
+    8. First admin on production (39 lines)
+    9. Local fixture tools are explicit (13 lines)
+   10. Time and reused stores (35 lines)
+   11. Development acceptance accounts (11 lines)
+   12. Password and online starter (11 lines)
+   13. Parallel password tests (11 lines)
+More: snapback4 guide staging --section <number or words> prints one section · --find <words> prints matching lines · --full prints whole cards up to 18000 bytes; --sections lists all sections

@@ -1,0 +1,4 @@
+Filesystem   1G-blocks Used Available Capacity  iused       ifree %iused  Mounted on
+/dev/disk3s5      3721 2599      1097    71% 30407377 11510092280    0%   /System/Volumes/Data
+Filesystem   1G-blocks Used Available Capacity  iused       ifree %iused  Mounted on
+/dev/disk3s5      3721 2609      1087    71% 30426363 11405576520    0%   /System/Volumes/Data

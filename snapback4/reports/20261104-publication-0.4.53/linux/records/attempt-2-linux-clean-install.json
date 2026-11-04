@@ -1,0 +1,12 @@
+{
+  "step": "linux-clean-install",
+  "command": [
+    "bash",
+    "/home/ccheever/sb4-intent/0453/kit/clean-install-linux.sh"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793770052.3762164,
+  "end": 1793770055.7049189,
+  "seconds": 3.329,
+  "exit": 0
+}

@@ -1,0 +1,20 @@
+{
+  "step": "publication-prepare-client",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_INCREMENTAL=0",
+    "CARGO_PROFILE_DEV_DEBUG=0",
+    "CARGO_PROFILE_TEST_DEBUG=0",
+    "node",
+    "scripts/publish.mjs",
+    "--prepare-client"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0453-wt/snapback4",
+  "start": 1793759865.97353,
+  "end": 1793759896.068352,
+  "seconds": 30.095,
+  "exit": 0
+}

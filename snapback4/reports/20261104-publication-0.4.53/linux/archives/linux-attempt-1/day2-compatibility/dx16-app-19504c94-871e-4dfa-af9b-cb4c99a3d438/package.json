@@ -1,0 +1,14 @@
+{
+  "devDependencies": {},
+  "private": true,
+  "scripts": {
+    "client:calls": "node tools/calls.mjs",
+    "day2:proof": "node scripts/day2-proof.mjs versions/v1 versions/v2"
+  },
+  "snapback4": {
+    "starter": {
+      "day2": true
+    }
+  },
+  "type": "module"
+}

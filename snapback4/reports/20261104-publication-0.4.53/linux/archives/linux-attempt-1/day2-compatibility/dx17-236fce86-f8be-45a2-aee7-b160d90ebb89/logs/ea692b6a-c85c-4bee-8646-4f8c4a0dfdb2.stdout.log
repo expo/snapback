@@ -1,0 +1,2 @@
+rollback: release 1 current, generation 3; 0 rows, 0 cells, 0 index entries dormant, notes.label changed; 5.1 ms
+details: .snapback4/last/rollback.txt; --explain for full output

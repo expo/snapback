@@ -1,0 +1,3 @@
+test: no failing observations; authored cases pass (1 passed, 0 failed, 0 skipped); queries pass (1 complete, 0 capped, 0 expected refusals, 0 derived refusals, 0 not run, 0 denied); security completed (finite, not proof)
+not covered: offline/revoked-device access and retained history require device boundary qualification; paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification; clock: no table population for generated arguments
+details: .snapback4/last/test.txt; --explain for full output

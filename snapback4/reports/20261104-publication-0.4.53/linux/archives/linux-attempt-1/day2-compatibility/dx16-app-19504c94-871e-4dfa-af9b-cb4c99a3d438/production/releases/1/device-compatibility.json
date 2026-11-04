@@ -1,0 +1,12 @@
+{
+  "advertised": [
+    "progressive-acquisition-v1"
+  ],
+  "server_version": "0.4.53",
+  "minimum_version": "0.4.24",
+  "capabilities": [
+    "branch-merge-v1",
+    "branch-pages-v5",
+    "sync-generation-v1"
+  ]
+}

@@ -1,0 +1,570 @@
+-K=$HOME/sb4-pub-0452; C=${1:?}; cd "$K"
++K=$HOME/sb4-pub-0453; C=${1:?}; cd "$K"
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt';c=sys.argv[1]
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt';c=sys.argv[1]
+-d=w/'snapback4/reports/20261101-expo-0.4.52';p=d/'qualified.json';b=p.read_bytes();q=json.loads(b)
++d=w/'snapback4/reports/20261104-expo-0.4.53';p=d/'qualified.json';b=p.read_bytes();q=json.loads(b)
+-archive=k/'archive-native-a1-power-20261101T162617Z';archive.mkdir(exist_ok=False)
++archive=k/'archive-native-a1-power-20261104T162617Z';archive.mkdir(exist_ok=False)
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt; C=${1:?}; cd "$K"
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt; C=${1:?}; cd "$K"
+-C=${1:?}; W=$HOME/sb4-pub-0444-wt; K=$HOME/sb4-pub-0452
++C=${1:?}; W=$HOME/sb4-pub-0453-wt; K=$HOME/sb4-pub-0453
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-until [ -e prepare-2.exit ]; do
+- if [ -e native-2.exit ] && [ "$(cat native-2.exit)" != done ]; then exit 1; fi
++until [ -e prepare-1.exit ]; do
++ if [ -e native-1.exit ] && [ "$(cat native-1.exit)" != done ]; then exit 1; fi
+-[ "$(cat prepare-2.exit)" = done ]
++[ "$(cat prepare-1.exit)" = done ]
+-node ./audit-fast.mjs "$W" "$W/target/publication/client-0.4.52" "$K/isolated/audit-mac-early" > audit-mac-early.log 2>&1
++node ./audit-fast.mjs "$W" "$W/target/publication/client-0.4.53" "$K/isolated/audit-mac-early" > audit-mac-early.log 2>&1
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-node ./audit-fast.mjs "$W" "$W/target/publication/client-0.4.52" "$K/isolated/audit-mac-early" > audit-mac-early.log 2>&1
++node ./audit-fast.mjs "$W" "$W/target/publication/client-0.4.53" "$K/isolated/audit-mac-early" > audit-mac-early.log 2>&1
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-PUB52_STOCK_TEMPLATES=$K/preflight-publication-source/templates node "$K/audit-fast.mjs" "$W" "$W/target/publication/client-0.4.52" "$K/isolated/audit-mac-pre-dry" > "$K/audit-mac-pre-dry.log" 2>&1
++PUB52_STOCK_TEMPLATES=$K/preflight-publication-source/templates node "$K/audit-fast.mjs" "$W" "$W/target/publication/client-0.4.53" "$K/isolated/audit-mac-pre-dry" > "$K/audit-mac-pre-dry.log" 2>&1
+-# 0.4.52 attempt 1 Mac chain (107a413c29): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
+-K=$HOME/sb4-pub-0452; cd $K
++# 0.4.53 attempt 1 Mac chain (9da2c76fdf): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
++K=$HOME/sb4-pub-0453; cd $K
+-# 0.4.52 attempt 2 Mac chain (107a413c29): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
+-K=$HOME/sb4-pub-0452; cd $K
++# 0.4.53 attempt 1 Mac chain (9da2c76fdf): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
++K=$HOME/sb4-pub-0453; cd $K
+-log "native-2 start"; ATTEMPT=2 bash ./native.sh > native-continue-a2.log 2>&1; log "native-2: $(cat native-2.exit)"
+-[ "$(cat native-2.exit)" = done ] || exit 1
++log "native-1 start"; ATTEMPT=1 bash ./native.sh > native-continue-a2.log 2>&1; log "native-1: $(cat native-1.exit)"
++[ "$(cat native-1.exit)" = done ] || exit 1
+-ATTEMPT=2 bash ./publish.sh prepare > prepare-a2.log 2>&1; log "prepare-2: $(cat prepare-2.exit)"
+-[ "$(cat prepare-2.exit)" = done ] || exit 1
++ATTEMPT=1 bash ./publish.sh prepare > prepare-a2.log 2>&1; log "prepare-1: $(cat prepare-1.exit)"
++[ "$(cat prepare-1.exit)" = done ] || exit 1
+-# 0.4.52: watched pre-gate for chain-a1 (native attempt 1 at 107a413c29;/prepare/lean/warm). Waits for AC power + open lid (and lets the
++# 0.4.53: watched pre-gate for chain-a1 (native attempt 1 at 9da2c76fdf;/prepare/lean/warm). Waits for AC power + open lid (and lets the
+-K=$HOME/sb4-pub-0452; L=$K/chain-a1.log
++K=$HOME/sb4-pub-0453; L=$K/chain-a1.log
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); load=$(sysctl -n vm.loadavg | awk '{print int($2)}'); }
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); load=$(sysctl -n vm.loadavg | awk '{print int($2)}'); }
+-  slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
++  slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | /usr/bin/grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
+-# 0.4.52: watched pre-gate for chain-a2 (native attempt 2 at 107a413c29;/prepare/lean/warm). Waits for AC power + open lid (and lets the
++# 0.4.53: watched pre-gate for chain-a2 (native attempt 1 at 9da2c76fdf;/prepare/lean/warm). Waits for AC power + open lid (and lets the
+-# witness would then be environment-invalid and is rerun as attempt 2).
+-K=$HOME/sb4-pub-0452; L=$K/chain-a2.log
++# witness would then be environment-invalid and is rerun under a fresh attempt).
++K=$HOME/sb4-pub-0453; L=$K/chain-a2.log
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); load=$(sysctl -n vm.loadavg | awk '{print int($2)}'); }
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); load=$(sysctl -n vm.loadavg | awk '{print int($2)}'); }
+-  slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
++  slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | /usr/bin/grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
+-# 0.4.52 after chain-a1 (native-1 -> post-native -> prepare-1 -> expo-prep-check -> lean-1 -> warm-1 at 107a413c29):
++# 0.4.53 after chain-a1 (native-1 -> post-native -> prepare-1 -> expo-prep-check -> lean-1 -> warm-1 at 9da2c76fdf):
+-K=$HOME/sb4-pub-0452; cd $K; L=$K/chain-pre-a1.log; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; cd $K; L=$K/chain-pre-a1.log; W=$HOME/sb4-pub-0453-wt/snapback4
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); }
+-until grep -q "gate: chain exit" chain-a1.log 2>/dev/null; do sleep 30; done
+-grep -q "gate: chain exit 0 (env-ok)" chain-a1.log || { log "STOP: chain-a1 not clean: $(tail -1 chain-a1.log)"; exit 1; }
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); }
++until /usr/bin/grep -q "gate: chain exit" chain-a1.log 2>/dev/null; do sleep 30; done
++/usr/bin/grep -q "gate: chain exit 0 (env-ok)" chain-a1.log || { log "STOP: chain-a1 not clean: $(tail -1 chain-a1.log)"; exit 1; }
+-rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
+-[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
++rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(/usr/bin/grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
++[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(/usr/bin/grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
+-while [ ! -s "$W/target/incoming/linux-0.4.52/receipt.json" ] || [ ! -s "$W/target/incoming/linux-0.4.52/snapback4-linux-x64-0.4.52.tgz" ]; do
++while [ ! -s "$W/target/incoming/linux-0.4.53/receipt.json" ] || [ ! -s "$W/target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz" ]; do
+-const version='0.4.52',source=run('git',['rev-parse','HEAD']).trim();
++const version='0.4.53',source=run('git',['rev-parse','HEAD']).trim();
+-log "refresh: $(grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)/6 ok; $(grep -E 'FAILED' refresh-npm-cache-a1.out | head -2 | tr '\n' ' ')"
+-[ "$(grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)" = 6 ] || { log "STOP: refresh not 6/6"; exit 1; }
++log "refresh: $(/usr/bin/grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)/6 ok; $(/usr/bin/grep -E 'FAILED' refresh-npm-cache-a1.out | head -2 | tr '\n' ' ')"
++[ "$(/usr/bin/grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)" = 6 ] || { log "STOP: refresh not 6/6"; exit 1; }
+-[ -z "$(git -C $HOME/sb4-pub-0444-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0444-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
++[ -z "$(git -C $HOME/sb4-pub-0453-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0453-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
+-ATT=1 MAXATT=1 RUSTPROCS=2 COMMIT=107a413c296cd73e9701bc43ebdd4c6b86ca95bd nohup caffeinate -ims bash ./gate-tolerant.sh > gate-runner-a1.log 2>&1 < /dev/null &
++ATT=1 MAXATT=1 RUSTPROCS=2 COMMIT=9da2c76fdf32b20f985c85fe6d33b507c09edd25 nohup caffeinate -ims bash ./gate-tolerant.sh > gate-runner-a1.log 2>&1 < /dev/null &
+-# 0.4.52 after chain-a2 (native-2 -> post-native -> prepare-2 -> expo-prep-check -> lean-2 -> warm-2 at 107a413c29):
++# 0.4.53 after chain-a2 (native-1 -> post-native -> prepare-1 -> expo-prep-check -> lean-1 -> warm-1 at 9da2c76fdf):
+-#    before the dry run (0.4.43/0.4.44 lessons), check the tree, then start the tolerant dry-run gate (attempt 2, RUSTPROCS=2).
++#    before the dry run (0.4.43/0.4.44 lessons), check the tree, then start the tolerant dry-run gate (attempt 1, RUSTPROCS=2).
+-K=$HOME/sb4-pub-0452; cd $K; L=$K/chain-pre-a2.log; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; cd $K; L=$K/chain-pre-a2.log; W=$HOME/sb4-pub-0453-wt/snapback4
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); }
+-until grep -q "gate: chain exit" chain-a2.log 2>/dev/null; do sleep 30; done
+-grep -q "gate: chain exit 0 (env-ok)" chain-a2.log || { log "STOP: chain-a2 not clean: $(tail -1 chain-a2.log)"; exit 1; }
+-for f in native-2 prepare-2 lean-2 warm-2; do [ "$(cat $f.exit 2>/dev/null)" = done ] || { log "STOP: $f.exit=$(cat $f.exit 2>/dev/null)"; exit 1; }; done
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); }
++until /usr/bin/grep -q "gate: chain exit" chain-a2.log 2>/dev/null; do sleep 30; done
++/usr/bin/grep -q "gate: chain exit 0 (env-ok)" chain-a2.log || { log "STOP: chain-a2 not clean: $(tail -1 chain-a2.log)"; exit 1; }
++for f in native-1 prepare-1 lean-1 warm-1; do [ "$(cat $f.exit 2>/dev/null)" = done ] || { log "STOP: $f.exit=$(cat $f.exit 2>/dev/null)"; exit 1; }; done
+-rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
+-[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
++rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(/usr/bin/grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
++[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(/usr/bin/grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
+-while [ ! -s "$W/target/incoming/linux-0.4.52/receipt.json" ] || [ ! -s "$W/target/incoming/linux-0.4.52/snapback4-linux-x64-0.4.52.tgz" ]; do
++while [ ! -s "$W/target/incoming/linux-0.4.53/receipt.json" ] || [ ! -s "$W/target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz" ]; do
+-const version='0.4.52',source=run('git',['rev-parse','HEAD']).trim();
++const version='0.4.53',source=run('git',['rev-parse','HEAD']).trim();
+-log "refresh start load=$(sysctl -n vm.loadavg)"
++# Recheck disk immediately before the dry-run refresh after any Linux wait.
++while :; do
++ free=$(df -g "$HOME" | tail -1 | awk '{print $4}')
++ [ "$free" -ge 45 ] && break
++ log "RESOURCE WAIT before dry run: disk=${free}GiB (<45)"; sleep 60
++done
++df -g "$HOME" >> "$K/disk-before-dry-run.log"
++log "refresh start disk=${free}GiB load=$(sysctl -n vm.loadavg)"
+-log "refresh: $(grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a2.out)/6 ok; $(grep -E 'FAILED' refresh-npm-cache-a2.out | head -2 | tr '\n' ' ')"
+-[ "$(grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a2.out)" = 6 ] || { log "STOP: refresh not 6/6"; exit 1; }
++log "refresh: $(/usr/bin/grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a2.out)/6 ok; $(/usr/bin/grep -E 'FAILED' refresh-npm-cache-a2.out | head -2 | tr '\n' ' ')"
++[ "$(/usr/bin/grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a2.out)" = 6 ] || { log "STOP: refresh not 6/6"; exit 1; }
+-[ -z "$(git -C $HOME/sb4-pub-0444-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0444-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
++[ -z "$(git -C $HOME/sb4-pub-0453-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0453-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
+-log "starting gate-tolerant ATT=2 RUSTPROCS=2"
+-ATT=2 MAXATT=2 RUSTPROCS=2 COMMIT=107a413c296cd73e9701bc43ebdd4c6b86ca95bd nohup caffeinate -ims bash ./gate-tolerant.sh > gate-runner-a2.log 2>&1 < /dev/null &
+-log "gate pid $!"
++log "starting gate-tolerant ATT=1 RUSTPROCS=2"
++ATT=1 MAXATT=1 RUSTPROCS=2 COMMIT=9da2c76fdf32b20f985c85fe6d33b507c09edd25 nohup caffeinate -ims bash ./gate-tolerant.sh > gate-runner-a2.log 2>&1 < /dev/null &
++gate_pid=$!; log "gate pid $gate_pid"
++
++# Keep the gate owned by this foreground tool session until it finishes.
++wait "$gate_pid"
++[ "$(cat "$K/dry-run-1.exit" 2>/dev/null)" = done ]
+-K=$HOME/sb4-pub-0452; T=$HOME/sb4-pub-0444-wt/snapback4/packages/snapback4/test
++K=$HOME/sb4-pub-0453; T=$HOME/sb4-pub-0453-wt/snapback4/packages/snapback4/test
+-K=$HOME/sb4-pub-0452; cd "$K"; [ ! -e native-final-started.sha ]
++K=$HOME/sb4-pub-0453; cd "$K"; [ ! -e native-final-started.sha ]
+-D=$HOME/sb4-pub-0452/clean-install; rm -rf $D; mkdir -p $D && cd $D
+-npm init -y >/dev/null && npm install snapback4@0.4.52 --prefer-online --no-audit --no-fund 2>&1 | tail -2
++D=$HOME/sb4-pub-0453/clean-install; rm -rf $D; mkdir -p $D && cd $D
++npm init -y >/dev/null && npm install snapback4@0.4.53 --prefer-online --no-audit --no-fund 2>&1 | tail -2
+-K=$HOME/sb4-pub-0452; D=$K/isolated/audit-red
+-S=$HOME/sb4-pub-0444-wt/snapback4/target/publication/snapback4-darwin-arm64-0.4.52
++K=$HOME/sb4-pub-0453; D=$K/isolated/audit-red
++S=$HOME/sb4-pub-0453-wt/snapback4/target/publication/snapback4-darwin-arm64-0.4.53
+-npm install --no-save --ignore-scripts --no-audit --no-fund "$S/snapback4-0.4.52.tgz" "$S/snapback4-darwin-arm64-0.4.52.tgz" > "$D/cli-install.log" 2>&1
++npm install --no-save --ignore-scripts --no-audit --no-fund "$S/snapback4-0.4.53.tgz" "$S/snapback4-darwin-arm64-0.4.53.tgz" > "$D/cli-install.log" 2>&1
+-pkg.dependencies.snapback4=`file:${process.env.STAGE}/snapback4-0.4.52.tgz`;
+-pkg.optionalDependencies={'snapback4-darwin-arm64':`file:${process.env.STAGE}/snapback4-darwin-arm64-0.4.52.tgz`};
+-pkg.dependencies['snapback4-expo']=`file:${process.env.STAGE}/snapback4-expo-0.4.52.tgz`;
++pkg.dependencies.snapback4=`file:${process.env.STAGE}/snapback4-0.4.53.tgz`;
++pkg.optionalDependencies={'snapback4-darwin-arm64':`file:${process.env.STAGE}/snapback4-darwin-arm64-0.4.53.tgz`};
++pkg.dependencies['snapback4-expo']=`file:${process.env.STAGE}/snapback4-expo-0.4.53.tgz`;
+-root=pathlib.Path.home()/'sb4-pub-0444-wt/snapback4'
+-q=json.loads((root/'reports/20261101-expo-0.4.52/qualified.json').read_text())
+-tar=root/'target/publication/client-0.4.52/snapback4-expo-0.4.52.tgz'
++root=pathlib.Path.home()/'sb4-pub-0453-wt/snapback4'
++q=json.loads((root/'reports/20261104-expo-0.4.53/qualified.json').read_text())
++tar=root/'target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz'
+-for f in ['snapback4-0.4.52.tgz','snapback4-expo-0.4.52.tgz']: print(f, hashlib.sha256((root/'target/publication/client-0.4.52'/f).read_bytes()).hexdigest())
++for f in ['snapback4-0.4.53.tgz','snapback4-expo-0.4.53.tgz']: print(f, hashlib.sha256((root/'target/publication/client-0.4.53'/f).read_bytes()).hexdigest())
++
++assert ok, "prepared Expo payload differs from native-qualified files"
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-grep -q '^RESULT PASS$' "$K/isolated/smoke-staged/results.txt"
++/usr/bin/grep -q '^RESULT PASS$' "$K/isolated/smoke-staged/results.txt"
+-node "$K/audit-fast.mjs" "$W" "$W/target/publication/snapback4-darwin-arm64-0.4.52" "$K/isolated/audit-mac-final" > "$K/audit-mac-final.log" 2>&1
++node "$K/audit-fast.mjs" "$W" "$W/target/publication/snapback4-darwin-arm64-0.4.53" "$K/isolated/audit-mac-final" > "$K/audit-mac-final.log" 2>&1
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/finish-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/finish-$ATTEMPT.exit; exit 1; }; }
+-step expo-proof-bytes . python3 -c "import json,sys;s=json.load(open('reports/20261101-publication-0.4.52/expo-staged.json'));p=json.load(open('target/publication/client-0.4.52/prepare.json'));print(s['integrity'],p['expo']['integrity']);sys.exit(0 if s['integrity']==p['expo']['integrity'] else 1)"
++step expo-proof-bytes . python3 -c "import json,sys;s=json.load(open('reports/20261104-publication-0.4.53/expo-staged.json'));p=json.load(open('target/publication/client-0.4.53/prepare.json'));print(s['integrity'],p['expo']['integrity']);sys.exit(0 if s['integrity']==p['expo']['integrity'] else 1)"
+-echo "FINISH DONE"; echo done > /Users/ccheever/sb4-pub-0452/finish-$ATTEMPT.exit
++echo "FINISH DONE"; echo done > /Users/ccheever/sb4-pub-0453/finish-$ATTEMPT.exit
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/finish-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/finish-$ATTEMPT.exit; exit 1; }; }
+-step expo-proof-bytes . python3 -c "import json,sys;s=json.load(open('reports/20261101-publication-0.4.52/expo-staged.json'));p=json.load(open('target/publication/client-0.4.52/prepare.json'));print(s['integrity'],p['expo']['integrity']);sys.exit(0 if s['integrity']==p['expo']['integrity'] else 1)"
++step expo-proof-bytes . python3 -c "import json,sys;s=json.load(open('reports/20261104-publication-0.4.53/expo-staged.json'));p=json.load(open('target/publication/client-0.4.53/prepare.json'));print(s['integrity'],p['expo']['integrity']);sys.exit(0 if s['integrity']==p['expo']['integrity'] else 1)"
+-echo "FINISH DONE"; echo done > /Users/ccheever/sb4-pub-0452/finish-$ATTEMPT.exit
++echo "FINISH DONE"; echo done > /Users/ccheever/sb4-pub-0453/finish-$ATTEMPT.exit
+-# 0.4.52 Mac dry-run gate with in-run power watch (TOLERANT variant, dry run 6+: after dry runs 3-5 were lost to unplugs/a charger blip,
++# 0.4.53 Mac dry-run gate with in-run power watch (TOLERANT variant, dry run 6+: after dry runs 3-5 were lost to unplugs/a charger blip,
+-K=/Users/ccheever/sb4-pub-0452; W=/Users/ccheever/sb4-pub-0444-wt/snapback4
++K=/Users/ccheever/sb4-pub-0453; W=/Users/ccheever/sb4-pub-0453-wt/snapback4
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); }
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); }
+-  while :; do power; [ "$ac" = 1 ] && [ "$lid" = 1 ] && break; log "waiting att=$ATT ac=$ac lid_open=$lid"; if [ "$ac" != 1 ]; then sleep 600; else sleep 120; fi; done
++  while :; do
++    power; free=$(df -g "$HOME" | tail -1 | awk '{print $4}')
++    [ "$ac" = 1 ] && [ "$lid" = 1 ] && [ "$free" -ge 45 ] && break
++    log "waiting att=$ATT ac=$ac lid_open=$lid disk=${free}GiB"
++    if [ "$ac" != 1 ]; then sleep 600; else sleep 120; fi
++  done
++  df -g "$HOME" >> "$K/disk-before-dry-run.log"
+-    slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
+-    batt=$(pmset -g batt | sed -n 2p | grep -o '[0-9]*%' | head -1 | tr -d '%')
++    slept=$(pmset -g log | awk -v s="$start_pm" '($1" "$2)>=s' | /usr/bin/grep -E "Entering Sleep|Clamshell Sleep" | tail -1)
++    batt=$(pmset -g batt | sed -n 2p | /usr/bin/grep -o '[0-9]*%' | head -1 | tr -d '%')
+-const expected=JSON.parse(readFileSync('reports/20261101-publication-0.4.52/expo-staged.json')).integrity;
++const expected=JSON.parse(readFileSync('reports/20261104-publication-0.4.53/expo-staged.json')).integrity;
+- const result=spawnSync('npm',['view','snapback4-expo@0.4.52','dist.integrity','--json'],{encoding:'utf8'});
+- if(result.status===0 && result.stdout.trim()) {assert.equal(JSON.parse(result.stdout),expected);console.log(`snapback4-expo@0.4.52 registry matches ${expected}; propagation ${(Date.now()-started)/1000}s`);break;}
++ const result=spawnSync('npm',['view','snapback4-expo@0.4.53','dist.integrity','--json'],{encoding:'utf8'});
++ if(result.status===0 && result.stdout.trim()) {assert.equal(JSON.parse(result.stdout),expected);console.log(`snapback4-expo@0.4.53 registry matches ${expected}; propagation ${(Date.now()-started)/1000}s`);break;}
+- console.log('waiting for snapback4-expo@0.4.52 to become readable');await delay(15000);
++ console.log('waiting for snapback4-expo@0.4.53 to become readable');await delay(15000);
+-root=Path.cwd(); r=root/'reports/20261101-publication-0.4.52'; q=json.loads((root/'reports/20261101-expo-0.4.52/qualified.json').read_text()); pack=json.loads((r/(sys.argv[1]+'-expo-pack.log')).read_text())[0]
+-tar=root/'target/expo-0.4.52'/pack['filename']; sri='sha512-'+base64.b64encode(hashlib.sha512(tar.read_bytes()).digest()).decode()
+-assert pack['name']=='snapback4-expo' and pack['version']=='0.4.52'
++root=Path.cwd(); r=root/'reports/20261104-publication-0.4.53'; q=json.loads((root/'reports/20261104-expo-0.4.53/qualified.json').read_text()); pack=json.loads((r/(sys.argv[1]+'-expo-pack.log')).read_text())[0]
++tar=root/'target/expo-0.4.53'/pack['filename']; sri='sha512-'+base64.b64encode(hashlib.sha512(tar.read_bytes()).digest()).decode()
++assert pack['name']=='snapback4-expo' and pack['version']=='0.4.53'
+-root=pathlib.Path.cwd(); artifacts=root/'reports/20261101-expo-0.4.52'; qpath=artifacts/'qualified.json'; q=json.loads(qpath.read_text())
++root=pathlib.Path.cwd(); artifacts=root/'reports/20261104-expo-0.4.53'; qpath=artifacts/'qualified.json'; q=json.loads(qpath.read_text())
+-assert subprocess.check_output([str(cli),'--version'],text=True).strip().endswith('0.4.52'),'CLI version is not 0.4.52'
++assert subprocess.check_output([str(cli),'--version'],text=True).strip().endswith('0.4.53'),'CLI version is not 0.4.53'
+-# Starts reports/20261101-expo-0.4.52/qualified.json after the xcframework build:
++# Starts reports/20261104-expo-0.4.53/qualified.json after the xcframework build:
+-root=pathlib.Path.cwd(); artifacts=root/'reports/20261101-expo-0.4.52'; qpath=artifacts/'qualified.json'
++root=pathlib.Path.cwd(); artifacts=root/'reports/20261104-expo-0.4.53'; qpath=artifacts/'qualified.json'
+-pkg=root/'packages/snapback4-expo'; version=json.loads((pkg/'package.json').read_text())['version']; assert version=='0.4.52'
++pkg=root/'packages/snapback4-expo'; version=json.loads((pkg/'package.json').read_text())['version']; assert version=='0.4.53'
+-root=pathlib.Path.cwd(); artifacts=root/'reports/20261101-expo-0.4.52'; qpath=artifacts/'qualified.json'; q=json.loads(qpath.read_text()); digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
++root=pathlib.Path.cwd(); artifacts=root/'reports/20261104-expo-0.4.53'; qpath=artifacts/'qualified.json'; q=json.loads(qpath.read_text()); digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+- p=artifacts/(segment+'-ios-run.json'); m=json.loads(p.read_text()); assert m['exitStatus']==0 and m['error'] is None; assert m['cliVersion']=='0.4.52'; assert m['prime'] and m['relaunch']==(segment=='restart'); assert m['udid']==q['simulator']
++ p=artifacts/(segment+'-ios-run.json'); m=json.loads(p.read_text()); assert m['exitStatus']==0 and m['error'] is None; assert m['cliVersion']=='0.4.53'; assert m['prime'] and m['relaunch']==(segment=='restart'); assert m['udid']==q['simulator']
+-  python3 /Users/ccheever/sb4-pub-0452/helpers-0.4.52/registry-verify.py "$1" && exit 0
++  python3 /Users/ccheever/sb4-pub-0453/helpers-0.4.53/registry-verify.py "$1" && exit 0
+-root=Path.cwd(); r=root/'reports/20261101-publication-0.4.52'
++root=Path.cwd(); r=root/'reports/20261104-publication-0.4.53'
+- directory=root/'target/publication/snapback4-darwin-arm64-0.4.52'
++ directory=root/'target/publication/snapback4-darwin-arm64-0.4.53'
+- artifacts=[json.loads((r/'expo-staged.json').read_text())];directory=root/'target/expo-0.4.52'
++ artifacts=[json.loads((r/'expo-staged.json').read_text())];directory=root/'target/expo-0.4.53'
+- dist=json.loads(subprocess.check_output(['npm','view',a['name']+'@0.4.52','dist','--json'],text=True))
++ dist=json.loads(subprocess.check_output(['npm','view',a['name']+'@0.4.53','dist','--json'],text=True))
+- records.append({'package':a['name']+'@0.4.52','bytes':len(data),'integrity':sri,'registryDist':dist,'registryMetadataMatches':True,'downloadedTarballMatches':True})
++ records.append({'package':a['name']+'@0.4.53','bytes':len(data),'integrity':sri,'registryDist':dist,'registryMetadataMatches':True,'downloadedTarballMatches':True})
+-P=${2:?pid}; W=/Users/ccheever/sb4-pub-0444-wt/snapback4
++P=${2:?pid}; W=/Users/ccheever/sb4-pub-0453-wt/snapback4
+-echo "$(date -u +%FT%TZ) $1 $P stat=$(ps -o stat= -p $P)" | tee -a $HOME/sb4-pub-0452/hold-dryrun.log
++echo "$(date -u +%FT%TZ) $1 $P stat=$(ps -o stat= -p $P)" | tee -a $HOME/sb4-pub-0453/hold-dryrun.log
+-C=${1:?publication source}; K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt
++C=${1:?publication source}; K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt'
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt'
+-assert q['source']==c and q['version']=='0.4.52' and q['dry'] is True
++assert q['source']==c and q['version']=='0.4.53' and q['dry'] is True
+-F=${1:?file}; N=${2:-6}; O=$HOME/sb4-pub-0452/isolated/iso-$F; mkdir -p $O
++F=${1:?file}; N=${2:-6}; O=$HOME/sb4-pub-0453/isolated/iso-$F; mkdir -p $O
+-cd $HOME/sb4-pub-0444-wt/snapback4
++cd $HOME/sb4-pub-0453-wt/snapback4
+-  echo "$(date -u +%FT%TZ) $F run $i rc=$rc $(( $(date +%s)-s )) s load=$(sysctl -n vm.loadavg | awk '{print $2}') $(grep -E '^-- client files:' $O/run-$i.log | cut -c1-110) $(grep -E '^not ok' $O/run-$i.log | cut -c1-80 | tr '\n' ' ')" | tee -a $O/summary.txt
++  echo "$(date -u +%FT%TZ) $F run $i rc=$rc $(( $(date +%s)-s )) s load=$(sysctl -n vm.loadavg | awk '{print $2}') $(/usr/bin/grep -E '^-- client files:' $O/run-$i.log | cut -c1-110) $(/usr/bin/grep -E '^not ok' $O/run-$i.log | cut -c1-80 | tr '\n' ' ')" | tee -a $O/summary.txt
+-# Kill the 0.4.52 Mac dry run + gate, and nothing else.
+-# 0.4.52 fix: the 0.4.38 version matched `scripts/run-client-tests[.]mjs` on any command line, which also
++# Kill the 0.4.53 Mac dry run + gate, and nothing else.
++# 0.4.53 fix: the 0.4.38 version matched `scripts/run-client-tests[.]mjs` on any command line, which also
+-K=/Users/ccheever/sb4-pub-0452; W=/Users/ccheever/sb4-pub-0444-wt
++K=/Users/ccheever/sb4-pub-0453; W=/Users/ccheever/sb4-pub-0453-wt
+-pids=$(targets | sort -u | grep -v "^$$\$")
++pids=$(targets | sort -u | /usr/bin/grep -v "^$$\$")
+-left=$(targets | sort -u | grep -v "^$$\$")
++left=$(targets | sort -u | /usr/bin/grep -v "^$$\$")
+-echo "remaining:"; targets | sort -u | grep -v "^$$\$"
++echo "remaining:"; targets | sort -u | /usr/bin/grep -v "^$$\$"
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/native-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/native-$ATTEMPT.exit; exit 1; }; }
+-echo "NATIVE DONE"; echo "done" > /Users/ccheever/sb4-pub-0452/native-$ATTEMPT.exit
++echo "NATIVE DONE"; echo "done" > /Users/ccheever/sb4-pub-0453/native-$ATTEMPT.exit
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/native-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/native-$ATTEMPT.exit; exit 1; }; }
+-echo "NATIVE DONE"; echo "done" > /Users/ccheever/sb4-pub-0452/native-$ATTEMPT.exit
++echo "NATIVE DONE"; echo "done" > /Users/ccheever/sb4-pub-0453/native-$ATTEMPT.exit
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-git diff metrics/witness.jsonl > $K/witness.jsonl.native-0452.diff
++git diff metrics/witness.jsonl > $K/witness.jsonl.native-0453.diff
+-grep '^+{' $K/witness.jsonl.native-0452.diff | cut -c1-160
++/usr/bin/grep '^+{' $K/witness.jsonl.native-0453.diff | cut -c1-160
+-grep -m1 -E "DEVELOPER_DIR|Xcode" apps/chat-expo/.expo/xcodebuild.log | cut -c1-200 || true
++/usr/bin/grep -m1 -E "DEVELOPER_DIR|Xcode" apps/chat-expo/.expo/xcodebuild.log | cut -c1-200 || true
+-p=pathlib.Path('reports/20261101-expo-0.4.52/qualified.json'); q=json.loads(p.read_text())
+-assert q['source'].startswith('107a413c29'), q['source']
++p=pathlib.Path('reports/20261104-expo-0.4.53/qualified.json'); q=json.loads(p.read_text())
++assert q['source'].startswith('9da2c76fdf'), q['source']
+-q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 2 at 107a413c29",
+- 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attempt 2 at 107a413c29; ~/Applications/Xcode-27.0.app retained but not used",
++q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf",
++ 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf; ~/Applications/Xcode-27.0.app retained but not used",
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-git diff metrics/witness.jsonl > $K/witness.jsonl.native-0452.diff
++git diff metrics/witness.jsonl > $K/witness.jsonl.native-0453.diff
+-grep '^+{' $K/witness.jsonl.native-0452.diff | cut -c1-160
++/usr/bin/grep '^+{' $K/witness.jsonl.native-0453.diff | cut -c1-160
+-grep -m1 -E "DEVELOPER_DIR|Xcode" apps/chat-expo/.expo/xcodebuild.log | cut -c1-200 || true
++/usr/bin/grep -m1 -E "DEVELOPER_DIR|Xcode" apps/chat-expo/.expo/xcodebuild.log | cut -c1-200 || true
+-p=pathlib.Path('reports/20261101-expo-0.4.52/qualified.json'); q=json.loads(p.read_text())
+-assert q['source'].startswith('107a413c29'), q['source']
++p=pathlib.Path('reports/20261104-expo-0.4.53/qualified.json'); q=json.loads(p.read_text())
++assert q['source'].startswith('9da2c76fdf'), q['source']
+-q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 1 at 107a413c29",
+- 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attempt 1 at 107a413c29; ~/Applications/Xcode-27.0.app retained but not used",
++q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf",
++ 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf; ~/Applications/Xcode-27.0.app retained but not used",
+-PUB52_PRE_GATE_LOG=$HOME/sb4-pub-0452/isolated/pre/resource-wait.log
++PUB52_PRE_GATE_LOG=$HOME/sb4-pub-0453/isolated/pre/resource-wait.log
+-  PUB52_PRE_AC=$(pmset -g batt | grep -c 'AC Power')
+-  PUB52_PRE_LID=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No')
++  PUB52_PRE_AC=$(pmset -g batt | /usr/bin/grep -c 'AC Power')
++  PUB52_PRE_LID=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No')
+-# Coordinator-requested early Mac check at 107a413c29 (after chain-a1; plus the Integration 28 new/changed client files that mention darwin/platform): the Darwin-gated client files plus the tests that relay CLI
++# Coordinator-requested early Mac check at 9da2c76fdf (after chain-a1; plus the Integration 28 new/changed client files that mention darwin/platform): the Darwin-gated client files plus the tests that relay CLI
+-O=$HOME/sb4-pub-0452/isolated/pre; mkdir -p $O
++O=$HOME/sb4-pub-0453/isolated/pre; mkdir -p $O
+-cd $HOME/sb4-pub-0444-wt/snapback4
++cd $HOME/sb4-pub-0453-wt/snapback4
+-grep -E '^-- client file (ok|FAIL)|^-- client files:' $O/pre.log | cut -c1-200
++/usr/bin/grep -E '^-- client file (ok|FAIL)|^-- client files:' $O/pre.log | cut -c1-200
+-# LOW-PARALLELISM variant (coordinator, 0.4.52 attempt 7+): Rust test binaries limited by SNAPBACK4_RUST_TEST_PROCESSES; client files stay serial (SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1); nothing skipped; TMPDIR untouched.
++# LOW-PARALLELISM variant (coordinator, 0.4.53 attempt 7+): Rust test binaries limited by SNAPBACK4_RUST_TEST_PROCESSES; client files stay serial (SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1); nothing skipped; TMPDIR untouched.
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/$mode-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/$mode-$ATTEMPT.exit; exit 1; }; }
+- dry-run) step publication-dry-run . env -u SNAPBACK4_BIN SNAPBACK4_RUST_TEST_PROCESSES=${RUSTPROCS:-6} SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.52/receipt.json --linux-tarball target/incoming/linux-0.4.52/snapback4-linux-x64-0.4.52.tgz ;;
++ dry-run) step publication-dry-run . env -u SNAPBACK4_BIN SNAPBACK4_RUST_TEST_PROCESSES=${RUSTPROCS:-6} SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.53/receipt.json --linux-tarball target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz ;;
+-echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0452/$mode-$ATTEMPT.exit
++echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0453/$mode-$ATTEMPT.exit
+-export VERSION=0.4.52 PUBDATE=20261101
+-export ROOT=/Users/ccheever/sb4-pub-0444-wt/snapback4 H=/Users/ccheever/sb4-pub-0452/helpers-0.4.52
++export VERSION=0.4.53 PUBDATE=20261104
++export ROOT=/Users/ccheever/sb4-pub-0453-wt/snapback4 H=/Users/ccheever/sb4-pub-0453/helpers-0.4.53
+-S=/Users/ccheever/sb4-pub-0452/pubstep.sh
++S=/Users/ccheever/sb4-pub-0453/pubstep.sh
+-step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0452/$mode-$ATTEMPT.exit; exit 1; }; }
++step() { "$S" "$@" || { echo "STOPPED at $1"; echo "stopped $1" > /Users/ccheever/sb4-pub-0453/$mode-$ATTEMPT.exit; exit 1; }; }
+- dry-run) step publication-dry-run . env -u SNAPBACK4_RUST_TEST_PROCESSES -u SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.52/receipt.json --linux-tarball target/incoming/linux-0.4.52/snapback4-linux-x64-0.4.52.tgz ;;
++ dry-run) step publication-dry-run . env -u SNAPBACK4_RUST_TEST_PROCESSES -u SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.53/receipt.json --linux-tarball target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz ;;
+-echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0452/$mode-$ATTEMPT.exit
++echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0453/$mode-$ATTEMPT.exit
++unset SNAPBACK4_BIN
+-[ -e $rec.json ] && { echo "record exists: $rec.json"; exit 98; }
++[ -e $rec.json ] || [ -e $rec.log ] && { echo "record exists: $rec.json"; exit 98; }
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt/snapback4';r=w/'reports/20261101-publication-0.4.52'
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt/snapback4';r=w/'reports/20261104-publication-0.4.53'
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt/snapback4';r=w/'reports/20261101-publication-0.4.52'
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt/snapback4';r=w/'reports/20261104-publication-0.4.53'
+-K=$HOME/sb4-pub-0452; cd "$K"
++K=$HOME/sb4-pub-0453; cd "$K"
+-pmset -g batt | head -1 | grep -q 'Battery Power'
++pmset -g batt | head -1 | /usr/bin/grep -q 'Battery Power'
+-K=$HOME/sb4-pub-0452; D=$HOME/sb4-pub-0444-wt/snapback4/reports/20261101-publication-0.4.52/attempt-1-publication-dry-run.log
+-until grep -qE "^== [0-9]+ failure" $D 2>/dev/null; do [ -e $K/dry-run-1.exit ] && exit 0; sleep 60; done
+-echo "$(date -u +%FT%TZ) suite summary: $(grep -E "^== [0-9]+ failure" $D | tail -1)" >> $K/refresh-after-suite-a1.log
+-grep -qE "^== 0 failure" $D || { echo "$(date -u +%FT%TZ) suite red; no refresh" >> $K/refresh-after-suite-a1.log; exit 0; }
++K=$HOME/sb4-pub-0453; D=$HOME/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-publication-dry-run.log
++until /usr/bin/grep -qE "^== [0-9]+ failure" $D 2>/dev/null; do [ -e $K/dry-run-1.exit ] && exit 0; sleep 60; done
++echo "$(date -u +%FT%TZ) suite summary: $(/usr/bin/grep -E "^== [0-9]+ failure" $D | tail -1)" >> $K/refresh-after-suite-a1.log
++/usr/bin/grep -qE "^== 0 failure" $D || { echo "$(date -u +%FT%TZ) suite red; no refresh" >> $K/refresh-after-suite-a1.log; exit 0; }
+-echo "$(date -u +%FT%TZ) refresh after suite: $(grep -c "online-resolve rc=0 prefer-offline-resolve rc=0" $K/refresh-npm-cache-a1d.out)/6 ok" >> $K/refresh-after-suite-a1.log
++echo "$(date -u +%FT%TZ) refresh after suite: $(/usr/bin/grep -c "online-resolve rc=0 prefer-offline-resolve rc=0" $K/refresh-npm-cache-a1d.out)/6 ok" >> $K/refresh-after-suite-a1.log
+-# Re-run the shared ~/.npm starter packument refresh (0.4.43 lesson) as soon as dry run 2's suite reports its summary, so the
++# Re-run the shared ~/.npm starter packument refresh (0.4.43 lesson) as soon as dry run 1's suite reports its summary, so the
+-K=$HOME/sb4-pub-0452; D=$HOME/sb4-pub-0444-wt/snapback4/reports/20261101-publication-0.4.52/attempt-2-publication-dry-run.log
+-until grep -qE "^== [0-9]+ failure" $D 2>/dev/null; do [ -e $K/dry-run-2.exit ] && exit 0; sleep 60; done
+-echo "$(date -u +%FT%TZ) suite summary: $(grep -E "^== [0-9]+ failure" $D | tail -1)" >> $K/refresh-after-suite-a2.log
+-grep -qE "^== 0 failure" $D || { echo "$(date -u +%FT%TZ) suite red; no refresh" >> $K/refresh-after-suite-a2.log; exit 0; }
++K=$HOME/sb4-pub-0453; D=$HOME/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-publication-dry-run.log
++until /usr/bin/grep -qE "^== [0-9]+ failure" $D 2>/dev/null; do [ -e $K/dry-run-1.exit ] && exit 0; sleep 60; done
++echo "$(date -u +%FT%TZ) suite summary: $(/usr/bin/grep -E "^== [0-9]+ failure" $D | tail -1)" >> $K/refresh-after-suite-a2.log
++/usr/bin/grep -qE "^== 0 failure" $D || { echo "$(date -u +%FT%TZ) suite red; no refresh" >> $K/refresh-after-suite-a2.log; exit 0; }
+-echo "$(date -u +%FT%TZ) refresh after suite: $(grep -c "online-resolve rc=0 prefer-offline-resolve rc=0" $K/refresh-npm-cache-a2d.out)/6 ok" >> $K/refresh-after-suite-a2.log
++echo "$(date -u +%FT%TZ) refresh after suite: $(/usr/bin/grep -c "online-resolve rc=0 prefer-offline-resolve rc=0" $K/refresh-npm-cache-a2d.out)/6 ok" >> $K/refresh-after-suite-a2.log
+-# 0.4.52 pre-dry-run refresh of the shared Mac ~/.npm starter packuments (0.4.30 / 0.4.41 dr3 / 0.4.43 dr2 lessons: a stale
++# 0.4.53 pre-dry-run refresh of the shared Mac ~/.npm starter packuments (0.4.30 / 0.4.41 dr3 / 0.4.43 dr2 lessons: a stale
+-# "fix available"). No 0.4.52 Darwin stage exists before dry run 1, so each starter is generated by the commit's own
+-# target/debug/snapback4 (native cargo-build at 107a413c29) with the proof's flags, then package.json points at the prepared
+-# client/Expo tarballs (client-0.4.52) and the tree is resolved ONLINE (0.4.52: init runs with SNAPBACK4_INIT_INSTALL=0, since init now installs the frontend itself and that install cannot resolve the unpublished 0.4.52) (--package-lock-only, metadata only), then --prefer-offline.
+-# The unpublished darwin-arm64 0.4.52 optional dependency is expected to be skipped. Scratch dirs removed; no source/publish state touched.
++# "fix available"). No 0.4.53 Darwin stage exists before dry run 1, so each starter is generated by the commit's own
++# target/debug/snapback4 (native cargo-build at 9da2c76fdf) with the proof's flags, then package.json points at the prepared
++# client/Expo tarballs (client-0.4.53) and the tree is resolved ONLINE (0.4.53: init runs with SNAPBACK4_INIT_INSTALL=0, since init now installs the frontend itself and that install cannot resolve the unpublished 0.4.53) (--package-lock-only, metadata only), then --prefer-offline.
++# The unpublished darwin-arm64 0.4.53 optional dependency is expected to be skipped. Scratch dirs removed; no source/publish state touched.
+-W=$HOME/sb4-pub-0444-wt/snapback4; S=$W/target/publication/client-0.4.52; B=$W/target/debug/snapback4
+-R=$HOME/sb4-pub-0452/npm-refresh; rm -rf $R; mkdir -p $R; O=$HOME/sb4-pub-0452/isolated/npm-refresh-${REFRESH_TAG:-a2}; mkdir -p $O
++W=$HOME/sb4-pub-0453-wt/snapback4; S=$W/target/publication/client-0.4.53; B=$W/target/debug/snapback4
++R=$HOME/sb4-pub-0453/npm-refresh; rm -rf $R; mkdir -p $R; O=$HOME/sb4-pub-0453/isolated/npm-refresh-${REFRESH_TAG:-a2}; mkdir -p $O
+-  node -e 'const fs=require("fs"),[,c,e,kind]=process.argv;const p=JSON.parse(fs.readFileSync("package.json"));p.dependencies=p.dependencies||{};p.dependencies.snapback4="file:"+c;if(kind==="expo")p.dependencies["snapback4-expo"]="file:"+e;fs.writeFileSync("package.json",JSON.stringify(p,null,2))' $S/snapback4-0.4.52.tgz $S/snapback4-expo-0.4.52.tgz ${id%%-*}
++  node -e 'const fs=require("fs"),[,c,e,kind]=process.argv;const p=JSON.parse(fs.readFileSync("package.json"));p.dependencies=p.dependencies||{};p.dependencies.snapback4="file:"+c;if(kind==="expo")p.dependencies["snapback4-expo"]="file:"+e;fs.writeFileSync("package.json",JSON.stringify(p,null,2))' $S/snapback4-0.4.53.tgz $S/snapback4-expo-0.4.53.tgz ${id%%-*}
+-  echo "$id online-resolve rc=$on prefer-offline-resolve rc=$off node-forge=$forge $(grep -m1 -o 'E[A-Z0-9]*' $O/$id-offline.log)"
++  echo "$id online-resolve rc=$on prefer-offline-resolve rc=$off node-forge=$forge $(/usr/bin/grep -m1 -o 'E[A-Z0-9]*' $O/$id-offline.log)"
+-# 0.4.52 pre-dry-run refresh of the shared Mac ~/.npm starter packuments (0.4.30 / 0.4.41 dr3 / 0.4.43 dr2 lessons: a stale
++# 0.4.53 pre-dry-run refresh of the shared Mac ~/.npm starter packuments (0.4.30 / 0.4.41 dr3 / 0.4.43 dr2 lessons: a stale
+-# "fix available"). No 0.4.52 Darwin stage exists before dry run 1, so each starter is generated by the commit's own
+-# target/debug/snapback4 (native cargo-build at 107a413c29) with the proof's flags, then package.json points at the prepared
+-# client/Expo tarballs (client-0.4.52) and the tree is resolved ONLINE (0.4.52: init runs with SNAPBACK4_INIT_INSTALL=0, since init now installs the frontend itself and that install cannot resolve the unpublished 0.4.52) (--package-lock-only, metadata only), then --prefer-offline.
+-# The unpublished darwin-arm64 0.4.52 optional dependency is expected to be skipped. Scratch dirs removed; no source/publish state touched.
++# "fix available"). No 0.4.53 Darwin stage exists before dry run 1, so each starter is generated by the commit's own
++# target/debug/snapback4 (native cargo-build at 9da2c76fdf) with the proof's flags, then package.json points at the prepared
++# client/Expo tarballs (client-0.4.53) and the tree is resolved ONLINE (0.4.53: init runs with SNAPBACK4_INIT_INSTALL=0, since init now installs the frontend itself and that install cannot resolve the unpublished 0.4.53) (--package-lock-only, metadata only), then --prefer-offline.
++# The unpublished darwin-arm64 0.4.53 optional dependency is expected to be skipped. Scratch dirs removed; no source/publish state touched.
+-W=$HOME/sb4-pub-0444-wt/snapback4; S=$W/target/publication/client-0.4.52; B=$W/target/debug/snapback4
+-R=$HOME/sb4-pub-0452/npm-refresh; rm -rf $R; mkdir -p $R; O=$HOME/sb4-pub-0452/isolated/npm-refresh-${REFRESH_TAG:-a2}; mkdir -p $O
++W=$HOME/sb4-pub-0453-wt/snapback4; S=$W/target/publication/client-0.4.53; B=$W/target/debug/snapback4
++R=$HOME/sb4-pub-0453/npm-refresh; rm -rf $R; mkdir -p $R; O=$HOME/sb4-pub-0453/isolated/npm-refresh-${REFRESH_TAG:-a2}; mkdir -p $O
+-  node -e 'const fs=require("fs"),[,c,e,kind]=process.argv;const p=JSON.parse(fs.readFileSync("package.json"));p.dependencies=p.dependencies||{};p.dependencies.snapback4="file:"+c;if(kind==="expo")p.dependencies["snapback4-expo"]="file:"+e;fs.writeFileSync("package.json",JSON.stringify(p,null,2))' $S/snapback4-0.4.52.tgz $S/snapback4-expo-0.4.52.tgz ${id%%-*}
++  node -e 'const fs=require("fs"),[,c,e,kind]=process.argv;const p=JSON.parse(fs.readFileSync("package.json"));p.dependencies=p.dependencies||{};p.dependencies.snapback4="file:"+c;if(kind==="expo")p.dependencies["snapback4-expo"]="file:"+e;fs.writeFileSync("package.json",JSON.stringify(p,null,2))' $S/snapback4-0.4.53.tgz $S/snapback4-expo-0.4.53.tgz ${id%%-*}
+-  echo "$id online-resolve rc=$on prefer-offline-resolve rc=$off node-forge=$forge $(grep -m1 -o 'E[A-Z0-9]*' $O/$id-offline.log)"
++  echo "$id online-resolve rc=$on prefer-offline-resolve rc=$off node-forge=$forge $(/usr/bin/grep -m1 -o 'E[A-Z0-9]*' $O/$id-offline.log)"
+-npm pack snapback4@0.4.52 snapback4-darwin-arm64@0.4.52 snapback4-linux-x64@0.4.52 snapback4-expo@0.4.52 --prefer-online --ignore-scripts --json --pack-destination "$D" > "$R/registry-smoke-pack.json" 2> "$R/registry-smoke-pack.log"
++npm pack snapback4@0.4.53 snapback4-darwin-arm64@0.4.53 snapback4-linux-x64@0.4.53 snapback4-expo@0.4.53 --prefer-online --ignore-scripts --json --pack-destination "$D" > "$R/registry-smoke-pack.json" 2> "$R/registry-smoke-pack.log"
+- assert q['version']=='0.4.52'
++ assert q['version']=='0.4.53'
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4; cd "$K"; L=$K/resume-after-warm.log
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4; cd "$K"; L=$K/resume-after-warm.log
+-power() { ac=$(pmset -g batt | head -1 | grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | grep -c '"AppleClamshellState" = No'); }
+-until grep -q "gate: chain exit" chain-a1.log 2>/dev/null; do sleep 30; done
++power() { ac=$(pmset -g batt | head -1 | /usr/bin/grep -c "AC Power"); lid=$(ioreg -r -k AppleClamshellState | /usr/bin/grep -c '"AppleClamshellState" = No'); }
++until /usr/bin/grep -q "gate: chain exit" chain-a1.log 2>/dev/null; do sleep 30; done
+-t=datetime.datetime.fromisoformat(m[1].replace('Z','+00:00')).timestamp();r=w/'reports/20261101-publication-0.4.52'; proof=json.loads((r/'attempt-1-native-witness.json').read_text());prep=json.loads((r/'attempt-1-publication-prepare-client.json').read_text());q=json.loads((w/'reports/20261101-expo-0.4.52/qualified.json').read_text());p=json.loads((w/'target/publication/client-0.4.52/prepare.json').read_text());assert q['source']==p['source'];assert proof['exit']==prep['exit']==0;assert proof['end']<t and prep['end']<t
++t=datetime.datetime.fromisoformat(m[1].replace('Z','+00:00')).timestamp();r=w/'reports/20261104-publication-0.4.53'; proof=json.loads((r/'attempt-1-native-witness.json').read_text());prep=json.loads((r/'attempt-1-publication-prepare-client.json').read_text());q=json.loads((w/'reports/20261104-expo-0.4.53/qualified.json').read_text());p=json.loads((w/'target/publication/client-0.4.53/prepare.json').read_text());assert q['source']==p['source'];assert proof['exit']==prep['exit']==0;assert proof['end']<t and prep['end']<t
+-(cd "$W/target/publication/client-0.4.52" && shasum -a 256 *.tgz) > "$K/pre-rewarm-sha256.txt"
++(cd "$W/target/publication/client-0.4.53" && shasum -a 256 *.tgz) > "$K/pre-rewarm-sha256.txt"
+-(cd "$W/target/publication/client-0.4.52" && shasum -a 256 *.tgz) > "$K/post-rewarm-sha256.txt"
++(cd "$W/target/publication/client-0.4.53" && shasum -a 256 *.tgz) > "$K/post-rewarm-sha256.txt"
+-p=pathlib.Path(sys.argv[1])/'reports/20261101-publication-0.4.52/warm-environment-resume.json';q=json.loads(p.read_text());q['warmedAgainOnAC']=True;q['rewarmedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat();q['preparedTarballsUnchanged']=True;p.write_text(json.dumps(q,indent=2)+'\n')
++p=pathlib.Path(sys.argv[1])/'reports/20261104-publication-0.4.53/warm-environment-resume.json';q=json.loads(p.read_text());q['warmedAgainOnAC']=True;q['rewarmedAt']=datetime.datetime.now(datetime.timezone.utc).isoformat();q['preparedTarballsUnchanged']=True;p.write_text(json.dumps(q,indent=2)+'\n')
+-rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
+-[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
++rc=$(sed -n 's/^rc=\([0-9]*\).*/\1/p' pre-darwin.out | head -1); log "pre-darwin rc=$rc: $(/usr/bin/grep -E '^-- client files:' pre-darwin.out | cut -c1-200)"
++[ "$rc" = 0 ] || { log "STOP: pre-darwin red; no dry run until triaged: $(/usr/bin/grep -E '^-- client file FAIL' pre-darwin.out | cut -c1-120 | tr '\n' ' ')"; exit 1; }
+-log "refresh: $(grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)/6 ok; $(grep -E 'FAILED' refresh-npm-cache-a1.out | head -2 | tr '\n' ' ')"
++log "refresh: $(/usr/bin/grep -c 'online-resolve rc=0 prefer-offline-resolve rc=0' refresh-npm-cache-a1.out)/6 ok; $(/usr/bin/grep -E 'FAILED' refresh-npm-cache-a1.out | head -2 | tr '\n' ' ')"
+-[ -z "$(git -C $HOME/sb4-pub-0444-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0444-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
++[ -z "$(git -C $HOME/sb4-pub-0453-wt status --porcelain)" ] || { log "STOP: tree dirty: $(git -C $HOME/sb4-pub-0453-wt status --porcelain | head -3 | tr '\n' ' ')"; exit 1; }
+-ATT=1 RUSTPROCS=2 COMMIT=107a413c296cd73e9701bc43ebdd4c6b86ca95bd nohup bash ./gate-tolerant.sh > gate-runner-a1.log 2>&1 < /dev/null &
++ATT=1 RUSTPROCS=2 COMMIT=9da2c76fdf32b20f985c85fe6d33b507c09edd25 nohup bash ./gate-tolerant.sh > gate-runner-a1.log 2>&1 < /dev/null &
+-K=$HOME/sb4-pub-0452; cd "$K"
++K=$HOME/sb4-pub-0453; cd "$K"
+-for d in isolated preflight-client-0.4.52 preflight-opening preflight-opening-requalified preflight-release; do
++for d in isolated preflight-client-0.4.53 preflight-opening preflight-opening-requalified preflight-release; do
+-export PUB52_SOURCE=$(git -C "$HOME/sb4-pub-0444-wt" rev-parse HEAD)
++export PUB52_SOURCE=$(git -C "$HOME/sb4-pub-0453-wt" rev-parse HEAD)
+-node audit-fast.mjs ~/sb4-pub-0444-wt/snapback4 client audit > "$K/early-audit-retry.log" 2>&1
++node audit-fast.mjs ~/sb4-pub-0453-wt/snapback4 client audit > "$K/early-audit-retry.log" 2>&1
+-C=${1:?source}; WT=$HOME/sb4-pub-0444-wt; W=$WT/snapback4; K=$HOME/sb4-pub-0452
++C=${1:?source}; WT=$HOME/sb4-pub-0453-wt; W=$WT/snapback4; K=$HOME/sb4-pub-0453
+-printf 'snapback4/reports/20261101-publication-0.4.52/\nsnapback4/reports/20261101-expo-0.4.52/\n' >> "$X"
+-mkdir -p "$W/target/incoming/linux-0.4.52" "$K/isolated"
++printf 'snapback4/reports/20261104-publication-0.4.53/\nsnapback4/reports/20261104-expo-0.4.53/\n' >> "$X"
++mkdir -p "$W/target/incoming/linux-0.4.53" "$K/isolated"
+-const fs=require('fs'),p=process.argv[2];for(const n of ['snapback4','snapback4-darwin-arm64','snapback4-linux-x64','snapback4-expo']){const q=JSON.parse(fs.readFileSync(`${p}/packages/${n}/package.json`));if(q.version!=='0.4.52')throw Error(`${n} ${q.version}`);console.log(n,q.version)}
++const fs=require('fs'),p=process.argv[2];for(const n of ['snapback4','snapback4-darwin-arm64','snapback4-linux-x64','snapback4-expo']){const q=JSON.parse(fs.readFileSync(`${p}/packages/${n}/package.json`));if(q.version!=='0.4.53')throw Error(`${n} ${q.version}`);console.log(n,q.version)}
+-C=${1:?new source}; K=$HOME/sb4-pub-0452; WT=$HOME/sb4-pub-0444-wt; W=$WT/snapback4
++C=${1:?new source}; K=$HOME/sb4-pub-0453; WT=$HOME/sb4-pub-0453-wt; W=$WT/snapback4
+-for d in reports/20261101-publication-0.4.52 reports/20261101-expo-0.4.52; do [ ! -e "$W/$d" ] || mv "$W/$d" "$A/"; done
+-for d in target/publication/client-0.4.52 target/publication/snapback4-darwin-arm64-0.4.52 target/incoming/linux-0.4.52 target/expo-0.4.52; do [ ! -e "$W/$d" ] || mv "$W/$d" "$W/$d-a1-$old"; done
++for d in reports/20261104-publication-0.4.53 reports/20261104-expo-0.4.53; do [ ! -e "$W/$d" ] || mv "$W/$d" "$A/"; done
++for d in target/publication/client-0.4.53 target/publication/snapback4-darwin-arm64-0.4.53 target/incoming/linux-0.4.53 target/expo-0.4.53; do [ ! -e "$W/$d" ] || mv "$W/$d" "$W/$d-a1-$old"; done
+-mkdir -p "$K/isolated" "$W/target/incoming/linux-0.4.52" "$W/reports/20261101-publication-0.4.52"
++mkdir -p "$K/isolated" "$W/target/incoming/linux-0.4.53" "$W/reports/20261104-publication-0.4.53"
+-c,w=sys.argv[1:];p=pathlib.Path(w)/'reports/20261101-publication-0.4.52/npm-identity-deferred.json';p.write_text(json.dumps({'source':c,'status':'deferred','ruling':'2026-10-30T17:10Z','recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'requirement':'npm whoami must succeed immediately before finish; 15-minute checks for at most 12 hours if unavailable'},indent=2))
++c,w=sys.argv[1:];p=pathlib.Path(w)/'reports/20261104-publication-0.4.53/npm-identity-deferred.json';p.write_text(json.dumps({'source':c,'status':'deferred','ruling':'2026-10-30T17:10Z','recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'requirement':'npm whoami must succeed immediately before finish; 15-minute checks for at most 12 hours if unavailable'},indent=2))
+-C=${1:?}; WT=$HOME/sb4-pub-0444-wt; W=$WT/snapback4; K=$HOME/sb4-pub-0452
++C=${1:?}; WT=$HOME/sb4-pub-0453-wt; W=$WT/snapback4; K=$HOME/sb4-pub-0453
+-cd "$WT"; git checkout --detach "$C"; git branch -f sb4-publish-0.4.52 "$C"; git switch sb4-publish-0.4.52
++cd "$WT"; git checkout --detach "$C"; git branch -f sb4-publish-0.4.53 "$C"; git switch sb4-publish-0.4.53
+-printf 'snapback4/reports/20261101-publication-0.4.52/\nsnapback4/reports/20261101-expo-0.4.52/\n' >> "$X"
+-mkdir -p "$W/target/incoming/linux-0.4.52"
++printf 'snapback4/reports/20261104-publication-0.4.53/\nsnapback4/reports/20261104-expo-0.4.53/\n' >> "$X"
++mkdir -p "$W/target/incoming/linux-0.4.53"
+-# Direct-invocation smoke (coordinator ruling, 0.4.52): run it in the FOREGROUND of an interactive SSH shell (ssh -tt), never
++# Direct-invocation smoke (coordinator ruling, 0.4.53): run it in the FOREGROUND of an interactive SSH shell (ssh -tt), never
+-  until grep -qE 'SNAPBACK4_READY|snapback4 serve: http' "$O/$label-serve.out" "$O/$label-serve.err" 2>/dev/null; do
++  until /usr/bin/grep -qE 'SNAPBACK4_READY|snapback4 serve: http' "$O/$label-serve.out" "$O/$label-serve.err" 2>/dev/null; do
+-  grep -qE 'SNAPBACK4_READY|snapback4 serve: http' "$O/$label-serve.out" "$O/$label-serve.err" || { note "FAIL $label serve not ready within 60 s"; kill $pid; fail=1; return; }
+-  note "PASS $label serve ready: $(grep -hoE 'snapback4 serve: http[^ ]*|SNAPBACK4_READY verb=[a-z]+' "$O/$label-serve.out" "$O/$label-serve.err" | head -1)"
++  /usr/bin/grep -qE 'SNAPBACK4_READY|snapback4 serve: http' "$O/$label-serve.out" "$O/$label-serve.err" || { note "FAIL $label serve not ready within 60 s"; kill $pid; fail=1; return; }
++  note "PASS $label serve ready: $(/usr/bin/grep -hoE 'snapback4 serve: http[^ ]*|SNAPBACK4_READY verb=[a-z]+' "$O/$label-serve.out" "$O/$label-serve.err" | head -1)"
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4
+-grep -q 'RESULT PASS' "isolated/smoke-staged/results.txt"
++/usr/bin/grep -q 'RESULT PASS' "isolated/smoke-staged/results.txt"
+-pmset -g batt | head -1 | grep -q 'AC Power'
+-ioreg -r -k AppleClamshellState | grep -q '"AppleClamshellState" = No'
++pmset -g batt | head -1 | /usr/bin/grep -q 'AC Power'
++ioreg -r -k AppleClamshellState | /usr/bin/grep -q '"AppleClamshellState" = No'
+-C=${1:?publication source}; K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt
++C=${1:?publication source}; K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt
+-[ ! -e "$W/snapback4/reports/20261101-expo-0.4.52/qualified.json" ]
+-[ ! -e "$W/snapback4/target/publication/client-0.4.52/prepare.json" ]
+-pmset -g batt | grep 'AC Power' > /dev/null
+-ioreg -r -k AppleClamshellState | grep '"AppleClamshellState" = No' > /dev/null
++[ ! -e "$W/snapback4/reports/20261104-expo-0.4.53/qualified.json" ]
++[ ! -e "$W/snapback4/target/publication/client-0.4.53/prepare.json" ]
++pmset -g batt | /usr/bin/grep 'AC Power' > /dev/null
++ioreg -r -k AppleClamshellState | /usr/bin/grep '"AppleClamshellState" = No' > /dev/null
+-C=${1:?publication source}; K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt
++C=${1:?publication source}; K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt/snapback4'
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt/snapback4'
+-p=w/'reports/20261101-publication-0.4.52/attempt-1-publication-dry-run.log'
++p=w/'reports/20261104-publication-0.4.53/attempt-1-publication-dry-run.log'
+-stage=w/'target/publication/snapback4-darwin-arm64-0.4.52/resume.json'
++stage=w/'target/publication/snapback4-darwin-arm64-0.4.53/resume.json'
+-k=Path.home()/'sb4-pub-0452';w=Path.home()/'sb4-pub-0444-wt/snapback4';r=w/'reports/20261101-publication-0.4.52'
++k=Path.home()/'sb4-pub-0453';w=Path.home()/'sb4-pub-0453-wt/snapback4';r=w/'reports/20261104-publication-0.4.53'
+-K=$HOME/sb4-pub-0452; cd "$K"
++K=$HOME/sb4-pub-0453; cd "$K"
+-until grep -q 'pre-darwin rc=' "$K/resume-after-warm.log"; do sleep 30; done
++until /usr/bin/grep -q 'pre-darwin rc=' "$K/resume-after-warm.log"; do sleep 30; done
+-s=(Path.home()/'sb4-pub-0452/isolated/pre/pre.log').read_text()
++s=(Path.home()/'sb4-pub-0453/isolated/pre/pre.log').read_text()
+-K=$HOME/sb4-pub-0452
++K=$HOME/sb4-pub-0453
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4; C=${1:?final source}
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4; C=${1:?final source}
+-grep -q 'gate: chain exit 0 (env-ok)' chain-a2.log
+-while ! pmset -g batt | head -1 | grep -q 'AC Power'; do echo "$(date -u +%FT%TZ) wait for AC before warm (600s)"; sleep 600; done
+-ATTEMPT=2 bash ./publish.sh lean > lean-a2.log 2>&1
+-[ "$(cat lean-2.exit)" = done ]
+-ATTEMPT=2 bash ./publish.sh warm > warm-a2.log 2>&1
+-[ "$(cat warm-2.exit)" = done ]
++/usr/bin/grep -q 'gate: chain exit 0 (env-ok)' chain-a2.log
++while ! pmset -g batt | head -1 | /usr/bin/grep -q 'AC Power'; do echo "$(date -u +%FT%TZ) wait for AC before warm (600s)"; sleep 600; done
++ATTEMPT=1 bash ./publish.sh lean > lean-a2.log 2>&1
++[ "$(cat lean-1.exit)" = done ]
++ATTEMPT=1 bash ./publish.sh warm > warm-a2.log 2>&1
++[ "$(cat warm-1.exit)" = done ]
+-K=$HOME/sb4-pub-0452; W=$HOME/sb4-pub-0444-wt/snapback4; C=${1:?final source}
++K=$HOME/sb4-pub-0453; W=$HOME/sb4-pub-0453-wt/snapback4; C=${1:?final source}
+-grep -q 'gate: chain exit 0 (env-ok)' chain-a1.log
+-while ! pmset -g batt | head -1 | grep -q 'AC Power'; do echo "$(date -u +%FT%TZ) wait for AC before warm (600s)"; sleep 600; done
++/usr/bin/grep -q 'gate: chain exit 0 (env-ok)' chain-a1.log
++while ! pmset -g batt | head -1 | /usr/bin/grep -q 'AC Power'; do echo "$(date -u +%FT%TZ) wait for AC before warm (600s)"; sleep 600; done

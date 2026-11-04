@@ -1,0 +1,2 @@
+rollback: release 2 current, generation 4; 0 rows, 0 cells, 0 index entries dormant, business.color changed; 2.4 ms
+details: .snapback4/last/rollback.txt; --explain for full output

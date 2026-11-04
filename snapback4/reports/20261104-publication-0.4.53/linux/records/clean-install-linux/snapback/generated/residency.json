@@ -1,0 +1,53 @@
+{
+  "add": {
+    "predicts": "eligible",
+    "sites": [],
+    "requires": []
+  },
+  "list": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "schema.q:19:10 (todos where .ownerId = viewer last 100 by .id after c)",
+        "table": "todos",
+        "index": "$intent:byOwnerId:956b3790e6932131",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan todos by $intent:byOwnerId:956b3790e6932131: held, no horizon; selected $intent:byOwnerId:956b3790e6932131 (ownerId = viewer); result: page; synthesized; explicit by; read: todos where .ownerId = viewer after c last 100 by .id",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "remove": {
+    "predicts": "eligible",
+    "sites": [],
+    "requires": []
+  },
+  "toggle": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "schema.q:25:10 (todos[todoId])",
+        "table": "todos",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point todos by byId: held, no horizon; selected byId (id = todoId); result: row or null; only declared unique key of this arity",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:26:3",
+        "table": "todos",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target todos by byId: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  }
+}

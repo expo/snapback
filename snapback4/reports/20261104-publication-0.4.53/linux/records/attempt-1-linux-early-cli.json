@@ -1,0 +1,17 @@
+{
+  "step": "linux-early-cli",
+  "command": [
+    "env",
+    "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "snapback4"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793760185.9729455,
+  "end": 1793760186.2095668,
+  "seconds": 0.237,
+  "exit": 0
+}

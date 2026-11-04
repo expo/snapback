@@ -1,0 +1,32 @@
+{
+  "purpose": "environment recovery diagnostic only",
+  "publicationQualified": false,
+  "results": [
+    {
+      "lane": "wave21-025",
+      "candidate": "0.4.38",
+      "sourceSha256": "76e278991faaacc6d3e421de1c62e516d6c8a6300bd7f646640f5b13e07ae63d",
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "oldPackage": {
+        "registry": "https://registry.npmjs.org",
+        "integrity": "sha512-BazFeTCT34CmRIhvXg37g3TpeaZt7zQRDb65evpysUEJiwE0X/Qausx1yml35RntDv5V7Skp2Wp+BRoH77ScMw=="
+      },
+      "status": "passed",
+      "checks": 80,
+      "acquisition": "unchanged script after old 0.4.35 CLI upgrade"
+    },
+    {
+      "lane": "wave21-002",
+      "candidate": "0.4.38",
+      "sourceSha256": "c7db5964343829b0538cabf0346713696ee530280f84096cb4f2f34947df746d",
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "oldPackage": {
+        "registry": "https://registry.npmjs.org",
+        "integrity": "sha512-BazFeTCT34CmRIhvXg37g3TpeaZt7zQRDb65evpysUEJiwE0X/Qausx1yml35RntDv5V7Skp2Wp+BRoH77ScMw=="
+      },
+      "status": "passed",
+      "users": 8,
+      "acquisition": "unchanged prod:serve after old 0.4.35 CLI upgrade"
+    }
+  ]
+}

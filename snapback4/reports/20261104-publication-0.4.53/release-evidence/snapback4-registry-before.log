@@ -1,0 +1,15 @@
+{
+  "error": {
+    "code": "E404",
+    "summary": "No match found for version 0.4.53",
+    "detail": "The requested resource 'snapback4@0.4.53' could not be found or you do not have permission to access it.\n\nNote that you can also install from a\ntarball, folder, http url, or git url."
+  }
+}
+npm error code E404
+npm error 404 No match found for version 0.4.53
+npm error 404
+npm error 404  The requested resource 'snapback4@0.4.53' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /Users/ccheever/.npm/_logs/2026-11-04T00_45_54_294Z-debug-0.log

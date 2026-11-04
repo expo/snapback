@@ -1,0 +1,13 @@
+{
+  "step": "linux-wave21-diagnostic-pack",
+  "command": [
+    "bash",
+    "-c",
+    "\nset -euo pipefail\nD=$REP/wave21-diagnostic-platform\n[ ! -e \"$D\" ]\nmkdir -p \"$D/package\"\ncp \"$ROOT/packages/snapback4-linux-x64/package.json\" \"$ROOT/packages/snapback4-linux-x64/THIRD-PARTY-NOTICES\" \"$D/package/\"\ncp \"$ROOT/target/x86_64-unknown-linux-musl/production/snapback4\" \"$D/package/snapback4\"\ncd \"$D/package\"\nnpm pack --ignore-scripts --json --pack-destination \"$D\"\necho \"DIAGNOSTIC ONLY: no qualification receipt; never transfer as qualified handoff\"\n"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793764636.5921621,
+  "end": 1793764639.1140385,
+  "seconds": 2.522,
+  "exit": 0
+}

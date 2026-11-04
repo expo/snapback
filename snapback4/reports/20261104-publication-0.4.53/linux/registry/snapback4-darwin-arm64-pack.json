@@ -1,0 +1,31 @@
+[
+  {
+    "id": "snapback4-darwin-arm64@0.4.53",
+    "name": "snapback4-darwin-arm64",
+    "version": "0.4.53",
+    "size": 16669580,
+    "unpackedSize": 35050315,
+    "shasum": "3d926ea30b1e1f45707a36e0cc3a933b5880f05f",
+    "integrity": "sha512-mI4QJoBRxYPRUufqu5f1gN8jknZRd2gWI2WyMA93Kvh+9yT22FxC1CEOnzb8sIzs9OD9MykILWK9jReCygtrUg==",
+    "filename": "snapback4-darwin-arm64-0.4.53.tgz",
+    "files": [
+      {
+        "path": "THIRD-PARTY-NOTICES",
+        "size": 4513,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 458,
+        "mode": 420
+      },
+      {
+        "path": "snapback4",
+        "size": 35045344,
+        "mode": 493
+      }
+    ],
+    "entryCount": 3,
+    "bundled": []
+  }
+]

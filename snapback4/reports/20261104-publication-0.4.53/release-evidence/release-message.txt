@@ -1,0 +1,7 @@
+chore(sb4): prepare snapback4 0.4.53 release
+
+Lead with prioritized progressive acquisition and align package, crate,
+editor and fixture versions. Regenerate editor stamps and advance the
+following fixture's stale native SDK lock pin with the release.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>

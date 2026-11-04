@@ -1,0 +1,82 @@
+{
+  "current": 2,
+  "event": null,
+  "events": [
+    {
+      "at": 1793763917958,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763918576,
+      "generation": 2,
+      "id": 2,
+      "operation": "deploy",
+      "previous": 1,
+      "release": 2,
+      "revision": 2,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 2,
+  "generation": 2,
+  "items": [],
+  "items_after": null,
+  "latest": 2,
+  "live": {
+    "exact": true,
+    "release": 2,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "business": [
+          "color",
+          "id",
+          "title"
+        ]
+      },
+      "target": 2
+    },
+    "source": 2,
+    "target": 2,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": 1,
+  "release": 2,
+  "revision": 2,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "business": [
+        "color",
+        "id",
+        "title"
+      ]
+    },
+    "target": 2
+  },
+  "workers": []
+}

@@ -1,0 +1,7 @@
+[visibility-governance] ALLOWED: 1 governed ref update(s); 0 exempt
+[snapback-drift] 9da2c76fdf32: 16 committed path(s) across 1 ref update(s) selected 2 gate(s): path-migration-stragglers, workspace-graph
+[snapback-drift] DEFERRED BY DEFAULT: 16 origin/main committed path(s) selected 2 origin/main drift-prone gate(s); no gate commands ran: path-migration-stragglers, workspace-graph
+[snapback-drift] scheduled authority: node scripts/drift-prone-gates.mjs backstop; strict opt-in: SNAPBACK_DRIFT_GATES_STRICT=1 git push ...
+[snapback-drift] ALLOWED: origin/main frozen-record checks deferred to the scheduled backstop (41 ms)
+To https://github.com/expo/snapback.git
+   9346e1fa37..9da2c76fdf  HEAD -> main

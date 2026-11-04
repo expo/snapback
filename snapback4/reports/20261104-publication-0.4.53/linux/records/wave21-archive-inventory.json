@@ -1,0 +1,16 @@
+{
+  "archive": "/home/ccheever/sb4-loop/wave21/archive.tar.zst",
+  "bytes": 616938866,
+  "lanes": {
+    "025-snapback-boxing-bout-medicals": {
+      "prefix": "apps/025-snapback-boxing-bout-medicals",
+      "members": 2391,
+      "baseline": "versions/v1"
+    },
+    "002-snapback-bridal-alteration-fittings": {
+      "prefix": "apps/002-snapback-bridal-alteration-fittings",
+      "members": 1693,
+      "baseline": "v1"
+    }
+  }
+}

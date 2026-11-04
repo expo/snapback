@@ -1,0 +1,5 @@
+{
+  "reviewedAt": "2026-11-04T04:20:05.824768+00:00",
+  "sha256": "b56404da72355e1649edb2f1ee9263a3e2dde43a9d265506e9eca1aebd97f70f",
+  "checks": "bash -n passed; snapshot excludes node_modules, caches, environment files, tarballs/videos; failed archive included; originals untouched"
+}

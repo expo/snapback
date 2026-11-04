@@ -1,0 +1,82 @@
+{
+  "add": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:23:10 (insert notes)",
+        "table": "notes",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write notes by byId: online only",
+        "rewrite": "sync notes to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "myNotes": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:25:10 (notes where .owner = viewer first 20 by .id after c)",
+        "table": "notes",
+        "index": "$intent:byOwner:efafbfd4e29d03b2",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan notes by $intent:byOwner:efafbfd4e29d03b2: online only; selected $intent:byOwner:efafbfd4e29d03b2 (owner = viewer); result: page; synthesized; explicit by; read: notes where .owner = viewer first 20 by .id after c",
+        "rewrite": "sync notes to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "myRole": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:15:10 (roles[viewer])",
+        "table": "roles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "point",
+        "class": "server",
+        "reason": "point roles by $intent:byPrincipal:8097d97fddadb304: online only; selected $intent:byPrincipal:8097d97fddadb304 (principal = viewer); result: row or null; unique positional key selected by argument types",
+        "rewrite": "sync roles to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "provision": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:13:10",
+        "table": "roles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target roles by $intent:byPrincipal:8097d97fddadb304: online only",
+        "rewrite": "sync roles to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:13:10",
+        "table": "roles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "upsert insert blocked",
+        "class": "server",
+        "reason": "roles is online only; held updates — unique principal: unchanged by this patch; no new coverage needed",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:13:10 (upsert roles)",
+        "table": "roles",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write roles by byId: online only",
+        "rewrite": "sync roles to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_OPERATOR"
+    ]
+  }
+}

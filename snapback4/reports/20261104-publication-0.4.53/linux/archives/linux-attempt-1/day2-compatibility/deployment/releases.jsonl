@@ -1,0 +1,8 @@
+{"at":1793763887461,"previous":null,"release":1,"rollback":false,"state":"prepared"}
+{"at":1793763887464,"generation":1,"previous":null,"release":1,"rollback":false,"state":"activated"}
+{"at":1793763887744,"previous":1,"release":2,"rollback":false,"state":"prepared"}
+{"at":1793763887754,"generation":2,"previous":1,"release":2,"rollback":false,"state":"activated"}
+{"at":1793763887884,"previous":2,"release":1,"rollback":true,"state":"prepared"}
+{"at":1793763887894,"generation":3,"previous":2,"release":1,"rollback":true,"state":"activated"}
+{"at":1793763888023,"previous":1,"release":2,"rollback":true,"state":"prepared"}
+{"at":1793763888035,"generation":4,"previous":1,"release":2,"rollback":true,"state":"activated"}

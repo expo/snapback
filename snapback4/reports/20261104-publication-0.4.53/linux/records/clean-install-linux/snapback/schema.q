@@ -1,0 +1,31 @@
+-- Your backend. `snapback4 check` compiles it; `snapback4 dev` serves it.
+use personas alice, bob
+
+table todos:
+  title: text <=200
+  done: bool
+  ownerId: principal
+  cap 1000 by ownerId
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+  sync to .ownerId                        -- each owner's device holds its own todos
+
+-- Spec: only the owner may toggle completion.
+invariant todos.toggle only .ownerId = viewer
+
+query list(c: cursor ?):
+  return todos where .ownerId = viewer after c last 100 by .id
+
+mutation add(title: text <=200):
+  return insert todos { title, done: false, ownerId: viewer }
+
+mutation toggle(todoId: todos):
+  todo = todos[todoId] ! else NOT_FOUND
+  update todos[todo] { done: not todo.done }
+  return null
+
+mutation remove(todoId: todos):
+  delete todos[todoId]
+  return null

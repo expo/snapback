@@ -1,0 +1,156 @@
+[
+  {
+    "id": "snapback4-expo@0.4.53",
+    "name": "snapback4-expo",
+    "version": "0.4.53",
+    "size": 7754752,
+    "unpackedSize": 19138333,
+    "shasum": "b23c7ba8a1609420520633238901c038104b4081",
+    "integrity": "sha512-+XwerEufLHmOc785Hq3KU6KQg7ZLLq80xX+AL7p28L2ga7nlIT4hUQ+2k9+SR9ASExLyrNhDL37A8zJUE3nCfg==",
+    "filename": "snapback4-expo-0.4.53.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 8257,
+        "mode": 420
+      },
+      {
+        "path": "expo-module.config.json",
+        "size": 82,
+        "mode": 420
+      },
+      {
+        "path": "export-ios.mjs",
+        "size": 10235,
+        "mode": 493
+      },
+      {
+        "path": "ios/MediaFiles.swift",
+        "size": 4191,
+        "mode": 420
+      },
+      {
+        "path": "ios/SavedAsset.swift",
+        "size": 1641,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/Info.plist",
+        "size": 1257,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+        "size": 2586,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+        "size": 9525880,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+        "size": 2586,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+        "size": 9534504,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Expo.podspec",
+        "size": 1222,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Module.swift",
+        "size": 5570,
+        "mode": 420
+      },
+      {
+        "path": "ios/THIRD-PARTY-NOTICES",
+        "size": 2046,
+        "mode": 420
+      },
+      {
+        "path": "ios/WitnessContainer.swift",
+        "size": 4184,
+        "mode": 420
+      },
+      {
+        "path": "metro-wasm-transformer.cjs",
+        "size": 663,
+        "mode": 420
+      },
+      {
+        "path": "metro.cjs",
+        "size": 582,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1290,
+        "mode": 420
+      },
+      {
+        "path": "plugin.cjs",
+        "size": 4905,
+        "mode": 420
+      },
+      {
+        "path": "src/index.ts",
+        "size": 3858,
+        "mode": 420
+      },
+      {
+        "path": "src/native-smoke.ts",
+        "size": 869,
+        "mode": 420
+      },
+      {
+        "path": "src/save-asset.ts",
+        "size": 1812,
+        "mode": 420
+      },
+      {
+        "path": "src/session-store.ts",
+        "size": 960,
+        "mode": 420
+      },
+      {
+        "path": "src/smoke.ts",
+        "size": 11226,
+        "mode": 420
+      },
+      {
+        "path": "src/witness-core.ts",
+        "size": 4731,
+        "mode": 420
+      },
+      {
+        "path": "src/witness-runtime.ts",
+        "size": 915,
+        "mode": 420
+      },
+      {
+        "path": "src/witness.ts",
+        "size": 2159,
+        "mode": 420
+      }
+    ],
+    "entryCount": 28,
+    "bundled": []
+  }
+]

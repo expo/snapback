@@ -1,0 +1,24 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: tar (child): /home/ccheever/sb4-intent/0453/linux-qualification-0.4.53/snapback4-linux-x64-0.4.53.tgz: Cannot open: No such file or directory
+tar (child): Error is not recoverable: exiting now
+tar: Child returned status 2
+tar: Error is not recoverable: exiting now
+
+
+2 !== 0
+
+    at sync (file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/publication-dx5-upgrade.mjs:18:12)
+    at proveDX5Upgrades (file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/publication-dx5-upgrade.mjs:26:5)
+    at file:///home/ccheever/sb4-intent/0453/kit/wave21-check.mjs:11:23 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 2,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

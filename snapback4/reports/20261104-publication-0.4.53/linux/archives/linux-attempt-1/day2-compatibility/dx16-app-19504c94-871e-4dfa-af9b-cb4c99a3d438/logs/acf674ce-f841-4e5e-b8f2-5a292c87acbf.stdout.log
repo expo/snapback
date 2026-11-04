@@ -1,0 +1,3 @@
+deploy: release 2 current, generation 2; 0 rows, 0 cells, 0 index entries dormant, rows.color changed; 2.8 ms
+backfill: rows.color ← 'blue' on 1 row | last test: completed, no observed violation; matching evidence; 0 refutations, 6 coverage gaps; matching test campaign recorded (finite, not proof)
+details: .snapback4/last/deploy.txt; --explain for full output

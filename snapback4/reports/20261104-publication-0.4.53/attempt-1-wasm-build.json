@@ -1,0 +1,16 @@
+{
+  "step": "wasm-build",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "CARGO_PROFILE_DEV_DEBUG=0",
+    "CARGO_PROFILE_TEST_DEBUG=0",
+    "bash",
+    "scripts/build-wasm.sh"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0453-wt/snapback4",
+  "start": 1793759713.816349,
+  "end": 1793759737.3431659,
+  "seconds": 23.527,
+  "exit": 0
+}

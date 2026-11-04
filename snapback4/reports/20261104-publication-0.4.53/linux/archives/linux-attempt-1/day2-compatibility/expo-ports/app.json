@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "android": {
+      "package": "dev.snapback4.expoports"
+    },
+    "ios": {
+      "bundleIdentifier": "dev.snapback4.expoports",
+      "supportsTablet": true
+    },
+    "name": "Expo Ports",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-status-bar",
+      "snapback4-expo/plugin"
+    ],
+    "scheme": "expoports",
+    "slug": "expo-ports",
+    "version": "0.0.1"
+  }
+}

@@ -1,0 +1,37 @@
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
++{"at":"2026-11-04T02:37:26.745Z","witness":"published-ios","segment":"offline","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":9610,"manifest
++{"at":"2026-11-04T02:37:41.151Z","witness":"published-ios","segment":"restart","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":13314,"manifes
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace /Users/ccheever/sb4-pub-0453-wt/snapback4/apps/chat-expo/ios/Snapback4chat.xcworkspace -configuration Release -scheme Snapb
+{
+ "xcframework": "built by Xcode 27.2 Build version 27B52 (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf",
+ "witnessApp": "Release chat-expo (Expo 57.0.30, expo-modules-core 57.0.23, RN 0.86.3) built by Xcode 27.2 Build version 27B52 (/Applications/Xcode.app) in native attempt 1 at 9da2c76fdf; ~/Applications/Xcode-27.0.app retained but not used",
+ "recordedAt": "2026-11-04T02:37:45.945918+00:00"
+}
+{
+ "node": "v24.18.0",
+ "bun": "1.4.2",
+ "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+ "xcode": "Xcode 27.2\nBuild version 27B52",
+ "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+ "cpu": "Apple M5 Max"
+}
+{
+ "offline": {
+  "manifest": "offline-ios-run.json",
+  "exitStatus": 0,
+  "seconds": 9.61,
+  "prime": true,
+  "relaunch": false,
+  "artifactHashesVerified": true,
+  "installedExecutableSha256": "c46c05f647aa2b829abe0a627a05f90af3963ab08590fcdee64b9dbc48fbef45"
+ },
+ "restart": {
+  "manifest": "restart-ios-run.json",
+  "exitStatus": 0,
+  "seconds": 13.314,
+  "prime": true,
+  "relaunch": true,
+  "artifactHashesVerified": true,
+  "installedExecutableSha256": "c46c05f647aa2b829abe0a627a05f90af3963ab08590fcdee64b9dbc48fbef45"
+ }
+}

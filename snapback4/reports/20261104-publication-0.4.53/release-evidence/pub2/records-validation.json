@@ -1,0 +1,29 @@
+{
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "registryHosts": [
+    "Charlies-MacBook-Pro-M5Max-Black.local",
+    "expose-builder-pixel"
+  ],
+  "smokes": [
+    {
+      "path": "release-evidence/isolated/smoke-staged/results.txt",
+      "passed": 10
+    },
+    {
+      "path": "linux/smoke-staged/results.txt",
+      "passed": 10
+    },
+    {
+      "path": "release-evidence/smoke-registry-mac/results.txt",
+      "passed": 10
+    },
+    {
+      "path": "linux/smoke-registry/results.txt",
+      "passed": 10
+    }
+  ],
+  "nativeArtifactHashes": 16,
+  "publicationRows": 2,
+  "nativeWitnessRows": 2,
+  "status": "passed"
+}

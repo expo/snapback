@@ -1,0 +1,4 @@
+ℹ [24/24] Replayed «quarry-oracle»:exe
+info: stderr:
+ld64.lld: warning: directory not found for option -L/usr/local/lib
+Build completed successfully (24 jobs).

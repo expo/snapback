@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "scripts": {
+    "acceptance": "node finite.mjs acceptance",
+    "check": "snapback4 check",
+    "client:calls": "node .snapback4-frozen-run.mjs",
+    "client:calls:frozen": "node calls.mjs",
+    "day2:forward": "snapback4 rollback ./deploy --to latest",
+    "day2:proof": "node business.mjs",
+    "day2:rollback": "snapback4 rollback ./deploy --to 1",
+    "frontend:proof": "node finite.mjs frontend",
+    "probe:serve": "exec node scripts/prod-serve.mjs",
+    "prod:serve": "exec node scripts/prod-serve.mjs"
+  },
+  "type": "module"
+}

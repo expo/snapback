@@ -1,0 +1,1 @@
+{"private":true,"type":"module","dependencies":{"playwright-core":"^1.55.1","react":"19.3.0","snapback4":"file:../../source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz","snapback4-linux-x64":"file:../../../../../../tmp/snapback4-linux-5cj8J5/snapback4-linux-x64-0.4.53.tgz"}}

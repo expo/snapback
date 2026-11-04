@@ -1,0 +1,9 @@
+2026-11-04T02:22:35Z RESOURCE WAIT: disk=1057GiB ac=0 lid_open=1 load=3
+2026-11-04T02:32:35Z gate ok: ac=1 lid_open=1 load=3 batt=100%; finishing
+2026-11-04T02:32:35Z native-1 start
+2026-11-04T02:37:44Z native-1: done
+2026-11-04T02:37:45Z post-native ok
+2026-11-04T02:38:16Z prepare-1: done
+2026-11-04T02:38:16Z expo-prep-check: prepared expo files 28 qualified 28 equal True
+2026-11-04T02:38:16Z native/prepare chain done; audits required before warm/pre
+2026-11-04T02:38:50Z gate: chain exit 0 (env-ok)

@@ -1,0 +1,5 @@
+snapback4-darwin-arm64 view=0.4.53 latest=0.4.53 sha256=6028e015d2c3ed73f47e72c42218fc8cbd5a8f48c3ba019f9e3542b06417fb8a EQUAL
+snapback4-linux-x64 view=0.4.53 latest=0.4.53 sha256=b0716e005775ec4a0623c36cccba0e3a43ed6fcd940fbb63cf03fc7e9ffdf314 EQUAL
+snapback4 view=0.4.53 latest=0.4.53 sha256=9902f0e6a46640c06717b52ace44ac2f8616a7cecfbd9649f3913ef6fdac77f2 EQUAL
+snapback4-expo view=0.4.53 latest=0.4.53 sha256=32c78340ebb6607e65539b4a09aaf447378656783824328a48e718b59222ff6f EQUAL
+verify ok=1 (4/4 metadata, SHA256 and SRI; local staged bytes checked where present)

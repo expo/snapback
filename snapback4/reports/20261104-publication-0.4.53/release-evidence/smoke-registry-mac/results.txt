@@ -1,0 +1,14 @@
+host=Charlies-MacBook-Pro-M5Max-Black.local date=2026-11-04T09:03:38Z tty=/dev/ttys019 node=v24.18.0
+ancestry: | 70271 70270 ccheever bash | 70270 70233 ccheever sshd-session: ccheever@ttys019 | 70233 1 root sshd-session: ccheever [postauth]
+native=node_modules/snapback4-darwin-arm64/snapback4 shim=node_modules/.bin/snapback4
+PASS native-version rc=0 (want 0) out=snapback4 0.4.53 
+PASS native-serve-help rc=0 (want 0) out=snapback4 serve <dir> [--wait-stopped] [--port N|A-B] [--bind VALUE] [--worker path] [--i-
+PASS native-dev-help rc=0 (want 0) out=snapback4 dev [--port N|A-B] [--bind VALUE] [--no-watch] [--fresh] [--memory] [--replay] [
+PASS native serve ready: SNAPBACK4_READY verb=serve
+PASS native stop rc=0, serve exit=143, serve --wait-stopped rc=0
+PASS shim-version rc=0 (want 0) out=snapback4 0.4.53 
+PASS shim-serve-help rc=0 (want 0) out=snapback4 serve <dir> [--wait-stopped] [--port N|A-B] [--bind VALUE] [--worker path] [--i-
+PASS shim-dev-help rc=0 (want 0) out=snapback4 dev [--port N|A-B] [--bind VALUE] [--no-watch] [--fresh] [--memory] [--replay] [
+PASS shim serve ready: SNAPBACK4_READY verb=serve
+PASS shim stop rc=0, serve exit=143, serve --wait-stopped rc=0
+RESULT PASS

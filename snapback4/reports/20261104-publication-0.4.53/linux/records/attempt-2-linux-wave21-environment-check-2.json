@@ -1,0 +1,15 @@
+{
+  "step": "linux-wave21-environment-check-2",
+  "command": [
+    "node",
+    "/home/ccheever/sb4-intent/0453/kit/wave21-check.mjs",
+    "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+    "/home/ccheever/sb4-intent/0453/records/wave21-diagnostic-platform/snapback4-linux-x64-0.4.53.tgz",
+    "/home/ccheever/sb4-intent/0453/records/wave21-environment-check.json"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793764639.1558943,
+  "end": 1793764665.916476,
+  "seconds": 26.761,
+  "exit": 0
+}

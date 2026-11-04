@@ -1,0 +1,26 @@
+[
+  {
+    "package": "snapback4",
+    "exit": 1,
+    "absent404": true,
+    "version": null
+  },
+  {
+    "package": "snapback4-expo",
+    "exit": 1,
+    "absent404": true,
+    "version": null
+  },
+  {
+    "package": "snapback4-darwin-arm64",
+    "exit": 1,
+    "absent404": true,
+    "version": null
+  },
+  {
+    "package": "snapback4-linux-x64",
+    "exit": 1,
+    "absent404": true,
+    "version": null
+  }
+]

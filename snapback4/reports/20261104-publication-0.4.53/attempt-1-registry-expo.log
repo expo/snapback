@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-04T08:59:52.362846+00:00",
+  "artifacts": [
+    {
+      "package": "snapback4-expo@0.4.53",
+      "bytes": 7754752,
+      "integrity": "sha512-+XwerEufLHmOc785Hq3KU6KQg7ZLLq80xX+AL7p28L2ga7nlIT4hUQ+2k9+SR9ASExLyrNhDL37A8zJUE3nCfg==",
+      "registryDist": {
+        "shasum": "b23c7ba8a1609420520633238901c038104b4081",
+        "tarball": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.4.53.tgz",
+        "fileCount": 28,
+        "integrity": "sha512-+XwerEufLHmOc785Hq3KU6KQg7ZLLq80xX+AL7p28L2ga7nlIT4hUQ+2k9+SR9ASExLyrNhDL37A8zJUE3nCfg==",
+        "signatures": [
+          {
+            "sig": "MEQCIGnjlmrx6v3SUO6MZM7Ng2OpYACrph+raQ4KdIOZHs2wAiAtvBj1zLvosNVqeh8R1R1EffTSXJrDu3tu7voAAMLF2Q==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIQDNxbRkk6pZbjJEn+Y13duHPdOEDhvjDyMwOTjQbWOtOgIgGRIoyaaCS+SjUHnf0vPntFwSIkDDqF7srhZtuAcCCaU="
+          }
+        ],
+        "unpackedSize": 19138333
+      },
+      "registryMetadataMatches": true,
+      "downloadedTarballMatches": true
+    }
+  ]
+}

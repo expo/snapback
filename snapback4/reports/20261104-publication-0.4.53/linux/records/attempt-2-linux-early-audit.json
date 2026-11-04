@@ -1,0 +1,15 @@
+{
+  "step": "linux-early-audit",
+  "command": [
+    "node",
+    "/home/ccheever/sb4-intent/0453/kit/audit-fast.mjs",
+    "/home/ccheever/sb4-intent/0453/source/snapback4",
+    "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53",
+    "/home/ccheever/sb4-intent/0453/records/audit-linux-early-attempt2"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793764740.8516138,
+  "end": 1793764765.8742888,
+  "seconds": 25.023,
+  "exit": 0
+}

@@ -1,0 +1,3 @@
+rollback: release 2 current, generation 8; 0 rows, 0 cells, 0 index entries dormant, notes.label changed; 8.8 ms
+backfill: notes.label ← 'new' on 1 row
+details: .snapback4/last/rollback.txt; --explain for full output

@@ -1,0 +1,73 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
+// EDIT REGION: business assertions between the markers below; keep build, hosts and cleanup.
+// Builds its own dist before starting proof servers.
+// Replace the application assertions when replacing the starter screen.
+import { startStaging } from './staging.mjs';
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { command, startStatic, withBrowser, renderedText, fillRN, signInUI, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
+
+import { runProofSuite } from "snapback4/proof-runner";
+import { matchesFilter } from "../src/shared.ts";
+assert.equal(matchesFilter(false, "open"), true);
+await runProofSuite(async () => {
+
+// For SVG/foreignObject controls, click the actual rendered box, not a text
+// descendant whose DOM geometry Playwright may interpret differently.
+async function clickSvg(page, control) {
+  await control.waitFor({ state: "visible" });
+  const box = await control.boundingBox();
+  assert.ok(box && box.width > 0 && box.height > 0, "SVG control has no rendered box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+const options = process.env.SNAPBACK4_PROOF_LOGS ? { logsDir: process.env.SNAPBACK4_PROOF_LOGS } : {};
+const range = portRange();
+if (range !== "0" && range.split("-")[0] === range.split("-")[1]) throw Error("the starter needs two runtime ports");
+const build = await command("npm", ["run", "build"], { ...options, timeoutMs: 300_000 });
+assert.equal(build.code, 0, `frontend:proof build failed: ${build.stderr}; logs: ${build.logs.stderr}`);
+const dev = await startStaging(options);
+let web;
+try {
+  const identity = await (await fetch(`${dev.url}/auth/config`, { signal: AbortSignal.timeout(5000) })).json();
+  const personas = []; // Real staging accounts, never development personas.
+  web = await startStatic("dist", options);
+  await withBrowser({ executablePath: process.env.CHROME, ...options }, async context => {
+    const page = await context.newPage();
+    await page.goto(`${web.url}/?api=${encodeURIComponent(dev.url)}&witness=web`, { waitUntil: "domcontentloaded" });
+    if (identity.guests) {
+      await page.getByRole("button", { name: "Continue as a guest", exact: true }).click();
+    } else if (identity.password) {
+      const account = Object.values(dev.sessions).flat()[0];
+      await signInUI(page, account);
+    } else {
+      assert.ok(personas.length, "declare identity or personas before proving the starter");
+      await page.getByRole("button", { name: personas[0], exact: true }).click();
+    }
+    // EDIT REGION: sign-in role and screen/write assertions begin.
+    
+    await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
+    const filter = page.getByRole("combobox", { name: "Note status", exact: true });
+    await filter.selectOption("open");
+    await filter.selectOption("all");
+    const task = page.getByLabel("Note", { exact: true });
+    await task.waitFor({ state: "visible" }); // Wait for application controls after sign-in.
+    {
+      const title = `Proof ${randomUUID()}`;
+      await fillRN(task, title);
+      // Arm the app's SDK receipt outside the form, which may unmount.
+      const button = page.getByRole("button", { name: "Add", exact: true });
+      await button.evaluate((element, title) => window.__snapback4Witness.beginForm("add", { title }, element), title);
+      const svg = button.locator("svg");
+      if (await svg.count()) await clickSvg(page, svg); else await button.click();
+      const receipt = await bounded(page.evaluate(() => window.__snapback4Witness.formResult()), 30_000, "clicked write receipt");
+      assert.equal(receipt.state, "sent", JSON.stringify(receipt));
+      const within = page.getByRole("list");
+      await waitForFresh(renderedText(page, new RegExp(title), { within }), null);
+    }
+  });
+  // KEEP REGION: proof result and cleanup.
+  console.log("frontend:proof passed");
+} finally { await cleanup(() => web?.stop(), () => dev.stop()); }
+
+});

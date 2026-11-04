@@ -1,0 +1,276 @@
+-- client file start: packages/snapback4/test/dx12-serve.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: serve callback receives private readiness, returns its value and releases the lock
+ok 1 - serve callback receives private readiness, returns its value and releases the lock
+  ---
+  duration_ms: 5299.512708
+  type: 'test'
+  ...
+# Subtest: callback failure and hung callback still release serve group and lock
+ok 2 - callback failure and hung callback still release serve group and lock
+  ---
+  duration_ms: 5417.136542
+  type: 'test'
+  ...
+# Subtest: then command gets readiness and nonzero status; descendants and hung commands are reaped
+ok 3 - then command gets readiness and nonzero status; descendants and hung commands are reaped
+  ---
+  duration_ms: 5441.380583
+  type: 'test'
+  ...
+# Subtest: startup hang names script and startup deadline without exposing output
+ok 4 - startup hang names script and startup deadline without exposing output
+  ---
+  duration_ms: 4989.576292
+  type: 'test'
+  ...
+# snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+# Subtest: dev accounts use real password signup and ordinary operator provisioning, and refuse serve
+ok 5 - dev accounts use real password signup and ordinary operator provisioning, and refuse serve
+  ---
+  duration_ms: 5887.102375
+  type: 'test'
+  ...
+# Subtest: packed CLI propagates command status and literal withServeScript guide recipe runs
+ok 6 - packed CLI propagates command status and literal withServeScript guide recipe runs
+  ---
+  duration_ms: 6437.883541
+  type: 'test'
+  ...
+# Subtest: serve shutdown failure cannot earn success from a successful command
+ok 7 - serve shutdown failure cannot earn success from a successful command
+  ---
+  duration_ms: 34994.949916
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 68518.342209
+-- process inspection: {"snapshots":4,"unrelatedRows":6135}
+-- client file ok: packages/snapback4/test/dx12-serve.test.mjs (68799 ms)
+-- client file start: packages/snapback4/test/srv1-lifetime.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGTERM","pipeEOFms":473,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+ok 1 - 036/017/008: SIGTERM to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 5790.049417
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGTERM","pipeEOFms":155,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+ok 2 - 036/017/008: SIGTERM to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 5649.640625
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"serveUntilSignal","signal":"SIGKILL","pipeEOFms":616,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+ok 3 - 036/017/008: SIGKILL to npm only releases serveUntilSignal driver store and pipes
+  ---
+  duration_ms: 6008.615333
+  type: 'test'
+  ...
+# {"shape":"036/017/008","kind":"native CLI","signal":"SIGKILL","pipeEOFms":414,"firstCommand":"serve"}
+# Subtest: 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+ok 4 - 036/017/008: SIGKILL to npm only releases native CLI store and pipes
+  ---
+  duration_ms: 5885.273417
+  type: 'test'
+  ...
+# 024 transcript: node driver.mjs | tail -n 2 -> requests complete, EOF, exit 0; next serve/deploy succeeds
+# Subtest: 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+ok 5 - 024: request-making driver exits; serveUntilSignal child cannot keep | tail open
+  ---
+  duration_ms: 5858.843625
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGTERM and closes inherited pipes
+ok 6 - serveUntilSignal handles SIGTERM and closes inherited pipes
+  ---
+  duration_ms: 5744.076667
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGINT and closes inherited pipes
+ok 7 - serveUntilSignal handles SIGINT and closes inherited pipes
+  ---
+  duration_ms: 5542.23125
+  type: 'test'
+  ...
+# Subtest: serveUntilSignal handles SIGHUP and closes inherited pipes
+ok 8 - serveUntilSignal handles SIGHUP and closes inherited pipes
+  ---
+  duration_ms: 5512.294167
+  type: 'test'
+  ...
+# Subtest: direct native serve observes launching parent death without wrapper environment
+ok 9 - direct native serve observes launching parent death without wrapper environment
+  ---
+  duration_ms: 5574.687334
+  type: 'test'
+  ...
+# Subtest: harness: detached npm --hold child survives idle and group TERM releases hosts
+ok 10 - harness: detached npm --hold child survives idle and group TERM releases hosts
+  ---
+  duration_ms: 6918.687334
+  type: 'test'
+  ...
+# Subtest: E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+ok 11 - E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release
+  ---
+  duration_ms: 10337.957625
+  type: 'test'
+  ...
+# Subtest: SIGKILL holder stale record is reclaimed once, with a notice
+ok 12 - SIGKILL holder stale record is reclaimed once, with a notice
+  ---
+  duration_ms: 5237.1895
+  type: 'test'
+  ...
+# Subtest: Linux PDEATHSIG spawning-thread exit does not kill a live-parent host
+ok 13 - Linux PDEATHSIG spawning-thread exit does not kill a live-parent host # SKIP
+  ---
+  duration_ms: 0.081
+  type: 'test'
+  ...
+# Subtest: password starter ships exec serve scripts and bounded prod:check against its real deployment
+ok 14 - password starter ships exec serve scripts and bounded prod:check against its real deployment
+  ---
+  duration_ms: 39188.943333
+  type: 'test'
+  ...
+# Subtest: busy persistent dev has exact stop recovery without signalling a PID hint
+ok 15 - busy persistent dev has exact stop recovery without signalling a PID hint
+  ---
+  duration_ms: 5144.220667
+  type: 'test'
+  ...
+# Subtest: Darwin design witness: C-locale ps captures npm argv and parent birth changes
+ok 16 - Darwin design witness: C-locale ps captures npm argv and parent birth changes
+  ---
+  duration_ms: 575.354875
+  type: 'test'
+  ...
+# Subtest: aliased database recovery names its actual deployment control directory
+ok 17 - aliased database recovery names its actual deployment control directory
+  ---
+  duration_ms: 14954.326542
+  type: 'test'
+  ...
+# 024 request completed; SIGTERM npm wrapper
+# 024 npm close observed; driver finished
+# Subtest: 024: request driver awaits npm close through tail after terminating only the wrapper
+ok 18 - 024: request driver awaits npm close through tail after terminating only the wrapper
+  ---
+  duration_ms: 5731.439334
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+ok 19 - 036/017/008: deploy immediately after npm TERM (proof driver) waits for ownership
+  ---
+  duration_ms: 5688.067916
+  type: 'test'
+  ...
+# Subtest: 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+ok 20 - 036/017/008: deploy immediately after npm TERM (native) waits for ownership
+  ---
+  duration_ms: 5686.152833
+  type: 'test'
+  ...
+# Subtest: missing process table retains a living direct parent and detects reparenting
+ok 21 - missing process table retains a living direct parent and detects reparenting
+  ---
+  duration_ms: 626.536709
+  type: 'test'
+  ...
+# Subtest: an initially PID-1 npm/service parent is not presumed dead
+ok 22 - an initially PID-1 npm/service parent is not presumed dead
+  ---
+  duration_ms: 326.294584
+  type: 'test'
+  ...
+# Subtest: Darwin unreadable ancestor (EPERM) remains alive until ESRCH
+ok 23 - Darwin unreadable ancestor (EPERM) remains alive until ESRCH
+  ---
+  duration_ms: 1127.416583
+  type: 'test'
+  ...
+# Subtest: Darwin unreadable ancestor (empty) remains alive until ESRCH
+ok 24 - Darwin unreadable ancestor (empty) remains alive until ESRCH
+  ---
+  duration_ms: 1130.951583
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 154291.449541
+-- process inspection: {"snapshots":4,"unrelatedRows":6161}
+-- client file ok: packages/snapback4/test/srv1-lifetime.test.mjs (154577 ms)
+-- client file start: packages/snapback4/test/ver1-loop.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wave34 redundant verify calls: one ordered loop; each red stops later proofs; refusal precedes summary
+ok 1 - wave34 redundant verify calls: one ordered loop; each red stops later proofs; refusal precedes summary
+  ---
+  duration_ms: 1470.119125
+  type: 'test'
+  ...
+# Subtest: Codex exec teardown: detached installer survives caller process-group SIGKILL ten times
+ok 2 - Codex exec teardown: detached installer survives caller process-group SIGKILL ten times
+  ---
+  duration_ms: 11761.962375
+  type: 'test'
+  ...
+# Subtest: delayed detached owner cannot expose a previous successful receipt
+ok 3 - delayed detached owner cannot expose a previous successful receipt
+  ---
+  duration_ms: 6640.830875
+  type: 'test'
+  ...
+# Subtest: verify SIGKILL and outer npm death stop the active phase and never start later proofs
+ok 4 - verify SIGKILL and outer npm death stop the active phase and never start later proofs
+  ---
+  duration_ms: 2852.220875
+  type: 'test'
+  ...
+# Subtest: a waiting install join pins its request even when a later successful run supersedes the pointer
+ok 5 - a waiting install join pins its request even when a later successful run supersedes the pointer
+  ---
+  duration_ms: 1039.674042
+  type: 'test'
+  ...
+# Subtest: parent loss at a phase boundary is checked before the next npm starts
+ok 6 - parent loss at a phase boundary is checked before the next npm starts
+  ---
+  duration_ms: 777.68
+  type: 'test'
+  ...
+# Subtest: duplicate admission pins its alias before another launcher replaces the pointer
+ok 7 - duplicate admission pins its alias before another launcher replaces the pointer
+  ---
+  duration_ms: 40.008917
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24619.163041
+-- process inspection: {"snapshots":4,"unrelatedRows":6290}
+-- client file ok: packages/snapback4/test/ver1-loop.test.mjs (24995 ms)
+-- client files: 3/3; failed 0; tests {"tests":38,"pass":37,"fail":0,"cancelled":0,"skipped":1,"todo":0}

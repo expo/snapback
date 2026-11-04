@@ -1,0 +1,7 @@
+{
+  "change": "propagate supported recovered Wave21 fixture root to supervisor-only finish; script NOT executed",
+  "oldSha256": "f81b018f47ae7f2345cc2b5a9028dca6d3e19991553f2964c5ce18a4b7c50f08",
+  "newSha256": "d7940ecadea28e56407aa83071cae99db6382ce7ab63e4c6338bc9d33f076106",
+  "syntaxExit": 0,
+  "diff": "finish-fixture-override.diff"
+}

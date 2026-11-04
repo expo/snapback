@@ -1,0 +1,700 @@
+{
+  "status": "complete through successful dry run; publish/finish not run",
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "recordedAt": "2026-11-04T08:43:46.575731+00:00",
+  "steps": [
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-source-install.json",
+      "step": "linux-source-install",
+      "exit": 0,
+      "seconds": 1.062,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793759095.1796248,
+      "end": 1793759096.2419567
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-source-build.json",
+      "step": "linux-source-build",
+      "exit": 0,
+      "seconds": 48.925,
+      "command": [
+        "env",
+        "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4"
+      ],
+      "start": 1793759096.2815497,
+      "end": 1793759145.2066522
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-bun-install.json",
+      "step": "bun-install",
+      "exit": 0,
+      "seconds": 0.2,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793759555.292043,
+      "end": 1793759555.491589
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-xcframework-build.json",
+      "step": "xcframework-build",
+      "exit": 0,
+      "seconds": 147.193,
+      "command": [
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "scripts/build-xcframework.sh"
+      ],
+      "start": 1793759555.549242,
+      "end": 1793759702.741985
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-native-prepare.json",
+      "step": "native-prepare",
+      "exit": 0,
+      "seconds": 0.544,
+      "command": [
+        "python3",
+        "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-prepare.py"
+      ],
+      "start": 1793759702.799382,
+      "end": 1793759703.34341
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-cargo-build.json",
+      "step": "cargo-build",
+      "exit": 0,
+      "seconds": 10.361,
+      "command": [
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4"
+      ],
+      "start": 1793759703.401737,
+      "end": 1793759713.7623239
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-wasm-build.json",
+      "step": "wasm-build",
+      "exit": 0,
+      "seconds": 23.527,
+      "command": [
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "start": 1793759713.816349,
+      "end": 1793759737.3431659
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-client-package-build.json",
+      "step": "client-package-build",
+      "exit": 0,
+      "seconds": 3.275,
+      "command": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "start": 1793759737.3971891,
+      "end": 1793759740.671772
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-simulator-boot.json",
+      "step": "simulator-boot",
+      "exit": 0,
+      "seconds": 0.911,
+      "command": [
+        "xcrun",
+        "simctl",
+        "boot",
+        "D2C67F7F-196C-439E-AEB9-3FDA4479761E"
+      ],
+      "start": 1793759740.725803,
+      "end": 1793759741.636678
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-simulator-ready.json",
+      "step": "simulator-ready",
+      "exit": 0,
+      "seconds": 4.101,
+      "command": [
+        "xcrun",
+        "simctl",
+        "bootstatus",
+        "D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+        "-b"
+      ],
+      "start": 1793759741.7288551,
+      "end": 1793759745.8295932
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-chat-backend-check.json",
+      "step": "chat-backend-check",
+      "exit": 0,
+      "seconds": 8.239,
+      "command": [
+        "../../target/debug/snapback4",
+        "check"
+      ],
+      "start": 1793759745.931561,
+      "end": 1793759754.171057
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-expo-ios-regenerate.json",
+      "step": "expo-ios-regenerate",
+      "exit": 0,
+      "seconds": 0.024,
+      "command": [
+        "rm",
+        "-rf",
+        "ios"
+      ],
+      "start": 1793759754.233334,
+      "end": 1793759754.256844
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-expo-release-build.json",
+      "step": "expo-release-build",
+      "exit": 0,
+      "seconds": 77.84,
+      "command": [
+        "env",
+        "EXPO_PUBLIC_SNAPBACK_URL=http://127.0.0.1:44442",
+        "node",
+        "../../node_modules/expo/bin/cli",
+        "run:ios",
+        "--configuration",
+        "Release",
+        "--device",
+        "generic",
+        "--no-bundler",
+        "--output",
+        "../../target/expo-release"
+      ],
+      "start": 1793759754.318362,
+      "end": 1793759832.158397
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-root-hook-dependencies.json",
+      "step": "root-hook-dependencies",
+      "exit": 0,
+      "seconds": 0.281,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793759832.214596,
+      "end": 1793759832.49532
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-simulator-uninstall.json",
+      "step": "simulator-uninstall",
+      "exit": 0,
+      "seconds": 0.471,
+      "command": [
+        "xcrun",
+        "simctl",
+        "uninstall",
+        "D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+        "dev.snapback4.chat"
+      ],
+      "start": 1793759832.550196,
+      "end": 1793759833.0216079
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-simulator-install.json",
+      "step": "simulator-install",
+      "exit": 0,
+      "seconds": 2.297,
+      "command": [
+        "xcrun",
+        "simctl",
+        "install",
+        "D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+        "target/expo-release/Snapback4chat.app"
+      ],
+      "start": 1793759833.1015198,
+      "end": 1793759835.398027
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-native-link-verification.json",
+      "step": "native-link-verification",
+      "exit": 0,
+      "seconds": 0.344,
+      "command": [
+        "python3",
+        "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-link.py"
+      ],
+      "start": 1793759835.468695,
+      "end": 1793759835.8123462
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-native-witness.json",
+      "step": "native-witness",
+      "exit": 0,
+      "seconds": 25.301,
+      "command": [
+        "env",
+        "WITNESS_UDID=D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+        "WITNESS_PORT=44442",
+        "WITNESS_ARTIFACTS=/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-expo-0.4.53",
+        "node",
+        "witness/expo.mjs"
+      ],
+      "start": 1793759835.870343,
+      "end": 1793759861.1709492
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-native-qualification-verification.json",
+      "step": "native-qualification-verification",
+      "exit": 0,
+      "seconds": 0.139,
+      "command": [
+        "python3",
+        "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-verify.py"
+      ],
+      "start": 1793759861.226084,
+      "end": 1793759861.364983
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-simulator-shutdown.json",
+      "step": "simulator-shutdown",
+      "exit": 0,
+      "seconds": 3.16,
+      "command": [
+        "xcrun",
+        "simctl",
+        "shutdown",
+        "D2C67F7F-196C-439E-AEB9-3FDA4479761E"
+      ],
+      "start": 1793759861.4180639,
+      "end": 1793759864.578296
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-publication-prepare-client.json",
+      "step": "publication-prepare-client",
+      "exit": 0,
+      "seconds": 30.095,
+      "command": [
+        "env",
+        "-u",
+        "SNAPBACK4_BIN",
+        "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/publish.mjs",
+        "--prepare-client"
+      ],
+      "start": 1793759865.97353,
+      "end": 1793759896.068352
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-lean-setup.json",
+      "step": "lean-setup",
+      "exit": 0,
+      "seconds": 0.357,
+      "command": [
+        "env",
+        "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "lake",
+        "build",
+        "quarry-oracle"
+      ],
+      "start": 1793760025.652137,
+      "end": 1793760026.009217
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-test-warm.json",
+      "step": "test-warm",
+      "exit": 0,
+      "seconds": 692.429,
+      "command": [
+        "env",
+        "-u",
+        "SNAPBACK4_BIN",
+        "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+        "cargo",
+        "test",
+        "--workspace",
+        "--no-run"
+      ],
+      "start": 1793760026.072434,
+      "end": 1793760718.5014
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-early-install.json",
+      "step": "linux-early-install",
+      "exit": 0,
+      "seconds": 0.066,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793760185.8700573,
+      "end": 1793760185.935785
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-early-cli.json",
+      "step": "linux-early-cli",
+      "exit": 0,
+      "seconds": 0.237,
+      "command": [
+        "env",
+        "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4"
+      ],
+      "start": 1793760185.9729455,
+      "end": 1793760186.2095668
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-early-audit.json",
+      "step": "linux-early-audit",
+      "exit": 0,
+      "seconds": 25.935,
+      "command": [
+        "node",
+        "/home/ccheever/sb4-intent/0453/kit/audit-fast.mjs",
+        "/home/ccheever/sb4-intent/0453/source/snapback4",
+        "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53",
+        "/home/ccheever/sb4-intent/0453/records/audit-linux-early"
+      ],
+      "start": 1793760186.2502825,
+      "end": 1793760212.1850944
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-bun-install.json",
+      "step": "linux-bun-install",
+      "exit": 0,
+      "seconds": 0.02,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793760212.226667,
+      "end": 1793760212.2465348
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-lean-setup.json",
+      "step": "linux-lean-setup",
+      "exit": 0,
+      "seconds": 11.276,
+      "command": [
+        "env",
+        "PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+        "lake",
+        "build",
+        "quarry-oracle"
+      ],
+      "start": 1793760212.2839465,
+      "end": 1793760223.5599513
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-1-linux-qualify.json",
+      "step": "linux-qualify",
+      "exit": 1,
+      "seconds": 3990.415,
+      "command": [
+        "env",
+        "-u",
+        "SNAPBACK4_BIN",
+        "-u",
+        "NPM_TOKEN",
+        "-u",
+        "NODE_AUTH_TOKEN",
+        "-u",
+        "SNAPBACK4_TEST_SERIAL_CLIENT_FILES",
+        "-u",
+        "SNAPBACK4_RUST_TEST_PROCESSES",
+        "PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+        "NPM_CONFIG_CACHE=/home/ccheever/sb4-intent/0453/records/npm-cache-1",
+        "SNAPBACK4_REQUIRE_LEAN=1",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/qualify-linux.mjs",
+        "--client",
+        "target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+        "--expo",
+        "target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz",
+        "--out",
+        "/home/ccheever/sb4-intent/0453/linux-qualification-0.4.53"
+      ],
+      "start": 1793760223.599877,
+      "end": 1793764214.01489
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-wave21-environment-check.json",
+      "step": "linux-wave21-environment-check",
+      "exit": 1,
+      "seconds": 0.74,
+      "command": [
+        "node",
+        "/home/ccheever/sb4-intent/0453/kit/wave21-check.mjs",
+        "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+        "/home/ccheever/sb4-intent/0453/linux-qualification-0.4.53/snapback4-linux-x64-0.4.53.tgz",
+        "/home/ccheever/sb4-intent/0453/records/wave21-environment-check.json"
+      ],
+      "start": 1793764545.901192,
+      "end": 1793764546.6410656
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-wave21-diagnostic-pack.json",
+      "step": "linux-wave21-diagnostic-pack",
+      "exit": 0,
+      "seconds": 2.522,
+      "command": [
+        "bash",
+        "-c",
+        "\nset -euo pipefail\nD=$REP/wave21-diagnostic-platform\n[ ! -e \"$D\" ]\nmkdir -p \"$D/package\"\ncp \"$ROOT/packages/snapback4-linux-x64/package.json\" \"$ROOT/packages/snapback4-linux-x64/THIRD-PARTY-NOTICES\" \"$D/package/\"\ncp \"$ROOT/target/x86_64-unknown-linux-musl/production/snapback4\" \"$D/package/snapback4\"\ncd \"$D/package\"\nnpm pack --ignore-scripts --json --pack-destination \"$D\"\necho \"DIAGNOSTIC ONLY: no qualification receipt; never transfer as qualified handoff\"\n"
+      ],
+      "start": 1793764636.5921621,
+      "end": 1793764639.1140385
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-wave21-environment-check-2.json",
+      "step": "linux-wave21-environment-check-2",
+      "exit": 0,
+      "seconds": 26.761,
+      "command": [
+        "node",
+        "/home/ccheever/sb4-intent/0453/kit/wave21-check.mjs",
+        "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+        "/home/ccheever/sb4-intent/0453/records/wave21-diagnostic-platform/snapback4-linux-x64-0.4.53.tgz",
+        "/home/ccheever/sb4-intent/0453/records/wave21-environment-check.json"
+      ],
+      "start": 1793764639.1558943,
+      "end": 1793764665.916476
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-early-install.json",
+      "step": "linux-early-install",
+      "exit": 0,
+      "seconds": 0.021,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793764725.7689836,
+      "end": 1793764725.7902863
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-early-cli.json",
+      "step": "linux-early-cli",
+      "exit": 0,
+      "seconds": 14.984,
+      "command": [
+        "env",
+        "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+        "cargo",
+        "build",
+        "--locked",
+        "-p",
+        "snapback4"
+      ],
+      "start": 1793764725.8273938,
+      "end": 1793764740.8110213
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-early-audit.json",
+      "step": "linux-early-audit",
+      "exit": 0,
+      "seconds": 25.023,
+      "command": [
+        "node",
+        "/home/ccheever/sb4-intent/0453/kit/audit-fast.mjs",
+        "/home/ccheever/sb4-intent/0453/source/snapback4",
+        "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53",
+        "/home/ccheever/sb4-intent/0453/records/audit-linux-early-attempt2"
+      ],
+      "start": 1793764740.8516138,
+      "end": 1793764765.8742888
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-bun-install.json",
+      "step": "linux-bun-install",
+      "exit": 0,
+      "seconds": 0.02,
+      "command": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "start": 1793764765.9170313,
+      "end": 1793764765.9367669
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-lean-setup.json",
+      "step": "linux-lean-setup",
+      "exit": 0,
+      "seconds": 0.144,
+      "command": [
+        "env",
+        "PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+        "lake",
+        "build",
+        "quarry-oracle"
+      ],
+      "start": 1793764765.9751933,
+      "end": 1793764766.1191697
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-qualify.json",
+      "step": "linux-qualify",
+      "exit": 0,
+      "seconds": 5286.178,
+      "command": [
+        "env",
+        "-u",
+        "SNAPBACK4_BIN",
+        "-u",
+        "NPM_TOKEN",
+        "-u",
+        "NODE_AUTH_TOKEN",
+        "-u",
+        "SNAPBACK4_TEST_SERIAL_CLIENT_FILES",
+        "-u",
+        "SNAPBACK4_RUST_TEST_PROCESSES",
+        "PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin",
+        "NPM_CONFIG_CACHE=/home/ccheever/sb4-intent/0453/records/npm-cache-2",
+        "SNAPBACK4_REQUIRE_LEAN=1",
+        "SNAPBACK4_WAVE21_ROOT=/home/ccheever/sb4-intent/0453/fixtures/wave21/apps",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/qualify-linux.mjs",
+        "--client",
+        "target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+        "--expo",
+        "target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz",
+        "--out",
+        "/home/ccheever/sb4-intent/0453/linux-qualification-0.4.53"
+      ],
+      "start": 1793764766.158341,
+      "end": 1793770052.336341
+    },
+    {
+      "host": "Linux",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/linux/records/attempt-2-linux-clean-install.json",
+      "step": "linux-clean-install",
+      "exit": 0,
+      "seconds": 3.329,
+      "command": [
+        "bash",
+        "/home/ccheever/sb4-intent/0453/kit/clean-install-linux.sh"
+      ],
+      "start": 1793770052.3762164,
+      "end": 1793770055.7049189
+    },
+    {
+      "host": "Mac",
+      "receipt": "/Users/ccheever/sb4-pub-0453-wt/snapback4/reports/20261104-publication-0.4.53/attempt-1-publication-dry-run.json",
+      "step": "publication-dry-run",
+      "exit": 0,
+      "seconds": 11327.394,
+      "command": [
+        "env",
+        "-u",
+        "SNAPBACK4_BIN",
+        "SNAPBACK4_RUST_TEST_PROCESSES=2",
+        "SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1",
+        "SNAPBACK4_REQUIRE_LEAN=1",
+        "SNAPBACK4_WAVE21_ROOT=/Users/ccheever/sb4-pub-0453/fixtures/wave21/apps",
+        "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+        "node",
+        "scripts/publish.mjs",
+        "--dry-run",
+        "--linux-receipt",
+        "target/incoming/linux-0.4.53/receipt.json",
+        "--linux-tarball",
+        "target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz"
+      ],
+      "start": 1793770246.5870562,
+      "end": 1793781573.981418
+    }
+  ]
+}

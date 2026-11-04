@@ -1,0 +1,76 @@
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793763923956,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "roles": [
+          "id",
+          "principal",
+          "role"
+        ],
+        "rows": [
+          "id",
+          "owner",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "roles": [
+        "id",
+        "principal",
+        "role"
+      ],
+      "rows": [
+        "id",
+        "owner",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "workers": []
+}

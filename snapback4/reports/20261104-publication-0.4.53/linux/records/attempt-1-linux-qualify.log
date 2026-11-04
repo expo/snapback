@@ -1,0 +1,940 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.4
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.2.0
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling crossbeam-utils v0.8.23
+   Compiling stable_deref_trait v1.2.1
+   Compiling libm v0.2.16
+   Compiling crossbeam-epoch v0.9.20
+   Compiling siphasher v1.0.3
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling crossbeam-deque v0.8.7
+   Compiling bitflags v2.13.2
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling writeable v0.6.4
+   Compiling rustversion v1.0.23
+   Compiling wasmi_ir v2.0.0
+   Compiling subtle v2.6.1
+   Compiling rayon-core v1.13.0
+   Compiling cmov v0.5.4
+   Compiling wasmparser v0.228.0
+   Compiling const-oid v0.10.2
+   Compiling percent-encoding v2.3.2
+   Compiling icu_locale_fallback_data v2.3.0
+   Compiling litemap v0.8.3
+   Compiling icu_segmenter_data v2.3.0
+   Compiling cpufeatures v0.3.1
+   Compiling static_assertions v1.1.0
+   Compiling rustc-hash v2.1.3
+   Compiling wasmi v2.0.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling oxc_data_structures v0.154.0
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling getrandom v0.3.4
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling fastrand v2.5.0
+   Compiling bytes v1.12.1
+   Compiling oxc_estree v0.154.0
+   Compiling utf8_iter v1.0.4
+   Compiling futures-sink v0.3.34
+   Compiling unicode-properties v0.1.4
+   Compiling cpufeatures v0.2.17
+   Compiling pin-project-lite v0.2.17
+   Compiling futures-core v0.3.34
+   Compiling parking_lot_core v0.9.12
+   Compiling unicode-bidi v0.3.18
+   Compiling log v0.4.34
+   Compiling smawk v0.3.3
+   Compiling byteorder v1.5.0
+   Compiling autocfg v1.5.1
+   Compiling fallible-iterator v0.2.0
+   Compiling base64 v0.22.1
+   Compiling unicode-width v0.2.2
+   Compiling scopeguard v1.2.0
+   Compiling cow-utils v0.1.3
+   Compiling dragonbox_ecma v0.1.12
+   Compiling slab v0.4.12
+   Compiling rand_core v0.6.4
+   Compiling unicode-id-start v1.5.0
+   Compiling base64ct v1.8.3
+   Compiling unicode-segmentation v1.13.3
+   Compiling bytecount v0.6.9
+   Compiling nonmax v0.5.5
+   Compiling futures-task v0.3.34
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling spin v0.9.9
+   Compiling wasmi_collections v2.0.0
+   Compiling either v1.18.0
+   Compiling smallvec v1.16.1
+   Compiling generic-array v0.14.7
+   Compiling cc v1.4.5
+   Compiling phf_shared v0.14.0
+   Compiling ctutils v0.4.2
+   Compiling tinyvec v1.13.2
+   Compiling chacha20 v0.10.2
+   Compiling lock_api v0.4.14
+   Compiling phf_shared v0.13.1
+   Compiling hashbrown v0.17.1
+   Compiling futures-channel v0.3.34
+   Compiling fallible-iterator v0.3.0
+   Compiling rustix v1.1.5
+   Compiling linux-raw-sys v0.12.1
+   Compiling phf v0.14.0
+   Compiling phf_generator v0.14.0
+   Compiling num-traits v0.2.19
+   Compiling futures-util v0.3.34
+   Compiling password-hash v0.5.0
+   Compiling zeroize v1.9.0
+   Compiling equivalent v1.0.2
+   Compiling snapback4-lang v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-lang)
+   Compiling toml_write v0.1.2
+   Compiling winnow v0.7.15
+   Compiling opaque-debug v0.3.1
+   Compiling httpdate v1.0.3
+   Compiling chunked_transfer v1.5.0
+   Compiling seq-macro v0.3.6
+   Compiling ascii v1.1.0
+   Compiling sqlparser v0.59.0
+   Compiling hybrid-array v0.4.15
+   Compiling phf v0.13.1
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling unicode-normalization v0.1.25
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling castaway v0.2.4
+   Compiling hashlink v0.12.2
+   Compiling compact_str v0.10.0
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling oxc_allocator v0.154.0
+   Compiling indexmap v2.14.2
+   Compiling libsqlite3-sys v0.38.2
+   Compiling stringprep v0.1.5
+   Compiling libmimalloc-sys v0.1.49
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling digest v0.10.7
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling wasmi_core v2.0.0
+   Compiling cipher v0.4.4
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling whoami v2.1.3
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/0453/source/snapback4/vendor/tiny_http)
+   Compiling poly1305 v0.8.0
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling rand v0.10.2
+   Compiling num-integer v0.1.47
+   Compiling chacha20 v0.9.1
+   Compiling hmac v0.12.1
+   Compiling rayon v1.12.0
+   Compiling argon2 v0.5.3
+   Compiling tokio v1.53.1
+   Compiling oxc_str v0.154.0
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling chacha20poly1305 v0.10.1
+   Compiling num-bigint v0.5.1
+   Compiling digest v0.11.3
+   Compiling sha2 v0.11.0
+   Compiling hmac v0.13.0
+   Compiling md-5 v0.11.0
+   Compiling postgres-protocol v0.6.12
+   Compiling postgres-types v0.2.14
+   Compiling phf_macros v0.14.0
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling synstructure v0.14.0
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling thiserror-impl v2.0.20
+   Compiling oxc_ast_macros v0.154.0
+   Compiling async-trait v0.1.92
+   Compiling oxc_span v0.154.0
+   Compiling zerotrie v0.2.5
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling tokio-util v0.7.19
+   Compiling mimalloc v0.1.52
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling oxc_index v5.0.0
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling toml_edit v0.22.27
+   Compiling oxc_syntax v0.154.0
+   Compiling parking_lot v0.12.5
+   Compiling tokio-postgres v0.7.18
+   Compiling icu_provider v2.3.1
+   Compiling icu_locale_fallback v2.3.0
+   Compiling icu_segmenter v2.3.0
+   Compiling textwrap v0.16.4
+   Compiling oxc_diagnostics v0.154.0
+   Compiling toml v0.8.23
+   Compiling rusqlite v0.40.2
+   Compiling oxc_regular_expression v0.154.0
+   Compiling postgres v0.19.14
+   Compiling oxc_ast v0.154.0
+   Compiling snapback4-core v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-core)
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+   Compiling snapback4-device v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-device)
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `set_read_publication` is never used
+   --> crates/snapback4-core/src/engine/postgres/store.rs:125:19
+    |
+118 | impl Store {
+    | ---------- method in this implementation
+...
+125 |     pub(crate) fn set_read_publication(&self, mode: ReadPublication) {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `lsn` is never used
+   --> crates/snapback4-core/src/engine/postgres/early_release.rs:475:4
+    |
+475 | fn lsn(value: &str) -> Result<u64, RuntimeError> {
+    |    ^^^
+
+warning: `snapback4-core` (lib) generated 4 warnings (1 duplicate)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:484:51
+    |
+484 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:357:5
+    |
+357 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `count as decision_count` and `render`
+   --> crates/snapback4/src/verbs/security_reviews.rs:133:34
+    |
+133 | pub(super) use decisions::{print,render,render_mode,count as decision_count};
+    |                                  ^^^^^^             ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `install` is never used
+  --> crates/snapback4/src/host_limits.rs:13:15
+   |
+13 | pub(crate) fn install(capacity: Capacity) {
+   |               ^^^^^^^
+
+warning: function `initialize` is never used
+  --> crates/snapback4/src/host_limits.rs:32:15
+   |
+32 | pub(crate) fn initialize() {
+   |               ^^^^^^^^^^
+
+warning: method `resolve_detached` is never used
+   --> crates/snapback4/src/serve_identity.rs:189:19
+    |
+ 49 | impl Admission {
+    | -------------- method in this implementation
+...
+189 |     pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:69:4
+   |
+69 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: methods `background` and `has_waiters` are never used
+   --> crates/snapback4/src/serve_lock.rs:65:12
+    |
+ 45 | impl<T, C: Clock> FairMutex<T, C> {
+    | --------------------------------- methods in this implementation
+...
+ 65 |     pub fn background(&self) -> FairGuard<'_, T, C> {
+    |            ^^^^^^^^^^
+...
+108 |     pub fn has_waiters(&self) -> bool {
+    |            ^^^^^^^^^^^
+
+warning: field `contended` is never read
+   --> crates/snapback4/src/serve_lock.rs:131:135
+    |
+131 | ...ct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: b...
+    |       --------- field in this struct                                                                                             ^^^^^^^^^
+
+warning: method `contended` is never used
+   --> crates/snapback4/src/serve_lock.rs:133:12
+    |
+132 | impl<T, C: Clock> FairGuard<'_, T, C> {
+    | ------------------------------------- method in this implementation
+133 |     pub fn contended(&self) -> bool { self.contended }
+    |            ^^^^^^^^^
+
+warning: method `with_lease` is never used
+  --> crates/snapback4/src/serve_committer.rs:56:19
+   |
+26 | impl Writer {
+   | ----------- method in this implementation
+...
+56 |     pub(super) fn with_lease(
+   |                   ^^^^^^^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: method `take_reader` is never used
+   --> crates/snapback4/src/serve_readers.rs:197:19
+    |
+140 | impl Shared {
+    | ----------- method in this implementation
+...
+197 |     pub(super) fn take_reader(&self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+    |                   ^^^^^^^^^^^
+
+warning: function `mutation_acknowledgement` is never used
+  --> crates/snapback4/src/serve_head.rs:95:15
+   |
+95 | pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::Mutatio...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `borrowed_response_head` is never used
+   --> crates/snapback4/src/serve_head.rs:127:15
+    |
+127 | pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::ReadSnapshot<'_>, head: u64) -> Result<(String, u64), R...
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `human_period` is never used
+    --> crates/snapback4/src/verbs.rs:1003:4
+     |
+1003 | fn human_period(ms: u64) -> String {
+     |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:495:15
+    |
+495 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: function `review` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:21:15
+   |
+21 | pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>)->Resul...
+   |               ^^^^^^
+
+warning: function `review_snapshot` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:25:15
+   |
+25 | pub(super) fn review_snapshot(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Result<Vec<Dispositi...
+   |               ^^^^^^^^^^^^^^^
+
+warning: methods `has_decisions` and `dispositions` are never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:32:19
+   |
+30 | impl ReviewSnapshot{
+   | ------------------- methods in this implementation
+31 |     pub(super) fn capture(project:&Project)->Result<Self,String>{Ok(Self{file:read_file(project)?})}
+32 |     pub(super) fn has_decisions(&self)->bool{!self.file.entries.is_empty()}
+   |                   ^^^^^^^^^^^^^
+33 |     pub(super) fn dispositions(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Vec<Disposition>{self.disposit...
+   |                   ^^^^^^^^^^^^
+
+warning: function `count` is never used
+  --> crates/snapback4/src/verbs/security_reviews/decisions.rs:16:25
+   |
+16 | pub(in crate::verbs) fn count(dispositions: &[Disposition]) -> usize {
+   |                         ^^^^^
+
+warning: function `exposure` is never used
+   --> crates/snapback4/src/verbs/security.rs:101:15
+    |
+101 | pub(super) fn exposure(report:&Report){
+    |               ^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 24 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `production` profile [optimized] target(s) in 10m 05s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+npm notice
+npm notice New minor version of npm available! 11.8.0 -> 11.21.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.21.1
+npm notice To update run: npm install -g npm@11.21.1
+npm notice
+
+added 6 packages in 2s
+packed day-two passed: compatibility baseline, relative saved sources, contemporary fixtures, live backfill, rollback, retained forward
+✔ H9 additive preview-noise budget: unchanged guards stay quiet beside rollback and client risks (292.405756ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 355.639072
+
+added 1 package in 531ms
+✔ DX9 renderedText defaults to substring matching for a row with more than the needle (2905.109818ms)
+✔ DX8 renderedText finds a full status line anywhere in a scrollable RN-style root (553.199775ms)
+✔ DX8 exhaustPages follows opaque cursors and refuses incomplete traversal (2.925156ms)
+✔ DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity (2451.725115ms)
+✔ DX6 rendered locators work on caller-owned Chromium outside withBrowser (373.880972ms)
+✔ DX6 proof driver installs the SDK bridge without application witness imports (646.168094ms)
+✔ KIT4 substring advice stays inside explicit scope and timeout names the visible screen (679.290854ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (1635.334546ms)
+✔ KIT3 explicit form claim survives slow uploads and never grants an unrelated callback (7578.794039ms)
+✔ KIT3 starter SVG box click and scoped text recipe run literally (526.807807ms)
+✔ KIT3 dev.now reads the current served clock across advance and reset (424.088137ms)
+✔ KIT4 stale online client names dev reset and a newly opened client works (316.017167ms)
+✔ KIT4 waitForClock observes the page client instead of the proof driver clock (575.358108ms)
+✔ KIT4 generated proof API table agrees with every source export (1619.630171ms)
+✔ late CommonJS proof import waits for rendered selector registration: count (631.277127ms)
+✔ late CommonJS proof import waits for rendered selector registration: fresh (642.555017ms)
+✔ DX9 proof scopes, substring ambiguity and typed HTML inputs (627.447365ms)
+✔ DX12 Expo web body overflow uses document scrolling and never hidden text (551.049552ms)
+✔ DX12 beginForm constrains a subset while preserving trusted click and value matching (523.885024ms)
+✔ DX12 non-propagated body overflow still clips evidence (422.471113ms)
+✔ DX12 propagated body clip cannot invent viewport scrolling (402.340872ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24200.580036
+✔ guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids (176.759467ms)
+✔ KIT3 guide wire literal query/mutation success/refusal, point objects and view values (155.515095ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 432.751697
+packed fixture check/test agreement passed
+packed init default foreground ownership, quiet output and exit propagation passed
+DX16 packed: two generated proof runs, frozen ESM/API + inline users at all transitions, fresh role users, complete retained snapshots
+DX17 packed: bounded packet, literal stage/roster scripts, two complete checks, v2-native rows through frozen v1, retained migration values
+check: ok — 2 tables (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 2 notes; 39.4 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check: ok — 0 tables (0 synced), 1 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 0 notes; 37.6 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+DX4 packed local/provisioning/upgrade cases passed
+wave19 SDK rate, store-release and JSON pagination packed witnesses passed
+wave19 proof seedUsers real-server retryAfterMs packed witness passed
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+DX6 packed clock: legacy sessions, actual kind, numeric coercion, 22-day preserved user, mutation-before-sweep, drain, explicit expiry and reused-store clock continuation passed
+✔ App startup crash while credential commit is held cannot retain an advanced device clock (248.198116ms)
+✔ failed App credential commit discards the provisional clock, including close (155.501584ms)
+✔ cancelled App opening never activates its prepared clock persistence (122.478323ms)
+✔ clock-save failure after App credential commit warns without rolling identity back (65.877912ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 729.023842
+✔ a body validated before close remains known; bodies after its cutoff cannot replace it (12.030568ms)
+✔ wasm: a dispatched body stays known when close overtakes the admission continuation (328.430229ms)
+✔ native: a dispatched body stays known when close overtakes the admission continuation (209.631151ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 688.524231
+✔ online: stale captured E_AUTH stays obsolete after current-bearer sign-out (39.870348ms)
+✔ local: stale captured E_AUTH stays obsolete after current-bearer sign-out (34.471674ms)
+✔ online mutation: E_AUTH captured before rotation is rechecked at settlement (10.9192ms)
+✔ online action: E_AUTH captured before rotation is rechecked at settlement (10.900404ms)
+✔ local mutation: E_AUTH captured before rotation is rechecked at settlement (12.440912ms)
+✔ local action: E_AUTH captured before rotation is rechecked at settlement (12.12478ms)
+✔ online mutation: current E_AUTH survives the sign-out it causes (1.391095ms)
+✔ online action: current E_AUTH survives the sign-out it causes (0.896074ms)
+✔ local mutation: current E_AUTH survives the sign-out it causes (2.554069ms)
+✔ local action: current E_AUTH survives the sign-out it causes (1.764886ms)
+✔ online: an action dispatched around successful rotation keeps its actual bearer authority (1.484555ms)
+✔ online: an action dispatched around retryable failed rotation keeps its actual bearer authority (1.189473ms)
+✔ local: an action dispatched around successful rotation keeps its actual bearer authority (2.299808ms)
+✔ local: an action dispatched around retryable failed rotation keeps its actual bearer authority (4.864383ms)
+✔ local: an intermediate bearer refusal cannot sign out a rotation still in progress (1.95433ms)
+✔ local: a successor bearer refusal remains authoritative while rotation persistence is held (21.538583ms)
+✔ local: an intermediate retiring bearer stays obsolete after rotation is canceled by sign-out (2.576403ms)
+✔ online: retryable refresh failure retries stale E_AUTH with the original write id (27.235154ms)
+✔ local: retryable refresh failure retries stale E_AUTH with the original write id (263.175022ms)
+✔ the default session store stays in memory and browser persistence is explicit (1.144115ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (20.371972ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (285.667393ms)
+✔ an online-only watch retries a stale-token refusal after rotation (29.124587ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (25.820703ms)
+✔ an authenticated change-feed refusal signs the online client out (13.602624ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (3.201339ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 961.152715
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+DX7 consumer passed: guide rules, protected immutable patches, hidden positive probes, repeated staging time/pause/drain and scrollable text
+
+added 6 packages in 2s
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+(node:2870046) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+DX8 operator consumer passed: dev auth clock/session families, production accounts, retained stop, npm/caller-death group cleanup
+DX8 inspection consumer passed: saved-source client refresh, media objects, truncation, dormant discovery and old-client diagnostics
+(node:2870720) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+DX8 ergonomics consumer passed: day-two comparison, null/full-line text, opaque paging, newest-first starters, and two-layer authorization guidance
+DX8 migration consumer passed: exact shipped fan-out and historical-input language snippets over real stores and bytes
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+DX5 staging: fired, persisted clock, CLI report and repeated store passed
+DX5 diagnostics: located advice, hidden/missing equality, generic/private and named/readable conflicts, JSON rows passed
+
+added 1 package in 311ms
+✔ DX5 ReadState presents each list state without losing refusal or partial/stale evidence (5.157372ms)
+✔ DX5 exact published ListScreen snippet renders loading, denied, empty and partial data (3803.424343ms)
+✔ DX5 list types infer items and retain precise ready metadata (692.835375ms)
+✔ DX5 packaged native smoke signs in only on an owned prime with the explicit identity mode (10.349067ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4915.258347
+# Start: install, choose a frontend, read one recipe
+
+
+```sh
+npm i snapback4
+npx snapback4 guide workflow
+```
+
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
+
+Only after that first backend check, initialize the frontend:
+
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
+Web device apps start progressively by default: `app.ready` means a usable
+client, not local replica readiness. Use `localStatus` / `useLocalStatus` for
+local readiness; `startup: "awaited"` restores the device-opening barrier.
+Native/Expo openers without a custody probe still await. Author ruling
+2026-10-30 makes this the default before Lane C qualification.
+Init waits for installation and returns its exit status. If explicitly deferred,
+run `node scripts/install.mjs --wait` once before building; do not poll.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false` only if missing/hidden means false in the spec.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
+
+## Starter map: edit regions, keep infrastructure
+
+- snapback/*.q: EDIT schema, operations, rules and independent spec intent.
+- src/App.tsx (Expo App.tsx): EDIT screen; keep auth/provider/witness wiring.
+- src/client.ts: EDIT connection/auth only when needed; keep runtime wiring.
+- scripts/staging.mjs: EDIT only seedUsers for your roles/custom provision args.
+- scripts/frontend-proof.mjs: EDIT UI assertions; keep build/cleanup.
+- scripts/probe-serve.mjs: EDIT readiness/business setup if needed.
+- scripts/install.mjs, scripts/launch.mjs, scripts/probe-check.mjs: RUN; leave infrastructure.
+- snapback/generated/api.ts: GENERATED; `guide api generated` lists args/hooks.
+- package.json: EDIT business script commands; keep pinned toolchain/config.
+- versions/v1 and v2: saved day-two evidence; keep until deliberately replaced.
+
+Use `npm run verify` as the proof loop after wiring application assertions. It
+runs check, acceptance, frontend and probe shutdown; do not run those separately
+first. A red names its targeted rerun. Keep package.json pre/post proof hooks:
+unchanged passing direct proofs can be reused within the same builder session.
+Allow an initial tool wait of 30000ms; progress prints every 5s.
+While iterating, `npx snapback4 check --quick` compiles and writes types in under
+a second. It runs no security search, so run plain `check` before finishing.
+Optional helpers:
+`npx snapback4 check --proof-draft` creates one small business draft once;
+`npx snapback4 check --proof-scaffold` creates the exhaustive matrix.
+probe:serve exits after 10s ready without requests; use --hold for a harness.
+
+## Signatures only when needed
+
+`guide api react` covers hooks/results, `guide api client` covers observe/reads/
+writes/uploads, `guide api auth` covers sign-in/session, `guide api proof` covers
+hosts/accounts/clocks/browser helpers. These replace declaration searches;
+`guide api generated` shows your operation index without reopening api.ts.
+Do not read them all preemptively. `guide <card> --find <words>` answers a specific
+question. `--repeat` forces a previous read; ordinary repeats show new blocks.
+
+Staging setup on demand: `guide staging`.
+
+init: wrote 40 files in . — Expo todos: native when available, online in Expo Go — next: `node scripts/install.mjs`, then `npm run verify`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.cjs, metro.config.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, package.json, shared.ts, on-write.ts, UploadPicker.tsx}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, toolchain/{deepmerge/package.json, deepmerge/index.cjs, deepmerge/index.d.ts, deepmerge/LICENSE, deepmerge/README.md}, scripts/{install.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs, verify.mjs, verify-parent.mjs, verify-cache.mjs, probe-serve.mjs, probe-check.mjs}, versions/{v1/schema.q, v1/fixtures/.gitkeep, v1/fixtures/todos.jsonl, v1/fixtures/test.cases.jsonl, v2/schema.q, v2/fixtures/.gitkeep, v2/fixtures/todos.jsonl, v2/fixtures/test.cases.jsonl}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npm run verify`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+init: optional proof helpers: snapback4 check --proof-draft (one scenario) or --proof-scaffold (exhaustive). verify loop: `npm run verify` (Quarry, TypeScript, acceptance, frontend and probe shutdown; do not run those separately first). `probe:serve` exits after 10s ready without requests; use --hold for deliberate service. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.
+init: frontend install deferred; run node scripts/install.mjs
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite scripts/frontend-proof.mjs — the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+
+added 515 packages in 16s
+check: ok — 0 tables (0 synced), 1 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 0 notes; 37.3 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+DX5 adapted proof ran as written and refused the missing write scenario
+init --adapt: nothing to adapt — no unmodified starter file conflicts with your snapback/*.q
+init --adapt: App.tsx is the starter's the guest sign-in, but your snapback/*.q declares neither `use identity` nor `use personas`, so nobody can act: add `use identity` for the guest sign-in or `use personas alice, bob` for development, then rerun `snapback4 init --adapt`
+check: ok — 0 tables (0 synced), 1 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 0 notes; 37.7 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+DX5 adapted proof ran as written and refused the missing write scenario
+node:fs:1568
+  const result = binding.readdir(
+                         ^
+
+Error: ENOENT: no such file or directory, scandir '/home/ccheever/sb4-loop/wave21/apps'
+    at readdirSync (node:fs:1568:26)
+    at proveDX5Upgrades (file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/publication-dx5-upgrade.mjs:99:19)
+    at async proveDX5 (file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/publication-dx5.mjs:52:20)
+    at async qualify (file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/qualify-linux.mjs:126:22)
+    at async file:///home/ccheever/sb4-intent/0453/source/snapback4/scripts/qualify-linux.mjs:185:90 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/home/ccheever/sb4-loop/wave21/apps'
+}
+
+Node.js v24.13.1

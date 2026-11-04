@@ -1,0 +1,119 @@
+# PUB 0.4.53
+
+- 00:07Z orientation: read prior kit/protocol/qualification evidence; copied code inputs only; source pins pending release commit.
+- 00:08Z release: refreshed origin/main at 9346e1fa37; branch sb4-publish-0.4.53; aligned stale native fixture lock 0.4.49 then bumped family/pins/editor manifests; current main has three ticketed lifecycle test reds to reproduce.
+- 00:11Z preflight: CLI/editor generation passed; wasm 2450051 raw / 749050 gzip under 749531 budget; client build passed after wasm bootstrap; serial reproduction of three ticketed lifecycle reds running on quiet host.
+- 00:15Z early lifecycle checks: dx12-serve 7/7 and srv1-lifetime passed unchanged (Linux-only skip); ver1-loop running. Root generated-artifact bootstrap green; ref-check 583 docs / 13638 refs / 0 errors. Linux owned workspace cloned read-only from prior object store, no prior checkout modified.
+- 00:15Z release checks: full affected selector started (32 commands, 494 client files).
+- 00:16Z affected install-client: exit=0, 0.1s; receipt 9346e1fa3717-1793751361373.json.
+- 00:16Z affected build-cli: exit=0, 18.7s; receipt 9346e1fa3717-1793751361373.json.
+- 00:16Z preflight prerequisites: all three ticketed lifecycle files green (37 pass, 1 Linux-only skip); root inventories green after documented bootstrap (365 package / 35 script tests, 31 demos, 487 leaves, 162 pages / 1937 snippets). Initial missing-generated-input refusal retained.
+- 00:16Z affected build-wasm: exit=0, 23.7s; receipt 9346e1fa3717-1793751361373.json.
+- 00:16Z affected build-client: exit=0, 3.1s; receipt 9346e1fa3717-1793751361373.json.
+- 00:16Z affected typecheck:snapback4: exit=0, 1.2s; receipt 9346e1fa3717-1793751361373.json.
+- 00:43Z affected progress: CLI Rust target 75 started; witness timeout/cleanup cases running within configured guards; no failed Rust summary or completed affected step.
+- 00:45Z affected rust:snapback4: exit=0, 1745.9s; receipt 9346e1fa3717-1793751361373.json.
+- 00:50Z early stock audits: web and Expo passed, 0 vulnerabilities and 0 warnings each; draft dependency-only packs under preflight-release, never reusable for publication.
+- 00:52Z affected rust:snapback4-core: exit=0, 394.3s; receipt 9346e1fa3717-1793751361373.json.
+- 00:59Z release review: all 16 changed files reviewed; only version/pin/generated stamp/release-note edits; digest in release-evidence/self-review.json. Device Rust compilation continues, zero completed-check reds.
+- 01:10Z progressive feature tests: acquisition 16/16, history 18/18, inherited 4/4 passed in affected run; broader device corpus remains running.
+- 01:13Z affected rust:snapback4-device: exit=0, 1256.3s; receipt 9346e1fa3717-1793751361373.json.
+- 01:14Z affected rust:snapback4-difftest: exit=0, 69.0s; receipt 9346e1fa3717-1793751361373.json.
+- 01:21Z affected rust:snapback4-lang: exit=0, 437.1s; receipt 9346e1fa3717-1793751361373.json.
+- 01:21Z affected rust:snapback4-native: exit=0, 2.3s; receipt 9346e1fa3717-1793751361373.json.
+- 01:24Z affected rust:snapback4-sim: exit=0, 152.0s; receipt 9346e1fa3717-1793751361373.json.
+- 01:24Z affected fixture-tests: exit=0, 5.0s; receipt 9346e1fa3717-1793751361373.json.
+- 01:32Z affected progress: all seven Rust crates and fixtures passed; 200/492 ordinary client files passed, zero failed so far; 2 model files and remaining tooling checks follow.
+- 01:51Z affected progress: 480 ordinary client files passed, zero failed; isolated export-background running (prior successful publication took 808741 ms for this file). No timeout or test changes.
+- 02:03Z affected client-tests: exit=0, 2346.0s; receipt 9346e1fa3717-1793751361373.json.
+- 02:03Z affected client tests: 492/492 files, 8725 pass, 33 skipped, 0 failed/cancelled; model files now running.
+- 02:07Z affected client-models: exit=0, 220.7s; receipt 9346e1fa3717-1793751361373.json.
+- 02:07Z affected chat-check: exit=0, 0.3s; receipt 9346e1fa3717-1793751361373.json.
+- 02:07Z affected chat-typecheck: exit=0, 0.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:09Z affected diagnostics: exit=0, 133.8s; receipt 9346e1fa3717-1793751361373.json.
+- 02:09Z affected docs-budget: exit=0, 0.4s; receipt 9346e1fa3717-1793751361373.json.
+- 02:09Z affected editor-grammar: exit=0, 8.5s; receipt 9346e1fa3717-1793751361373.json.
+- 02:09Z affected expo-typecheck: exit=0, 0.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:11Z affected generated: exit=0, 103.2s; receipt 9346e1fa3717-1793751361373.json.
+- 02:13Z affected guide: exit=0, 129.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:15Z affected inventories: exit=0, 126.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:15Z affected packaged-docs: exit=0, 0.1s; receipt 9346e1fa3717-1793751361373.json.
+- 02:15Z affected ref-check: exit=0, 6.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:16Z affected release-guard: exit=0, 37.3s; receipt 9346e1fa3717-1793751361373.json.
+- 02:16Z affected selector-tests: exit=0, 14.5s; receipt 9346e1fa3717-1793751361373.json.
+- 02:17Z affected wasm-measurement: exit=0, 52.8s; receipt 9346e1fa3717-1793751361373.json.
+- 02:17Z affected lean-build: exit=0, 5.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:18Z affected difftest:run-lean: exit=0, 70.7s; receipt 9346e1fa3717-1793751361373.json.
+- 02:19Z release checks: affected exited 0; raw log release-evidence/affected.log.
+- 02:19Z affected difftest:run: exit=0, 18.6s; receipt 9346e1fa3717-1793751361373.json.
+- 02:21Z release: affected 32/32 PASS; committed and pushed 9da2c76fdf32b20f985c85fe6d33b507c09edd25 to origin/main; no rebase required; detached and frozen there.
+- 02:22Z kit: 66 copied code/helper files pinned to frozen source; all 570 changed lines reviewed; syntax passed. Starting native attempt 1 under chain-gate-a2.
+- 02:23Z native gate WAIT: Mac changed to Battery Power at 100%; disk 1057 GiB. No native step started. Gate retains AC/open-lid requirement; preparing frozen Linux checkout meanwhile.
+- 02:25Z Linux prerequisites: frozen clean source 9da2c76fdf32b20f985c85fe6d33b507c09edd25; source install/build running in sb4-pub53-source-bootstrap.service (80 GiB cap, owned target). Mac AC wait continues; no native witness started.
+- 02:26Z Linux source prerequisites passed: frozen bun install exit 0 (1.1 s), CLI build exit 0 (48.9 s). Qualification awaits Mac-prepared bytes; Mac AC gate still waiting.
+- 02:29Z AC restored at 100%; native gate retains its scheduled polling interval and will start when all entry conditions hold. Linux source-bootstrap exit confirmed 0, source clean.
+- 02:33Z Mac bun-install: exit=0, 0.2s; attempt-1-bun-install.json.
+- 02:35Z Mac native-prepare: exit=0, 0.544s; attempt-1-native-prepare.json.
+- 02:35Z Mac xcframework-build: exit=0, 147.193s; attempt-1-xcframework-build.json.
+- 02:35Z Mac cargo-build: exit=0, 10.361s; attempt-1-cargo-build.json.
+- 02:35Z Mac client-package-build: exit=0, 3.275s; attempt-1-client-package-build.json.
+- 02:35Z Mac simulator-boot: exit=0, 0.911s; attempt-1-simulator-boot.json.
+- 02:35Z Mac simulator-ready: exit=0, 4.101s; attempt-1-simulator-ready.json.
+- 02:35Z Mac wasm-build: exit=0, 23.527s; attempt-1-wasm-build.json.
+- 02:36Z Mac chat-backend-check: exit=0, 8.239s; attempt-1-chat-backend-check.json.
+- 02:36Z Mac expo-ios-regenerate: exit=0, 0.024s; attempt-1-expo-ios-regenerate.json.
+- 02:37Z Mac expo-release-build: exit=0, 77.84s; attempt-1-expo-release-build.json.
+- 02:37Z Mac native-link-verification: exit=0, 0.344s; attempt-1-native-link-verification.json.
+- 02:37Z Mac root-hook-dependencies: exit=0, 0.281s; attempt-1-root-hook-dependencies.json.
+- 02:37Z Mac simulator-install: exit=0, 2.297s; attempt-1-simulator-install.json.
+- 02:37Z Mac simulator-uninstall: exit=0, 0.471s; attempt-1-simulator-uninstall.json.
+- 02:37Z Mac native-qualification-verification: exit=0, 0.139s; attempt-1-native-qualification-verification.json.
+- 02:37Z Mac native-witness: exit=0, 25.301s; attempt-1-native-witness.json.
+- 02:37Z Mac simulator-shutdown: exit=0, 3.16s; attempt-1-simulator-shutdown.json.
+- 02:38Z Mac publication-prepare-client: exit=0, 30.095s; attempt-1-publication-prepare-client.json.
+- 02:40Z Mac lean-setup: exit=0, 0.357s; attempt-1-lean-setup.json.
+- 02:41Z native/prepare PASS: all native steps exit 0, chain env-ok; Expo files 28/28 equal; Mac web/Expo stock audits 0 vulnerabilities and 0 warnings. Mac lean/warm/pre-Darwin chain started.
+- 02:43Z transfer PASS: prepared client/Expo/receipt SHA256 identical on Linux, frozen source matches. Linux audit/qualification service launched; standard owned Cargo target verified.
+- 02:45Z Linux early stock audits PASS (web/Expo: 0 vulnerabilities, 0 warnings); Lean setup exit 0; official qualify-linux source suite now running.
+- 02:52Z Mac test-warm: exit=0, 692.429s; attempt-1-test-warm.json.
+- 03:10Z qualification progress: Mac pre-Darwin 46/49 files passed, remaining isolated timers; Linux ordinary clients 467 completed with no failures at 03:09:53Z. Both attempts remain active.
+- 03:13Z evidence detail: affected selector passed 32/32 effective checks; Lean campaign raw exit 1 was accepted by the existing OPEN C2/W4 policy (18 classified findings, no unclassified). Exact campaign report preserved and SHA256 verified; not described as a raw-zero run.
+- 03:17Z pre-dry audit: fresh Mac stock web and Expo audits passed, exit 0, zero vulnerabilities and warnings for both; Linux handoff remains withheld until both qualification runs finish.
+- 03:23Z pre-Darwin PASS: exit 0; -- client files: 49/49; failed 0; tests {"tests":947,"pass":928,"fail":0,"cancelled":0,"skipped":19,"todo":0}; Mac chain waits for Linux handoff.
+- 03:29Z Linux source Rust PASS: 493 test binaries, 1211 executions (max 24 processes), workspace doctests 3.3s, cargo worker 947s; no non-ok test result lines. Ordinary client suite still completing isolated files, no failures observed.
+- 03:35Z Linux full source suite PASS: == 0 failure(s) in 3051 s; Rust 493 binaries/1211 executions plus doctests; fixture 9/9; ordinary clients 487/487 files (8717 tests, 8659 pass, 58 skip, 0 fail); models 89/89. Official qualifier now building package/consumer proofs.
+- 03:47Z Linux production build PASS in 10m 05s; installed-consumer qualification running, day2/dx16/dx17 records present and packed fixture/foreground/provisioning checks passed. Success receipt and staged clean install still pending.
+- 03:55Z Linux attempt 1 RED (environment): source suite passed, but publication-dx5-upgrade.mjs:99 proveDX5Upgrades cannot scandir ~/sb4-loop/wave21/apps (archived historical fixtures). linux-1.exit/run-1.exit=1; no receipt issued. Found supported SNAPBACK4_WAVE21_ROOT override and original archive; recovering only required authored inputs into owned lane, retaining failed output and planning full qualification rerun.
+- 03:59Z Wave21 environment recovered: 32 original authored files/210930 bytes, both scripts match 0.4.52 hashes; copied and verified on Mac. Actual isolated upgrade proof passed 80/80 acceptance and 8-user foreground readiness in 26.8s. Attempt 1 archived byte-identically; full Linux attempt 2 launched using supported fixture override, source unchanged. Diagnostic missing-temp-tarball refusal retained separately.
+- 04:08Z Linux attempt 2 progress: fresh web/Expo audits exit 0, no findings/warnings; complete source rerun at 1203 Rust executions with no reported failures. Mac remains at Linux handoff wait.
+- 04:20Z Linux attempt 2 progress: Rust phase complete, fixture 9/9; 414 ordinary client files completed with zero reported failures. Snapshot filters reviewed to exclude installed dependencies/caches while retaining failed-attempt archive and logs.
+- 04:30Z Linux attempt 2 progress: 475 ordinary client files completed, zero failures; isolated timers remain. Mac still AC/charged and waiting for qualified Linux handoff.
+- 04:41Z Linux attempt 2 ordinary clients PASS: 487/487 files, 8717 tests, 8659 passed, 58 skipped, 0 failed/cancelled. Model tests now running.
+- 04:47Z Linux attempt 2 full source suite PASS: == 0 failure(s) in 2818 s; Rust 493 binaries/1211 executions plus doctests (cargo 882s), fixture 9/9, ordinary files 487/487, model tests 89/89. Full installed-consumer qualification continues with recovered historical fixtures.
+- 05:00Z Linux attempt 2 passed the formerly failing DX5 step using recovered historical fixtures; dx5-proof.json and day4-proof.json are written. Full qualification still running; no receipt handoff yet.
+- 05:08Z Mac fresh pre-dry audit repeat after Linux recovery PASS: web/Expo both zero findings/warnings, exit 0; separate logs under audit-mac-pre-dry-after-linux-recovery preserve prior audits. Linux frontend proof record now complete; remaining starter/container checks continue.
+- 05:30Z Linux attempt 2 PASS: official qualification exit 0 (5286.178s), staged clean install exit 0 (3.329s), run-2.exit/linux-2.exit=0. Records assembled exit 0; exact receipt/tarball transferred and officially validated on Mac. Linux TGZ SHA256 b0716e005775ec4a0623c36cccba0e3a43ed6fcd940fbb63cf03fc7e9ffdf314. Chain LINUX READY at 05:29:24Z; fresh npm refresh began with 1097GiB free.
+- 05:32Z Mac dry run attempt 1 STARTED 05:30:46Z: npm refresh 6/6; AC/lid gates passed; disk rechecked 1087GiB; frozen 9da2c76fdf, RUSTPROCS=2, serial client files, required Lean, SNAPBACK4_BIN unset. Gate pid 48916, dry child 49107, post-suite refresh pid 48918.
+- 05:44Z Mac dry run source Rust execution underway: -- rust inventory: 493 test binaries, 1211 executions; at most 2 concurrent processes; 38 executions completed at last poll, no reported failures; AC and lid remain valid.
+- 05:54Z Mac dry run progress: 686 Rust executions passed at last poll, no failure headers, two-process cap confirmed; AC/lid valid, no environment-invalid marker.
+- 06:04Z Mac dry run progress: 1207 Rust executions passed at last poll, final targets/doctests pending; no failure headers, AC/lid valid, no environment-invalid marker.
+- 06:15Z Mac dry run Rust/doctests PASS (1211 executions plus doctests); fixture 9/9; ordinary client suite started serially, log confirms client file concurrency 1. AC/lid valid.
+- 06:32Z Mac dry run serial client progress: 50 files passed, no failures; Rust/doctests and fixtures remain green, AC/lid valid.
+- 06:39Z handoff kit: finish.sh now passes the same supported recovered Wave21 root as dry-run; original archived, one-line diff reviewed, bash -n exit 0. Finish was not executed.
+- 06:49Z Mac dry-run progress: 150 ordinary client files completed, no failures; current keep-app-model file remains within its bound; Rust/doctests and fixtures passed, AC/lid valid.
+- 06:59Z Mac dry-run progress: 163 ordinary client files passed, including keep-app model and clock checks; zero failure markers; AC/lid valid.
+- 07:09Z Mac dry-run progress: 198 ordinary client files passed; mixed-evidence oracle completed successfully; one-shot-model running, zero failures and AC/lid valid.
+- 07:19Z Mac dry-run progress: 217 ordinary client files passed, including ordinary-search oracle; overload checks running, zero failures and AC/lid valid.
+- 07:29Z Mac dry-run progress: 248 ordinary client files passed; release-headline progressive-acquisition tests now running, zero failures and AC/lid valid.
+- 07:39Z Mac dry-run progress: 339 ordinary client files passed; progressive acquisition completed 33 pass/1 existing browser skip/0 fail (excerpt preserved); retained history/search-order passed; no failure or environment-invalid markers.
+- 07:48Z Mac dry-run progress: 396 ordinary client files passed; server lifetime and staging checks passed; subscription-pressure sync-memory running; no failures, AC/lid valid.
+- 07:58Z Mac dry-run progress: 447 ordinary client files passed; version-loop and wasm-budget checks passed; rule recipes running, zero failures and AC/lid valid.
+- 08:08Z Mac dry-run progress: 473 ordinary client files passed; final isolated timing/e2e files remain, zero failures and AC/lid valid. Read-only final handoff verifier prepared and node --check exit 0; not run before completion.
+- 08:19Z Mac dry-run progress: 475 ordinary client files passed; export-background remains active (green preflight duration 710.759s, current stall bound 1275s); no failures or environment-invalid markers, AC/lid valid.
+- 08:26Z Mac ordinary clients PASS: -- client files: 487/487; failed 0; tests {"tests":8716,"pass":8683,"fail":0,"cancelled":0,"skipped":33,"todo":0}. Separate client models running; full source summary not yet issued; AC/lid valid.
+- 08:29Z Mac complete source suite PASS: == 0 failure(s) in 10694 s; Rust 493 binaries/1211 executions plus doctests; fixtures 9/9; ordinary clients 487/487 (8716 tests, 8683 pass, 33 skip); models 89/89. Darwin production/signing/consumer qualification now running; dry-run completion still pending.
+- 08:31Z Mac post-suite npm refresh PASS: 6/6 online and prefer-offline resolutions; refresh-after-suite-a2.log confirms successful rerun. Darwin production build continues.
+- 08:37Z Darwin production/signing completed; durable resume.json exists on frozen source. Installed consumers progressing through web/Expo starters. Stage presence is not yet a complete dry-run verdict.
+- 08:39Z Mac publication-dry-run: exit=0, 11327.394s; attempt-1-publication-dry-run.json.
+- 08:43Z COMPLETE: Mac dry attempt 1 exit 0 (11327.394s), dry-run-1.exit=done; gate done/env-valid, both npm refreshes 6/6; final read-only artifact/source/metric verification exit 0. All four artifacts staged; no finish/resume/npm publish run. Final lane REPORT.md written; supervisor owns publish and records.
+- 08:45Z handoff finalized: report reviewed; lane observer stopped with exit 0, foreground chain exit 0; only retained dry metric is dirty. lane-complete.json records final REPORT.md SHA256. No publication action executed.

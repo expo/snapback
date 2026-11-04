@@ -1,0 +1,2 @@
+rollback: release 1 current, generation 5; 0 rows, 1 cell, 0 index entries dormant; samples: cells rows.color [01M6JAJP824WPGFY6DXMSXHZNA], rows.color changed; 7.4 ms
+details: .snapback4/last/rollback.txt; --explain for full output

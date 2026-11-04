@@ -1,0 +1,2 @@
+day2-check: passed orchestration; 18/18 phases; 12704ms
+details: .snapback4/last/day2-check.json (read without rerunning); --explain/--json rerun checks with full output

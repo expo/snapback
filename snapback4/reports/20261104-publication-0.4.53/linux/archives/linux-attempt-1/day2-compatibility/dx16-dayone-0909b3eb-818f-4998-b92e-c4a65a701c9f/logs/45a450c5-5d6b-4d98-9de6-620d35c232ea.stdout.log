@@ -1,0 +1,146 @@
+{
+  "current": 2,
+  "event": null,
+  "events": [
+    {
+      "at": 1793763917958,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763918576,
+      "generation": 2,
+      "id": 2,
+      "operation": "deploy",
+      "previous": 1,
+      "release": 2,
+      "revision": 2,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763919319,
+      "generation": 3,
+      "id": 3,
+      "operation": "rollback",
+      "previous": 2,
+      "release": 1,
+      "revision": 3,
+      "summary": {
+        "dormant_items": 1,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763920084,
+      "generation": 4,
+      "id": 4,
+      "operation": "rollback",
+      "previous": 1,
+      "release": 2,
+      "revision": 4,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 1
+      }
+    },
+    {
+      "at": 1793763920823,
+      "generation": 5,
+      "id": 5,
+      "operation": "rollback",
+      "previous": 2,
+      "release": 1,
+      "revision": 5,
+      "summary": {
+        "dormant_items": 1,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763921566,
+      "generation": 6,
+      "id": 6,
+      "operation": "rollback",
+      "previous": 1,
+      "release": 2,
+      "revision": 6,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 1
+      }
+    }
+  ],
+  "events_after": 6,
+  "generation": 6,
+  "items": [],
+  "items_after": null,
+  "latest": 2,
+  "live": {
+    "exact": true,
+    "release": 2,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "business": [
+          "color",
+          "id",
+          "title"
+        ]
+      },
+      "target": 2
+    },
+    "source": 2,
+    "target": 2,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": 1,
+  "release": 2,
+  "revision": 6,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "business": [
+        "color",
+        "id",
+        "title"
+      ]
+    },
+    "target": 2
+  },
+  "workers": []
+}

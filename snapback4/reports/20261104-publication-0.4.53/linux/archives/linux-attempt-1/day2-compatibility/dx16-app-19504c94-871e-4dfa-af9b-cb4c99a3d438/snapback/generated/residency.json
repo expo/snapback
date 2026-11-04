@@ -1,0 +1,58 @@
+{
+  "add": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:20:10 (insert rows)",
+        "table": "rows",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write rows by byId: online only",
+        "rewrite": "sync rows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:17:3 (rows insert rule: roles by $intent:byPrincipal:8097d97fddadb304)",
+        "table": "roles",
+        "index": "$intent:byPrincipal:8097d97fddadb304",
+        "kind": "rule",
+        "class": "server",
+        "reason": "rule roles by $intent:byPrincipal:8097d97fddadb304: online only",
+        "rewrite": "sync roles to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "list": {
+    "branchMerge": true,
+    "branchPagesV5": true,
+    "runs": "server",
+    "sites": [
+      {
+        "site": "schema.q:22:10 (rows where .owner = viewer first 20 by .id)",
+        "table": "rows",
+        "index": "$intent:byOwner:efafbfd4e29d03b2",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan rows by $intent:byOwner:efafbfd4e29d03b2: online only; selected $intent:byOwner:efafbfd4e29d03b2 (owner = viewer); result: page; synthesized; explicit by; read: rows where .owner = viewer first 20 by .id",
+        "rewrite": "sync rows to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "provision": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "schema.q:10:10 (insert roles)",
+        "table": "roles",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write roles by byId: online only",
+        "rewrite": "sync roles to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  }
+}

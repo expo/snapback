@@ -1,0 +1,2 @@
+frontend install: running; read `npx snapback4 guide start` or edit snapback/schema.q meanwhile. Wait once with `node scripts/install.mjs --wait` (allow the command to finish).
+npm install finished (exit 17)

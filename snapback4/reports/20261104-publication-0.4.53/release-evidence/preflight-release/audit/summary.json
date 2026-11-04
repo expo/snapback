@@ -1,0 +1,40 @@
+{
+  "source": "9346e1fa3717e0223de52720b005027a4016e0dc",
+  "version": "0.4.53",
+  "host": "darwin",
+  "started": "2026-11-04T00:49:29.267Z",
+  "artifacts": {
+    "/Users/ccheever/sb4-pub-0453/preflight-release/client/snapback4-0.4.53.tgz": "9902f0e6a46640c06717b52ace44ac2f8616a7cecfbd9649f3913ef6fdac77f2",
+    "/Users/ccheever/sb4-pub-0453/preflight-release/client/snapback4-expo-0.4.53.tgz": "249f52fb6b6252a17a9d78bc441a5829b6197dc7bea23644b59ffdd28f725c35"
+  },
+  "cases": [
+    {
+      "kind": "web",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "kind": "expo",
+      "status": "passed",
+      "warnings": [],
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    }
+  ],
+  "finished": "2026-11-04T00:49:58.368Z",
+  "status": "passed"
+}

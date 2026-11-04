@@ -1,0 +1,8 @@
+SNAPBACK4_READY verb=serve generation=25 url=http://127.0.0.1:33413 pid=2866197 wrapperPid=2866176
+serve: tokens only; WARNING: active schema 1094d8e837a394533e106b4d5cb5385eecd45e6cee62d8f85eea2f032d5a809a differs from working schema 33d92e58993799be9813957f6df7717c305964d36fc8432afa6977d3f8b16b75; deploy edits to serve them; details: .snapback4/last/serve.txt; --explain for startup facts
+
+SNAPBACK4_SIGNAL verb=serve generation=25 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=serve generation=25 thread="release-control" reason="shutdown"
+SNAPBACK4_SOCKET_CLOSED verb=serve url=http://127.0.0.1:33413 socket closed
+SNAPBACK4_THREAD_EXIT verb=serve generation=25 thread="worker" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=serve generation=25 thread="maintenance" reason="shutdown"

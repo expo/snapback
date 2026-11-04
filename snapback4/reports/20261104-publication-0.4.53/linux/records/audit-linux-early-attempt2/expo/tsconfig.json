@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": true,
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": [
+      "node",
+      "react"
+    ]
+  },
+  "extends": "expo/tsconfig.base",
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "src/**/*",
+    "scripts/**/*"
+  ]
+}

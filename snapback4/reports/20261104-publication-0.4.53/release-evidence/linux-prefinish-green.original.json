@@ -1,0 +1,8 @@
+{
+  "at": "2026-11-04T08:46:38.230303+00:00",
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "status": "passed",
+  "foregroundStagedSmokes": "both hosts 10/10, root sshd ancestry (Mac isolated/smoke-staged/results.txt; Linux ~/sb4-intent/0453/smoke-staged/results.txt on 100.65.137.99)",
+  "finalStockAudits": "Mac web+Expo zero findings/warnings (audit-mac-final); Linux web+Expo zero findings/warnings (attempt 2, 04:08Z)",
+  "artifacts": []
+}

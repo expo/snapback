@@ -1,0 +1,7 @@
+PREPARED READY: exact source and client/Expo integrity verified
+linux-early-install exit=0 seconds=0.1
+linux-early-cli exit=0 seconds=0.2
+linux-early-audit exit=0 seconds=25.9
+linux-bun-install exit=0 seconds=0.0
+linux-lean-setup exit=0 seconds=11.3
+linux-qualify exit=1 seconds=3990.4

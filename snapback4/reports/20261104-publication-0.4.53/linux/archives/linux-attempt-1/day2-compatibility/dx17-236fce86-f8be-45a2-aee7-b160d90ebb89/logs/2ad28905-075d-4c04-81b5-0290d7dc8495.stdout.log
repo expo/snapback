@@ -1,0 +1,2 @@
+check: ok — 2 tables (0 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 0 notes; 41.3 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)

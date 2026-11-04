@@ -1,0 +1,29 @@
+{
+  "status": "reviewed",
+  "scope": "version pins, generated version stamps, changelog progressive acquisition; no runtime implementation changes",
+  "files": [
+    "snapback4/Cargo.lock",
+    "snapback4/Cargo.toml",
+    "snapback4/editors/tree-sitter-quarry/README.md",
+    "snapback4/editors/tree-sitter-quarry/keywords.generated.js",
+    "snapback4/editors/tree-sitter-quarry/package.json",
+    "snapback4/editors/tree-sitter-quarry/tree-sitter.json",
+    "snapback4/editors/vscode/package.json",
+    "snapback4/editors/vscode/syntaxes/quarry.tmLanguage.json",
+    "snapback4/native-fixtures/following/Cargo.lock",
+    "snapback4/packages/snapback4-darwin-arm64/package.json",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/packages/snapback4-linux-x64/package.json",
+    "snapback4/packages/snapback4/package.json",
+    "snapback4/packages/snapback4/reference/CHANGELOG.md",
+    "snapback4/packages/snapback4/test/device-version.test.mjs",
+    "snapback4/packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "diffSha256": "a0c4ddc8782f70d847b07872789020035af9f68f57ac49368a75c977e5faa97d",
+  "notes": [
+    "Native following fixture lock was already stale at 0.4.49; advance to 0.4.53.",
+    "No known-gap bullets because 0.4.52 release entry has none.",
+    "Changelog follows shipped reference: usable whole-table and floored-group counts; acquired/sync remain full completion."
+  ],
+  "tests": "pending full affected receipt"
+}

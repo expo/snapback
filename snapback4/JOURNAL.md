@@ -111249,3 +111249,26 @@ Commands, failing-before evidence, final results, browser inspection and blocked
 sandbox checks are recorded in the [round-6 report](./reports/20261102-progressive-history-reviews/fix-r6/REPORT.md).
 No contract reshape, new watermark, device coverage fact, wasm build, budget
 change, commit or publication. The supervisor owns the landing.
+
+
+### 2026-11-04 — progressive acquisition integrated and published as 0.4.53
+
+LLP 3000.001.001's progressive cold-history acquisition is published in all
+four npm packages at 0.4.53. The release source was frozen at
+`9da2c76fdf32b20f985c85fe6d33b507c09edd25`: horizonless data becomes usable
+first, conversation windows follow with foreground priority, and progress
+remains explicit under one watermark. Re-acquisition keeps the staged path.
+
+Mac native offline/restart witnesses and the single publication dry run passed.
+Linux attempt 1 passed its source suite but stopped on archived Wave 21
+fixtures; the supported fixture-root override restored the historical inputs,
+and full attempt 2 passed. The release preflight accepted only existing Lean
+OPEN C2/W4 signatures under its existing classifier; the raw campaign exit 1
+is preserved. The supervisor completed publication, then both hosts freshly
+downloaded all four registry packages and matched the qualified SHA256/SRI.
+Staged and registry foreground SSH smokes passed 10/10 on each host.
+
+The [publication record](./reports/20261104-publication-0.4.53/REPORT.md)
+contains native, source-suite, installed-consumer, audit, smoke, registry and
+recovery evidence, plus the source bundle. The records landing adds both
+publication metrics and both native witness rows using affected verification.

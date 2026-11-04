@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "scripts": {
+    "client:calls": "node .snapback4-frozen-run.mjs",
+    "client:calls:frozen": "node tools/calls.mjs"
+  },
+  "type": "module"
+}

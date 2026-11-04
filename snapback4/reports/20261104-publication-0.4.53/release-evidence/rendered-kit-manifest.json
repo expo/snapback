@@ -1,0 +1,335 @@
+{
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "copiedFiles": [
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/archive-draft-audit-and-setup.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/archive-draft-audit-and-setup.sh",
+      "sha256": "277b9f78629afc00adb2a0516669a90d5eb476452d8230a41fa23bca43994073"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/archive-native-a1-pending.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/archive-native-a1-pending.sh",
+      "sha256": "b459fd9d06c81d34d45ab40446527fb02d157cbb6ec3912e06513366f56eec0e"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/archive-preflight-and-setup.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/archive-preflight-and-setup.sh",
+      "sha256": "33f95182a111db11e67f68ccdac970e135131d892f9cbec5cf02905f0ce53dbc"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/archive-previous-and-setup.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/archive-previous-and-setup.sh",
+      "sha256": "1d8f0e5d0f1ff558dfdce4603a287ac4aa5b848867d257dbf0c2dbe531809e3c"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/audit-after-prepare-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/audit-after-prepare-a2.sh",
+      "sha256": "23fdeb2ccb090f06519a959fbbedd82a40da9f1329de1b612715b3766f43d9b1"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/audit-after-prepare.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/audit-after-prepare.sh",
+      "sha256": "23fdeb2ccb090f06519a959fbbedd82a40da9f1329de1b612715b3766f43d9b1"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/audit-fast.mjs",
+      "rendered": "/Users/ccheever/sb4-pub-0453/audit-fast.mjs",
+      "sha256": "24fb37f5d54ba29a4b13fe79463a475d0363e4a15342b2b675cb7ed83d853eea"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/audit-pre-dry.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/audit-pre-dry.sh",
+      "sha256": "fe5f402c6f6a7cfdda532aac2627ad64c68c159b5f7d1ba599463737092b6b6a"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-a1.sh",
+      "sha256": "02d9543a4724de63e2909b2d753575a5c3c273bc6da6864002ff26b1d6e60937"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-a2.sh",
+      "sha256": "c79de591d1f475e73e79e7b6673a312b10307cb5689392d5a843327122d0b9cb"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-gate-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-gate-a1.sh",
+      "sha256": "11b5c6ea8462d9f264d12be33d6d26b6d426e6089e40bd04ed720d90f086bf97"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-gate-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-gate-a2.sh",
+      "sha256": "8bbb45d580d8597f413721000710c40b7bb18c47eefb2413ea78f30bf458c08b"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-pre-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-pre-a1.sh",
+      "sha256": "fd13dabf38128c4cb7b03cf11cdfa7342884654a78d3d021a33fb95b2f65ea4a"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/chain-pre-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/chain-pre-a2.sh",
+      "sha256": "7c1abb303e40afd4a13058f320dee772d82ddf671f423d742586f91854cab5b2"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/check-fixture-drafts.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/check-fixture-drafts.sh",
+      "sha256": "109848254aa603739b61a8a10cfe782c2a9d984126bce7e4824005cdf2426fe8"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/clean-copied-isolation-output.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/clean-copied-isolation-output.sh",
+      "sha256": "cd6dc621faa8e005bedc181c244172f9d79e3e1cad1b8508dd898a2954089d1c"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/clean-install.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/clean-install.sh",
+      "sha256": "ee11299e0d86ccfce637ae61f0097c2da2a4d3d1b71373fc643c3e8464daffa8"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/diagnose-audit-red.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/diagnose-audit-red.sh",
+      "sha256": "36593dcddb6b217e99a2d24bdd5d8ef24aff1fe5a022d12dfa8a596d29bf17b2"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/expo-prep-check.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/expo-prep-check.py",
+      "sha256": "a7db940fc5a42a9920eb21fe2bad6d4bb552f1d38bfc0232773044755157aec2"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/final-audit.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/final-audit.sh",
+      "sha256": "c54c49d0b01f5f1b4eecbdb5f5421d80f2d69249336ff2e330551c1486474cc0"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/finish-tail.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/finish-tail.sh",
+      "sha256": "46635bb032d8c8ade31eb77dc5c5d7797a127ae329f32819ea0728616d28814d"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/finish.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/finish.sh",
+      "sha256": "f81b018f47ae7f2345cc2b5a9028dca6d3e19991553f2964c5ce18a4b7c50f08"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/gate-tolerant.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/gate-tolerant.sh",
+      "sha256": "8f19129d62690fa2f7604a7e03b8cbcb66b0d317fd830633e9e1954cafa0929c"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/expo-registry-wait.mjs",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/expo-registry-wait.mjs",
+      "sha256": "8cb3ddba81c6e71a90a6cb7309b3cc209138f392b6247a9e7d16cff601a44115"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/expo-verify.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/expo-verify.py",
+      "sha256": "9b0d4cc475e921153f6dd90a938075621f5692d632d15980c72313b3c5cf974b"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/native-link.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-link.py",
+      "sha256": "6bb1b00408d830f26f2e3b098daf096014bde2d39f80b7ed5192087c0759cbcc"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/native-prepare.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-prepare.py",
+      "sha256": "e42658ccf25c86d509dbdfc86cb279bbd274e5c80a0b2b69a8eaefafef61f87b"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/native-verify.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/native-verify.py",
+      "sha256": "b8ca34d4b23c041ca4c3ee5d823338eff3c1e9866a3581c52b41e718fa9f3884"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/registry-retry.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/registry-retry.sh",
+      "sha256": "c294e1e974b019f270fc6c18e75ebf0a43db7ac0e8c6ecc659ea5e78e34f53cb"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/helpers-0.4.52/registry-verify.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/helpers-0.4.53/registry-verify.py",
+      "sha256": "2abeac2cce544fb8571469863ef28b7c86a924a792f79f2d63f6eaf24039eba5"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/hold-dryrun.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/hold-dryrun.sh",
+      "sha256": "d7bfec1d34f1fde97884b42fe95a219ce0f497885af51a45bed65a4a37d44397"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/hold-native-a1-power.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/hold-native-a1-power.sh",
+      "sha256": "cacf38456634f5f5096ca46b3e056e9eaed2fb1845ecd2784fcada4377da649d"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/inspect-prefinish.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/inspect-prefinish.py",
+      "sha256": "e3264d354d6d408704e10fe1254a8466018e81b676856adb02b758e83639d000"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/iso-file.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/iso-file.sh",
+      "sha256": "df5c8520fead3a53bec030e460358cf6bbdc2a8b770c87ba85c24fc442e21551"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/kill-dryrun.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/kill-dryrun.sh",
+      "sha256": "81c8896af02882234cf341fa4f06a385e5d80e441b870f718c3000f6e417fb19"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/native-continue-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/native-continue-a1.sh",
+      "sha256": "cff6d3e7a036b0d96cf141d4c349fc82b5418cec94fdbbea013114a2f56fc684"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/native.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/native.sh",
+      "sha256": "65064b1c400beb18dadccf3ece3d0c5e5b469c22907d37a2c8e6a8d3ffb62fc8"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/post-native-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/post-native-a2.sh",
+      "sha256": "ccf72967d6799875ee0c9c78bbeec71b5cd054e3006b59223c98629f614a6bb4"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/post-native.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/post-native.sh",
+      "sha256": "ccf72967d6799875ee0c9c78bbeec71b5cd054e3006b59223c98629f614a6bb4"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/pre-darwin.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/pre-darwin.sh",
+      "sha256": "f69eb310942fed69edacdfa9652f595abaca642de383721d3a4189fe9869c620"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/publish-lowpar.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/publish-lowpar.sh",
+      "sha256": "ce10c2c887b4ac06189be62dd02f3cb18de3c65dd9fd47b608d037aca498a3ef"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/publish.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/publish.sh",
+      "sha256": "e284c0aa11239227658d9bad9d82b3c021277093d50776759232a69ba943fae6"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/pubstep.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/pubstep.sh",
+      "sha256": "0cb31b98f277a3474a4579d49aaf3694f2e91c6927cd3520aaa519032e76e30e"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/read-lane-progress.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/read-lane-progress.py",
+      "sha256": "e72d58ad8b76155026b5429437ff427c5987ea2f7d33bfc8810f1ed3cacc3b2a"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/read-native-progress.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/read-native-progress.py",
+      "sha256": "87664dd41622ea71fbaa5470579429e1226591c1717ca3033893db4cdd666211"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/rearm-idle-battery-wait.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/rearm-idle-battery-wait.sh",
+      "sha256": "0c408d1da80973b7a90a8e70dce7e79f2466b766ac99a6521e8009a2fdf202aa"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/refresh-after-suite-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/refresh-after-suite-a1.sh",
+      "sha256": "b4a17a5967d2ee9d526af036b0b0bfa346f673ed29d9ac528f5eb282c00f7981"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/refresh-after-suite-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/refresh-after-suite-a2.sh",
+      "sha256": "2a755f7082e9608100d845a5116a35ab82d3018d0ba331b964b600bfcc24f672"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/refresh-npm-cache-a1.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/refresh-npm-cache-a1.sh",
+      "sha256": "c9b5cd8e1857d91495dfc7350765fe8d4f6e0265c02796732f2f43e339fbffc2"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/refresh-npm-cache-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/refresh-npm-cache-a2.sh",
+      "sha256": "c9b5cd8e1857d91495dfc7350765fe8d4f6e0265c02796732f2f43e339fbffc2"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/registry-download.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/registry-download.sh",
+      "sha256": "97ae9f953f20c463f86c6b5b891f894c4f71afbf93293e250c1ebe86858b7ad8"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/resume-after-warm.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/resume-after-warm.sh",
+      "sha256": "17b32a9c66fa71d826332c773cf9f16bf27f6c6e66adbb7340739c524bca5d38"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/retry-early-audit-clean-output.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/retry-early-audit-clean-output.sh",
+      "sha256": "0f326fd8659f30cedd4e512d9e414967a9593bc5cdade23853127a6349447663"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/setup-0450.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/setup-0450.sh",
+      "sha256": "1e37e1d31826adfb5c8e9f67da5be9efbfb52248a6e4d87258297ae332622644"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/setup-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/setup-a2.sh",
+      "sha256": "3e23efe3f6e99509626fb402a04fe18388470c8314aa915a6d01f44a3c46a71d"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/setup-pub51.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/setup-pub51.sh",
+      "sha256": "dd655711f78f2bdd1df3bd216416aa36e8de9b18131529387e935caf0beb7593"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/smoke-direct.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/smoke-direct.sh",
+      "sha256": "ac9233ec1ccc06701e62fdd33add76c07dafc8526d9fac4babb44f254a2a35a9"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/start-finish-guarded.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/start-finish-guarded.sh",
+      "sha256": "d31f1f9bcc47c9300c136828c1ca21ad04cf7a20669df330a4ccda201c4c71db"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/start-native-a2-guarded.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/start-native-a2-guarded.sh",
+      "sha256": "d6ba8304b07d454cbcfd4c5d190ce8b968a3aa354e436a1f63b2ef4216ffb01e"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/start-native-final.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/start-native-final.sh",
+      "sha256": "39d8a0d98669648e49b3d2117be923a57498065d91c63f7fe07f4ebe32794102"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/status-dryrun.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/status-dryrun.py",
+      "sha256": "13418152b1b67cec655f0f2f983a86e9d57814937623a0f4c34ba24f3c2e58dc"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/status-finish.py",
+      "rendered": "/Users/ccheever/sb4-pub-0453/status-finish.py",
+      "sha256": "bc5231271038408096e8216247ca95f550d55c4016cc6a579ed3f8ac48bf8edc"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/triage-pre.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/triage-pre.sh",
+      "sha256": "84bfa2753eae91621dcad736164dbefb1148e1f0ffdae263485480797a4bde72"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/wait-auth.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/wait-auth.sh",
+      "sha256": "d0dadf3fc769bedd9c53769ae1074b82d0578687ca0443cd22c85f4462bf3bda"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/warm-pre-after-audit-a2.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/warm-pre-after-audit-a2.sh",
+      "sha256": "7967a80c680960c530bc5c647254a6b4a96b6b400389490f7513bfc4ad3af38b"
+    },
+    {
+      "original": "/Users/ccheever/sb4-pub-0452/warm-pre-after-audit.sh",
+      "rendered": "/Users/ccheever/sb4-pub-0453/warm-pre-after-audit.sh",
+      "sha256": "1d4fe793978ecf4ab3a4b69a85ec55b8f97250f5eda2b52f3733b67e7bd945bc"
+    }
+  ]
+}

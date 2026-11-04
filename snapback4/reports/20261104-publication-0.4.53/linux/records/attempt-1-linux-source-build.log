@@ -1,0 +1,618 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling cfg-if v1.0.4
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling foldhash v0.2.0
+   Compiling serde v1.0.229
+   Compiling libc v0.2.189
+   Compiling siphasher v1.0.3
+   Compiling zmij v1.0.23
+   Compiling subtle v2.6.1
+   Compiling allocator-api2 v0.2.21
+   Compiling itoa v1.0.18
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling stable_deref_trait v1.2.1
+   Compiling memchr v2.8.3
+   Compiling tinyvec_macros v0.1.1
+   Compiling rustversion v1.0.23
+   Compiling cpufeatures v0.2.17
+   Compiling bitflags v2.13.2
+   Compiling writeable v0.6.4
+   Compiling libm v0.2.16
+   Compiling crossbeam-utils v0.8.23
+   Compiling cmov v0.5.4
+   Compiling const-oid v0.10.2
+   Compiling icu_locale_fallback_data v2.3.0
+   Compiling vcpkg v0.2.15
+   Compiling crossbeam-epoch v0.9.20
+   Compiling pkg-config v0.3.34
+   Compiling wasmparser v0.228.0
+   Compiling percent-encoding v2.3.2
+   Compiling litemap v0.8.3
+   Compiling oxc_data_structures v0.154.0
+   Compiling getrandom v0.4.3
+   Compiling wasmi_ir v2.0.0
+   Compiling crossbeam-deque v0.8.7
+   Compiling cpufeatures v0.3.1
+   Compiling rustc-hash v2.1.3
+   Compiling static_assertions v1.1.0
+   Compiling icu_segmenter_data v2.3.0
+   Compiling rand_core v0.10.1
+   Compiling wasmi v2.0.0
+   Compiling rayon-core v1.13.0
+   Compiling oxc_estree v0.154.0
+   Compiling rand_core v0.6.4
+   Compiling serde_json v1.0.151
+   Compiling utf8_iter v1.0.4
+   Compiling bytes v1.12.1
+   Compiling base64ct v1.8.3
+   Compiling fastrand v2.5.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-iterator v0.3.0
+   Compiling futures-core v0.3.34
+   Compiling getrandom v0.3.4
+   Compiling pin-project-lite v0.2.17
+   Compiling futures-sink v0.3.34
+   Compiling thiserror v2.0.20
+   Compiling parking_lot_core v0.9.12
+   Compiling spin v0.9.9
+   Compiling unicode-bidi v0.3.18
+   Compiling unicode-properties v0.1.4
+   Compiling autocfg v1.5.1
+   Compiling fallible-iterator v0.2.0
+   Compiling either v1.18.0
+   Compiling dragonbox_ecma v0.1.12
+   Compiling unicode-width v0.2.2
+   Compiling scopeguard v1.2.0
+   Compiling log v0.4.34
+   Compiling smawk v0.3.3
+   Compiling cow-utils v0.1.3
+   Compiling base64 v0.22.1
+   Compiling byteorder v1.5.0
+   Compiling futures-task v0.3.34
+   Compiling unicode-id-start v1.5.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling slab v0.4.12
+   Compiling bytecount v0.6.9
+   Compiling nonmax v0.5.5
+   Compiling rustix v1.1.5
+   Compiling smallvec v1.16.1
+   Compiling linux-raw-sys v0.12.1
+   Compiling equivalent v1.0.2
+   Compiling zeroize v1.9.0
+   Compiling snapback4-lang v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-lang)
+   Compiling winnow v0.7.15
+   Compiling opaque-debug v0.3.1
+   Compiling toml_write v0.1.2
+   Compiling generic-array v0.14.7
+   Compiling hashbrown v0.17.1
+   Compiling cc v1.4.5
+   Compiling phf_shared v0.14.0
+   Compiling tinyvec v1.13.2
+   Compiling ctutils v0.4.2
+   Compiling chacha20 v0.10.2
+   Compiling password-hash v0.5.0
+   Compiling phf_shared v0.13.1
+   Compiling lock_api v0.4.14
+   Compiling futures-channel v0.3.34
+   Compiling httpdate v1.0.3
+   Compiling seq-macro v0.3.6
+   Compiling chunked_transfer v1.5.0
+   Compiling ascii v1.1.0
+   Compiling sqlparser v0.59.0
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling futures-util v0.3.34
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling num-traits v0.2.19
+   Compiling phf v0.14.0
+   Compiling phf_generator v0.14.0
+   Compiling phf v0.13.1
+   Compiling unicode-normalization v0.1.25
+   Compiling hybrid-array v0.4.15
+   Compiling castaway v0.2.4
+   Compiling compact_str v0.10.0
+   Compiling oxc_allocator v0.154.0
+   Compiling hashlink v0.12.2
+   Compiling indexmap v2.14.2
+   Compiling stringprep v0.1.5
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling inout v0.1.4
+   Compiling digest v0.10.7
+   Compiling libsqlite3-sys v0.38.2
+   Compiling libmimalloc-sys v0.1.49
+   Compiling cipher v0.4.4
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling oxc_str v0.154.0
+   Compiling num-integer v0.1.47
+   Compiling poly1305 v0.8.0
+   Compiling wasmi_core v2.0.0
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.3
+   Compiling whoami v2.1.3
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/0453/source/snapback4/vendor/tiny_http)
+   Compiling chacha20 v0.9.1
+   Compiling hmac v0.12.1
+   Compiling num-bigint v0.5.1
+   Compiling rand v0.10.2
+   Compiling argon2 v0.5.3
+   Compiling chacha20poly1305 v0.10.1
+   Compiling rayon v1.12.0
+   Compiling tokio v1.53.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling digest v0.11.3
+   Compiling hmac v0.13.0
+   Compiling sha2 v0.11.0
+   Compiling md-5 v0.11.0
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling postgres-protocol v0.6.12
+   Compiling mimalloc v0.1.52
+   Compiling postgres-types v0.2.14
+   Compiling phf_macros v0.14.0
+   Compiling synstructure v0.14.0
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling oxc_ast_macros v0.154.0
+   Compiling thiserror-impl v2.0.20
+   Compiling async-trait v0.1.92
+   Compiling oxc_span v0.154.0
+   Compiling tokio-util v0.7.19
+   Compiling zerotrie v0.2.5
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling oxc_index v5.0.0
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.22.27
+   Compiling oxc_syntax v0.154.0
+   Compiling parking_lot v0.12.5
+   Compiling icu_provider v2.3.1
+   Compiling tokio-postgres v0.7.18
+   Compiling icu_locale_fallback v2.3.0
+   Compiling icu_segmenter v2.3.0
+   Compiling textwrap v0.16.4
+   Compiling oxc_diagnostics v0.154.0
+   Compiling toml v0.8.23
+   Compiling oxc_regular_expression v0.154.0
+   Compiling rusqlite v0.40.2
+   Compiling postgres v0.19.14
+   Compiling oxc_ast v0.154.0
+   Compiling snapback4-core v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-core)
+warning: unused import: `rows::Rows`
+ --> crates/snapback4-core/src/store/port/batch.rs:8:5
+  |
+8 |     rows::Rows,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+warning: unused variable: `notice`
+   --> crates/snapback4-core/src/engine/command_batch.rs:270:5
+    |
+270 |     notice: Arc<super::notice::Notice>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_notice`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:296:13
+    |
+296 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:93:71
+   |
+93 |         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+   |                      ----------------------------                     ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+   |
+   = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:28:44
+   |
+28 |         match self { Self::Sqlite(_) => 1, _ => generation }
+   |                      ---------------       ^ no value can reach this
+   |                      |
+   |                      matches all the relevant values
+
+warning: unreachable pattern
+  --> crates/snapback4-core/src/store/port/batch.rs:33:85
+   |
+33 |         match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+   |                      -------------------------- matches all the relevant values     ^ no value can reach this
+
+warning: function `check_postgres_ordinary_operations` is never used
+  --> crates/snapback4-core/src/engine/activation_facts.rs:68:15
+   |
+68 | pub(super) fn check_postgres_ordinary_operations(previous: &Schema, next: &Schema,
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: methods `version` and `wait` are never used
+  --> crates/snapback4-core/src/engine/command_notice.rs:6:19
+   |
+ 5 | impl Notice {
+   | ----------- methods in this implementation
+ 6 |     pub(super) fn version(&self) -> u64 { *self.version.lock().unwrap_or_else(|p|p.into_inner()) }
+   |                   ^^^^^^^
+...
+12 |     pub(super) fn wait(&self, observed:u64) {
+   |                   ^^^^
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: struct `ScanImage` is never constructed
+   --> crates/snapback4-core/src/engine/word_heap.rs:293:19
+    |
+293 | pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+    |                   ^^^^^^^^^
+
+warning: associated items `of` and `charge` are never used
+   --> crates/snapback4-core/src/engine/word_heap.rs:295:19
+    |
+294 | impl ScanImage {
+    | -------------- associated items in this implementation
+295 |     pub(crate) fn of(row: &Value) -> Self {
+    |                   ^^
+...
+299 |     pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, k...
+    |                   ^^^^^^
+
+warning: method `cached_authority_transaction` is never used
+   --> crates/snapback4-core/src/store/authority.rs:280:19
+    |
+277 | impl Store {
+    | ---------- method in this implementation
+...
+280 |     pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `cached_revision` is never used
+  --> crates/snapback4-core/src/store/cache_revision.rs:67:19
+   |
+66 | impl Store {
+   | ---------- method in this implementation
+67 |     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
+   |                   ^^^^^^^^^^^^^^^
+
+warning: variant `Lifetime` is never constructed
+   --> crates/snapback4-core/src/store/port/handles.rs:158:5
+    |
+153 | pub(crate) enum AnyPreparation<'tx, 'store> {
+    |                 -------------- variant in this enum
+...
+158 |     Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
+    |     ^^^^^^^^
+
+warning: methods `sqlite_cache_scope` and `sqlite_cache_revision` are never used
+  --> crates/snapback4-core/src/store/port/lifecycle.rs:92:19
+   |
+20 | impl AnyStore {
+   | ------------- methods in this implementation
+...
+92 |     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^
+...
+95 |     pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+   |                   ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `placement` is never read
+  --> crates/snapback4-core/src/store/port/batch.rs:22:9
+   |
+19 | pub(crate) struct Facts {
+   |                   ----- field in this struct
+...
+22 |     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
+   |         ^^^^^^^^^
+
+warning: associated function `run_request_pending` is never used
+   --> crates/snapback4-core/src/engine/committer.rs:260:19
+    |
+215 | impl Committer {
+    | -------------- associated function in this implementation
+...
+260 |     pub(crate) fn run_request_pending<T, D>(
+    |                   ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `set_read_publication` is never used
+   --> crates/snapback4-core/src/engine/postgres/store.rs:125:19
+    |
+118 | impl Store {
+    | ---------- method in this implementation
+...
+125 |     pub(crate) fn set_read_publication(&self, mode: ReadPublication) {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: `snapback4-core` (lib) generated 24 warnings (run `cargo fix --lib -p snapback4-core` to apply 3 suggestions)
+   Compiling snapback4-device v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4-device)
+warning: `snapback4-core` (lib) generated 3 warnings (1 duplicate)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:484:51
+    |
+484 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.53 (/home/ccheever/sb4-intent/0453/source/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:357:5
+    |
+357 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `count as decision_count` and `render`
+   --> crates/snapback4/src/verbs/security_reviews.rs:133:34
+    |
+133 | pub(super) use decisions::{print,render,render_mode,count as decision_count};
+    |                                  ^^^^^^             ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `install` is never used
+  --> crates/snapback4/src/host_limits.rs:13:15
+   |
+13 | pub(crate) fn install(capacity: Capacity) {
+   |               ^^^^^^^
+
+warning: function `initialize` is never used
+  --> crates/snapback4/src/host_limits.rs:32:15
+   |
+32 | pub(crate) fn initialize() {
+   |               ^^^^^^^^^^
+
+warning: method `resolve_detached` is never used
+   --> crates/snapback4/src/serve_identity.rs:189:19
+    |
+ 49 | impl Admission {
+    | -------------- method in this implementation
+...
+189 |     pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
+    |                   ^^^^^^^^^^^^^^^^
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:69:4
+   |
+69 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: methods `background` and `has_waiters` are never used
+   --> crates/snapback4/src/serve_lock.rs:65:12
+    |
+ 45 | impl<T, C: Clock> FairMutex<T, C> {
+    | --------------------------------- methods in this implementation
+...
+ 65 |     pub fn background(&self) -> FairGuard<'_, T, C> {
+    |            ^^^^^^^^^^
+...
+108 |     pub fn has_waiters(&self) -> bool {
+    |            ^^^^^^^^^^^
+
+warning: field `contended` is never read
+   --> crates/snapback4/src/serve_lock.rs:131:135
+    |
+131 | ...ct FairGuard<'a, T, C: Clock = SystemClock> { owner: &'a FairMutex<T, C>, value: Option<MutexGuard<'a, T>>, background: bool, contended: b...
+    |       --------- field in this struct                                                                                             ^^^^^^^^^
+
+warning: method `contended` is never used
+   --> crates/snapback4/src/serve_lock.rs:133:12
+    |
+132 | impl<T, C: Clock> FairGuard<'_, T, C> {
+    | ------------------------------------- method in this implementation
+133 |     pub fn contended(&self) -> bool { self.contended }
+    |            ^^^^^^^^^
+
+warning: method `with_lease` is never used
+  --> crates/snapback4/src/serve_committer.rs:56:19
+   |
+26 | impl Writer {
+   | ----------- method in this implementation
+...
+56 |     pub(super) fn with_lease(
+   |                   ^^^^^^^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: method `take_reader` is never used
+   --> crates/snapback4/src/serve_readers.rs:197:19
+    |
+140 | impl Shared {
+    | ----------- method in this implementation
+...
+197 |     pub(super) fn take_reader(&self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+    |                   ^^^^^^^^^^^
+
+warning: function `mutation_acknowledgement` is never used
+  --> crates/snapback4/src/serve_head.rs:95:15
+   |
+95 | pub(super) fn mutation_acknowledgement(shared: &Shared, engine: &mut Engine, acknowledgement: Result<snapback4_core::engine::Mutatio...
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `borrowed_response_head` is never used
+   --> crates/snapback4/src/serve_head.rs:127:15
+    |
+127 | pub(super) fn borrowed_response_head(snapshot: &snapback4_core::store_port::ReadSnapshot<'_>, head: u64) -> Result<(String, u64), R...
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `human_period` is never used
+    --> crates/snapback4/src/verbs.rs:1003:4
+     |
+1003 | fn human_period(ms: u64) -> String {
+     |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:495:15
+    |
+495 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: function `review` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:21:15
+   |
+21 | pub(super) fn review(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>)->Resul...
+   |               ^^^^^^
+
+warning: function `review_snapshot` is never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:25:15
+   |
+25 | pub(super) fn review_snapshot(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Result<Vec<Dispositi...
+   |               ^^^^^^^^^^^^^^^
+
+warning: methods `has_decisions` and `dispositions` are never used
+  --> crates/snapback4/src/verbs/security_reviews.rs:32:19
+   |
+30 | impl ReviewSnapshot{
+   | ------------------- methods in this implementation
+31 |     pub(super) fn capture(project:&Project)->Result<Self,String>{Ok(Self{file:read_file(project)?})}
+32 |     pub(super) fn has_decisions(&self)->bool{!self.file.entries.is_empty()}
+   |                   ^^^^^^^^^^^^^
+33 |     pub(super) fn dispositions(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Vec<Disposition>{self.disposit...
+   |                   ^^^^^^^^^^^^
+
+warning: function `count` is never used
+  --> crates/snapback4/src/verbs/security_reviews/decisions.rs:16:25
+   |
+16 | pub(in crate::verbs) fn count(dispositions: &[Disposition]) -> usize {
+   |                         ^^^^^
+
+warning: function `exposure` is never used
+   --> crates/snapback4/src/verbs/security.rs:101:15
+    |
+101 | pub(super) fn exposure(report:&Report){
+    |               ^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 23 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized] target(s) in 48.87s

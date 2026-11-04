@@ -1,0 +1,9 @@
+SNAPBACK4_READY verb=serve generation=26 url=http://127.0.0.1:39199 pid=2866579 wrapperPid=2866558
+serve: tokens only; details: .snapback4/last/serve.txt; --explain for startup facts
+
+SNAPBACK4_SIGNAL verb=serve generation=26 reason=SIGTERM signal=15
+SNAPBACK4_SOCKET_CLOSED verb=serve url=http://127.0.0.1:39199 socket closed
+SNAPBACK4_THREAD_EXIT verb=serve generation=26 thread="maintenance" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=serve generation=26 thread="worker" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=serve generation=26 thread="release-control" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=serve generation=26 thread="bulk-maintenance" reason="shutdown"

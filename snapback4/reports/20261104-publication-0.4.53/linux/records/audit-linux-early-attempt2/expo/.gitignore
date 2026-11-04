@@ -1,0 +1,5 @@
+# snapback4
+.snapback4/
+dist/
+.snapback4-witness/
+artifacts/native-smoke/

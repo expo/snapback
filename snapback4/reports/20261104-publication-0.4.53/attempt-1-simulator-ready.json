@@ -1,0 +1,15 @@
+{
+  "step": "simulator-ready",
+  "command": [
+    "xcrun",
+    "simctl",
+    "bootstatus",
+    "D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+    "-b"
+  ],
+  "cwd": "/Users/ccheever/sb4-pub-0453-wt/snapback4",
+  "start": 1793759741.7288551,
+  "end": 1793759745.8295932,
+  "seconds": 4.101,
+  "exit": 0
+}

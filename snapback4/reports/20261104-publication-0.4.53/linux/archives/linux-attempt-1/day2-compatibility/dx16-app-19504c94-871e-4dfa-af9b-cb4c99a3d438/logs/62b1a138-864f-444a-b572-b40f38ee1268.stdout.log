@@ -1,0 +1,126 @@
+{
+  "current": 2,
+  "event": null,
+  "events": [
+    {
+      "at": 1793763923956,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763925297,
+      "generation": 2,
+      "id": 2,
+      "operation": "deploy",
+      "previous": 1,
+      "release": 2,
+      "revision": 2,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763926828,
+      "generation": 3,
+      "id": 3,
+      "operation": "rollback",
+      "previous": 2,
+      "release": 1,
+      "revision": 3,
+      "summary": {
+        "dormant_items": 1,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763928360,
+      "generation": 4,
+      "id": 4,
+      "operation": "rollback",
+      "previous": 1,
+      "release": 2,
+      "revision": 4,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 1
+      }
+    }
+  ],
+  "events_after": 4,
+  "generation": 4,
+  "items": [],
+  "items_after": null,
+  "latest": 2,
+  "live": {
+    "exact": true,
+    "release": 2,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "roles": [
+          "id",
+          "principal",
+          "role"
+        ],
+        "rows": [
+          "color",
+          "id",
+          "owner",
+          "title"
+        ]
+      },
+      "target": 2
+    },
+    "source": 2,
+    "target": 2,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": 1,
+  "release": 2,
+  "revision": 4,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "roles": [
+        "id",
+        "principal",
+        "role"
+      ],
+      "rows": [
+        "color",
+        "id",
+        "owner",
+        "title"
+      ]
+    },
+    "target": 2
+  },
+  "workers": []
+}

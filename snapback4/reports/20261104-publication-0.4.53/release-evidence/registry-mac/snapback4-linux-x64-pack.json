@@ -1,0 +1,31 @@
+[
+  {
+    "id": "snapback4-linux-x64@0.4.53",
+    "name": "snapback4-linux-x64",
+    "version": "0.4.53",
+    "size": 19074830,
+    "unpackedSize": 46605638,
+    "shasum": "49fb3f55409a66cee4c451691a93b4ea2ae45a8b",
+    "integrity": "sha512-NabW9IvO1DKk7tj2S3zui0CUuGkdH/KrOhzXBfcZkVZ1A694klpm0odfW+R3PVOdiYsGke8H6j7vn2wcjV+ZVg==",
+    "filename": "snapback4-linux-x64-0.4.53.tgz",
+    "files": [
+      {
+        "path": "THIRD-PARTY-NOTICES",
+        "size": 12038,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 448,
+        "mode": 420
+      },
+      {
+        "path": "snapback4",
+        "size": 46593152,
+        "mode": 493
+      }
+    ],
+    "entryCount": 3,
+    "bundled": []
+  }
+]

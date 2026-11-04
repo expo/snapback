@@ -1,0 +1,2 @@
+rollback: release 1 current, generation 19; 0 rows, 6 cells, 0 index entries dormant; samples: cells notes.label [01M6JAKCV68C6CGWJWS4VRRD28, 01M6JAKCZY0S10GYNVH4P25E91, 01M6JAKEATVKDS124SRWNQTY5H, 01M6JAKEG4BZH2K0NJR8XC6WN5, 01M6JAKSAFQKFY33PKTRBP6SY0], notes.label changed; 9.0 ms
+details: .snapback4/last/rollback.txt; --explain for full output

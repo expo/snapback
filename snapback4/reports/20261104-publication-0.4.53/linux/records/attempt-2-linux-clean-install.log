@@ -1,0 +1,11 @@
+
+added 6 packages in 2s
+snapback4 0.4.53
+init: wrote 2 files in . — local-first — next: `snapback4 check`, then `snapback4 dev`
+init: files: snapback/{schema.q, generated/package.json}
+init rc=0
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 2 notes; 140.1 ms; client usage: snapback/generated/api.ts
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+check rc=0
+installed binary SHA256 matches Linux receipt: d6a13a532fcc7a6f3f30625df84cafac4adabd355b636ebd34ab87ba7a6c3bf0 bytes 46593152
+STAGED CLEAN INSTALL PASS (registry install remains post-publication)

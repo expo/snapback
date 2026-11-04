@@ -1,0 +1,173 @@
+{
+  "at": "2026-11-04T03:54:47.780194+00:00",
+  "archive": "/home/ccheever/sb4-loop/wave21/archive.tar.zst",
+  "archiveSha256": "d8d30eeea8c7dfb9da2d24a3689a310c245a65300bb83e140d0cb7c450a249a4",
+  "root": "/home/ccheever/sb4-intent/0453/fixtures/wave21/apps",
+  "verifiedAgainst": "0.4.52 linux/dx5-proof.json sourceSha256",
+  "scriptHashes": {
+    "025-snapback-boxing-bout-medicals/scripts/acceptance.mjs": "76e278991faaacc6d3e421de1c62e516d6c8a6300bd7f646640f5b13e07ae63d",
+    "002-snapback-bridal-alteration-fittings/scripts/prod-serve.mjs": "c7db5964343829b0538cabf0346713696ee530280f84096cb4f2f34947df746d"
+  },
+  "files": [
+    {
+      "path": "025-snapback-boxing-bout-medicals/snapback/client-compatibility.json",
+      "bytes": 47,
+      "sha256": "052a501053f1e1344b35c3207ea23f50cb0cc2e677cdfdb5d7f0a9d034c7a42a"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/snapback/schema.q",
+      "bytes": 9858,
+      "sha256": "2bf9a3234b512467593d30683567419cf41c469291e0595ff25c1fc74ccb91c2"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/probe-serve.mjs",
+      "bytes": 3796,
+      "sha256": "a55079580fd9ef6bb897fa81d7f4ff599e74af2a94125ddc7f34c88b227cde74"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/prod-targets.mjs",
+      "bytes": 1101,
+      "sha256": "5bfad77080652a69056f4ad8702bf4cd61ec07d4525e81006662b4dfc8ec8d8f"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/prod-serve.mjs",
+      "bytes": 1005,
+      "sha256": "b998bcc3755c2b99acbd759a87032523873b9cab134c89cbeb78511d45be9c9d"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/acceptance.mjs",
+      "bytes": 15151,
+      "sha256": "76e278991faaacc6d3e421de1c62e516d6c8a6300bd7f646640f5b13e07ae63d"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/prod-forward.mjs",
+      "bytes": 1605,
+      "sha256": "83465fa30d080a9352dff904d034453bab44815d24e133608ef2a8e24a086e33"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/prod-lib.mjs",
+      "bytes": 4805,
+      "sha256": "1b4050a9605cf73cf4913b843fb4e63926ec85d95577ada05b75eab6ed1b1c08"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/v1-client-calls.mjs",
+      "bytes": 8307,
+      "sha256": "63ff7a16e0d8e631627e47323543cb9a9fac1c05873c7541f15ef2c054304d2a"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/prod-rollback.mjs",
+      "bytes": 1121,
+      "sha256": "bda36cc261a721e41571d14a16e9ece70724a2fb9f0e29ddc2671800a079cc6a"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/launch.mjs",
+      "bytes": 2027,
+      "sha256": "1dfc536b2a1e191d825f11e986b48b5bcda2f79d89894444ffb1d89a33b3e1b4"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/day2-proof.mjs",
+      "bytes": 16437,
+      "sha256": "44aa2a75d935f8efd9a95da916edaad095c4899301757a3af8ca9b532ef8743a"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/client-calls.mjs",
+      "bytes": 8765,
+      "sha256": "dbd4040c3bf9358ea45ba0fbe1baf245d1a043fd58a5ec152d4320728231edae"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/scripts/frontend-proof.mjs",
+      "bytes": 4974,
+      "sha256": "8ad484eec85087c32514e0989e948261af0c5f6d2bf2773f27fd3e90dc7fd03b"
+    },
+    {
+      "path": "025-snapback-boxing-bout-medicals/versions/v1/schema.q",
+      "bytes": 8434,
+      "sha256": "2631de99b5f89bd8548b610507f25db504beb2c18bf0eafe99c51a94f9d19427"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/snapback/client-compatibility.json",
+      "bytes": 38,
+      "sha256": "0b6000af8c4d1cf9232200f0ea06b8256f4279f58fae1f4031e30114edba01fd"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/snapback/schema.q",
+      "bytes": 11359,
+      "sha256": "a80bbcf92d200e8bece136597ab7c8c15b123061fe279232b6c3f29378ed4731"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/probe-serve.mjs",
+      "bytes": 5429,
+      "sha256": "9130c9ced3d0b18121cbd65154741010570903414fc52109e02e21426bd2c212"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/prod-serve.mjs",
+      "bytes": 1388,
+      "sha256": "c7db5964343829b0538cabf0346713696ee530280f84096cb4f2f34947df746d"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/acceptance.mjs",
+      "bytes": 16919,
+      "sha256": "c337f905a06f677f77a0ff93072069e60f22333715194350f9001dc5b9ebd2d7"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/prod-forward.mjs",
+      "bytes": 738,
+      "sha256": "473e89cd019529333de5a9ae9459a04970a875cc88bb32e59fe3be68073c2d0d"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/v1-client-calls.mjs",
+      "bytes": 10193,
+      "sha256": "692e40b4d70f306e1f9f1fa83b65b1df2c3affa9221dfbb1abc1a7799520c0f7"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/prod-rollback.mjs",
+      "bytes": 786,
+      "sha256": "3639b4c1438b6683b4badd30909a98d134b8e4f2c15e7e17982acc2a95b039c9"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/launch.mjs",
+      "bytes": 2027,
+      "sha256": "8c381acb952de8536fac750306e3174a76120169518142e0c7fed64d0c0ba6f8"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/day2-proof.mjs",
+      "bytes": 13934,
+      "sha256": "c9ba0719eb807781ebdafba017fa2ab0946f789b46434871215704d59efd1ab6"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/prod-users.mjs",
+      "bytes": 3095,
+      "sha256": "f98eb79875705d015a388a37e0e785f06a5b620cae3cd210ef307f9d57f31418"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/client-calls.mjs",
+      "bytes": 10976,
+      "sha256": "76374a3a3c39f8799b6a8a176da3585179d8b859f264d0af17de50e96ae7e5be"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/scripts/frontend-proof.mjs",
+      "bytes": 6961,
+      "sha256": "a9434a1602956c7939a1b7eb5d0b88ed6e10833a95c939251f8cdc5aaffb6857"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/v1/server.ts",
+      "bytes": 674,
+      "sha256": "738901670ed6dd8cf964be962fb2d6a1cb36bfc3cd43e3af7bd4830a3a5f3177"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/v1/api.ts",
+      "bytes": 18241,
+      "sha256": "52ec816c5deff9559b14d95f74e4d4f4cd9cd409655437f70b32e4378ed5dd57"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/v1/schema.q",
+      "bytes": 10641,
+      "sha256": "c87a8947c072990bb1470e2a67db8049fa0bcbeba57340f1f11eca7afad774e7"
+    },
+    {
+      "path": "002-snapback-bridal-alteration-fittings/v1/client-calls.v1.mjs",
+      "bytes": 10098,
+      "sha256": "32a91330ed69f19f23ac165965ea486e6f0bdc72dcfe507e1aa6d4a5594510e7"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+--- /Users/ccheever/sb4-pub-0453/archive-before-wave21-recovery/publish-lowpar.sh
++++ /Users/ccheever/sb4-pub-0453/publish-lowpar.sh
+@@ -14,7 +14,7 @@
+  prepare) step publication-prepare-client . env -u SNAPBACK4_BIN PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/publish.mjs --prepare-client ;;
+  lean) step lean-setup lean env PATH=$P lake build quarry-oracle ;;
+  warm) step test-warm . env -u SNAPBACK4_BIN PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0" cargo test --workspace --no-run ;;
+- dry-run) step publication-dry-run . env -u SNAPBACK4_BIN SNAPBACK4_RUST_TEST_PROCESSES=${RUSTPROCS:-6} SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.53/receipt.json --linux-tarball target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz ;;
+- dry-run-evidence) step publication-dry-run-evidence . env -u SNAPBACK4_RUST_TEST_PROCESSES -u SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run ;;
++ dry-run) step publication-dry-run . env -u SNAPBACK4_BIN SNAPBACK4_RUST_TEST_PROCESSES=${RUSTPROCS:-6} SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 SNAPBACK4_WAVE21_ROOT=/Users/ccheever/sb4-pub-0453/fixtures/wave21/apps PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run --linux-receipt target/incoming/linux-0.4.53/receipt.json --linux-tarball target/incoming/linux-0.4.53/snapback4-linux-x64-0.4.53.tgz ;;
++ dry-run-evidence) step publication-dry-run-evidence . env -u SNAPBACK4_RUST_TEST_PROCESSES -u SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 SNAPBACK4_REQUIRE_LEAN=1 SNAPBACK4_WAVE21_ROOT=/Users/ccheever/sb4-pub-0453/fixtures/wave21/apps PATH=$P CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33 node scripts/publish.mjs --dry-run ;;
+ esac
+ echo "$mode DONE"; echo done > /Users/ccheever/sb4-pub-0453/$mode-$ATTEMPT.exit
+--- /Users/ccheever/sb4-pub-0453/linux-kit/run-all.sh
++++ /Users/ccheever/sb4-pub-0453/linux-kit/run-all-a2.sh
+@@ -4,13 +4,14 @@
+ C=${1:?expected frozen source}
+ B=$HOME/sb4-intent/0453
+ K=$B/kit
+-export ROOT=$B/source/snapback4 REP=$B/records ATTEMPT=1
++export ROOT=$B/source/snapback4 REP=$B/records ATTEMPT=2
+ export PATH=$HOME/.bun-1.4.2/bin:$HOME/.elan/bin:$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+ export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ unset CARGO_TARGET_DIR SNAPBACK4_BIN NPM_TOKEN NODE_AUTH_TOKEN PUB52_SOURCE PUB52_STOCK_TEMPLATES
++export SNAPBACK4_WAVE21_ROOT=$B/fixtures/wave21/apps
+ ulimit -n 65536
+-[ ! -e "$REP/run-1.exit" ] || exit 98
+-trap 'rc=$?; echo "$rc" > "$REP/run-1.exit"' EXIT
++[ ! -e "$REP/run-2.exit" ] || exit 98
++trap 'rc=$?; echo "$rc" > "$REP/run-2.exit"' EXIT
+ [ "$(git -C "$ROOT" rev-parse HEAD)" = "$C" ]
+ [ -z "$(git -C "$ROOT" status --porcelain)" ]
+ cd "$ROOT"
+@@ -23,7 +24,7 @@
+ cd "$K"
+ ./step.sh linux-early-install . bun install --frozen-lockfile
+ ./step.sh linux-early-cli . env LIBSQLITE3_FLAGS='-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0' cargo build --locked -p snapback4
+-./step.sh linux-early-audit . node "$K/audit-fast.mjs" "$ROOT" "$ROOT/target/publication/client-0.4.53" "$REP/audit-linux-early"
+-bash ./linux.sh
++./step.sh linux-early-audit . node "$K/audit-fast.mjs" "$ROOT" "$ROOT/target/publication/client-0.4.53" "$REP/audit-linux-early-attempt2"
++bash ./linux-a2.sh
+ ./step.sh linux-clean-install . bash "$K/clean-install-linux.sh"
+ echo 'LINUX QUALIFICATION AND STAGED CLEAN INSTALL DONE'
+--- /Users/ccheever/sb4-pub-0453/linux-kit/linux.sh
++++ /Users/ccheever/sb4-pub-0453/linux-kit/linux-a2.sh
+@@ -9,7 +9,7 @@
+ cd /home/ccheever/sb4-intent/0453/kit
+ ./step.sh linux-bun-install . bun install --frozen-lockfile || { echo fail-install > $REP/linux-$ATTEMPT.exit; exit 1; }
+ ./step.sh linux-lean-setup lean env PATH=$P lake build quarry-oracle || { echo fail-lean > $REP/linux-$ATTEMPT.exit; exit 1; }
+-./step.sh linux-qualify . env -u SNAPBACK4_BIN -u NPM_TOKEN -u NODE_AUTH_TOKEN -u SNAPBACK4_TEST_SERIAL_CLIENT_FILES -u SNAPBACK4_RUST_TEST_PROCESSES PATH=$P NPM_CONFIG_CACHE=$REP/npm-cache-$ATTEMPT SNAPBACK4_REQUIRE_LEAN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/qualify-linux.mjs --client target/publication/client-0.4.53/snapback4-0.4.53.tgz --expo target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz --out /home/ccheever/sb4-intent/0453/linux-qualification-0.4.53
++./step.sh linux-qualify . env -u SNAPBACK4_BIN -u NPM_TOKEN -u NODE_AUTH_TOKEN -u SNAPBACK4_TEST_SERIAL_CLIENT_FILES -u SNAPBACK4_RUST_TEST_PROCESSES PATH=$P NPM_CONFIG_CACHE=$REP/npm-cache-$ATTEMPT SNAPBACK4_REQUIRE_LEAN=1 SNAPBACK4_WAVE21_ROOT=/home/ccheever/sb4-intent/0453/fixtures/wave21/apps CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/qualify-linux.mjs --client target/publication/client-0.4.53/snapback4-0.4.53.tgz --expo target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz --out /home/ccheever/sb4-intent/0453/linux-qualification-0.4.53
+ rc=$?
+ echo "$rc" > $REP/linux-$ATTEMPT.exit
+ exit "$rc"
+--- /Users/ccheever/sb4-pub-0453/linux-kit/start-linux.sh
++++ /Users/ccheever/sb4-pub-0453/linux-kit/start-linux-a2.sh
+@@ -5,10 +5,12 @@
+ B=$HOME/sb4-intent/0453
+ [ "$(git -C "$B/source" rev-parse HEAD)" = "$C" ]
+ [ -z "$(git -C "$B/source" status --porcelain)" ]
+-[ ! -e "$B/records/run-1.exit" ] && [ ! -e "$B/kit/linux-1.out" ]
++[ ! -e "$B/records/run-2.exit" ] && [ ! -e "$B/kit/linux-2.out" ]
+ [ -s "$B/source/snapback4/target/publication/client-0.4.53/prepare.json" ]
++[ -s "$B/records/wave21-environment-check.json" ]
++[ -d "$B/archives/linux-attempt-1" ]
+ echo "free $(df -BG --output=avail "$B" | tail -1 | tr -d ' ') load $(cut -d' ' -f1-3 /proc/loadavg)"
+-systemd-run --user --unit=sb4-pub53-linux-1 --collect \
++systemd-run --user --unit=sb4-pub53-linux-2 --collect \
+  -p OOMPolicy=continue -p MemoryMax=80G -p MemorySwapMax=2G \
+- -p StandardOutput="append:$B/kit/linux-1.out" -p StandardError=inherit \
+- --working-directory="$B/kit" /bin/bash "$B/kit/run-all.sh" "$C"
++ -p StandardOutput="append:$B/kit/linux-2.out" -p StandardError=inherit \
++ --working-directory="$B/kit" /bin/bash "$B/kit/run-all-a2.sh" "$C"

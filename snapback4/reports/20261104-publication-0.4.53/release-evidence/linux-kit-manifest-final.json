@@ -1,0 +1,41 @@
+{
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "files": [
+    {
+      "name": "assemble-records.sh",
+      "sha256": "92f7c85b1f7205ff601afd891cf68948087d3b46e6f335113cf2a26d321133db"
+    },
+    {
+      "name": "audit-fast.mjs",
+      "sha256": "1c47e7c4ba574065041fe34b8adff1ba2bb59d343d2ca5c9d640353d4706f8a5"
+    },
+    {
+      "name": "clean-install-linux-registry.sh",
+      "sha256": "63fbc5ab798f46ac8d1c756f834d4b8ce18a173beeea17cbceae864a51eb5a51"
+    },
+    {
+      "name": "clean-install-linux.sh",
+      "sha256": "4637d2b1bd74fb8f06a54ff739945b11e3d071db210df90d7f18eef1bdfbd0d4"
+    },
+    {
+      "name": "linux.sh",
+      "sha256": "4decfc91d45e28251cde0fa4292494f3f6cdda4b59a9e3d0e1d8ff3067f00960"
+    },
+    {
+      "name": "run-all.sh",
+      "sha256": "2e7323b3a21adbd19805f4e812518dfc0ae241ef2606bdecf8bfa12ae81077d1"
+    },
+    {
+      "name": "source-bootstrap.sh",
+      "sha256": "f9ca4f7231dfc260665688cb915084f24c87123ffd0aa5ec3250ab806f036075"
+    },
+    {
+      "name": "start-linux.sh",
+      "sha256": "323a14816c7a0a74afc901cf0c12d677bdb2c53acad2c7bdd3718c860c94cce2"
+    },
+    {
+      "name": "step.sh",
+      "sha256": "85fc10ee534e0433a5aa319f56fd9e0ac32bd017dae9137e210d70968185b799"
+    }
+  ]
+}

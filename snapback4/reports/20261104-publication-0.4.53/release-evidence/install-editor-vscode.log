@@ -1,0 +1,7 @@
+bun install v1.4.2 (744846f84)
+
++ @vscode/vsce@3.6.2
++ vscode-oniguruma@2.0.1
++ vscode-textmate@9.2.0
+
+299 packages installed [532.00ms]

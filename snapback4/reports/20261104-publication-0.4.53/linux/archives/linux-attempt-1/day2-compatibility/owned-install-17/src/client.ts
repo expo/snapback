@@ -1,0 +1,14 @@
+import { registerWebWitness } from "snapback4/witness-web";
+import { api } from "../snapback/generated/api.ts";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+
+// The backend `snapback4 dev` serves. Set VITE_SNAPBACK_URL for a deployment.
+export const url = (new URLSearchParams(window.location.search).get("api") ?? import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400").replace(/\/$/, "");
+
+// Reads execute on the server; browser writes use the principal journal.
+// localStorageSessionStore() keeps the session across reloads; any script on
+// this origin can read it. Device-less browser writes require this store.
+export const app = createApp({ writes: "online", url, sessionStore: localStorageSessionStore() });
+
+registerWebWitness(app, api);

@@ -1,0 +1,121 @@
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793763934135,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763935489,
+      "generation": 2,
+      "id": 2,
+      "operation": "deploy",
+      "previous": 1,
+      "release": 2,
+      "revision": 2,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    },
+    {
+      "at": 1793763937018,
+      "generation": 3,
+      "id": 3,
+      "operation": "rollback",
+      "previous": 2,
+      "release": 1,
+      "revision": 3,
+      "summary": {
+        "dormant_items": 1,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 3,
+  "generation": 3,
+  "items": [
+    {
+      "action": "dormant",
+      "asset_bytes": 0,
+      "bytes": 43,
+      "key": "column:rows.color",
+      "kind": "column",
+      "path": "rows.color",
+      "rows": 1,
+      "sample_ids": [
+        "01M6JAK0683SGR1QBGJY92BZYD"
+      ]
+    }
+  ],
+  "items_after": "column:rows.color",
+  "latest": 2,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "roles": [
+          "id",
+          "principal",
+          "role"
+        ],
+        "rows": [
+          "id",
+          "owner",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": 2,
+  "release": 1,
+  "revision": 3,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "roles": [
+        "id",
+        "principal",
+        "role"
+      ],
+      "rows": [
+        "id",
+        "owner",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "workers": []
+}

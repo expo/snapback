@@ -1,0 +1,17 @@
+Wrote to /home/ccheever/sb4-intent/0453/records/clean-install-linux/package.json:
+
+{
+  "name": "clean-install-linux",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
+
+

@@ -1,0 +1,30 @@
+✖ publication evidence and append-only metrics do not select a product rebuild (1.839708ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41.419209
+
+✖ failing tests:
+
+test at snapback4/scripts/affected.test.mjs:352:1
+✖ publication evidence and append-only metrics do not select a product rebuild (1.839708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/sb4-pub-0453-wt/snapback4/scripts/affected.test.mjs:363:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

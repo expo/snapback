@@ -1,0 +1,56 @@
+{
+  "at": "2026-11-04T09:03:23.136849+00:00",
+  "host": "expose-builder-pixel",
+  "source": "9da2c76fdf32b20f985c85fe6d33b507c09edd25",
+  "artifacts": [
+    {
+      "name": "snapback4-darwin-arm64",
+      "filename": "snapback4-darwin-arm64-0.4.53.tgz",
+      "version": "0.4.53",
+      "latest": "0.4.53",
+      "sha256": "6028e015d2c3ed73f47e72c42218fc8cbd5a8f48c3ba019f9e3542b06417fb8a",
+      "bytes": 16669580,
+      "integrity": "sha512-mI4QJoBRxYPRUufqu5f1gN8jknZRd2gWI2WyMA93Kvh+9yT22FxC1CEOnzb8sIzs9OD9MykILWK9jReCygtrUg==",
+      "qualifiedSha256Matches": true,
+      "localStagedPath": null,
+      "localStagedBytesMatch": null
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "filename": "snapback4-linux-x64-0.4.53.tgz",
+      "version": "0.4.53",
+      "latest": "0.4.53",
+      "sha256": "b0716e005775ec4a0623c36cccba0e3a43ed6fcd940fbb63cf03fc7e9ffdf314",
+      "bytes": 19074830,
+      "integrity": "sha512-NabW9IvO1DKk7tj2S3zui0CUuGkdH/KrOhzXBfcZkVZ1A694klpm0odfW+R3PVOdiYsGke8H6j7vn2wcjV+ZVg==",
+      "qualifiedSha256Matches": true,
+      "localStagedPath": "/home/ccheever/sb4-intent/0453/linux-qualification-0.4.53/snapback4-linux-x64-0.4.53.tgz",
+      "localStagedBytesMatch": true
+    },
+    {
+      "name": "snapback4",
+      "filename": "snapback4-0.4.53.tgz",
+      "version": "0.4.53",
+      "latest": "0.4.53",
+      "sha256": "9902f0e6a46640c06717b52ace44ac2f8616a7cecfbd9649f3913ef6fdac77f2",
+      "bytes": 1285090,
+      "integrity": "sha512-FWVpDO/drO9+pHraDpUlTTZfY+hDmP4eO5ldVJRpivqAxOgDgM5qsMKiYj2S1xR8QXPZ/jQancxD0t0zFqvO8g==",
+      "qualifiedSha256Matches": true,
+      "localStagedPath": "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+      "localStagedBytesMatch": true
+    },
+    {
+      "name": "snapback4-expo",
+      "filename": "snapback4-expo-0.4.53.tgz",
+      "version": "0.4.53",
+      "latest": "0.4.53",
+      "sha256": "32c78340ebb6607e65539b4a09aaf447378656783824328a48e718b59222ff6f",
+      "bytes": 7754752,
+      "integrity": "sha512-+XwerEufLHmOc785Hq3KU6KQg7ZLLq80xX+AL7p28L2ga7nlIT4hUQ+2k9+SR9ASExLyrNhDL37A8zJUE3nCfg==",
+      "qualifiedSha256Matches": true,
+      "localStagedPath": "/home/ccheever/sb4-intent/0453/source/snapback4/target/publication/client-0.4.53/snapback4-expo-0.4.53.tgz",
+      "localStagedBytesMatch": true
+    }
+  ],
+  "status": "passed"
+}

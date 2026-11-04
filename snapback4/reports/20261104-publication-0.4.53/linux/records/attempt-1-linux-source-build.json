@@ -1,0 +1,17 @@
+{
+  "step": "linux-source-build",
+  "command": [
+    "env",
+    "LIBSQLITE3_FLAGS=-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0",
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "snapback4"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/0453/source/snapback4",
+  "start": 1793759096.2815497,
+  "end": 1793759145.2066522,
+  "seconds": 48.925,
+  "exit": 0
+}

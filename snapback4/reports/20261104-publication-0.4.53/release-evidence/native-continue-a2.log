@@ -1,0 +1,19 @@
+bun-install exit=0 seconds=0.2
+xcframework-build exit=0 seconds=147.2
+native-prepare exit=0 seconds=0.5
+cargo-build exit=0 seconds=10.4
+wasm-build exit=0 seconds=23.5
+client-package-build exit=0 seconds=3.3
+simulator-boot exit=0 seconds=0.9
+simulator-ready exit=0 seconds=4.1
+chat-backend-check exit=0 seconds=8.2
+expo-ios-regenerate exit=0 seconds=0.0
+expo-release-build exit=0 seconds=77.8
+root-hook-dependencies exit=0 seconds=0.3
+simulator-uninstall exit=0 seconds=0.5
+simulator-install exit=0 seconds=2.3
+native-link-verification exit=0 seconds=0.3
+native-witness exit=0 seconds=25.3
+native-qualification-verification exit=0 seconds=0.1
+simulator-shutdown exit=0 seconds=3.2
+NATIVE DONE

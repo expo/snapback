@@ -1,0 +1,217 @@
+-- client file start: packages/snapback4/test/progressive-acquisition.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+ok 1 - scheduler negotiates both peers and drains a same-watermark deferred page after reopen
+  ---
+  duration_ms: 1.124625
+  type: 'test'
+  ...
+# Subtest: progress reports published usable facts, revocation, and received row images independently
+ok 2 - progress reports published usable facts, revocation, and received row images independently
+  ---
+  duration_ms: 0.2295
+  type: 'test'
+  ...
+# Subtest: progressive counts keep special table names numeric across deferral and reset
+ok 3 - progressive counts keep special table names numeric across deferral and reset
+  ---
+  duration_ms: 0.116375
+  type: 'test'
+  ...
+# Subtest: bounded drain turns never bypass deferred publication or a replacement fence
+ok 4 - bounded drain turns never bypass deferred publication or a replacement fence
+  ---
+  duration_ms: 0.089917
+  type: 'test'
+  ...
+# Subtest: process: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 5 - process: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 1238.485167
+  type: 'test'
+  ...
+# Subtest: process: cold pin skips historical joins and publishes tier 1 then the hinted group
+ok 6 - process: cold pin skips historical joins and publishes tier 1 then the hinted group
+  ---
+  duration_ms: 2227.680667
+  type: 'test'
+  ...
+# Subtest: process: one explicit cold sync resolves acquired with every table whole and group floored
+ok 7 - process: one explicit cold sync resolves acquired with every table whole and group floored
+  ---
+  duration_ms: 219.545208
+  type: 'test'
+  ...
+# Subtest: process: a join committed after the pin still expands and becomes usable
+ok 8 - process: a join committed after the pin still expands and becomes usable
+  ---
+  duration_ms: 2191.843
+  type: 'test'
+  ...
+# Subtest: process: tier 1 inbox survives offline reopen before any history is usable
+ok 9 - process: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2227.29075
+  type: 'test'
+  ...
+# Subtest: process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 10 - process: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2204.666166
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (until-revoked)
+ok 11 - process: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 2231.695417
+  type: 'test'
+  ...
+# Subtest: process: revocation during acquisition withdraws usable group (delivered)
+ok 12 - process: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 3228.751959
+  type: 'test'
+  ...
+# Subtest: process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+ok 13 - process: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1540.650042
+  type: 'test'
+  ...
+# Subtest: process: old server uses legacy snapshots without any acquire request
+ok 14 - process: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 187.706417
+  type: 'test'
+  ...
+# Subtest: process: old device uses legacy snapshots without any acquire request
+ok 15 - process: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 222.345542
+  type: 'test'
+  ...
+# Subtest: process: a partial walk reopens against an old server through staged replacement
+ok 16 - process: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1230.310709
+  type: 'test'
+  ...
+# Subtest: process: interrupted legacy snapshot reopens against an advertising server through staging
+ok 17 - process: interrupted legacy snapshot reopens against an advertising server through staging
+  ---
+  duration_ms: 1263.922792
+  type: 'test'
+  ...
+# Subtest: wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+ok 18 - wasm: online fallback renders during acquisition and older pages do not enlarge the replica
+  ---
+  duration_ms: 1318.987417
+  type: 'test'
+  ...
+# Subtest: wasm: cold pin skips historical joins and publishes tier 1 then the hinted group
+ok 19 - wasm: cold pin skips historical joins and publishes tier 1 then the hinted group
+  ---
+  duration_ms: 2201.822792
+  type: 'test'
+  ...
+# Subtest: wasm: one explicit cold sync resolves acquired with every table whole and group floored
+ok 20 - wasm: one explicit cold sync resolves acquired with every table whole and group floored
+  ---
+  duration_ms: 266.110959
+  type: 'test'
+  ...
+# Subtest: wasm: a join committed after the pin still expands and becomes usable
+ok 21 - wasm: a join committed after the pin still expands and becomes usable
+  ---
+  duration_ms: 2219.9885
+  type: 'test'
+  ...
+# Subtest: wasm: tier 1 inbox survives offline reopen before any history is usable
+ok 22 - wasm: tier 1 inbox survives offline reopen before any history is usable
+  ---
+  duration_ms: 2229.194458
+  type: 'test'
+  ...
+# Subtest: wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+ok 23 - wasm: A is complete offline after reopen, B unknown, floor and scalar answers stay truthful
+  ---
+  duration_ms: 2269.380792
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (until-revoked)
+ok 24 - wasm: revocation during acquisition withdraws usable group (until-revoked)
+  ---
+  duration_ms: 3258.247917
+  type: 'test'
+  ...
+# Subtest: wasm: revocation during acquisition withdraws usable group (delivered)
+ok 25 - wasm: revocation during acquisition withdraws usable group (delivered)
+  ---
+  duration_ms: 3283.682958
+  type: 'test'
+  ...
+# Subtest: wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+ok 26 - wasm: interactive send settles during the walk; hints switch, coalesce and unmount without starving completion
+  ---
+  duration_ms: 1461.771125
+  type: 'test'
+  ...
+# Subtest: wasm: old server uses legacy snapshots without any acquire request
+ok 27 - wasm: old server uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 205.552167
+  type: 'test'
+  ...
+# Subtest: wasm: old device uses legacy snapshots without any acquire request
+ok 28 - wasm: old device uses legacy snapshots without any acquire request
+  ---
+  duration_ms: 219.740792
+  type: 'test'
+  ...
+# Subtest: wasm: a partial walk reopens against an old server through staged replacement
+ok 29 - wasm: a partial walk reopens against an old server through staged replacement
+  ---
+  duration_ms: 1270.564125
+  type: 'test'
+  ...
+# Subtest: wasm: interrupted legacy snapshot reopens against an advertising server through staging
+ok 30 - wasm: interrupted legacy snapshot reopens against an advertising server through staging
+  ---
+  duration_ms: 1288.733125
+  type: 'test'
+  ...
+# Subtest: browser React hooks and IndexedDB close/reopen
+ok 31 - browser React hooks and IndexedDB close/reopen # SKIP not run (sandbox): react.test.mjs and witness/idb.mjs SIGABRT; supervisor owns browser validation
+  ---
+  duration_ms: 0.084333
+  type: 'test'
+  ...
+# Subtest: packed scheduler remembers every served group and retains the 32-entry cap
+ok 32 - packed scheduler remembers every served group and retains the 32-entry cap
+  ---
+  duration_ms: 0.165959
+  type: 'test'
+  ...
+# Subtest: process: packed pages publish usable counts for every unit together
+ok 33 - process: packed pages publish usable counts for every unit together
+  ---
+  duration_ms: 2233.945959
+  type: 'test'
+  ...
+# Subtest: wasm: packed pages publish usable counts for every unit together
+ok 34 - wasm: packed pages publish usable counts for every unit together
+  ---
+  duration_ms: 2240.873167
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 46268.909667
+-- process inspection: {"snapshots":4,"unrelatedRows":6764}
+-- client file ok: packages/snapback4/test/progressive-acquisition.test.mjs (46605 ms)

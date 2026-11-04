@@ -1,0 +1,1 @@
+day2:proof passed: persisted ids and values across two rollback/forward cycles; sources unchanged (add business assertions for policy coverage)

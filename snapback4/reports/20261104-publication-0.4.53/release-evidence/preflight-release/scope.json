@@ -1,0 +1,9 @@
+{
+  "purpose": "dependency audit only; not publication or native qualification",
+  "worktree": true,
+  "head": "9346e1fa3717e0223de52720b005027a4016e0dc",
+  "releaseVersion": "0.4.53",
+  "diffSha256": "a0c4ddc8782f70d847b07872789020035af9f68f57ac49368a75c977e5faa97d",
+  "nativeFrameworkBuilt": false,
+  "reuseForPublication": false
+}

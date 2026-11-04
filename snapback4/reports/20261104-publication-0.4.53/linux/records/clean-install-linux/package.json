@@ -1,0 +1,17 @@
+{
+  "name": "clean-install-linux",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "snapback4": "file:../../source/snapback4/target/publication/client-0.4.53/snapback4-0.4.53.tgz",
+    "snapback4-linux-x64": "file:../../linux-qualification-0.4.53/snapback4-linux-x64-0.4.53.tgz"
+  }
+}
