@@ -2,18 +2,13 @@
 //! same mutex without waiting, so they cannot spend a source's turn on it.
 
 use super::Module;
-use exact_js::{LaterHandler, NativeModule};
+use exact_js::{LaterHandler, NativeModule, NativeStorage};
 use serde_json::Value;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 impl NativeModule for Module {
-    fn configure_storage(
-        &mut self,
-        data: PathBuf,
-        cache: PathBuf,
-        temporary: PathBuf,
-    ) -> Result<(), String> {
-        Module::configure_storage(self, data, cache, temporary)
+    fn configure_storage(&mut self, storage: NativeStorage) -> Result<(), String> {
+        Module::configure_native_storage(self, storage)
     }
 
     fn call(&mut self, request: &Value) -> Result<Value, String> {

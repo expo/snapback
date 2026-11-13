@@ -24,6 +24,7 @@ use ibex2::{
     grant::{GrantSet, Operation},
     stdlib::app_fs::{resolve_sqlite, AppDirectories},
 };
+use exact_js::{NativeStorage, SqliteFile};
 use serde_json::{json, Value as Json};
 use snapback4_device::{ffi, native::Device, opening::Opening};
 use std::path::PathBuf;
@@ -32,17 +33,34 @@ use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 mod native;
 
 struct OpenPartition {
+    // Declared first, so SQLite's connection closes before the file's hold ends.
     device: Device,
     viewer: String,
-    // Retain the directory capabilities for the lifetime of SQLite's connection.
-    _directories: AppDirectories,
+    _hold: Hold,
+}
+
+/// What keeps the partition's file where it was resolved while SQLite has it
+/// open: the directory capabilities, or the host's reservation of the file.
+enum Hold {
+    Directories { _held: AppDirectories },
+    File { _held: SqliteFile },
+}
+
+/// Where the partition's file comes from.
+enum Storage {
+    /// Absolute roots a Rust source's host selected; the device resolves the
+    /// file under its own grants.
+    Roots([PathBuf; 3]),
+    /// The data module's native slot: the host admits the file under the
+    /// app's grants and reserves it from Exact's own SQLite (LLP 1154 D3).
+    Native(NativeStorage),
 }
 
 /// The device under the app's authority: grants, directories, one partition.
 pub struct Host {
     app_id: String,
     grants: GrantSet,
-    paths: Option<[PathBuf; 3]>,
+    storage: Option<Storage>,
     partition: Option<OpenPartition>,
 }
 
@@ -90,7 +108,7 @@ impl Module {
                     // capability's (`exact_runner::io_grants`), which ibex2's
                     // parser does not know.
                     grants: GrantSet::parse(&exact_runner::io_grants(grants))?,
-                    paths: None,
+                    storage: None,
                     partition: None,
                 },
                 client: None,
@@ -118,7 +136,18 @@ impl Module {
         if paths.iter().any(|path| !path.is_absolute()) {
             return Err("app storage roots must be absolute".into());
         }
-        state.0.host.paths = Some(paths);
+        state.0.host.storage = Some(Storage::Roots(paths));
+        Ok(())
+    }
+
+    /// Record the storage the data module's native slot is given. Nothing is
+    /// opened; `open` asks it for the partition's file.
+    pub fn configure_native_storage(&mut self, storage: NativeStorage) -> Result<(), String> {
+        let mut state = self.parts()?;
+        if state.0.host.partition.is_some() {
+            return Err("close the Snapback4 partition before changing storage roots".into());
+        }
+        state.0.host.storage = Some(Storage::Native(storage));
         Ok(())
     }
 
@@ -163,7 +192,7 @@ impl PartitionState {
         if self.validation {
             return Err("Snapback4 storage is withheld during validation".into());
         }
-        if self.host.paths.is_none() {
+        if self.host.storage.is_none() {
             return Err("Snapback4 app storage roots are not configured".into());
         }
         exact_snapback4_client::dispatch(&mut self.client, &mut self.host, request)
@@ -222,18 +251,33 @@ impl Host {
             .map(Json::to_string);
         let opening =
             Opening::parse(backend.as_deref()).map_err(|e| format!("Snapback4 backend: {e}"))?;
-        let paths = self.paths.as_ref().ok_or("storage is not configured")?;
-        for path in paths {
-            std::fs::create_dir_all(path).map_err(|e| format!("app storage: {e}"))?;
-        }
-        let directories =
-            AppDirectories::new(&paths[0], &paths[1], &paths[2]).map_err(|e| e.to_string())?;
-        let physical =
-            resolve_sqlite(&self.grants, Some(&directories), path).map_err(|e| e.to_string())?;
-        let existed = physical.try_exists().map_err(|e| e.to_string())?;
-        if !existed && matches!(opening, Opening::Kept) {
-            return Err(NEEDS_BACKEND.into());
-        }
+        let (physical, existed, hold) = match self.storage.as_ref().ok_or("storage is not configured")? {
+            Storage::Roots(paths) => {
+                for path in paths {
+                    std::fs::create_dir_all(path).map_err(|e| format!("app storage: {e}"))?;
+                }
+                let directories = AppDirectories::new(&paths[0], &paths[1], &paths[2])
+                    .map_err(|e| e.to_string())?;
+                let physical = resolve_sqlite(&self.grants, Some(&directories), path)
+                    .map_err(|e| e.to_string())?;
+                let existed = physical.try_exists().map_err(|e| e.to_string())?;
+                if !existed && matches!(opening, Opening::Kept) {
+                    return Err(NEEDS_BACKEND.into());
+                }
+                (physical, existed, Hold::Directories { _held: directories })
+            }
+            Storage::Native(storage) => {
+                let file = storage.sqlite(path)?;
+                let existed = file.existed();
+                if !existed && matches!(opening, Opening::Kept) {
+                    // The host made the file empty; leave nothing that a later
+                    // open would take for a kept partition.
+                    std::fs::remove_file(file.path()).map_err(|e| format!("app storage: {e}"))?;
+                    return Err(NEEDS_BACKEND.into());
+                }
+                (file.path().to_path_buf(), existed, Hold::File { _held: file })
+            }
+        };
         // A kept partition opens on its own backend, so a mismatched opener
         // changes nothing before the owner check below. Adopting a newer
         // backend is the sync round's, after it observes the store.
@@ -248,7 +292,7 @@ impl Host {
         self.partition = Some(OpenPartition {
             device,
             viewer: viewer.into(),
-            _directories: directories,
+            _hold: hold,
         });
         Ok(json!({"ok": true}))
     }

@@ -2,6 +2,7 @@ use super::*;
 use exact_js::NativeReply;
 use exact_runner::{Outcome, Reply};
 use serde_json::json;
+use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     mpsc,
