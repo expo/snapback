@@ -2,9 +2,12 @@
 //!
 //! rusqlite 0.41 installs a callback only through `&mut Connection`, and an
 //! attempt arms its deadline inside an open transaction, which lends only
-//! `&Connection`. So each store connection receives one busy handler and one
-//! progress handler when it opens (`Handlers::install`), and a deadline scope
-//! arms and disarms them. No scope installs or removes a callback.
+//! `&Connection`. So each store connection receives one busy handler when it
+//! opens (`Handlers::install`). Its progress handler is installed once, by the
+//! first `Store::program_transaction_until` on that connection, before BEGIN:
+//! every SQLite deadline-bound attempt runs in a transaction opened there, and
+//! connections that never retry pay no per-step callback. A deadline scope
+//! arms and disarms the handlers; no scope installs or removes a callback.
 use super::*;
 use std::{
     cell::Cell,
@@ -28,7 +31,9 @@ fn deadline_wait() -> bool {
     })
 }
 
-/// A connection's lock wait when the host sets none (SQLite's and rusqlite's default).
+/// A connection's lock wait when the host sets none. SQLite itself starts at
+/// 0, but rusqlite sets 5 s inside every open (in-memory included), and
+/// `Store::open` uses the same value; the handler keeps it.
 pub(crate) const DEFAULT_BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 /// Virtual machine steps between deadline checks.
 const PROGRESS_STEPS: std::ffi::c_int = 1000;
@@ -60,6 +65,8 @@ struct State {
     busy_armed: AtomicBool,
     // Nanoseconds after `epoch`, plus one; zero leaves statements uninterrupted.
     interrupt_at: AtomicU64,
+    // Whether this connection's progress handler is ours and installed.
+    progress: AtomicBool,
     epoch: Instant,
 }
 impl State {
@@ -86,7 +93,8 @@ impl State {
     }
 }
 
-/// One connection's permanent busy and progress handlers. Cloning shares them.
+/// One connection's busy handler (from open) and progress handler (from its
+/// first deadline-bound transaction). Cloning shares them.
 #[derive(Clone)]
 pub(crate) struct Handlers(Arc<State>);
 impl Handlers {
@@ -99,13 +107,28 @@ impl Handlers {
             timeout_ms: AtomicU64::new(timeout_millis(timeout)?),
             busy_armed: AtomicBool::new(false),
             interrupt_at: AtomicU64::new(0),
+            progress: AtomicBool::new(false),
             epoch: Instant::now(),
         }));
         let busy = handlers.0.clone();
         conn.busy_handler(Some(move |count| busy.busy(count)))?;
-        let progress = handlers.0.clone();
-        conn.progress_handler(PROGRESS_STEPS, Some(move || progress.interrupted()))?;
         Ok(handlers)
+    }
+    /// Install the progress handler unless this connection already has it.
+    /// Needs the connection exclusively, so it runs before a transaction opens.
+    fn ensure_progress(&self, conn: &mut Connection) -> Result<(), RuntimeError> {
+        if !self.0.progress.load(Ordering::Acquire) {
+            let progress = self.0.clone();
+            conn.progress_handler(PROGRESS_STEPS, Some(move || progress.interrupted()))?;
+            self.0.progress.store(true, Ordering::Release);
+        }
+        Ok(())
+    }
+    /// A fixture borrowed the connection mutably and may have replaced the
+    /// progress handler; the next deadline-bound transaction installs it again.
+    #[cfg(feature = "test-support")]
+    pub(crate) fn forget_progress(&self) {
+        self.0.progress.store(false, Ordering::Release);
     }
     pub(crate) fn timeout(&self) -> Duration {
         Duration::from_millis(self.0.timeout_ms.load(Ordering::Acquire))
@@ -114,10 +137,17 @@ impl Handlers {
         self.0.timeout_ms.store(timeout_millis(timeout)?, Ordering::Release);
         Ok(())
     }
-    /// Interrupt this connection's statements once `deadline` passes, until the guard drops.
-    pub(crate) fn interrupt_at(&self, deadline: Instant) -> Interrupt<'_> {
+    /// Interrupt this connection's statements once `deadline` passes, until
+    /// the guard drops. Refuses when no progress handler would observe it, so
+    /// an attempt outside `program_transaction_until` cannot lose its deadline.
+    pub(crate) fn interrupt_at(&self, deadline: Instant) -> Result<Interrupt<'_>, RuntimeError> {
+        if !self.0.progress.load(Ordering::Acquire) {
+            return Err(RuntimeError::Store(
+                "deadline-bound SQLite work must open through program_transaction_until".into(),
+            ));
+        }
         let previous = self.0.interrupt_at.swap(self.0.encode(deadline), Ordering::AcqRel);
-        Interrupt { handlers: self, previous }
+        Ok(Interrupt { handlers: self, previous })
     }
 }
 pub(crate) struct Interrupt<'a> {
@@ -180,6 +210,7 @@ impl Store {
         deadline: Instant,
     ) -> Result<Tx<'_>, RuntimeError> {
         self.check_ownership()?;
+        self.handlers.ensure_progress(&mut self.conn)?;
         let _budget = Budget::begin(&self.handlers, deadline)?;
         // The &mut Store still gives exclusive custody. The guard disarms the
         // deadline on both BEGIN outcomes, before any COMMIT.
@@ -263,11 +294,206 @@ mod tests {
         // Progress: a passed deadline interrupts statements only while armed.
         let count = "WITH RECURSIVE n(v) AS (VALUES(1) UNION ALL SELECT v+1 FROM n WHERE v<100000) SELECT count(*) FROM n";
         {
-            let _interrupt = store.handlers.interrupt_at(Instant::now());
+            let _interrupt = store.handlers.interrupt_at(Instant::now()).unwrap();
             let error = store.conn.query_row(count, [], |row| row.get::<_, i64>(0)).unwrap_err();
             assert_eq!(error.sqlite_error_code(), Some(rusqlite::ErrorCode::OperationInterrupted), "{error}");
         }
         assert_eq!(store.conn.query_row(count, [], |row| row.get::<_, i64>(0)).unwrap(), 100000);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    const COUNT: &str = "WITH RECURSIVE n(v) AS (VALUES(1) UNION ALL SELECT v+1 FROM n WHERE v<100000) SELECT count(*) FROM n";
+    fn uninterrupted(store: &Store) {
+        assert_eq!(store.conn.query_row(COUNT, [], |row| row.get::<_, i64>(0)).unwrap(), 100000);
+    }
+    /// a store at a fresh path with its ordinary timeout, and a second
+    /// connection that can hold the writer lock against it.
+    fn contended(timeout: Duration) -> (Store, Connection, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("sb4-deadline-{:x}", crate::ids::seed()));
+        std::fs::create_dir(&dir).unwrap();
+        let store = Store::open(&dir.join("store.sqlite")).unwrap();
+        store.set_busy_timeout(timeout).unwrap();
+        let blocker = Connection::open(dir.join("store.sqlite")).unwrap();
+        (store, blocker, dir)
+    }
+    fn timed<T>(run: impl FnOnce() -> T) -> (T, Duration) {
+        let started = Instant::now();
+        let value = run();
+        (value, started.elapsed())
+    }
+    fn within(elapsed: Duration, low: u64, high: u64) {
+        assert!(elapsed >= Duration::from_millis(low) && elapsed < Duration::from_millis(high), "{elapsed:?} outside {low}..{high} ms");
+    }
+
+    #[test]
+    fn progress_handler_is_installed_by_the_first_deadline_transaction_only() {
+        let (mut store, blocker, dir) = contended(Duration::from_millis(200));
+        drop(blocker);
+        assert!(store.handlers.interrupt_at(Instant::now()).is_err(), "no handler would observe the deadline");
+        store.transaction().unwrap().rollback().unwrap();
+        assert!(store.handlers.interrupt_at(Instant::now()).is_err(), "ordinary transactions install nothing");
+        store.program_transaction_until(Instant::now() + Duration::from_secs(5)).unwrap().rollback().unwrap();
+        let interrupt = store.handlers.interrupt_at(Instant::now()).unwrap();
+        assert!(store.conn.query_row(COUNT, [], |row| row.get::<_, i64>(0)).is_err());
+        drop(interrupt);
+        uninterrupted(&store);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    // finding 4: rusqlite sets 5 s inside every open, in-memory included, so
+    // in-memory stores had 5 s before the handler; they keep it.
+    #[test]
+    fn in_memory_stores_keep_the_lock_wait_rusqlite_sets_at_open() {
+        let raw = Connection::open_in_memory().unwrap();
+        assert_eq!(raw.query_row("PRAGMA busy_timeout", [], |row| row.get::<_, i64>(0)).unwrap(), 5000);
+        let memory = Store::memory().unwrap();
+        assert_eq!(memory.handlers.timeout(), DEFAULT_BUSY_TIMEOUT);
+        assert_eq!(memory.fork_memory().unwrap().handlers.timeout(), DEFAULT_BUSY_TIMEOUT);
+        assert_eq!(memory.empty_with_asset_ledger().unwrap().handlers.timeout(), DEFAULT_BUSY_TIMEOUT);
+        assert_eq!(DEFAULT_BUSY_TIMEOUT, Duration::from_millis(5000));
+    }
+
+    // finding 1a: nested scopes on two connections on one thread share the
+    // tighter deadline, and the inner scope's drop restores the outer one.
+    #[test]
+    fn nested_scopes_on_two_connections_take_the_tighter_deadline_and_restore_the_outer() {
+        let (a, a_blocker, a_dir) = contended(Duration::from_secs(3));
+        let (mut b, b_blocker, b_dir) = contended(Duration::from_secs(3));
+        a_blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+        b_blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let start = Instant::now();
+        let a_deadline = start + Duration::from_millis(500);
+        let outer = Budget::begin(&a.handlers, a_deadline).unwrap();
+        // b is tighter: its wait ends at its own deadline.
+        let (inner, elapsed) = timed(|| b.program_transaction_until(Instant::now() + Duration::from_millis(60)).map(drop));
+        assert!(inner.unwrap_err().is_busy());
+        within(elapsed, 50, 300);
+        // b's scope dropped: a's own wait ends at a's deadline, not b's and
+        // not a's 3 s ordinary timeout.
+        let (waited, _) = timed(|| a.conn.execute_batch("BEGIN IMMEDIATE"));
+        assert!(waited.is_err());
+        within(start.elapsed(), 480, 900);
+        drop(outer);
+        // b looser than a: b's wait ends at a's deadline.
+        let start = Instant::now();
+        let outer = Budget::begin(&a.handlers, start + Duration::from_millis(150)).unwrap();
+        let (inner, _) = timed(|| b.program_transaction_until(Instant::now() + Duration::from_secs(2)).map(drop));
+        assert!(inner.unwrap_err().is_busy());
+        within(start.elapsed(), 140, 500);
+        drop(outer);
+        DEADLINE.with(|slot| assert_eq!(slot.get(), None));
+        assert!(!a.handlers.0.busy_armed.load(Ordering::Acquire) && !b.handlers.0.busy_armed.load(Ordering::Acquire));
+        drop((a, b, a_blocker, b_blocker));
+        std::fs::remove_dir_all(a_dir).unwrap();
+        std::fs::remove_dir_all(b_dir).unwrap();
+    }
+
+    // finding 1b: unwinding through an armed attempt disarms everything it armed.
+    #[test]
+    fn unwinding_through_an_armed_attempt_restores_the_ordinary_policy() {
+        let (mut store, blocker, dir) = contended(Duration::from_millis(400));
+        let deadline = Instant::now() + Duration::from_millis(80);
+        let unwound = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let tx = crate::store_port::AnyTx::from_sqlite(store.program_transaction_until(deadline).unwrap());
+            let _budget = tx.bound_program_attempt(deadline).unwrap();
+            assert!(store_armed(&tx));
+            panic!("unwind with the attempt armed");
+        }));
+        assert!(unwound.is_err());
+        DEADLINE.with(|slot| assert_eq!(slot.get(), None));
+        assert!(!store.handlers.0.busy_armed.load(Ordering::Acquire));
+        assert_eq!(store.handlers.0.interrupt_at.load(Ordering::Acquire), 0);
+        assert!(store.conn.is_autocommit(), "the unwound transaction rolled back");
+        std::thread::sleep(deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(20));
+        uninterrupted(&store);
+        blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let (waited, elapsed) = timed(|| store.conn.execute_batch("BEGIN IMMEDIATE"));
+        assert!(waited.is_err());
+        within(elapsed, 400, 3000);
+        drop((store, blocker));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    fn store_armed(tx: &crate::store_port::AnyTx<'_>) -> bool {
+        tx.with_sqlite(|tx| tx.deadline_handlers().0.busy_armed.load(Ordering::Acquire) && tx.deadline_handlers().0.interrupt_at.load(Ordering::Acquire) != 0)
+    }
+
+    // finding 1c: a disarmed attempt that outlives its deadline still commits
+    // under contention with the ordinary policy, and the connection stays usable.
+    #[test]
+    fn a_disarmed_attempt_commits_after_its_deadline_under_contention() {
+        let (mut store, _, dir) = contended(Duration::from_secs(2));
+        // rollback journal: COMMIT needs EXCLUSIVE, so a reader makes it wait.
+        store.conn.execute_batch("PRAGMA journal_mode=DELETE; CREATE TABLE late(v INTEGER)").unwrap();
+        let path = dir.join("store.sqlite");
+        let deadline = Instant::now() + Duration::from_millis(60);
+        let tx = crate::store_port::AnyTx::from_sqlite(store.program_transaction_until(deadline).unwrap());
+        let budget = tx.bound_program_attempt(deadline).unwrap();
+        tx.with_sqlite(|tx| tx.conn().execute("INSERT INTO late VALUES(1)", [])).unwrap();
+        tx.prepare_program_commit().unwrap();
+        drop(budget);
+        assert!(!store_armed(&tx));
+        std::thread::sleep(deadline.saturating_duration_since(Instant::now()) + Duration::from_millis(20));
+        let (reading, read) = std::sync::mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let reader = Connection::open(path).unwrap();
+            reader.execute_batch("BEGIN").unwrap();
+            reader.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get::<_, i64>(0)).unwrap();
+            reading.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(250));
+            reader.execute_batch("COMMIT").unwrap();
+        });
+        read.recv().unwrap();
+        let (committed, elapsed) = timed(|| tx.commit_program());
+        assert!(committed.is_ok(), "{:?}", committed.err().map(|f| f.error));
+        within(elapsed, 150, 2000);
+        reader.join().unwrap();
+        assert_eq!(store.conn.query_row("SELECT count(*) FROM late", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
+        uninterrupted(&store);
+        let tx = store.transaction().unwrap();
+        tx.conn().execute("INSERT INTO late VALUES(2)", []).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(store.conn.query_row("SELECT count(*) FROM late", [], |row| row.get::<_, i64>(0)).unwrap(), 2);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    // finding 1d: deadlines live per thread.
+    #[test]
+    fn deadlines_on_two_threads_are_independent() {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let run = |wait: u64| {
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                let (mut store, blocker, dir) = contended(Duration::from_secs(3));
+                blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+                barrier.wait();
+                let (result, elapsed) = timed(|| store.program_transaction_until(Instant::now() + Duration::from_millis(wait)).map(drop));
+                assert!(result.unwrap_err().is_busy());
+                drop((store, blocker));
+                std::fs::remove_dir_all(dir).unwrap();
+                elapsed
+            })
+        };
+        let (short, long) = (run(80), run(600));
+        within(short.join().unwrap(), 70, 400);
+        within(long.join().unwrap(), 580, 1500);
+    }
+
+    // finding 5: lending the connection mutably forgets the progress handler,
+    // so the next deadline-bound transaction installs it again.
+    #[test]
+    fn a_fixture_that_removes_the_progress_handler_cannot_disable_deadlines() {
+        let (mut store, blocker, dir) = contended(Duration::from_millis(200));
+        drop(blocker);
+        store.program_transaction_until(Instant::now() + Duration::from_secs(5)).unwrap().rollback().unwrap();
+        store.test_support_conn_mut().progress_handler(0, None::<fn() -> bool>).unwrap();
+        assert!(store.handlers.interrupt_at(Instant::now()).is_err());
+        store.program_transaction_until(Instant::now() + Duration::from_secs(5)).unwrap().rollback().unwrap();
+        let interrupt = store.handlers.interrupt_at(Instant::now()).unwrap();
+        assert!(store.conn.query_row(COUNT, [], |row| row.get::<_, i64>(0)).is_err());
+        drop(interrupt);
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
     }

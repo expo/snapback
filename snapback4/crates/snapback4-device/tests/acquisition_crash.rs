@@ -98,6 +98,10 @@ fn acquisition_crash_worker() {
     if std::env::var("NA_CRASH_TIER").unwrap() == "sqlite" {
         let mut d = snapback4_device::native::Device::open(&dir.join("store.sqlite"), Some(f.backend)).unwrap();
         let hook = cuts.clone();
+        // a device never runs deadline-bound program work (the store installs its
+        // progress handler only in program_transaction_until), so this counter
+        // and its removal below replace nothing of the store's; a later deadline
+        // transaction would reinstall the store's handler anyway.
         d.store_mut().test_support_conn_mut().progress_handler(200, Some(move || { hook.tick(); false })).unwrap();
         apply(&mut d, &f.new, |_| {});
         d.store_mut().test_support_conn_mut().progress_handler(0, None::<fn() -> bool>).unwrap();

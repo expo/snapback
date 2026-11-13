@@ -13,6 +13,12 @@ macro_rules! fixture_access {
     ($handle:ty) => {
         impl $handle {
             /// Intended caller: consumer debug test fixtures.
+            ///
+            /// Do not set the lock wait through this connection: `busy_timeout()`
+            /// or `PRAGMA busy_timeout = N` replaces the store's busy handler, so
+            /// program deadlines and `set_busy_timeout` silently stop applying.
+            /// Use `set_busy_timeout`. `PRAGMA busy_timeout` reads 0 here; read
+            /// the policy with `test_support_busy_timeout`.
             pub fn test_support_conn(&self) -> &Connection {
                 self.conn()
             }
@@ -35,8 +41,15 @@ fixture_access!(Store);
 fixture_access!(Tx<'_>);
 impl Store {
     /// Intended caller: consumer debug test fixtures that install SQLite callbacks.
-    /// A replaced busy or progress handler no longer honours program deadlines.
+    ///
+    /// A fixture's own busy handler (or `busy_timeout`) replaces the store's
+    /// for this connection: program deadlines and `set_busy_timeout` stop
+    /// applying until the store is reopened. A replaced or removed progress
+    /// handler is tolerated: lending the connection marks it unknown, and the
+    /// next deadline-bound transaction installs the store's handler again,
+    /// replacing the fixture's.
     pub fn test_support_conn_mut(&mut self) -> &mut Connection {
+        self.handlers.forget_progress();
         &mut self.conn
     }
     /// The connection's ordinary lock wait. `PRAGMA busy_timeout` reads 0

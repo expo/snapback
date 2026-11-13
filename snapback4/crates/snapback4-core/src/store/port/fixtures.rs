@@ -5,6 +5,9 @@ use crate::RuntimeError;
 macro_rules! fixture_access {
     ($handle:ty, $wrapper:ident) => {
         impl $handle {
+            /// Never set the lock wait through this connection (`busy_timeout()`
+            /// or `PRAGMA busy_timeout = N`): it replaces the store's busy handler
+            /// and silently disables program deadlines. Use `set_busy_timeout`.
             pub fn test_support_conn(&self) -> &rusqlite::Connection {
                 match self { Self::Sqlite($wrapper(inner)) => inner.test_support_conn(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
             }
@@ -22,6 +25,9 @@ fixture_access!(AnyTx<'_>, SqliteTx);
 // Installing a SQLite callback needs the connection exclusively, so only an
 // owned store (never an open transaction) lends it.
 impl AnyStore {
+    /// See `Store::test_support_conn_mut`: a fixture busy handler replaces the
+    /// store's; a removed progress handler is reinstalled by the next
+    /// deadline-bound transaction.
     pub fn test_support_conn_mut(&mut self) -> &mut rusqlite::Connection {
         match self { Self::Sqlite(SqliteStore(inner)) => inner.test_support_conn_mut(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
     }
