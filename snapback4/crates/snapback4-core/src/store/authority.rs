@@ -281,7 +281,7 @@ impl Store {
         self.check_ownership()?;
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
         let read_storage = self.read_sessions.snapshot()?;
-        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog })
+        Ok(Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog })
     }
     pub(crate) fn session_authority_transaction(&self, digest: &str, validate_generation: bool) -> Result<(Tx<'_>, crate::identity::facts::SessionFacts), RuntimeError> {
         self.check_ownership()?;
@@ -289,7 +289,7 @@ impl Store {
         let sql = self.conn.unchecked_transaction()?;
         // Hold only until the SELECT pins the schema and authority snapshot.
         let read_storage = self.read_sessions.snapshot()?;
-        let tx = Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
+        let tx = Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
         let mut facts = tx.session_authority_facts(digest)?;
         if self.cache_scope().is_some() {
             facts.revision = self.cache_revision.snapshot(cache_before);

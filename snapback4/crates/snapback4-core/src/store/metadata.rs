@@ -139,7 +139,7 @@ mod tests {
         std::thread::scope(|scope| {
             let race = &race;
             let other = scope.spawn(move || {
-                race.install_sqlite_busy_handler(contender.conn());
+                race.install_sqlite_busy_handler(&mut contender.conn);
                 let tx = contender
                     .transaction_with_begin_hook(true, || race.after_begin(false))
                     .unwrap();

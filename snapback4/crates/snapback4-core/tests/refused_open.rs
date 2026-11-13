@@ -136,8 +136,8 @@ fn concurrent_openers_recheck_version_and_backend_after_the_writer_wait() {
                 db.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
                 if entry == "repair" { db.execute("DELETE FROM _meta WHERE key='live_sum_candidates'", []).unwrap(); }
                 let stores: Vec<_> = (0..8).map(|_| {
-                    let store = Store::open(&fixture.path()).unwrap();
-                    store.test_support_conn().busy_handler(Some(busy)).unwrap();
+                    let mut store = Store::open(&fixture.path()).unwrap();
+                    store.test_support_conn_mut().busy_handler(Some(busy)).unwrap();
                     store
                 }).collect();
                 db.execute_batch("BEGIN IMMEDIATE").unwrap();
@@ -194,11 +194,11 @@ fn repair_rechecks_the_backend_after_releasing_its_validated_snapshot() {
             let db = fixture.db();
             db.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
             db.execute_batch("DELETE FROM _meta WHERE key='live_sum_candidates'; INSERT INTO _meta VALUES ('release','1')").unwrap();
-            let store = Store::open(&fixture.path()).unwrap();
+            let mut store = Store::open(&fixture.path()).unwrap();
             let (ready, gate) = mpsc::sync_channel(1);
             let (release, proceed) = mpsc::sync_channel(1);
             let mut begins = 0;
-            store.test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
+            store.test_support_conn_mut().authorizer(Some(move |context: AuthContext<'_>| {
                 if matches!(context.action, AuthAction::Transaction { operation: TransactionOperation::Begin }) {
                     begins += 1;
                     // The initial validation has rolled back before the next
@@ -268,7 +268,7 @@ fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
         let (reading, at_read) = mpsc::sync_channel(1);
         let (resume, proceed) = mpsc::sync_channel(1);
         let mut paused = false;
-        (&reader.store()).test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
+        reader.store_mut().test_support_conn_mut().authorizer(Some(move |context: AuthContext<'_>| {
             if !paused && matches!(context.action, AuthAction::Read { table_name: "_commits", .. }) {
                 // mutate_ephemeral has already established its SQLite snapshot
                 // and read identity/generation, but has not taken the hub yet.
@@ -281,9 +281,9 @@ fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
         let reading = std::thread::spawn(move || reader.mutate_ephemeral("setTyping", Context::new("alice", Default::default()).at(1000)));
         at_read.recv_timeout(Duration::from_secs(10)).unwrap();
         let (committing, at_commit) = mpsc::sync_channel(1);
-        (&engine.store()).test_support_conn().busy_timeout(Duration::from_secs(2)).unwrap();
-        (&engine.store()).test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
-            // rusqlite 0.40 maps COMMIT to Unknown. The authorizer runs before
+        engine.store().set_busy_timeout(Duration::from_secs(2)).unwrap();
+        engine.store_mut().test_support_conn_mut().authorizer(Some(move |context: AuthContext<'_>| {
+            // rusqlite 0.41 maps COMMIT to Unknown. The authorizer runs before
             // SQLite tries to promote the writer lock; commit_hook is too late.
             if matches!(context.action, AuthAction::Transaction { operation: TransactionOperation::Unknown }) {
                 committing.send(()).unwrap();
@@ -330,7 +330,7 @@ fn hub_poison_racing_acceptance_is_reset_without_post_commit_refusal() {
         let poisoning = hub.clone();
         let generation = engine.generation();
         let incarnation = hub.snapshot().unwrap().version.incarnation;
-        (&engine.store()).test_support_conn().commit_hook(Some(move || {
+        engine.store_mut().test_support_conn_mut().commit_hook(Some(move || {
             let hub = poisoning.clone();
             assert!(std::thread::spawn(move || { let _held = hub.lock().unwrap(); panic!("concurrent reader poisoned hub"); }).join().is_err());
             false

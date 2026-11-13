@@ -171,8 +171,8 @@ fn memory_query_store_id_failure_refuses_before_program_reads() {
             .engine
             .call(move |engine, _| {
                 engine
-                    .store()
-                    .test_support_conn()
+                    .store_mut()
+                    .test_support_conn_mut()
                     .authorizer(Some(move |ctx: AuthContext<'_>| {
                         if let AuthAction::Read { table_name, .. } = ctx.action {
                             if matches!(table_name, "_meta" | "_commits") {
@@ -214,7 +214,7 @@ fn query_store_id_failure_refuses_before_program_reads() {
             snapback4_core::Store::open(&directory.0.join("store.sqlite")).unwrap(),
             SOURCE,
         );
-        let (epoch, reader) = host.shared.reader().unwrap();
+        let (epoch, mut reader) = host.shared.reader().unwrap();
         let (armed, failed, reads) = (
             Arc::new(AtomicBool::new(false)),
             Arc::new(AtomicBool::new(false)),
@@ -222,8 +222,8 @@ fn query_store_id_failure_refuses_before_program_reads() {
         );
         let (a, f, r) = (armed.clone(), failed.clone(), reads.clone());
         reader
-            .store()
-            .test_support_conn()
+            .store_mut()
+            .test_support_conn_mut()
             .authorizer(Some(move |ctx: AuthContext<'_>| {
                 if let AuthAction::Read { table_name, .. } = ctx.action {
                     if matches!(table_name, "_meta" | "_commits") {

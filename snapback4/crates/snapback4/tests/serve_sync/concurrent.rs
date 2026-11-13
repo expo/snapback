@@ -17,11 +17,11 @@ fn detached_sync_never_skips_a_commit_after_its_snapshot() {
             // read_head checks out and returns this loan before the page reads.
             // Pause on a row/log read, after read_transaction's identity SELECT
             // pinned the WAL snapshot, but before materializing the page.
-            let (epoch, reader) = host.shared.reader().unwrap();
+            let (epoch, mut reader) = host.shared.reader().unwrap();
             let (entered, waiting) = mpsc::channel();
             let (resume, resumed) = mpsc::channel();
             let once = std::sync::atomic::AtomicBool::new(false);
-            (reader.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+            reader.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                 if matches!(ctx.action, rusqlite::hooks::AuthAction::Read { table_name, .. }
                     if table_name == if stream { "_log" } else { "r" })
                     && !once.swap(true, Ordering::SeqCst) {

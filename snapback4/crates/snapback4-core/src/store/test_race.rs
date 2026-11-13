@@ -136,7 +136,7 @@ impl FenceRace {
     }
 
     /// Install before BEGIN, on the contender thread and connection only.
-    pub(crate) fn install_sqlite_busy_handler(&self, conn: &rusqlite::Connection) {
+    pub(crate) fn install_sqlite_busy_handler(&self, conn: &mut rusqlite::Connection) {
         let witness = self.witness.lock().unwrap();
         let counter = match &*witness {
             Witness::Sqlite(counter) => counter,
@@ -233,6 +233,7 @@ impl Store {
         }
         Ok(Tx {
             cache_revision: &self.cache_revision,
+            handlers: &self.handlers,
             group_tail: Default::default(),
             lifecycle: false,
             read_sessions: &self.read_sessions,
@@ -261,7 +262,7 @@ fn sqlite_fence_race_rejects_a_contender_that_takes_no_fence() {
     std::thread::scope(|scope| {
         let race = &race;
         let peer = scope.spawn(move || {
-            race.install_sqlite_busy_handler(contender.conn());
+            race.install_sqlite_busy_handler(&mut contender.conn);
             let tx = contender
                 .transaction_with_begin_hook(false, || race.after_begin(false))
                 .unwrap();

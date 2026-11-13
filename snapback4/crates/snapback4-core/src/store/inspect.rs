@@ -42,12 +42,12 @@ impl Inspection {
         self.conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
         super::Store::check_version(&self.conn).map_err(|error| ("E_SCHEMA_CAPABILITY", error.to_string()))
     }
-    pub fn build_views(&self, schema: &Schema, ephemeral: impl FnMut(&str)) -> Result<()> {
+    pub fn build_views(&mut self, schema: &Schema, ephemeral: impl FnMut(&str)) -> Result<()> {
         self.build_retained_views(schema, false, false, ephemeral)
     }
     // @ref LLP 3000.000.000#19.4 — active and retained records share one snapshot and authorizer.
     pub fn build_retained_views(
-        &self,
+        &mut self,
         schema: &Schema,
         dormant: bool,
         all_releases: bool,
@@ -211,8 +211,8 @@ impl Inspection {
         self.authorize(views, backing)?;
         Ok(())
     }
-    fn authorize(&self, views: BTreeSet<String>, backing: BTreeSet<String>) -> Result<()> {
-        let conn = &self.conn;
+    fn authorize(&mut self, views: BTreeSet<String>, backing: BTreeSet<String>) -> Result<()> {
+        let conn = &mut self.conn;
         let denied = self.denied.clone();
         let reason = denied.clone();
         conn.authorizer(Some(move |context: AuthContext<'_>| {
@@ -283,7 +283,6 @@ impl Inspection {
         check_columns(
             &original
                 .column_names()
-                .into_iter()
                 .map(str::to_owned)
                 .collect::<Vec<_>>(),
         )?;
@@ -292,7 +291,6 @@ impl Inspection {
         let mut query = conn.prepare(&wrapped).map_err(query_error)?;
         let columns = query
             .column_names()
-            .into_iter()
             .map(str::to_owned)
             .collect::<Vec<_>>();
         let kinds = if object_rows {
@@ -471,7 +469,7 @@ impl Inspection {
             return Ok(Vec::new());
         }
         let mut query = conn.prepare(&format!("SELECT * FROM {table} WHERE {key} = ?1"))?;
-        let columns: Vec<String> = query.column_names().iter().map(|s| s.to_string()).collect();
+        let columns: Vec<String> = query.column_names().map(str::to_owned).collect();
         query
             .query_map([id], |row| {
                 let mut fields = serde_json::Map::new();
@@ -546,7 +544,7 @@ mod tests {
 
     #[test]
     fn generated_query_authorizer_and_limits() {
-        let inspection = Inspection {
+        let mut inspection = Inspection {
             conn: Connection::open_in_memory().unwrap(),
             denied: Arc::new(AtomicU8::new(0)),
         };

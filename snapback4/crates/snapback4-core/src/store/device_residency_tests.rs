@@ -10,7 +10,7 @@ use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, time::Duration};
 #[test]
 fn interrupted_installation_is_one_transaction_and_excludes_a_competing_installer() {
     let path = std::env::temp_dir().join(format!("snapback4-residency-install-{}.sqlite", std::process::id()));
-    let conn = Connection::open(&path).unwrap();
+    let mut conn = Connection::open(&path).unwrap();
     conn.execute_batch("CREATE TABLE r (t INTEGER, id TEXT, data TEXT, PRIMARY KEY(t, id)); INSERT INTO r VALUES (1, 'a', 'é');").unwrap();
     let (reached, at_trigger) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();

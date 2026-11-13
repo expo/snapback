@@ -134,9 +134,9 @@ fn activation_workspace_rolls_back_and_restores_the_callers_cache() {
     let before = [rows(&e, "r"), rows(&e, "i"), rows(&e, "_commits")];
     let generation = e.generation();
     let b = compile(&format!("{BASE}{VIEWS}"));
-    (&e.store()).test_support_conn().commit_hook(Some(|| true)).unwrap();
+    e.store_mut().test_support_conn_mut().commit_hook(Some(|| true)).unwrap();
     assert!(e.adopt_at(b.schema.clone(), b.programs.clone(), 20).is_err());
-    (&e.store()).test_support_conn().commit_hook(None::<fn() -> bool>).unwrap();
+    e.store_mut().test_support_conn_mut().commit_hook(None::<fn() -> bool>).unwrap();
     assert_eq!(e.generation(), generation);
     for (table, expected) in ["r", "i", "_commits"].into_iter().zip(before) { assert_eq!(rows(&e, table), expected); }
     let conn = (&e.store()).test_support_conn();
@@ -293,10 +293,10 @@ fn an_added_view_does_not_touch_an_unrelated_index() {
         }
     }
     let ti: i64 = (&e.store()).test_support_conn().query_row("SELECT num FROM _catalog WHERE name='unrelated.byId'",[],|r|r.get(0)).unwrap();
-    (&e.store()).test_support_conn().trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,Some(record));
+    e.store_mut().test_support_conn_mut().trace_v2(rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,Some(record)).unwrap();
     let b = compile(&format!("{BASE}{VIEWS}"));
     e.adopt_at(b.schema, b.programs, 20).unwrap();
-    (&e.store()).test_support_conn().trace_v2(rusqlite::trace::TraceEventCodes::empty(),None);
+    e.store_mut().test_support_conn_mut().trace_v2(rusqlite::trace::TraceEventCodes::empty(),None::<fn(rusqlite::trace::TraceEvent<'_>)>).unwrap();
     SQL.with(|seen| {
         let seen=seen.borrow();
         assert!(seen.iter().any(|sql|sql.starts_with("INSERT INTO i")), "observe the candidate index installation");
@@ -388,13 +388,13 @@ fn validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not() {
     e.seed_at([("notes".into(),object([("id",Value::Id("row".into())),("label",Value::String("x".repeat(6000)))]))],2).unwrap();
     // A program-only adoption has no index work. An authorizer proves it does
     // not secretly scan even a single previously admitted key.
-    (&e.store()).test_support_conn().authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
+    e.store_mut().test_support_conn_mut().authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
         if matches!(ctx.action,rusqlite::hooks::AuthAction::Read {table_name:"i",..}) {rusqlite::hooks::Authorization::Deny}
         else {rusqlite::hooks::Authorization::Allow}
     })).unwrap();
     let b = compile(&format!("{source}query one():\n  return 1\n"));
     e.adopt_at(b.schema.clone(),b.programs.clone(),3).unwrap();
-    (&e.store()).test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
+    e.store_mut().test_support_conn_mut().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
     let proof = (&e.store()).test_support_meta("index_keys_validated").unwrap();
     // Checking newly generated ordinary keys is required to carry that proof
     // forward, even when the core Schema API bypasses Quarry's static bound.

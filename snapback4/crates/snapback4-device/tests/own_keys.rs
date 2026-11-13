@@ -234,12 +234,12 @@ fn failed_partition_publication_keeps_absence_unavailable() {
     }
     let mut publish=stream_page(&mut e,"alice",pages.last().unwrap().watermark);
     publish.snapshot_catchup=true;
-    d.store().test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    d.store_mut().test_support_conn_mut().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
         AuthAction::Insert {table_name:"_meta"} => Authorization::Deny,
         _=>Authorization::Allow,
     }));
     assert!(d.apply(&publish,false).is_err());
-    d.store().test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    d.store_mut().test_support_conn_mut().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
     assert!(!d.sync_state().unwrap().acquired);
     assert!(d.query("own","alice",&json!({"post":"missing"}),10).is_err());
     d.apply(&publish,false).unwrap();
@@ -253,12 +253,12 @@ fn adoption_failure_never_publishes_an_empty_key_set() {
     e.seed([row("old","old","alice",1)]).unwrap();
     let old=e.generation();let before=e.schema().clone();
     let (_,b)=compile(SOURCE);
-    (e.store()).test_support_conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    e.store_mut().test_support_conn_mut().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
         _=>Authorization::Allow,
     }));
     assert!(e.adopt(b.schema.clone(),b.programs.clone()).is_err());
-    (e.store()).test_support_conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    e.store_mut().test_support_conn_mut().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
     assert_eq!(e.generation(),old);assert_eq!(e.schema(),&before);
     let count:i64=(e.store()).test_support_conn().query_row("select count(*) from _catalog where name='$ownKeys:likes'",[],|r|r.get(0)).unwrap();
     assert_eq!(count,0,"failed activation rolls back the projection and its catalog");

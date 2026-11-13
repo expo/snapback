@@ -120,6 +120,7 @@ pub struct Store {
     read_sessions: std::sync::Arc<ReadSessionStorage>,
     conn: Connection,
     cache_revision: cache_revision::Revision,
+    handlers: program_deadline::Handlers,
     /// Server stores own timed publication. Device stores receive only rows
     /// the server has already published and never consult this private ledger.
     server: bool,
@@ -158,6 +159,7 @@ impl Drop for Store {
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
     cache_revision: &'a cache_revision::Revision,
+    handlers: &'a program_deadline::Handlers,
     group_tail: group_tail::Tail,
     // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
     lifecycle: bool,
@@ -191,10 +193,10 @@ impl Store {
     pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> {
         let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         #[cfg(any(test, feature = "test-support"))]
-        trace_round_trips(&conn);
+        trace_round_trips(&mut conn)?;
         #[cfg(unix)]
         let file_identity = file_identity(&conn)?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let handlers = program_deadline::Handlers::install(&mut conn, program_deadline::DEFAULT_BUSY_TIMEOUT)?;
         let tx = conn.transaction()?;
         managed_relations::verify(&tx)?;
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
@@ -208,7 +210,7 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: cache_revision::Revision::new(&conn)?, read_sessions, conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: cache_revision::Revision::new(&mut conn)?, handlers, read_sessions, conn,
             server: false, ownership: None, cache_owned: false, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, campaign_assets: Default::default(), ephemeral_assets: false })
     }
 
@@ -261,11 +263,11 @@ impl Store {
             crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
                 .map_err(io)?;
         }
-        let conn = Connection::open(&real)?;
+        let mut conn = Connection::open(&real)?;
         // @ref LLP 3000.033#1.3 — even dropping a refused writable connection
         // must preserve committed WAL frames instead of checkpointing them.
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)?;
-        conn.busy_timeout(timeout)?;
+        let handlers = program_deadline::Handlers::install(&mut conn, timeout)?;
         // @ref LLP 3000.013#4-following-without-caps — published watermarks must survive a power loss.
         // Delivery publishes partition watermarks as well as replayable copies.
         // Losing an acknowledged background commit could rewind a device's
@@ -280,7 +282,7 @@ impl Store {
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().map(|dir| dir.join("assets")).unwrap_or_else(|| PathBuf::from("assets"));
-        let store = Self::prepare(conn, assets_dir, false, server)?;
+        let store = Self::prepare(conn, handlers, assets_dir, false, server)?;
         for suffix in ["-wal", "-shm", "-journal"] {
             crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
                 .map_err(io)?;
@@ -295,7 +297,9 @@ impl Store {
     }
     pub fn memory() -> Result<Self, RuntimeError> {
     let _profile = crate::replay_profile::span("replay.new_store");
-        Self::prepare(Connection::open_in_memory()?, Self::memory_assets_dir()?, true, true)
+        let mut conn = Connection::open_in_memory()?;
+        let handlers = program_deadline::Handlers::install(&mut conn, program_deadline::DEFAULT_BUSY_TIMEOUT)?;
+        Self::prepare(conn, handlers, Self::memory_assets_dir()?, true, true)
     }
 
     // @ref LLP 3000.023#12 — create server metadata at open, before reads can
@@ -318,10 +322,10 @@ impl Store {
         self.ephemeral_assets
     }
 
-    fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
-        let cache_revision = cache_revision::Revision::new(&conn)?;
+    fn prepare(mut conn: Connection, handlers: program_deadline::Handlers, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
+        let cache_revision = cache_revision::Revision::new(&mut conn)?;
         #[cfg(any(test, feature = "test-support"))]
-        trace_round_trips(&conn);
+        trace_round_trips(&mut conn)?;
         #[cfg(unix)]
         let file_identity = file_identity(&conn)?;
         // Our fixed indexed SQL should reuse its plan when keys or limits
@@ -362,7 +366,7 @@ impl Store {
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
         cache_revision.finish_if_active();
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision, read_sessions, conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision, handlers, read_sessions, conn,
             server,
             ownership: None, cache_owned: false, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, campaign_assets: Default::default(), ephemeral_assets, identity })
     }
@@ -461,7 +465,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -474,7 +478,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -488,7 +492,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -500,9 +504,9 @@ impl Store {
             .ok_or_else(|| {
                 RuntimeError::Store("an in-memory store has no independent reader".into())
             })?;
-        let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         #[cfg(any(test, feature = "test-support"))]
-        trace_round_trips(&conn);
+        trace_round_trips(&mut conn)?;
         // @ref LLP 3000.019#3.4 — detached readers must answer from the owned database, not a replacement at its path.
         // Compare after opening, before reading. Stat only: closing another raw
         // database descriptor would discard this process's SQLite POSIX locks.
@@ -514,11 +518,11 @@ impl Store {
         // planning policy before any statements are cached.
         // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let handlers = program_deadline::Handlers::install(&mut conn, program_deadline::DEFAULT_BUSY_TIMEOUT)?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
         if identity::present(&conn)? { self.read_sessions.publish(true); }
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: self.cache_revision.reader(), read_sessions: self.read_sessions.clone(), conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: self.cache_revision.reader(), handlers, read_sessions: self.read_sessions.clone(), conn,
             server: self.server,
             ownership: self.ownership.clone(), cache_owned: self.cache_owned, #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), campaign_assets: Default::default(), ephemeral_assets: false, identity: self.identity.clone() })
     }
@@ -565,7 +569,7 @@ impl Store {
     /// Set statement contention policy before host operation admission.
     // P1: map this host policy to Postgres connection admission.
     pub fn set_busy_timeout(&self, timeout: std::time::Duration) -> Result<(), RuntimeError> {
-        Ok(self.conn.busy_timeout(timeout)?)
+        self.handlers.set_timeout(timeout)
     }
 
     pub fn is_read_only(&self) -> Result<bool, RuntimeError> {
@@ -1482,15 +1486,15 @@ impl RuntimeError {
 
 // @ref LLP 3000.009.001.000.001#5 — keep test-only raw driver tracing inside the SQLite adapter.
 #[cfg(any(test, feature = "test-support"))]
-pub(crate) fn trace_round_trips(conn: &Connection) {
+pub(crate) fn trace_round_trips(conn: &mut Connection) -> rusqlite::Result<()> {
     conn.trace_v2(
         rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
-        Some(|event| {
+        Some(|event: rusqlite::trace::TraceEvent<'_>| {
             if matches!(event, rusqlite::trace::TraceEvent::Stmt(_, _)) {
                 crate::round_trips::sqlite_statement();
             }
         }),
-    );
+    )
 }
 
 #[cfg(test)]
@@ -1500,8 +1504,8 @@ mod round_trip_tests {
     #[cfg(feature = "sqlite")]
     #[test]
     fn driver_units_include_batches_and_error_rollback() {
-        let conn = rusqlite::Connection::open_in_memory().unwrap();
-        trace_round_trips(&conn);
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        trace_round_trips(&mut conn).unwrap();
         let scope = Scope::begin();
         conn.execute_batch("BEGIN; SELECT 1; SELECT 2; ROLLBACK;")
             .unwrap();

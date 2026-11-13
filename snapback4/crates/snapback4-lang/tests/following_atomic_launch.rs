@@ -137,7 +137,7 @@ fn copy_ceiling_and_release_permission_refuse_before_candidate_writes() {
     let mut e=engine(None,&bare()); seed(&mut e,1001,5001);
     let before=e.generation(); let b=bound(Q);
     let writes=std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w=writes.clone();
-    (e.store()).test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1,std::sync::atomic::Ordering::SeqCst); })).unwrap();
+    e.store_mut().test_support_conn_mut().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1,std::sync::atomic::Ordering::SeqCst); })).unwrap();
     let err=e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap_err();
     assert_eq!(err.code(),"E_TIMELINE_ACTIVATE"); assert!(err.to_string().contains("5002001"));
     assert!(err.to_string().contains("--allow-feed-adoption does not override this ceiling"));
@@ -162,7 +162,7 @@ fn aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_wr
     let generation = e.generation(); let seq = e.seq().unwrap();
     let sources: Vec<_> = ["posts", "reposts", "follows"].map(|table| (table, e.store().rows(table).unwrap())).into();
     let writes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w = writes.clone();
-    (e.store()).test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
+    e.store_mut().test_support_conn_mut().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
     // Test check first: sum -> max must fail without attempting six million copies.
     let preview = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
     let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
@@ -191,10 +191,10 @@ fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
     let (paused_tx, paused_rx) = mpsc::channel();
     let (resume_tx, resume_rx) = mpsc::channel();
     let writes = Arc::new(AtomicUsize::new(0)); let w = writes.clone();
-    (e.store()).test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, Ordering::SeqCst); })).unwrap();
+    e.store_mut().test_support_conn_mut().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, Ordering::SeqCst); })).unwrap();
     let begins = Arc::new(AtomicUsize::new(0)); let begin_count = begins.clone();
     let candidate_attempts = Arc::new(AtomicUsize::new(0)); let attempts = candidate_attempts.clone();
-    (e.store()).test_support_conn().authorizer(Some(move |ctx: AuthContext<'_>| {
+    e.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: AuthContext<'_>| {
         match ctx.action {
             // First BEGIN is the unlocked read-only estimate; its rollback
             // precedes this second BEGIN IMMEDIATE. Pause before SQLite executes
@@ -254,7 +254,7 @@ fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() 
     let p=path("isolation"); let mut e=engine(Some(&p),&bare()); seed(&mut e,3,1);
     let mut reader=e.reader().unwrap(); let old=e.generation();
     let checked=std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)); let check=checked.clone();
-    (e.store()).test_support_conn().commit_hook(Some(move || {
+    e.store_mut().test_support_conn_mut().commit_hook(Some(move || {
         let q=reader.query("exportPosts",Context::new("a",[("c".into(),Value::Null)].into())).unwrap();
         assert!(!q.unavailable); assert_eq!(q.data.as_array().unwrap().len(),3);
         let snapshot=reader.snapshot("a").unwrap();
@@ -265,7 +265,7 @@ fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() 
         assert_eq!(reader.generation(),old); check.store(true,std::sync::atomic::Ordering::SeqCst); false
     })).unwrap();
     adopt(&mut e,Q); assert!(checked.load(std::sync::atomic::Ordering::SeqCst));
-    (e.store()).test_support_conn().commit_hook(None::<fn()->bool>).unwrap();
+    e.store_mut().test_support_conn_mut().commit_hook(None::<fn()->bool>).unwrap();
     assert!(e.store().rows("posts").unwrap().iter().all(|r| r.field("$timeline:following:post").is_ok()));
     drop(e); std::fs::remove_dir_all(p.parent().unwrap()).unwrap();
 }
@@ -288,7 +288,7 @@ fn process_death_before_commit_preserves_predecessor_and_retry_succeeds() {
 #[ignore = "process-death child"]
 fn crash_before_launch_commit() {
     let mut e=Engine::open(Store::open(Path::new(&std::env::var("FA_ATOMIC_CRASH").unwrap())).unwrap()).unwrap();
-    (e.store()).test_support_conn().commit_hook(Some(|| { std::process::exit(73); })).unwrap(); adopt(&mut e,Q);
+    e.store_mut().test_support_conn_mut().commit_hook(Some(|| { std::process::exit(73); })).unwrap(); adopt(&mut e,Q);
     panic!("commit hook did not run");
 }
 

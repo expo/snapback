@@ -1339,6 +1339,10 @@ impl<S: DeviceStore> Device<S> {
     pub fn store(&self) -> &S {
         &self.store
     }
+
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.store
+    }
 }
 
 /// A scope tombstone's group: the prefix values, typed by the audience

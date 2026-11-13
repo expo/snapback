@@ -37,8 +37,8 @@ setInterval(()=>{},1000);
         assert_eq!(status(&host.request("POST","/q/who",&headers,"{}")),200);
         let delayed = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let manual = {
-            let engine = lock(&host.shared.engine);
-            (engine.store()).test_support_conn().busy_timeout(Duration::from_millis(5)).unwrap();
+            let mut engine = lock(&host.shared.engine);
+            engine.store().set_busy_timeout(Duration::from_millis(5)).unwrap();
             // Ordinary expiry must not be the reason the retired bearer fails.
             (engine.store()).test_support_conn().execute("UPDATE _sessions SET expires_at=expires_at+86400000 WHERE kind='service'",[]).unwrap();
             let manual = snapback4_core::identity::service_session(engine.store(),"manual",host.shared.now(),3).unwrap();
@@ -46,7 +46,7 @@ setInterval(()=>{},1000);
                 let delayed = delayed.clone();
                 // Delay only the first retirement turn, before SQLite reports
                 // the external writer lock. No product scheduling hook needed.
-                (engine.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+                engine.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                     if matches!(ctx.action, rusqlite::hooks::AuthAction::Delete { table_name: "_sessions" })
                         && !delayed.swap(true, Ordering::AcqRel) {
                         thread::sleep(retirement_delay);
@@ -179,7 +179,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let adoption = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
         let once = std::sync::atomic::AtomicBool::new(false);
-        (engine.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        engine.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(ctx.action, rusqlite::hooks::AuthAction::Insert { table_name: "i" }) && !once.swap(true, Ordering::SeqCst) {
                 held.park();
                 return rusqlite::hooks::Authorization::Deny;
@@ -191,7 +191,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
         let error = adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap_err();
         assert_eq!(error.refusal().code, "E_STORE");
         assert!(error.to_string().contains("not authorized"), "the held authorizer must cause the refusal: {error}");
-        (engine.store()).test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
+        engine.store_mut().test_support_conn_mut().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
     });
     wait_setup("adoption held at the authorizer", || gate.entered.load(Ordering::Acquire) == 1);
     std::fs::write(dir.0.join("exit"), "").unwrap();

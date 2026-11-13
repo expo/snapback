@@ -108,7 +108,7 @@ fn m7_to_m8() {
         let b=bound(true);
         let mut e=owner.lock().unwrap();
         let once=AtomicBool::new(false);
-        (e.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        e.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             // The identity SELECT has already pinned this BEGIN IMMEDIATE
             // transaction. Hold its first index read until the query finishes.
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Read {table_name:"i",..})
@@ -144,15 +144,15 @@ fn m7_to_m8() {
     drop(detached);
     // End a mutex loan before joining its writer.
     drop(held); adoption.join().unwrap();
-    if key_cost { measure_key_guards(&shared.lock().unwrap()); }
+    if key_cost { measure_key_guards(&mut shared.lock().unwrap()); }
 }
 
 // Replay the fixture's exact rebuilt keys with identical prepared INSERTs,
 // alternating guarded/unguarded runs. Every sample rolls back its index edits.
 // This measures per-insert trigger cost, separately from evaluation and fsync.
-fn measure_key_guards(engine: &Engine) {
+fn measure_key_guards(engine: &mut Engine) {
     use rusqlite::{config::DbConfig, params};
-    let conn = (engine.store()).test_support_conn();
+    let conn = engine.store_mut().test_support_conn_mut();
     conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
     conn.execute_batch("DROP TRIGGER collect_rebuilt_keys;").unwrap();
     let keys: Vec<(i64, Vec<u8>, String)> = conn.prepare("SELECT ti, k, id FROM rebuilt_keys ORDER BY rowid").unwrap()

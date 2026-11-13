@@ -35,7 +35,7 @@ fn scale_changes_waits_for_durable_adoption_while_query_and_sync_read() {
         let mut engine=lock(&shared.engine);
         lock(&shared.readers).begin_adoption(&candidate);
         let once=std::sync::atomic::AtomicBool::new(false);
-        (engine.store()).test_support_conn().authorizer(Some(move|ctx:rusqlite::hooks::AuthContext<'_>|{
+        engine.store_mut().test_support_conn_mut().authorizer(Some(move|ctx:rusqlite::hooks::AuthContext<'_>|{
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Read{table_name:"_meta",..}) && !once.swap(true,Ordering::SeqCst) {
                 entered.send(()).unwrap();resumed.recv_timeout(Duration::from_secs(10)).unwrap();
             }

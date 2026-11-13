@@ -54,8 +54,8 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
             let mut engine = lock(&shared.engine);
             lock(&shared.readers).begin_adoption(&candidate);
             let once = std::sync::atomic::AtomicBool::new(false);
-            (engine
-                .store()).test_support_conn()
+            engine
+                .store_mut().test_support_conn_mut()
                 .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
                     if matches!(
                         ctx.action,
@@ -74,8 +74,8 @@ fn adoption_keeps_queries_and_sync_readable_and_serializes_writes_once() {
                     candidate.programs.iter().map(|p| p.program.clone()),
                 )
                 .unwrap();
-            (engine
-                .store()).test_support_conn()
+            engine
+                .store_mut().test_support_conn_mut()
                 .authorizer(
                     None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>,
                 )
@@ -215,8 +215,8 @@ fn crash_during_adoption_child() {
         std::env::var("SNAPBACK4_ADOPTION_CRASH_DB").expect("spawn through restart witness"),
     );
     let mut engine = Engine::open(snapback4_core::Store::open(&path).unwrap()).unwrap();
-    (engine
-        .store()).test_support_conn()
+    engine
+        .store_mut().test_support_conn_mut()
         .authorizer(Some(|ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(
                 ctx.action,

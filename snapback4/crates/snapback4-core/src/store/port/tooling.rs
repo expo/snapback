@@ -64,9 +64,9 @@ impl AnyStore {
 impl AnyInspection {
     pub fn merged_records(&self, table: &str) -> InspectionResult<Vec<crate::Value>> { match self { Self::Sqlite(inner) => inner.merged_records(table), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
     pub fn begin_snapshot(&self) -> InspectionResult<()> { match self { Self::Sqlite(inner) => inner.begin_snapshot(), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
-    pub fn build_views(&self, schema: &Schema, ephemeral: impl FnMut(&str)) -> InspectionResult<()> { match self { Self::Sqlite(inner) => inner.build_views(schema, ephemeral), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
+    pub fn build_views(&mut self, schema: &Schema, ephemeral: impl FnMut(&str)) -> InspectionResult<()> { match self { Self::Sqlite(inner) => inner.build_views(schema, ephemeral), #[cfg(feature = "postgres")] Self::Postgres => Err(("E_STORE_UNSUPPORTED", RuntimeError::StoreUnsupported { family: "inspection" }.to_string())) } }
     pub fn build_retained_views(
-        &self,
+        &mut self,
         schema: &Schema,
         dormant: bool,
         all_releases: bool,

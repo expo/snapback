@@ -114,7 +114,7 @@ fn two_connections_advance_the_same_job_under_the_writer_fence() {
         .unwrap();
     tx.commit().unwrap();
     let mut second = Store::open(&path).unwrap();
-    second.conn().busy_handler(Some(busy)).unwrap();
+    second.test_support_conn_mut().busy_handler(Some(busy)).unwrap();
     BLOCKED.store(false, Ordering::SeqCst);
     let tx = first.transaction().unwrap();
     assert_eq!(cases::race_step(&tx), 0);
