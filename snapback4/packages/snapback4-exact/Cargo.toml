@@ -1,0 +1,58 @@
+# The Snapback4 client resolves its private sources here, outside exact2's
+# root lock. Apps depend on this crate by path.
+[workspace]
+members = ["client", "web"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+
+# Published Snapback4 0.4.53 release source; includes progressive-acquisition-v1.
+[workspace.dependencies]
+snapback4-core = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53", default-features = false }
+snapback4-device = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53", default-features = false }
+snapback4-lang = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53" }
+
+[patch.crates-io]
+taffy = { path = "../vendor/taffy" }
+
+[package]
+name = "exact-snapback4"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "App-scoped Snapback4 native device, behind Exact's data seam."
+
+[dependencies]
+exact-js = { path = "../js" }
+exact-plan = { path = "../plan" }
+exact-runner = { path = "../runner" }
+ibex2 = { path = "../vendor/ibex/crates/ibex2", default-features = false }
+exact-snapback4-client = { path = "client" }
+serde_json = "1"
+snapback4-device = { workspace = true, features = ["native"] }
+
+[dev-dependencies]
+snapback4-core = { workspace = true, features = ["sqlite", "native", "server-search"] }
+snapback4-lang.workspace = true
+
+# The web's wasm (web/build.mjs): size first, as Snapback builds its own.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
+strip = true
+
+# Build scripts and proc macros load as dylibs, and Xcode 27's strip leaves
+# them unloadable under a deployment target, which every Mac cargo call of
+# exact2's tooling carries (scripts/filesystem.mjs, withHostDeployment).
+# Nothing of theirs ships. Release strips debuginfo by default and `wasm`
+# strips all, inheriting this (the root's release.build-override, here).
+[profile.release.build-override]
+strip = false
