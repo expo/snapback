@@ -11,9 +11,9 @@ license = "MIT"
 
 # Published Snapback4 0.4.53 release source; includes progressive-acquisition-v1.
 [workspace.dependencies]
-snapback4-core = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53", default-features = false }
-snapback4-device = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53", default-features = false }
-snapback4-lang = { git = "https://github.com/expo/snapback.git", rev = "9da2c76fdf32b20f985c85fe6d33b507c09edd25", version = "=0.4.53" }
+snapback4-core = { git = "https://github.com/expo/snapback.git", rev = "fa535e227753a20becc32407223b091b4cbeefdc", version = "=0.4.53", default-features = false }
+snapback4-device = { git = "https://github.com/expo/snapback.git", rev = "fa535e227753a20becc32407223b091b4cbeefdc", version = "=0.4.53", default-features = false }
+snapback4-lang = { git = "https://github.com/expo/snapback.git", rev = "fa535e227753a20becc32407223b091b4cbeefdc", version = "=0.4.53" }
 
 [patch.crates-io]
 taffy = { path = "../vendor/taffy" }

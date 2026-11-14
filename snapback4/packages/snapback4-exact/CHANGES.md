@@ -25,14 +25,17 @@ for as long as the returned `SqliteFile` lives.
   `exact-js`, so the tests still configure roots. The path is exercised by an
   app on macOS and iOS.
 
-## Open: rusqlite 0.41 (not yet changed here)
+## 2. Pinned to the rusqlite 0.41 engine (expo/snapback#25)
 
 `expo/exact` `517a1bef88` (2026-11-12) moved to rusqlite 0.41.1 /
-libsqlite3-sys 0.39 for RUSTSEC-2026-0459 (bundled SQLite 3.53.2 can read
-uninitialized page-cache bytes on a WAL with a mismatched page size).
-snapback4 0.4.53 is on rusqlite 0.40.2, and both link `sqlite3`, so the
-adapter's native crate cannot resolve against latest Exact. rusqlite 0.41
-also requires `&mut Connection` to install busy, progress, authorizer, trace,
-preupdate and WAL hooks, and a `Transaction` gives only `&Connection`; the
-program deadline (`store/port/lifecycle.rs`, `store/program_deadline.rs`)
-installs its handlers inside a transaction.
+libsqlite3-sys 0.39 for RUSTSEC-2026-0459, and snapback4 0.4.53 was on
+rusqlite 0.40.2. Both link `sqlite3`, so the adapter's native crate could not
+resolve against latest Exact. expo/snapback#25 moves the engine to 0.41.1;
+the adapter's three engine crates are pinned to its commit `fa535e227`
+(still version 0.4.53) until it merges and a release carries it.
+
+Checked on `expo/exact` `c364ef7a67` with no local changes: the crate graph
+holds one `libsqlite3-sys` (0.39.1), the adapter's Rust tests pass (41) against
+a 0.4.53 server, its TypeScript driver tests pass (59, Bun 1.4.2), and an
+app's `snapback --rebuild` builds the web device. Re-pin to the release once
+one carries the change.
