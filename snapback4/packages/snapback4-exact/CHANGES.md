@@ -39,3 +39,23 @@ holds one `libsqlite3-sys` (0.39.1), the adapter's Rust tests pass (41) against
 a 0.4.53 server, its TypeScript driver tests pass (59, Bun 1.4.2), and an
 app's `snapback --rebuild` builds the web device. Re-pin to the release once
 one carries the change.
+
+## Found while building an app on it (not changed yet)
+
+- The README's online and password examples (`new Snapback({origin, auth})`,
+  `db.restore(now)`) no longer compile: the constructor is private in 0.4.53.
+  `Snapback.open({app, name, origin, storage, native, auth: {store, key, now}})`
+  restores a stored session and binds that account's partition; `signup`,
+  `login` and `logout` are methods on what it returns.
+- The README's native linking example passes `APP` and `GRANTS` to
+  `Module::new`; Exact now bakes them as `exact_apple::baked::Linked`, so an
+  app writes `Module::new(&APP, grants)` (the factory receives the grants).
+- Natively, any source that awaits a promise another answer created (a shared
+  partition's opening, a round in flight) continues as that answer; once it
+  has replied, the next device call fails with `native call outside an
+  answer`. Exact's agent-pitfalls note describes the fix (one snapshot
+  resource, `write` instead of `send`); the adapter could make the first
+  pattern safe by not sharing in-flight promises across answers.
+- A Rust native module in the data module's slot shadows the app's Swift
+  module and every Swift package for calls from TypeScript (Exact's
+  `Native::handler`). An app that needs both cannot ship both today.
