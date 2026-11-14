@@ -400,9 +400,9 @@ fn activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it() {
     .unwrap();
     e.seed_at([("children".into(), row)], 0).unwrap();
     let older = parent.replace("default 10", "default 20");
-    (&e.store()).test_support_conn().commit_hook(Some(|| true)).unwrap();
+    e.store_mut().test_support_conn_mut().commit_hook(Some(|| true)).unwrap();
     assert!(activate(&mut e, &older, 2).is_err());
-    (&e.store()).test_support_conn().commit_hook(None::<fn() -> bool>).unwrap();
+    e.store_mut().test_support_conn_mut().commit_hook(None::<fn() -> bool>).unwrap();
     assert_eq!(e.store().count("parents").unwrap(), 1);
     assert!(
         e.store_mut()

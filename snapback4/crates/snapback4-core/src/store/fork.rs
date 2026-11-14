@@ -5,6 +5,7 @@ impl Store {
     pub fn fork_memory(&self) -> Result<Self, RuntimeError> {
         let started = crate::replay_profile::start();
         let mut conn = Connection::open_in_memory()?;
+        let handlers = program_deadline::Handlers::install(&mut conn, program_deadline::DEFAULT_BUSY_TIMEOUT)?;
         let page_size=conn.query_row("PRAGMA page_size",[],|row|row.get::<_,i64>(0))? as u64;
         {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
@@ -13,11 +14,11 @@ impl Store {
         let copied = started.map(|t|t.elapsed().as_secs_f64());
         // @ref LLP 3000.036.004.000.000#fixture-construction — copy already-captured metadata without repeated discovery.
         #[cfg(any(test,feature="test-support"))]
-        trace_round_trips(&conn);
+        trace_round_trips(&mut conn)?;
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG,true)?;
         let read_sessions=std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&conn)?));
         let fork=Self {
-            cache_revision:cache_revision::Revision::new(&conn)?,cache_owned:false,
+            cache_revision:cache_revision::Revision::new(&mut conn)?,handlers,cache_owned:false,
             read_sessions,conn,server:self.server,ownership:None,
             #[cfg(unix)] file_identity:None,
             page_size,catalog:self.catalog.clone(),identity:self.identity.clone(),

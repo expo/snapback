@@ -29,7 +29,7 @@ fn literal_defaults_adopt_three_old_rows_without_writes_and_build_the_index() {
     assert_eq!(steps.iter().find(|s| s.path.ends_with(".tombstone")).unwrap().message, "column messages.tombstone is added with default false; rows written before it read false");
     let images = e.store().rows("messages").unwrap();
     let seq = e.seq().unwrap();
-    let writes = e.store().test_support_write_count("r", vec![], &["update"]);
+    let writes = e.store_mut().test_support_write_count("r", vec![], &["update"]);
     e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(writes.load(std::sync::atomic::Ordering::SeqCst), 0);
     assert_eq!(e.store().rows("messages").unwrap(), images);

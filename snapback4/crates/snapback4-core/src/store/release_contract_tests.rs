@@ -121,7 +121,7 @@ fn release_contract_sqlite_activation_race() {
         let race = Arc::new(test_race::FenceRace::sqlite());
         let other = race.clone();
         let thread = std::thread::spawn(move || {
-            other.install_sqlite_busy_handler((&peer.store()).test_support_conn());
+            other.install_sqlite_busy_handler(peer.store_mut().test_support_conn_mut());
             other.arm_activation(false);
             let (schema, programs) = test_cases::compile(3);
             peer.adopt_release_at(

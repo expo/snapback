@@ -35,8 +35,8 @@ fn inner_unknown_mint_through_queue_fences_the_orphan_before_replacement() {
         assert_eq!(status(&host.request("POST", "/q/who", &headers, "{}")), 401);
         assert!(!directory.0.join("ready").exists(), "unknown mint cannot launch a child");
         if !named {
-            host.shared.engine.call(|engine, _| engine.store().test_support_conn()
-                .busy_timeout(Duration::from_millis(5))).unwrap().unwrap();
+            host.shared.engine.call(|engine, _| engine.store()
+                .set_busy_timeout(Duration::from_millis(5))).unwrap().unwrap();
             let holder = rusqlite::Connection::open(directory.0.join("mint.sqlite")).unwrap();
             holder.execute_batch("BEGIN IMMEDIATE").unwrap();
             std::thread::sleep(Duration::from_millis(300));

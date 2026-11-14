@@ -5,11 +5,11 @@ use crate::RuntimeError;
 macro_rules! fixture_access {
     ($handle:ty, $wrapper:ident) => {
         impl $handle {
+            /// Never set the lock wait through this connection (`busy_timeout()`
+            /// or `PRAGMA busy_timeout = N`): it replaces the store's busy handler
+            /// and silently disables program deadlines. Use `set_busy_timeout`.
             pub fn test_support_conn(&self) -> &rusqlite::Connection {
                 match self { Self::Sqlite($wrapper(inner)) => inner.test_support_conn(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
-            }
-            pub fn test_support_write_count(&self, table: &str, columns: Vec<(i32, rusqlite::types::Value)>, actions: &[&str]) -> std::sync::Arc<std::sync::atomic::AtomicUsize> {
-                match self { Self::Sqlite($wrapper(inner)) => inner.test_support_write_count(table, columns, actions), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
             }
             pub fn test_support_meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
                 match self { Self::Sqlite($wrapper(inner)) => inner.test_support_meta(key), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "sqlite-fixture" }) }
@@ -22,6 +22,23 @@ macro_rules! fixture_access {
 }
 fixture_access!(AnyStore, SqliteStore);
 fixture_access!(AnyTx<'_>, SqliteTx);
+// Installing a SQLite callback needs the connection exclusively, so only an
+// owned store (never an open transaction) lends it.
+impl AnyStore {
+    /// See `Store::test_support_conn_mut`: a fixture busy handler replaces the
+    /// store's; a removed progress handler is reinstalled by the next
+    /// deadline-bound transaction.
+    pub fn test_support_conn_mut(&mut self) -> &mut rusqlite::Connection {
+        match self { Self::Sqlite(SqliteStore(inner)) => inner.test_support_conn_mut(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
+    }
+    /// The connection's ordinary lock wait, as `set_busy_timeout` left it.
+    pub fn test_support_busy_timeout(&self) -> std::time::Duration {
+        match self { Self::Sqlite(SqliteStore(inner)) => inner.test_support_busy_timeout(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
+    }
+    pub fn test_support_write_count(&mut self, table: &str, columns: Vec<(i32, rusqlite::types::Value)>, actions: &[&str]) -> std::sync::Arc<std::sync::atomic::AtomicUsize> {
+        match self { Self::Sqlite(SqliteStore(inner)) => inner.test_support_write_count(table, columns, actions), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
+    }
+}
 
 #[cfg(feature = "postgres")]
 impl AnyStore {

@@ -117,10 +117,10 @@ fn main() {
         )
     })
     .collect();
-    (engine.store()).test_support_conn().trace_v2(
+    engine.store_mut().test_support_conn_mut().trace_v2(
         TraceEventCodes::SQLITE_TRACE_PROFILE | TraceEventCodes::SQLITE_TRACE_STMT,
         Some(trace),
-    );
+    ).unwrap();
     let probes: Vec<Json> = match std::env::var("PF_PROBES_JSON") {
         Ok(path) => serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap(),
         Err(_) => vec![

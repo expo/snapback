@@ -313,9 +313,10 @@ impl<'store> AnyTx<'store> {
             .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
         match self {
             Self::Sqlite(SqliteTx(tx)) => {
-                let busy=sqlite::program_deadline::Budget::begin(tx.conn(),deadline)?;
-                tx.conn().progress_handler(1000, Some(move || std::time::Instant::now() >= deadline))?;
-                Ok(AttemptBudget(Some(Box::new(move || { let _ = tx.conn().progress_handler(0,None::<fn()->bool>); drop(busy); }))))
+                // arms handlers installed before BEGIN; a callback cannot be installed inside the transaction.
+                let busy=sqlite::program_deadline::Budget::begin(tx.deadline_handlers(),deadline)?;
+                let interrupt=tx.deadline_handlers().interrupt_at(deadline)?;
+                Ok(AttemptBudget(Some(Box::new(move || { drop(interrupt); drop(busy); }))))
             }
             #[cfg(feature="postgres")]
             Self::Postgres(PostgresTx(tx)) => { tx.bound_program_attempt(deadline)?; Ok(AttemptBudget(None)) }

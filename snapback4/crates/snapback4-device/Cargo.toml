@@ -32,7 +32,7 @@ js-sys = { version = "=0.3.104", optional = true }
 [dev-dependencies]
 snapback4-core = { path = "../snapback4-core", default-features = false, features = ["test-support"] }
 snapback4-lang = { path = "../snapback4-lang" }
-rusqlite = { version = "0.40.2", features = ["bundled", "trace", "hooks"] }
+rusqlite = { version = "0.41.1", features = ["bundled", "trace", "hooks"] }
 
 [build-dependencies]
 snapback4-core = { path = "../snapback4-core", default-features = false }

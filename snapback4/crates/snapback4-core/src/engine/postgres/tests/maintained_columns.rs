@@ -398,7 +398,7 @@ fn maintained_columns_sqlite_writers_observably_block() {
     let program=programs.iter().find(|p|p.name=="like").unwrap().clone();
     let peer_program=program.clone();let peer_schema=schema.clone();
     let join=std::thread::spawn(move || {
-        other.install_sqlite_busy_handler(contender.conn());
+        other.install_sqlite_busy_handler(contender.test_support_conn_mut());
         let tx=contender.transaction_with_begin_hook(true,||other.after_begin(false)).unwrap();
         let mut runner=Runner::new(&tx,&peer_schema,like("l2",id("a"),5,true),Meter::new(Ceilings::unbounded(),Cut::Abort),0);
         runner.run(&peer_program).unwrap();drop(runner);tx.commit().unwrap();

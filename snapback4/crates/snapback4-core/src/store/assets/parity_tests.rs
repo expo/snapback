@@ -134,7 +134,7 @@ fn race(cancel_first: bool) {
             let race = race.clone();
             std::thread::spawn(move || {
                 if n == 1 {
-                    race.install_sqlite_busy_handler(s.conn());
+                    race.install_sqlite_busy_handler(&mut s.conn);
                 }
                 let tx = s
                     .transaction_with_begin_hook(true, || race.after_begin(n == 0))

@@ -22,7 +22,7 @@ impl Hooks {
 // SQLite calls this only after the WAL commit is visible and FULL's sync has
 // completed. Callbacks on different connections can overlap; pending counts
 // prevent one writer from publishing another writer's in-flight revision.
-fn committed(wal: &rusqlite::hooks::Wal, frames: std::ffi::c_int) -> rusqlite::Result<()> {
+fn committed(wal: &mut rusqlite::hooks::Wal, frames: std::ffi::c_int) -> rusqlite::Result<()> {
     // SQLite invokes both hooks synchronously on the sqlite3_step caller's
     // thread. Our commit hook performs no SQL/reentrant calls, so its weak
     // thread-local handoff identifies this commit without unsafe driver access.
@@ -33,7 +33,7 @@ fn committed(wal: &rusqlite::hooks::Wal, frames: std::ffi::c_int) -> rusqlite::R
 
 pub(super) struct Revision { hooks: Arc<Hooks>, wal: bool }
 impl Revision {
-    pub fn new(conn: &Connection) -> Result<Self, RuntimeError> {
+    pub fn new(conn: &mut Connection) -> Result<Self, RuntimeError> {
         static FILES: OnceLock<Mutex<BTreeMap<PathBuf, Weak<Mutex<Stream>>>>> = OnceLock::new();
         let path = conn.path().filter(|s| !s.is_empty()).and_then(|s| std::fs::canonicalize(s).ok());
         let stream = if let Some(path) = path {
@@ -48,7 +48,7 @@ impl Revision {
         conn.commit_hook(Some(move || { before.begin(); false }))?;
         let rollback = hooks.clone();
         conn.rollback_hook(Some(move || { if rollback.active.load(Ordering::Acquire) { rollback.finish(false); } }))?;
-        conn.wal_hook(Some(committed));
+        conn.wal_hook(Some(committed))?;
         Ok(Self { hooks, wal })
     }
     pub fn finish_if_active(&self) {

@@ -57,7 +57,7 @@ const RAW_STORE_METHODS: &[&str] = &[
     "device_staged_put", "device_staged_delete", "device_staged_after",
     "device_staged_table_after", "device_staged_clear", "install_device",
     "install_device_checked", "install_device_checked_with", "install_device_checked_with_finish",
-    "put_loading_indexes", "test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
+    "put_loading_indexes", "test_support_conn", "test_support_conn_mut", "test_support_busy_timeout", "test_support_meta", "test_support_set_meta", "test_support_write_count",
     "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
     "install_checked", "install_open",
 ];
@@ -84,7 +84,7 @@ fn restricted_device_site(tokens: &[Token<'_>]) -> bool {
     // Generic trait spellings can also name a test fixture (e.g. Fixture::set_meta).
     // They retain normal test classification; explicit device methods never do.
     raw_store_site(tokens) && ![
-        "test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
+        "test_support_conn", "test_support_conn_mut", "test_support_busy_timeout", "test_support_meta", "test_support_set_meta", "test_support_write_count",
         "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
     ].iter().any(|method| starts(tokens, &[".", method]) || starts(tokens, &[":", ":", method]))
 }
@@ -472,7 +472,7 @@ fn raw_device_and_fixture_access_cannot_reopen_the_host_port() {
             format!("store\n . /* boundary */ {method}\n (key);"),
         ] {
             assert_eq!(count_source(&source, false), (1, 0), "{source}");
-            let fixture_or_trait = ["test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
+            let fixture_or_trait = ["test_support_conn", "test_support_conn_mut", "test_support_busy_timeout", "test_support_meta", "test_support_set_meta", "test_support_write_count",
                 "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows"].contains(method);
             assert_eq!(count_source(&source, true), if fixture_or_trait { (0, 1) } else { (1, 0) }, "{source}");
             for path in [

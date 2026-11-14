@@ -447,7 +447,7 @@ fn check_and_runtime_refuse_the_copy_ceiling_and_owned_name_reuse() {
         let preview = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
         let generation = e.generation();
         let writes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w = writes.clone();
-        (e.store()).test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
+        e.store_mut().test_support_conn_mut().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
         let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
         assert_eq!(preview.to_string(), error.to_string());
         assert_eq!(e.generation(), generation);

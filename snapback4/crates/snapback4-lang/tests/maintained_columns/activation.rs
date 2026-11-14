@@ -1,7 +1,7 @@
 use super::*;
 use snapback4_core::{engine::LoadMode, schema::{ColumnDefault, ColumnType}, successor::{Change, classify, keeps_literal_default_images}, value::object};
 
-fn watch_parent(store: &snapback4_core::store_port::AnyStore, id: Option<&str>, actions: &[&str]) -> std::sync::Arc<std::sync::atomic::AtomicUsize> {
+fn watch_parent(store: &mut snapback4_core::store_port::AnyStore, id: Option<&str>, actions: &[&str]) -> std::sync::Arc<std::sync::atomic::AtomicUsize> {
     let table: i64 = store.test_support_conn().query_row("SELECT num FROM _catalog WHERE name='posts'", [], |r| r.get(0)).unwrap();
     let mut columns = vec![(0, table.into())];
     if let Some(id) = id { columns.push((1, id.to_string().into())); }
@@ -38,8 +38,8 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
         post(&mut e, "p", 17); post(&mut e, "zero", 19);
         if nonzero { like(&mut e, "l", id("p"), true, 7); }
         // Assert at SQLite's row adapter, including REPLACE's insert path.
-        let writes = if check_zero { watch_parent(e.store(), Some("zero"), &["insert", "update", "delete"]) }
-            else { watch_parent(e.store(), None, &["insert", "delete"]) };
+        let writes = if check_zero { watch_parent(e.store_mut(), Some("zero"), &["insert", "update", "delete"]) }
+            else { watch_parent(e.store_mut(), None, &["insert", "delete"]) };
         let from = e.seq().unwrap();
         adopt(&mut e, &MODEL.replace("  online only", "  sync public"));
         no_events(&mut e, from);
@@ -64,7 +64,7 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
 fn redefinition_zero_removal_and_readdition_preserve_other_fields() {
     let mut e = engine(&MODEL.replace("  online only", "  sync public"));
     post(&mut e, "p", 17); like(&mut e, "l", id("p"), true, 7);
-    let writes = watch_parent(e.store(), None, &["delete", "insert"]);
+    let writes = watch_parent(e.store_mut(), None, &["delete", "insert"]);
     let target = e.schema().maintains.iter().find(|m|m.private.as_ref().unwrap().column == "likeCount").unwrap().target.clone();
     let from = e.seq().unwrap();
     adopt(&mut e, &MODEL.replace("count likes by postId", "count likes where .active = false by postId").replace("  online only", "  sync public"));
@@ -123,7 +123,7 @@ fn expired_parent_skipped_on_activation_then_swept_and_recreated_right() {
     e.load_mode([("posts".into(),object([("id",id("p")),("at",Value::Int(1)),("expiresAt",Value::Int(1))]))],LoadMode::Restore).unwrap();
     like(&mut e,"l",id("p"),true,4);
     post(&mut e,"live",2); like(&mut e,"live-like",id("live"),true,5);
-    let writes = watch_parent(e.store(), Some("p"), &["insert", "update", "delete"]);
+    let writes = watch_parent(e.store_mut(), Some("p"), &["insert", "update", "delete"]);
     let b = compile(&after);
     e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 1000).unwrap();
     let rows = e.store().rows("posts").unwrap();
@@ -159,11 +159,11 @@ fn activation_uses_host_clock_on_both_sides_of_parent_expiry() {
             let writes;
             if reopen {
                 drop(e);
-                let store: snapback4_core::store_port::AnyStore = snapback4_core::Store::open(&path).unwrap().into();
-                writes = watch_parent(&store, Some("p"), &["insert", "update", "delete"]);
+                let mut store: snapback4_core::store_port::AnyStore = snapback4_core::Store::open(&path).unwrap().into();
+                writes = watch_parent(&mut store, Some("p"), &["insert", "update", "delete"]);
                 e = Engine::new_at(store, b.schema, b.programs.into_iter().map(|p| p.program), host).unwrap();
             } else {
-                writes = watch_parent(e.store(), Some("p"), &["insert", "update", "delete"]);
+                writes = watch_parent(e.store_mut(), Some("p"), &["insert", "update", "delete"]);
                 e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), host).unwrap();
             }
             let stored = e.store().rows("posts").unwrap().remove(0);

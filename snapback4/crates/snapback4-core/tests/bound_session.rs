@@ -330,7 +330,7 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
         }
 
         let mut blocked = Store::open(&path).unwrap();
-        (&blocked).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+        blocked.test_support_conn_mut().busy_handler(Some(witness_writer_blocked)).unwrap();
         let mut blocker = Store::open(&path).unwrap();
         let held_writer = blocker.transaction().unwrap();
         let clock = Arc::new(AtomicI64::new(9));
@@ -367,7 +367,7 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
     let session = identity::custom_session(&store, "member:logout-clock", "member", 0, 1).unwrap();
     (&store).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&session.token)]).unwrap();
     let mut blocked = Store::open(&path).unwrap();
-    (&blocked).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+    blocked.test_support_conn_mut().busy_handler(Some(witness_writer_blocked)).unwrap();
     let mut blocker = Store::open(&path).unwrap();
     let held_writer = blocker.transaction().unwrap();
     let clock = Arc::new(AtomicI64::new(9));

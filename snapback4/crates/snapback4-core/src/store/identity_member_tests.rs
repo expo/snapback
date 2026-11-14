@@ -22,11 +22,11 @@ fn count(store: &AnyStore, table: &str) -> i64 {
         .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
         .unwrap()
 }
-fn endings(store: &AnyStore) -> Arc<Mutex<Vec<&'static str>>> {
+fn endings(store: &mut AnyStore) -> Arc<Mutex<Vec<&'static str>>> {
     let events = Arc::new(Mutex::new(Vec::new()));
     let observed = events.clone();
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .authorizer(Some(move |ctx: AuthContext<'_>| {
             if let AuthAction::Transaction { operation } = ctx.action {
                 match operation {
@@ -40,7 +40,7 @@ fn endings(store: &AnyStore) -> Arc<Mutex<Vec<&'static str>>> {
         .unwrap();
     let committed = events.clone();
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .commit_hook(Some(move || {
             committed.lock().unwrap().push("commit");
             false
@@ -116,13 +116,13 @@ fn atomic_mint_and_refresh_undo_sweeps_and_replacement_on_failure() {
 
 #[test]
 fn empty_full_refresh_commits_cleanup_but_read_refresh_aborts_without_sweeping() {
-    let store = AnyStore::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     let read =
         identity::guest_scoped(&store, 1, &mut Default::default(), SessionScope::Read).unwrap();
     store
         .insert_identity_session_atomic(&session("member:expired", "expired", 2), 1)
         .unwrap();
-    let events = endings(&store);
+    let events = endings(&mut store);
     assert!(
         !store
             .replace_full_session(
@@ -149,14 +149,14 @@ fn empty_full_refresh_commits_cleanup_but_read_refresh_aborts_without_sweeping()
 
 #[test]
 fn physical_commit_failure_does_not_acknowledge_a_session() {
-    let store = AnyStore::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .commit_hook(Some(|| true))
         .unwrap();
     assert!(identity::guest(&store, 1, &mut Default::default()).is_err());
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .commit_hook(None::<fn() -> bool>)
         .unwrap();
     assert_eq!(count(&store, "_sessions"), 0);
@@ -170,7 +170,7 @@ fn logout_samples_time_inside_the_immediate_member_and_keeps_family_semantics() 
     let rotated = identity::rotate_session(&store, &original.token, 2)
         .unwrap()
         .unwrap();
-    let events = endings(&store);
+    let events = endings(&mut store);
     identity::logout_session(&mut store, &rotated.token, || {
         assert_eq!(events.lock().unwrap().last(), Some(&"begin"));
         3
@@ -188,9 +188,9 @@ fn logout_samples_time_inside_the_immediate_member_and_keeps_family_semantics() 
 
 #[test]
 fn convenience_read_mint_keeps_lazy_storage_after_a_failed_insert() {
-    let store = AnyStore::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .authorizer(Some(|ctx: AuthContext<'_>| match ctx.action {
             AuthAction::Insert {
                 table_name: "_read_sessions",
@@ -203,7 +203,7 @@ fn convenience_read_mint_keeps_lazy_storage_after_a_failed_insert() {
     read.cap_expires_at = Some(100);
     assert!(store.insert_identity_session(&read, 1).is_err());
     store
-        .test_support_conn()
+        .test_support_conn_mut()
         .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)
         .unwrap();
     assert_eq!(count(&store, "_principals"), 1);

@@ -113,7 +113,7 @@ fn queued_narrow_samples_authority_after_writer_lock() {
         }
         let (entered, waiting) = std::sync::mpsc::channel();
         *WAITING.lock().unwrap()=Some(entered);
-        (&store).test_support_conn().busy_handler(Some(busy)).unwrap();
+        store.test_support_conn_mut().busy_handler(Some(busy)).unwrap();
         let clock=std::sync::Arc::new(std::sync::atomic::AtomicI64::new(1));
         let worker_clock=clock.clone();
         let token = parent.token.clone();

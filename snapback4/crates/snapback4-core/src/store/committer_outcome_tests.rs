@@ -125,10 +125,9 @@ fn sqlite_deadline_fixture(bytes: usize) -> (AnyStore, std::path::PathBuf, std::
     std::fs::create_dir(&directory).unwrap();
     let path = directory.join("deadline.sqlite");
     let store = AnyStore::open(&path).unwrap();
-    store
-        .test_support_conn()
-        .busy_timeout(Duration::from_millis(1234))
-        .unwrap();
+    // The store's own contention policy: a raw busy_timeout would replace the
+    // connection's deadline-aware busy handler.
+    store.set_busy_timeout(Duration::from_millis(1234)).unwrap();
     store.test_support_conn().execute_batch(&format!("PRAGMA journal_mode=DELETE; PRAGMA cache_size=1; PRAGMA cache_spill=1; CREATE TABLE deadline_data(id INTEGER PRIMARY KEY,value BLOB); INSERT INTO deadline_data VALUES(1,zeroblob({bytes}))")).unwrap();
     assert_eq!(
         store
@@ -161,10 +160,7 @@ fn sqlite_fallback_begin_obeys_deadline_and_restores_contention_policy() {
     )
     .is_err();
     let elapsed = started.elapsed();
-    let restored = store
-        .test_support_conn()
-        .query_row("PRAGMA busy_timeout", [], |row| row.get::<_, i64>(0))
-        .unwrap();
+    let restored = store.test_support_busy_timeout();
     let normal = Instant::now();
     Committer::open_program(&mut store, None, "alice", None)
         .unwrap()
@@ -180,7 +176,7 @@ fn sqlite_fallback_begin_obeys_deadline_and_restores_contention_policy() {
         elapsed < Duration::from_millis(300),
         "remaining deadline overrun: {elapsed:?}"
     );
-    assert_eq!(restored, 1234);
+    assert_eq!(restored, Duration::from_millis(1234));
     assert!(
         ordinary_wait > Duration::from_millis(100),
         "negative control must encounter the held lock: {ordinary_wait:?}"
@@ -226,10 +222,7 @@ fn sqlite_fallback_page_spill_obeys_deadline_and_restores_contention_policy() {
         },
     );
     let elapsed = started.elapsed();
-    let restored = store
-        .test_support_conn()
-        .query_row("PRAGMA busy_timeout", [], |row| row.get::<_, i64>(0))
-        .unwrap();
+    let restored = store.test_support_busy_timeout();
     let normal = Instant::now();
     store
         .test_support_conn()
@@ -247,7 +240,7 @@ fn sqlite_fallback_page_spill_obeys_deadline_and_restores_contention_policy() {
         elapsed < Duration::from_millis(300),
         "remaining deadline overrun: {elapsed:?}"
     );
-    assert_eq!(restored, 1234);
+    assert_eq!(restored, Duration::from_millis(1234));
     assert!(
         ordinary_wait > Duration::from_millis(100),
         "negative control must encounter the held reader: {ordinary_wait:?}"

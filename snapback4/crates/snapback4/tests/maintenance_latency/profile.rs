@@ -30,7 +30,7 @@ fn following_commit_cost() {
                 assert!(matches!(result.state, WriteState::Sent { .. }));
                 while engine.run_timeline_chunk_for(3, Duration::MAX).unwrap().is_some() {}
             }
-            (engine.store()).test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE, Some(trace));
+            engine.store_mut().test_support_conn_mut().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE, Some(trace)).unwrap();
             for budget in [Duration::MAX, Duration::from_millis(1), Duration::from_millis(2)] {
                 let result = engine.mutate("post", None, Context::new("dev:big", [("postId".into(), Value::Id(format!("profile-{budget:?}"))), ("parentId".into(), Value::Null)].into()).at(4)).unwrap();
                 assert!(matches!(result.state, WriteState::Sent { .. }));

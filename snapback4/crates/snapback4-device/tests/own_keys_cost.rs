@@ -164,12 +164,12 @@ fn costs() {
             let mut replicas=vec![];
             for viewer in ["empty","prolific"] {replicas.push(replica(&mut e,&backend,&dir.join(format!("{viewer}.sqlite")),viewer));}
             let mut times=vec![];let mut meters=vec![];let before_writes=stats((&e.store()).test_support_conn());let seq=e.seq().unwrap();
-            LOCK.with_borrow_mut(|x|{x.0=None;x.1.clear();});(&e.store()).test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT|TraceEventCodes::SQLITE_TRACE_PROFILE,Some(trace));
+            LOCK.with_borrow_mut(|x|{x.0=None;x.1.clear();});e.store_mut().test_support_conn_mut().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT|TraceEventCodes::SQLITE_TRACE_PROFILE,Some(trace)).unwrap();
             for i in 0..100 {for op in ["add","remove"] {
                 let t=Instant::now();let out=e.mutate(op,None,Context::new("prolific",[("post".into(),Value::Id(format!("bench{i}")))].into()).at(3_000_000)).unwrap();times.push(t.elapsed().as_secs_f64()*1000.0);
                 assert!(matches!(out.state,WriteState::Sent {..}),"{out:?}");meters.push(serde_json::to_value(&out.metered).unwrap());
             }}
-            (&e.store()).test_support_conn().trace_v2(TraceEventCodes::empty(),None);let locks=LOCK.with_borrow_mut(|x|std::mem::take(&mut x.1));
+            e.store_mut().test_support_conn_mut().trace_v2(TraceEventCodes::empty(),None::<fn(TraceEvent<'_>)>).unwrap();let locks=LOCK.with_borrow_mut(|x|std::mem::take(&mut x.1));
             let after_writes=stats((&e.store()).test_support_conn());
             let partitions:i64=(&e.store()).test_support_conn().query_row("select count(distinct partition) from _log where seq>?1",[seq as i64],|r|r.get(0)).unwrap();
             let result=json!({"keys":n,"mode":mode,"adoptionMs":adoption,"sourceBackfill":e.store().adoption_report().views.iter().map(|v|json!({"name":v.name,"rows":v.rows,"ms":v.elapsed.as_secs_f64()*1000.0})).collect::<Vec<_>>(),

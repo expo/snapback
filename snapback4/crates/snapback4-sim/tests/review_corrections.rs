@@ -184,7 +184,7 @@ fn program_only_activation_does_not_walk_or_rebuild_unchanged_maintains() {
     let source="table items:\n  group: text <=10\n  value: int\n  read <- allow\nmaintain sums: sum items of value by group\n  read <- allow\nquery q():\n  return 1\n";
     let mut e=engine(source);seed(&mut e,"items",serde_json::json!([{"id":"a","group":"g","value":3}]));
     let seq=e.seq().unwrap();let generation=e.generation();
-    let writes = e.store().test_support_write_count("r", vec![], &["delete", "insert"]);
+    let writes = e.store_mut().test_support_write_count("r", vec![], &["delete", "insert"]);
     adopt(&mut e,&source.replace("return 1","return 2")).unwrap();
     assert_eq!(writes.load(std::sync::atomic::Ordering::SeqCst), 0);
     assert_eq!(e.seq().unwrap(),seq);assert_eq!(e.generation(),generation+1);assert_eq!(e.query("q",ctx()).unwrap().data,Value::Int(2));

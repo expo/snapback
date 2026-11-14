@@ -390,7 +390,7 @@ mod tests {
             .map(|(n, mut store)| {
                 let order = order.clone();
                 std::thread::spawn(move || {
-                    if n != 0 { order.install_sqlite_busy_handler(store.conn()); }
+                    if n != 0 { order.install_sqlite_busy_handler(&mut store.conn); }
                     let tx = store
                         .transaction_with_begin_hook(true, || order.after_begin(n == 0))
                         .unwrap();
@@ -431,7 +431,7 @@ mod tests {
                     let token = session.token.clone();
                     std::thread::spawn(move || {
                         let first = n == 0;
-                        if !first { order.install_sqlite_busy_handler(store.conn()); }
+                        if !first { order.install_sqlite_busy_handler(&mut store.conn); }
                         let tx = store
                             .transaction_with_begin_hook(true, || order.after_begin(first))
                             .unwrap();

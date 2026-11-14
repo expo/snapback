@@ -13,21 +13,21 @@ fn report_without_row_reads(device: &mut Device) -> Json {
     use rusqlite::{hooks::{AuthAction, AuthContext, Authorization}, trace::{TraceEvent, TraceEventCodes}, StatementStatus};
     let row_reads = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let captured = row_reads.clone();
-    device.store().test_support_conn().authorizer(Some(move |ctx: AuthContext<'_>| {
+    device.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: AuthContext<'_>| {
         if let AuthAction::Read { table_name: "r", column_name } = ctx.action {
             captured.lock().unwrap().push(column_name.to_owned());
         }
         Authorization::Allow
     })).unwrap();
     STATEMENTS.with(|statements| statements.borrow_mut().clear());
-    device.store().test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_PROFILE, Some(|event| {
+    device.store_mut().test_support_conn_mut().trace_v2(TraceEventCodes::SQLITE_TRACE_PROFILE, Some(|event: TraceEvent<'_>| {
         if let TraceEvent::Profile(statement, _) = event {
             STATEMENTS.with(|statements| statements.borrow_mut().push((statement.sql().into_owned(), statement.get_status(StatementStatus::FullscanStep))));
         }
-    }));
+    })).unwrap();
     let measured = report(device);
-    device.store().test_support_conn().trace_v2(TraceEventCodes::empty(), None);
-    device.store().test_support_conn().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
+    device.store_mut().test_support_conn_mut().trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>).unwrap();
+    device.store_mut().test_support_conn_mut().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
     let statements = STATEMENTS.with(|statements| std::mem::take(&mut *statements.borrow_mut()));
     println!("residency statements: {statements:?}");
     assert!(!statements.is_empty(), "the real read must be traced");

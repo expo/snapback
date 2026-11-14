@@ -574,7 +574,7 @@ mod tests {
     fn refusal_rolls_back(refusal: test_cases::RotationRefusal) {
         use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
         use std::sync::{Arc, Mutex};
-        let store = Store::memory().unwrap();
+        let mut store = Store::memory().unwrap();
         let endings = Arc::new(Mutex::new(Vec::new()));
         let observed = endings.clone();
         store.conn.authorizer(Some(move |ctx: AuthContext<'_>| {
@@ -644,7 +644,7 @@ impl Store {
         let tx = rusqlite::Transaction::new_unchecked(&self.conn, if immediate {
             rusqlite::TransactionBehavior::Immediate
         } else { rusqlite::TransactionBehavior::Deferred })?;
-        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: self.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(),
+        Ok(Tx { cache_revision: &self.cache_revision, handlers: &self.handlers, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: self.read_sessions.present(), read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(),
             tx, page_size: self.page_size, server: self.server, catalog: &self.catalog })
     }
 }

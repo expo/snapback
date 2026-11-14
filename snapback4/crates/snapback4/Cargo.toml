@@ -41,7 +41,7 @@ mimalloc = { version = "=0.1.52", features = ["secure", "override"] }
 
 [dev-dependencies]
 snapback4-core = { path = "../snapback4-core", default-features = false, features = ["test-support"] }
-rusqlite = { version = "0.40.2", features = ["bundled", "hooks", "trace"] }
+rusqlite = { version = "0.41.1", features = ["bundled", "hooks", "trace"] }
 
 [[example]]
 name = "pf_scale_probe"

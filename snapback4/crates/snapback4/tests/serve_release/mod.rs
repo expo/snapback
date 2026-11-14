@@ -97,8 +97,8 @@ fn hot_release_pinned_old_read_finishes_and_unpinned_reader_is_fenced() {
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
     let once = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    (pinned
-        .store()).test_support_conn()
+    pinned
+        .store_mut().test_support_conn_mut()
         .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(
                 ctx.action,
@@ -161,16 +161,16 @@ fn failed_hot_commit_keeps_runtime_and_retry_cleans_prepared_pointer() {
         None,
         0,
     );
-    (lock(&host.shared.engine)
-        .store()).test_support_conn()
+    lock(&host.shared.engine)
+        .store_mut().test_support_conn_mut()
         .commit_hook(Some(|| true))
         .unwrap();
     let failure = release::apply(&host.shared, &directory.0, command.clone()).unwrap_err();
     assert!(failure.contains("E_STORE"), "{failure}");
     {
-        let engine = lock(&host.shared.engine);
-        (engine
-            .store()).test_support_conn()
+        let mut engine = lock(&host.shared.engine);
+        engine
+            .store_mut().test_support_conn_mut()
             .commit_hook(None::<fn() -> bool>)
             .unwrap();
         assert_eq!(engine.generation(), 1);
@@ -310,8 +310,8 @@ fn post_commit_pointer_failure_keeps_new_runtime_and_database_recovery() {
     );
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
-    (lock(&host.shared.engine)
-        .store()).test_support_conn()
+    lock(&host.shared.engine)
+        .store_mut().test_support_conn_mut()
         .commit_hook(Some(move || {
             entered.send(()).unwrap();
             resumed.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -326,9 +326,9 @@ fn post_commit_pointer_failure_keeps_new_runtime_and_database_recovery() {
     resume.send(()).unwrap();
     let error = task.join().unwrap().unwrap_err();
     assert!(error.contains("committed in database"), "{error}");
-    let engine = lock(&host.shared.engine);
-    (engine
-        .store()).test_support_conn()
+    let mut engine = lock(&host.shared.engine);
+    engine
+        .store_mut().test_support_conn_mut()
         .commit_hook(None::<fn() -> bool>)
         .unwrap();
     assert_eq!(engine.generation(), 2);
@@ -376,8 +376,8 @@ fn concurrent_release_commands_share_cas_and_queued_write_uses_committed_generat
     );
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
-    (lock(&host.shared.engine)
-        .store()).test_support_conn()
+    lock(&host.shared.engine)
+        .store_mut().test_support_conn_mut()
         .commit_hook(Some(move || {
             entered.send(()).unwrap();
             resumed.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -394,8 +394,8 @@ fn concurrent_release_commands_share_cas_and_queued_write_uses_committed_generat
     let shared = host.shared.clone();
     let writer = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
-        (engine
-            .store()).test_support_conn()
+        engine
+            .store_mut().test_support_conn_mut()
             .commit_hook(None::<fn() -> bool>)
             .unwrap();
         let generation = engine.generation();

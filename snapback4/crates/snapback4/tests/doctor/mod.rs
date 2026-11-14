@@ -18,7 +18,7 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
     let mut writer = Engine::new(Store::open(&path.join("store.sqlite")).unwrap(), Default::default(), []).unwrap();
     (writer.store()).test_support_conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at) VALUES ('push',1,'push','null','queued',0,100,200); INSERT INTO _effect_presence(principal,id,deadline) VALUES ('alice','push',200);").unwrap();
     (writer.store()).test_support_set_meta("dev:suppressed-effects", "7").unwrap();
-    let reader = Engine::open(Store::open_read_only(&path.join("store.sqlite")).unwrap()).unwrap();
+    let mut reader = Engine::open(Store::open_read_only(&path.join("store.sqlite")).unwrap()).unwrap();
     let EffectHealth { counts, deferred } = reader.effect_health(100).unwrap();
     assert_eq!(counts["queued"], 1); assert_eq!(counts["suppressed"], 7);
     assert_eq!(deferred.unwrap(), (1, Some(200)));
@@ -30,7 +30,7 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
         finish.send(runs.len()).unwrap();
     });
     let fired = Arc::new(AtomicBool::new(false)); let observed = fired.clone();
-    (reader.store()).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+    reader.store_mut().test_support_conn_mut().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
         if matches!(ctx.action, rusqlite::hooks::AuthAction::Read { table_name: "_effect_presence", .. }) && !observed.swap(true, Ordering::SeqCst) {
             claim.send(()).unwrap();
             assert_eq!(claimed.recv_timeout(std::time::Duration::from_secs(10)).unwrap(), 1);

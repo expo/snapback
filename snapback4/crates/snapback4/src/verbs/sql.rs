@@ -46,7 +46,7 @@ fn inspect(options: &Options) -> Result<()> {
         None => project_or_exit().store_path(),
     };
     // @ref LLP 3000.007#8 — developer SQL is read-only, never rule-filtered
-    let conn = AnyInspection::open(&path).map_err(|error| {
+    let mut conn = AnyInspection::open(&path).map_err(|error| {
         let (code, message) = error;
         (code, format!("{message}{}", store_hint(&path, options)))
     })?;
